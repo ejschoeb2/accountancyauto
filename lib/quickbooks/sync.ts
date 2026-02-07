@@ -92,6 +92,20 @@ export async function syncClients(): Promise<SyncResult> {
       };
     }
 
+    // Update last_synced_at timestamp on oauth_tokens
+    const { error: syncTimestampError } = await supabase
+      .from("oauth_tokens")
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq("provider", "quickbooks");
+
+    if (syncTimestampError) {
+      console.error(
+        "Failed to update last_synced_at:",
+        syncTimestampError.message
+      );
+      // Don't fail the sync — the client upsert already succeeded
+    }
+
     return { success: true, count: clientsToUpsert.length };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

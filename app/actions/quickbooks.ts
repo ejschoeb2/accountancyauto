@@ -64,23 +64,34 @@ export async function syncClientsAction(): Promise<SyncResult> {
 export interface ConnectionStatus {
   connected: boolean;
   realmId?: string;
+  lastSyncTime?: string;
 }
 
 /**
  * Check if QuickBooks connection exists (tokens stored).
  * Does NOT attempt to refresh — that happens lazily on actual API calls.
+ * Returns last sync time if available.
  */
 export async function getConnectionStatus(): Promise<ConnectionStatus> {
-  const tokenManager = new TokenManager();
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const supabase = createAdminClient();
 
   try {
-    const tokens = await tokenManager.getStoredTokens();
+    const { data, error } = await supabase
+      .from("oauth_tokens")
+      .select("realm_id, last_synced_at")
+      .eq("provider", "quickbooks")
+      .single();
 
-    if (!tokens) {
+    if (error || !data) {
       return { connected: false };
     }
 
-    return { connected: true, realmId: tokens.realm_id };
+    return {
+      connected: true,
+      realmId: data.realm_id,
+      lastSyncTime: data.last_synced_at ?? undefined,
+    };
   } catch {
     return { connected: false };
   }
