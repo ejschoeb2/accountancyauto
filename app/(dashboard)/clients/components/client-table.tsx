@@ -40,6 +40,8 @@ import { Button } from "@/components/ui/button";
 import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { BulkEditModal } from "./bulk-edit-modal";
+import { CsvImportButton } from "./csv-import-button";
+import { CsvImportDialog } from "./csv-import-dialog";
 import {
   type Client,
   type BulkUpdateFields,
@@ -75,6 +77,7 @@ export function ClientTable({ initialData }: ClientTableProps) {
   const [clientTypeFilter, setClientTypeFilter] = useState<string>("all");
   const [vatStatusFilter, setVatStatusFilter] = useState<string>("all");
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Filter data based on dropdown filters
@@ -153,6 +156,12 @@ export function ClientTable({ initialData }: ClientTableProps) {
     },
     [selectedClients, data]
   );
+
+  // Handle CSV import complete - refresh data
+  const handleImportComplete = useCallback(() => {
+    // Refresh page data by reloading - server component will refetch
+    window.location.reload();
+  }, []);
 
   // Define columns
   const columns = useMemo<ColumnDef<Client>[]>(
@@ -401,6 +410,11 @@ export function ClientTable({ initialData }: ClientTableProps) {
             Clear filters
           </Button>
         )}
+
+        {/* CSV Import */}
+        <div className="sm:ml-auto">
+          <CsvImportButton onClick={() => setIsCsvDialogOpen(true)} />
+        </div>
       </div>
 
       {/* Results count */}
@@ -471,6 +485,13 @@ export function ClientTable({ initialData }: ClientTableProps) {
         onClose={() => setIsBulkModalOpen(false)}
         selectedClients={selectedClients}
         onSave={handleBulkUpdate}
+      />
+
+      {/* CSV Import Dialog */}
+      <CsvImportDialog
+        open={isCsvDialogOpen}
+        onOpenChange={setIsCsvDialogOpen}
+        onImportComplete={handleImportComplete}
       />
     </div>
   );
