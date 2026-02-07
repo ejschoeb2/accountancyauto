@@ -100,7 +100,7 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
             setDateFrom(e.target.value);
             setCurrentPage(1);
           }}
-          className="w-40"
+          className="w-40 hover:border-foreground/20"
         />
         <Input
           type="date"
@@ -110,7 +110,7 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
             setDateTo(e.target.value);
             setCurrentPage(1);
           }}
-          className="w-40"
+          className="w-40 hover:border-foreground/20"
         />
       </div>
 
@@ -139,7 +139,7 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
               </TableRow>
             ) : (
               data.map((entry) => (
-                <TableRow key={entry.id}>
+                <TableRow key={entry.id} className="hover:bg-accent/5">
                   <TableCell>{formatDate(entry.sent_at)}</TableCell>
                   <TableCell>{entry.filing_type_name || '-'}</TableCell>
                   <TableCell>

@@ -241,7 +241,7 @@ export function TemplateOverrides({ clientId }: TemplateOverridesProps) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border p-6">
+      <div className="rounded-lg border py-8 px-8">
         <h2 className="text-lg font-semibold mb-4">Template Customizations</h2>
         <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
@@ -250,7 +250,7 @@ export function TemplateOverrides({ clientId }: TemplateOverridesProps) {
 
   if (templates.length === 0) {
     return (
-      <div className="rounded-lg border p-6">
+      <div className="rounded-lg border py-8 px-8">
         <h2 className="text-lg font-semibold mb-4">Template Customizations</h2>
         <p className="text-sm text-muted-foreground">
           No templates available. Active filing assignments with templates will appear here.
@@ -430,9 +430,9 @@ export function TemplateOverrides({ clientId }: TemplateOverridesProps) {
                                       parseInt(e.target.value, 10)
                                     )
                                   }
-                                  className={getFieldStyle(
+                                  className={`hover:border-foreground/20 ${getFieldStyle(
                                     editForms[editKey]?.delay_days !== baseStep.delay_days
-                                  )}
+                                  )}`}
                                 />
                               </div>
                               <div className="space-y-2">
@@ -446,9 +446,9 @@ export function TemplateOverrides({ clientId }: TemplateOverridesProps) {
                                   onChange={(e) =>
                                     updateEditForm(template.id, stepIndex, 'subject', e.target.value)
                                   }
-                                  className={getFieldStyle(
+                                  className={`hover:border-foreground/20 ${getFieldStyle(
                                     editForms[editKey]?.subject !== baseStep.subject
-                                  )}
+                                  )}`}
                                 />
                               </div>
                               <div className="space-y-2">
@@ -462,9 +462,9 @@ export function TemplateOverrides({ clientId }: TemplateOverridesProps) {
                                   onChange={(e) =>
                                     updateEditForm(template.id, stepIndex, 'body', e.target.value)
                                   }
-                                  className={getFieldStyle(
+                                  className={`hover:border-foreground/20 ${getFieldStyle(
                                     editForms[editKey]?.body !== baseStep.body
-                                  )}
+                                  )}`}
                                 />
                               </div>
                               <div className="flex gap-2">

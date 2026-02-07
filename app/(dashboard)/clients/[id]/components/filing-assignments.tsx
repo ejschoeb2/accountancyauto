@@ -158,7 +158,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border p-6">
+      <div className="rounded-lg border py-8 px-8">
         <h2 className="text-lg font-semibold mb-4">Filing Types & Deadlines</h2>
         <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
@@ -167,7 +167,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
 
   if (filings.length === 0) {
     return (
-      <div className="rounded-lg border p-6">
+      <div className="rounded-lg border py-8 px-8">
         <h2 className="text-lg font-semibold mb-4">Filing Types & Deadlines</h2>
         <p className="text-sm text-muted-foreground">
           No applicable filing types for this client. Set client type to auto-assign filing types.
@@ -286,6 +286,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
                         <Input
                           id={`override-date-${filing.filing_type.id}`}
                           type="date"
+                          className="hover:border-foreground/20"
                           value={overrideData[filing.filing_type.id]?.date || ''}
                           onChange={(e) =>
                             setOverrideData((prev) => ({
@@ -305,6 +306,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
                         <Input
                           id={`override-reason-${filing.filing_type.id}`}
                           type="text"
+                          className="hover:border-foreground/20"
                           placeholder="e.g., Extension granted by HMRC"
                           value={overrideData[filing.filing_type.id]?.reason || ''}
                           onChange={(e) =>

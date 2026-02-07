@@ -95,7 +95,7 @@ export default async function ClientPage({ params }: ClientPageProps) {
       </div>
 
       {/* Client metadata */}
-      <div className="rounded-lg border p-6">
+      <div className="rounded-lg border py-8 px-8">
         <h2 className="text-lg font-semibold mb-4">Client Details</h2>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
@@ -150,7 +150,7 @@ export default async function ClientPage({ params }: ClientPageProps) {
       <TemplateOverrides clientId={id} />
 
       {/* Reminder history / Audit log */}
-      <div className="rounded-lg border p-6">
+      <div className="rounded-lg border py-8 px-8">
         <h2 className="text-lg font-semibold mb-4">Reminder History</h2>
         <ClientAuditLog clientId={id} />
       </div>

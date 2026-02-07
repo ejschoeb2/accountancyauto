@@ -100,7 +100,7 @@ export function RecordsReceived({
   }
 
   return (
-    <div className="rounded-lg border p-6">
+    <div className="rounded-lg border py-8 px-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Records & Reminders</h2>
         <Button
@@ -108,6 +108,7 @@ export function RecordsReceived({
           size="sm"
           onClick={handlePauseToggle}
           disabled={isUpdating}
+          className="active:scale-[0.97]"
         >
           {paused ? (
             <>
@@ -132,7 +133,7 @@ export function RecordsReceived({
           return (
             <div
               key={assignment.id}
-              className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/50 transition-colors"
+              className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/5 transition-colors"
             >
               <Checkbox
                 id={`records-${assignment.filing_type_id}`}
