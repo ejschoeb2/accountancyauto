@@ -1,6 +1,7 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertTriangle, Send, MailCheck, PauseCircle } from 'lucide-react';
 import type { DashboardMetrics } from '@/lib/dashboard/metrics';
 
 interface SummaryCardsProps {
@@ -26,55 +27,75 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
       )}
 
       {/* Metric cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Overdue Clients
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-status-danger">
-              {metrics.overdueCount}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
+          <CardContent className="px-5 py-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Overdue Clients
+                </p>
+                <p className="text-4xl font-bold mt-3">
+                  {metrics.overdueCount}
+                </p>
+              </div>
+              <div className="size-10 rounded-lg bg-status-danger/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-danger/20">
+                <AlertTriangle className="size-6 text-status-danger" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Actively Chasing
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-status-warning">
-              {metrics.chasingCount}
+        <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
+          <CardContent className="px-5 py-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Actively Chasing
+                </p>
+                <p className="text-4xl font-bold mt-3">
+                  {metrics.chasingCount}
+                </p>
+              </div>
+              <div className="size-10 rounded-lg bg-status-warning/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-warning/20">
+                <Send className="size-6 text-status-warning" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Sent Today
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-status-info">
-              {metrics.sentTodayCount}
+        <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
+          <CardContent className="px-5 py-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Sent Today
+                </p>
+                <p className="text-4xl font-bold mt-3">
+                  {metrics.sentTodayCount}
+                </p>
+              </div>
+              <div className="size-10 rounded-lg bg-status-info/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-info/20">
+                <MailCheck className="size-6 text-status-info" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow duration-200">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Paused Clients
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-status-neutral">
-              {metrics.pausedCount}
+        <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
+          <CardContent className="px-5 py-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Paused Clients
+                </p>
+                <p className="text-4xl font-bold mt-3">
+                  {metrics.pausedCount}
+                </p>
+              </div>
+              <div className="size-10 rounded-lg bg-sky-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-sky-500/20">
+                <PauseCircle className="size-6 text-sky-500" />
+              </div>
             </div>
           </CardContent>
         </Card>

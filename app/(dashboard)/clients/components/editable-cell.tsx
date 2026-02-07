@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { format, parseISO } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { Icon } from "@/components/ui/icon";
+import { Loader2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -124,9 +124,13 @@ export function EditableCell({
           return formatDateDisplay(value);
         case "boolean":
           return value ? (
-            <Badge variant="secondary">Yes</Badge>
+            <div className="size-8 rounded-lg bg-status-success/10 flex items-center justify-center">
+              <Check className="size-5 text-status-success" />
+            </div>
           ) : (
-            <Badge variant="outline">No</Badge>
+            <div className="size-8 rounded-lg bg-status-neutral/10 flex items-center justify-center">
+              <X className="size-5 text-status-neutral" />
+            </div>
           );
         case "select":
           const option = options.find((opt) => opt.value === value);
@@ -155,7 +159,7 @@ export function EditableCell({
     <div className="relative flex items-center">
       {isSaving && (
         <div className="absolute -right-6 z-10">
-          <Icon name="progress_activity" size="sm" className="animate-spin text-muted-foreground" />
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
         </div>
       )}
 

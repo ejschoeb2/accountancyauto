@@ -14,7 +14,7 @@ import {
 } from "@tanstack/react-table";
 import { format, parseISO } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { Icon } from "@/components/ui/icon";
+import { Search, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -186,14 +186,18 @@ export function ClientTable({ initialData }: ClientTableProps) {
       },
       {
         accessorKey: "display_name",
-        header: "Client Name",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Client Name
+          </span>
+        ),
         cell: ({ row }) => {
           const client = row.original;
           return (
             <div>
               <Link
                 href={`/clients/${client.id}`}
-                className="text-accent font-medium hover:underline"
+                className="text-foreground font-medium hover:underline"
               >
                 {client.display_name || client.company_name}
               </Link>
@@ -220,7 +224,11 @@ export function ClientTable({ initialData }: ClientTableProps) {
       },
       {
         accessorKey: "client_type",
-        header: "Client Type",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Client Type
+          </span>
+        ),
         cell: ({ row }) => {
           const client = row.original;
           return (
@@ -239,7 +247,11 @@ export function ClientTable({ initialData }: ClientTableProps) {
       },
       {
         accessorKey: "year_end_date",
-        header: "Year End",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Year End
+          </span>
+        ),
         cell: ({ row }) => {
           const client = row.original;
           return (
@@ -257,7 +269,11 @@ export function ClientTable({ initialData }: ClientTableProps) {
       },
       {
         accessorKey: "vat_registered",
-        header: "VAT Registered",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            VAT Registered
+          </span>
+        ),
         cell: ({ row }) => {
           const client = row.original;
           return (
@@ -275,7 +291,11 @@ export function ClientTable({ initialData }: ClientTableProps) {
       },
       {
         accessorKey: "vat_quarter",
-        header: "VAT Quarter",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            VAT Quarter
+          </span>
+        ),
         cell: ({ row }) => {
           const client = row.original;
           // Only show if VAT registered
@@ -323,7 +343,7 @@ export function ClientTable({ initialData }: ClientTableProps) {
       <div className="flex flex-col sm:flex-row gap-4">
         {/* Search Input */}
         <div className="relative flex-1 max-w-sm">
-          <Icon name="search" size="sm" className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by company name..."
             value={globalFilter}
@@ -337,7 +357,7 @@ export function ClientTable({ initialData }: ClientTableProps) {
               className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
               onClick={() => setGlobalFilter("")}
             >
-              <Icon name="close" size="sm" />
+              <X className="size-4" />
             </Button>
           )}
         </div>
@@ -389,7 +409,7 @@ export function ClientTable({ initialData }: ClientTableProps) {
       </div>
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="rounded-xl border shadow-sm hover:shadow-lg transition-shadow duration-300">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -413,7 +433,6 @@ export function ClientTable({ initialData }: ClientTableProps) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-accent/5"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
