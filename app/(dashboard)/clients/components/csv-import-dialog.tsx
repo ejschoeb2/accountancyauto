@@ -176,7 +176,7 @@ export function CsvImportDialog({
                 className={cn(
                   "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
                   isDragging
-                    ? "border-primary bg-primary/5"
+                    ? "border-accent bg-accent/5"
                     : "border-muted-foreground/25 hover:border-muted-foreground/50",
                   error && "border-destructive bg-destructive/5"
                 )}
@@ -252,7 +252,7 @@ export function CsvImportDialog({
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleImport} disabled={!selectedFile}>
+              <Button onClick={handleImport} disabled={!selectedFile} className="active:scale-[0.97]">
                 <Icon name="upload" size="sm" />
                 Import
               </Button>

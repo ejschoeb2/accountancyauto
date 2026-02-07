@@ -193,7 +193,7 @@ export function ClientTable({ initialData }: ClientTableProps) {
             <div>
               <Link
                 href={`/clients/${client.id}`}
-                className="font-medium hover:underline"
+                className="text-accent font-medium hover:underline"
               >
                 {client.display_name || client.company_name}
               </Link>
@@ -328,7 +328,7 @@ export function ClientTable({ initialData }: ClientTableProps) {
             placeholder="Search by company name..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-9"
+            className="pl-9 hover:border-foreground/20"
           />
           {globalFilter && (
             <Button
@@ -413,6 +413,7 @@ export function ClientTable({ initialData }: ClientTableProps) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className="hover:bg-accent/5"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

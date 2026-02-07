@@ -35,7 +35,7 @@ export function BulkActionsToolbar({
           <Button
             size="sm"
             onClick={onBulkEdit}
-            className="gap-2"
+            className="gap-2 active:scale-[0.97]"
           >
             <Icon name="edit" size="sm" />
             Bulk Edit
