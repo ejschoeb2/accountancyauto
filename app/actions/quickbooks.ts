@@ -33,15 +33,14 @@ export async function handleQuickBooksCallback(
 
   // Exchange authorization code for tokens (library needs full redirect URL)
   const authResponse = await oauthClient.createToken(redirectUrl);
-  const tokenData = authResponse.getToken();
 
   // Store tokens
   await tokenManager.storeTokens(
     {
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-      expires_in: tokenData.expires_in,
-      x_refresh_token_expires_in: tokenData.x_refresh_token_expires_in,
+      access_token: authResponse.access_token,
+      refresh_token: authResponse.refresh_token,
+      expires_in: authResponse.expires_in,
+      x_refresh_token_expires_in: authResponse.x_refresh_token_expires_in,
       created_at: new Date().toISOString(),
       realm_id: realmId,
     },

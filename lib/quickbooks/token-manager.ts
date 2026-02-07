@@ -75,13 +75,12 @@ export class TokenManager {
         const authResponse = await this.oauthClient.refreshUsingToken(
           currentTokens.refresh_token
         );
-        const refreshedToken = authResponse.getToken();
 
         const newTokenData: TokenData = {
-          access_token: refreshedToken.access_token,
-          refresh_token: refreshedToken.refresh_token,
-          expires_in: refreshedToken.expires_in,
-          x_refresh_token_expires_in: refreshedToken.x_refresh_token_expires_in,
+          access_token: authResponse.access_token,
+          refresh_token: authResponse.refresh_token,
+          expires_in: authResponse.expires_in,
+          x_refresh_token_expires_in: authResponse.x_refresh_token_expires_in,
           created_at: new Date().toISOString(),
           realm_id: currentTokens.realm_id,
         };
