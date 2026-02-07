@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Waves } from "lucide-react";
 import { getConnectionStatus } from "@/app/actions/quickbooks";
 import { QboStatusBanner } from "@/components/qbo-status-banner";
+import { NavLinks } from "@/components/nav-links";
 
 export default async function DashboardLayout({
   children,
@@ -12,47 +14,26 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header / Navigation */}
-      <header className="border-b bg-background">
-        <div className="max-w-7xl mx-auto px-6 h-18 flex items-center justify-between">
+      <header className="bg-white">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           {/* Branding */}
-          <div className="flex items-center gap-16">
-            <Link href="/" className="font-semibold text-lg text-primary">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 bg-primary rounded-xl px-4 py-2.5 hover:opacity-90 transition-opacity"
+          >
+            <Waves className="h-5 w-5 text-white" />
+            <span className="font-display font-medium text-lg text-white tracking-tight">
               Peninsula Accounting
-            </Link>
+            </span>
+          </Link>
 
-            {/* Navigation Links */}
-            <nav className="flex items-center gap-8">
-              <Link
-                href="/dashboard"
-                className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors duration-200"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/clients"
-                className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors duration-200"
-              >
-                Clients
-              </Link>
-              <Link
-                href="/templates"
-                className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors duration-200"
-              >
-                Templates
-              </Link>
-              <Link
-                href="/calendar"
-                className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors duration-200"
-              >
-                Calendar
-              </Link>
-            </nav>
-          </div>
+          {/* Navigation Links */}
+          <NavLinks />
         </div>
       </header>
 
       {/* QBO Status Banner */}
-      <QboStatusBanner connected={connectionStatus.connected} />
+      <QboStatusBanner connected={connectionStatus.connected} lastSyncTime={connectionStatus.lastSyncTime} />
 
       {/* Main Content */}
       <main className="flex-1 px-8 py-10 max-w-7xl mx-auto w-full">
