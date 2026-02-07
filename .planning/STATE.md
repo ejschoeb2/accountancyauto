@@ -5,15 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** UAT gap closure COMPLETE
+**Current focus:** v1.0 MVP COMPLETE — Ready for production deployment
 
 ## Current Position
 
-Phase: N/A -- UAT gap closure (quick tasks)
-Status: v1.0 MVP shipped, ALL UAT gaps closed (Tests 24 + 25)
-Last activity: 2026-02-07 -- Completed quick/003-PLAN.md (QBO status banner)
+Phase: N/A -- Milestone v1.0 complete and archived
+Status: ✅ v1.0 MVP shipped and tagged
+Last activity: 2026-02-07 -- Completed milestone v1.0
 
-Progress: v1.0 complete (3 phases, 17 plans) + 3 quick tasks done, 0 queued
+Progress: v1.0 complete (3 phases, 17 plans) + 3 quick tasks
+Next: Start v1.1 milestone with /gsd:new-milestone
 
 ## Performance Metrics
 
@@ -43,14 +44,16 @@ See PROJECT.md Key Decisions table for full list.
 | D-Q003-2 | Remove "use client" from QBO banner | Only pure functions used, no client interactivity needed |
 | D-Q003-3 | Keep lucide-react icons in banner | Still installed and used in 26 files; material-symbols migration is aspirational |
 
-### Pending Todos
+### v1.0 Production Deployment Checklist
 
 1. Configure Postmark account (server, sender signature, DNS records)
 2. Test OAuth flow with QuickBooks sandbox
-3. Verify client sync functionality
-4. Test CSV import with sample data
-5. Deploy to Vercel Pro
-6. Fix pre-existing TypeScript error in app/actions/quickbooks.ts:36 (getToken type)
+3. Apply database migrations via Supabase SQL Editor
+4. Deploy to Vercel Pro (required for cron jobs)
+5. Configure environment variables (.env.local)
+6. Run initial client sync from QuickBooks
+7. Test CSV import with sample data
+8. Monitor first cron execution logs
 
 ### Quick Tasks Completed
 
@@ -64,17 +67,24 @@ See PROJECT.md Key Decisions table for full list.
 
 None -- all UAT gap closure tasks complete.
 
-### Blockers/Concerns
+### Known Limitations
 
-- QuickBooks production access requires Intuit app review
+- QuickBooks production access requires Intuit app review (sandbox works)
 - Email deliverability requires SPF/DKIM/DMARC DNS configuration before first send
-- Git repo was re-initialized (previous .git was corrupted/empty) -- history prior to 2026-02-07 is lost
+- PostgREST FK join cache issue (workaround applied: separate queries)
+
+### Tech Debt
+
+See v1.0-MILESTONE-AUDIT.md for full inventory:
+1. PostgREST FK join workaround in audit-log.ts
+2. Phase 1 plans 02-04 missing formal SUMMARY.md files (pre-GSD workflow)
+3. Phase 1 & 3 missing formal VERIFICATION.md (Phase 2 verified, UAT covered all phases)
 
 ## Session Continuity
 
-Last session: 2026-02-07T20:46Z
-Stopped at: Completed quick/003-PLAN.md (QBO status banner redesign)
+Last session: 2026-02-07
+Activity: Completed and archived v1.0 MVP milestone
 Resume file: None
 
 ---
-*All UAT gaps closed. Ready for deployment and production configuration.*
+*v1.0 MVP complete — 32/32 requirements satisfied, 18/18 integrations verified, 4/4 E2E flows functional*

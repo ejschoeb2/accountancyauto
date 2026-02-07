@@ -12,23 +12,38 @@ Accountants spend hours every month manually chasing clients for records and doc
 
 ### Validated
 
-- QuickBooks OAuth 2.0 connection with automatic token refresh — v1.0
-- Full client list sync from QuickBooks — v1.0
-- Filing metadata management per client (client type, year-end, VAT details, deadlines) — v1.0
-- Bulk-edit tools and CSV import for initial metadata setup — v1.0
-- Configurable reminder templates with email sequences and escalating urgency — v1.0
-- Template variables auto-populated from client and practice data — v1.0
-- Per-client overrides for template content and timing — v1.0
-- Rules engine calculating due reminders from anchor dates, delays, and client status — v1.0
-- Automatic year-on-year and quarter-on-quarter rollover — v1.0
-- Daily cron scheduler determining and dispatching due reminders — v1.0
-- Email sending via Postmark with accountant's verified domain as sender — v1.0
-- Bounce handling and delivery tracking — v1.0
-- Dashboard with traffic-light client status (green/amber/red/grey) — v1.0
-- Client detail view with filing status, reminder log, and controls — v1.0
-- Reminder log with full audit trail (timestamps, delivery status) — v1.0
-- Failed email alerts and warning banner — v1.0
-- Mark records as received / pause reminders per client — v1.0
+- ✓ QuickBooks OAuth 2.0 connection with automatic token refresh — v1.0
+- ✓ Full client list sync from QuickBooks — v1.0
+- ✓ Filing metadata management per client (client type, year-end, VAT details, deadlines) — v1.0
+- ✓ Bulk-edit tools and CSV import for initial metadata setup — v1.0
+- ✓ Configurable reminder templates with email sequences and escalating urgency — v1.0
+- ✓ Template variables auto-populated from client and practice data — v1.0
+- ✓ Per-client overrides for template content and timing — v1.0
+- ✓ Rules engine calculating due reminders from anchor dates, delays, and client status — v1.0
+- ✓ Automatic year-on-year and quarter-on-quarter rollover — v1.0
+- ✓ Daily cron scheduler determining and dispatching due reminders — v1.0
+- ✓ Email sending via Postmark with accountant's verified domain as sender — v1.0
+- ✓ Bounce handling and delivery tracking — v1.0
+- ✓ Dashboard with traffic-light client status (green/amber/red/grey) — v1.0
+- ✓ Client detail view with filing status, reminder log, and controls — v1.0
+- ✓ Reminder log with full audit trail (timestamps, delivery status) — v1.0
+- ✓ Failed email alerts and warning banner — v1.0
+- ✓ Mark records as received / pause reminders per client — v1.0
+- ✓ UK filing deadline calculators with bank holiday support — v1.0
+- ✓ Working day calculation for send dates — v1.0
+- ✓ Per-client deadline overrides — v1.0
+- ✓ Template step editor with 1-5 configurable steps — v1.0
+- ✓ Calendar grid view with deadline visualization — v1.0
+- ✓ Filing type auto-assignment based on client type — v1.0
+- ✓ Distributed lock for cron to prevent concurrent execution — v1.0
+- ✓ HMAC webhook verification for Postmark — v1.0
+- ✓ Two-stage cron (queue building + email sending) — v1.0
+- ✓ Field-level template override inheritance — v1.0
+- ✓ Records received tracking per filing type — v1.0
+- ✓ Pause/unpause reminders per client — v1.0
+- ✓ Global and per-client audit logs — v1.0
+- ✓ Dashboard summary metrics (overdue, chasing, sent today) — v1.0
+- ✓ QuickBooks connection status banner — v1.0
 
 ### Active
 
@@ -58,7 +73,9 @@ Accountants spend hours every month manually chasing clients for records and doc
 - **Email requirements:** Must appear to come from Peninsula Accounting's domain (not the platform), requires Postmark domain verification with DKIM + return-path CNAME
 - **Filing deadlines are mostly formulaic:** Corporation Tax = year-end + 9 months 1 day, Companies House = year-end + 9 months (private), VAT = quarter-end + 1 month 7 days, Self Assessment = 31 January following tax year — all overridable per client
 - **Intuit Developer Portal:** Requires app registration, sandbox available for development, production requires app review
-- **Current state:** v1.0 shipped — 98 TypeScript files, 11,168 LOC, Next.js + Supabase + Postmark
+- **Current state:** v1.0 MVP shipped 2026-02-07 — 98 TypeScript files, 12,430 LOC, Next.js + Supabase + Postmark
+- **Audit score:** 32/32 requirements (100%), 18/18 cross-phase connections (100%), 4/4 E2E flows complete
+- **UAT results:** 20/28 tests passed, 7 gaps resolved via quick tasks, 1 skipped by design
 
 ## Constraints
 
@@ -89,4 +106,4 @@ Accountants spend hours every month manually chasing clients for records and doc
 | React Email templates | Inline CSS for email client compatibility | Good |
 
 ---
-*Last updated: 2026-02-07 after v1.0 milestone*
+*Last updated: 2026-02-07 after v1.0 MVP milestone completion*
