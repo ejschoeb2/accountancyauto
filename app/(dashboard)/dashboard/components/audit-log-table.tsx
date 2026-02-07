@@ -110,7 +110,7 @@ export function AuditLogTable({ initialData, totalCount: initialTotalCount }: Au
             placeholder="Search client name..."
             value={clientSearch}
             onChange={(e) => setClientSearch(e.target.value)}
-            className="max-w-sm"
+            className="max-w-sm hover:border-foreground/20"
           />
         </div>
         <div className="flex gap-2">
@@ -122,7 +122,7 @@ export function AuditLogTable({ initialData, totalCount: initialTotalCount }: Au
               setDateFrom(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-40"
+            className="w-40 hover:border-foreground/20"
           />
           <Input
             type="date"
@@ -132,7 +132,7 @@ export function AuditLogTable({ initialData, totalCount: initialTotalCount }: Au
               setDateTo(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-40"
+            className="w-40 hover:border-foreground/20"
           />
         </div>
       </div>
@@ -163,7 +163,7 @@ export function AuditLogTable({ initialData, totalCount: initialTotalCount }: Au
               </TableRow>
             ) : (
               data.map((entry) => (
-                <TableRow key={entry.id}>
+                <TableRow key={entry.id} className="hover:bg-accent/5">
                   <TableCell>{formatDate(entry.sent_at)}</TableCell>
                   <TableCell className="font-medium">{entry.client_name}</TableCell>
                   <TableCell>{entry.filing_type_name || '-'}</TableCell>

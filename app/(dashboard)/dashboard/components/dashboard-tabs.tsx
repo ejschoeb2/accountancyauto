@@ -25,7 +25,7 @@ export function DashboardTabs({ clients, initialAuditData, auditTotalCount }: Da
           <button
             onClick={() => setActiveTab('status')}
             className={`
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
               ${
                 activeTab === 'status'
                   ? 'border-primary text-primary'
@@ -38,7 +38,7 @@ export function DashboardTabs({ clients, initialAuditData, auditTotalCount }: Da
           <button
             onClick={() => setActiveTab('audit')}
             className={`
-              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
               ${
                 activeTab === 'audit'
                   ? 'border-primary text-primary'

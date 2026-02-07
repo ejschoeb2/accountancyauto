@@ -71,7 +71,7 @@ export function ClientStatusTable({ clients }: ClientStatusTableProps) {
               </TableRow>
             ) : (
               clients.map((client) => (
-                <TableRow key={client.id}>
+                <TableRow key={client.id} className="hover:bg-accent/5">
                   <TableCell>
                     <Link
                       href={`/clients/${client.id}`}

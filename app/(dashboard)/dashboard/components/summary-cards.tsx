@@ -27,7 +27,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
 
       {/* Metric cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Overdue Clients
@@ -40,7 +40,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Actively Chasing
@@ -53,7 +53,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Sent Today
@@ -66,7 +66,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-md transition-shadow duration-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Paused Clients
