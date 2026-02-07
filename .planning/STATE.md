@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** Post-MVP polish
+**Current focus:** UAT gap closure
 
 ## Current Position
 
-Phase: N/A -- between milestones
-Status: v1.0 MVP shipped, design system styling applied
-Last activity: 2026-02-07 -- Completed quick/001 (Apply Design System Styling)
+Phase: N/A -- UAT gap closure (quick tasks)
+Status: v1.0 MVP shipped, 2 UAT gaps remaining (Tests 24, 25)
+Last activity: 2026-02-07 -- Created gap closure plans (quick/002, quick/003)
 
-Progress: v1.0 complete (3 phases, 17 plans) + 1 quick task
+Progress: v1.0 complete (3 phases, 17 plans) + 1 quick task + 2 gap closure plans queued
 
 ## Performance Metrics
 
@@ -53,6 +53,13 @@ See PROJECT.md Key Decisions table for full list.
 |---|-------------|------|--------|-----------|
 | 001 | Apply design system styling across the site | 2026-02-07 | 852dea1 | [001-apply-design-system-styling](./quick/001-apply-design-system-styling/) |
 
+### Quick Tasks Queued
+
+| # | Description | UAT Test | Directory |
+|---|-------------|----------|-----------|
+| 002 | Wire CSV import button into clients page | Test 24 | [002-csv-import-wiring](./quick/002-csv-import-wiring/) |
+| 003 | Redesign QBO status banner for both states | Test 25 | [003-qbo-status-banner](./quick/003-qbo-status-banner/) |
+
 ### Blockers/Concerns
 
 - QuickBooks production access requires Intuit app review
@@ -61,9 +68,9 @@ See PROJECT.md Key Decisions table for full list.
 
 ## Session Continuity
 
-Last session: 2026-02-07T14:52Z
-Stopped at: Completed quick/001 (Apply Design System Styling)
+Last session: 2026-02-07T20:36Z
+Stopped at: Created UAT gap closure plans (quick/002, quick/003)
 Resume file: None
 
 ---
-*Next step: /gsd:new-milestone or additional quick tasks*
+*Next step: Execute quick/002 and quick/003 to close UAT gaps*
