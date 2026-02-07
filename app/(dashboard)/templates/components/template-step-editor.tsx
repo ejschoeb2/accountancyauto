@@ -88,6 +88,7 @@ export function TemplateStepEditor({ form }: TemplateStepEditorProps) {
                     type="number"
                     min={1}
                     max={365}
+                    className="hover:border-foreground/20"
                     {...form.register(`steps.${index}.delay_days`, {
                       valueAsNumber: true,
                     })}
@@ -103,6 +104,7 @@ export function TemplateStepEditor({ form }: TemplateStepEditorProps) {
                   <Label htmlFor={`steps.${index}.subject`}>Subject</Label>
                   <Input
                     id={`steps.${index}.subject`}
+                    className="hover:border-foreground/20"
                     placeholder="e.g., Reminder: {{filing_type}} due {{deadline}}"
                     {...form.register(`steps.${index}.subject`)}
                   />
@@ -118,6 +120,7 @@ export function TemplateStepEditor({ form }: TemplateStepEditorProps) {
                   <Textarea
                     id={`steps.${index}.body`}
                     rows={8}
+                    className="hover:border-foreground/20"
                     placeholder="Use {{client_name}}, {{deadline}}, etc."
                     {...form.register(`steps.${index}.body`)}
                   />

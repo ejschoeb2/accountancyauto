@@ -11,7 +11,7 @@ interface DeadlineEvent {
   is_overridden: boolean;
 }
 
-// Filing type color legend
+// Hex colors match react-big-calendar event styling (inline styles required by the library)
 const FILING_TYPE_LEGEND = [
   { id: "corporation_tax_payment", name: "Corporation Tax Payment", color: "#3b82f6" },
   { id: "ct600_filing", name: "CT600 Filing", color: "#6366f1" },
@@ -54,7 +54,7 @@ export default async function CalendarPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight">Deadline Calendar</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Deadline Calendar</h1>
         <p className="text-muted-foreground">
           Bird's-eye view of filing deadlines across all clients
         </p>
@@ -69,12 +69,12 @@ export default async function CalendarPage() {
       </div>
 
       {/* Calendar */}
-      <div className="bg-card border rounded-lg p-6">
+      <div className="bg-card border rounded-lg py-8 px-8">
         <DeadlineCalendar initialEvents={events} />
       </div>
 
       {/* Legend */}
-      <div className="bg-card border rounded-lg p-6">
+      <div className="bg-card border rounded-lg py-8 px-8">
         <h2 className="text-sm font-semibold mb-4">Filing Type Legend</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {FILING_TYPE_LEGEND.map((type) => (

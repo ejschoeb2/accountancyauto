@@ -28,7 +28,7 @@ export default async function TemplatesPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Reminder Templates</h1>
         <Link href="/templates/new">
-          <Button>Create Template</Button>
+          <Button className="active:scale-[0.97]">Create Template</Button>
         </Link>
       </div>
 
@@ -40,7 +40,7 @@ export default async function TemplatesPage() {
               href={`/templates/${template.id}/edit`}
               className="block"
             >
-              <div className="rounded-lg border bg-card p-6 hover:shadow-md hover:border-accent/30 transition-colors">
+              <div className="rounded-lg border bg-card p-6 hover:shadow-md hover:border-accent/30 transition-all duration-200">
                 <div className="space-y-3">
                   <div className="flex items-start justify-between">
                     <h3 className="font-semibold text-lg">{template.name}</h3>

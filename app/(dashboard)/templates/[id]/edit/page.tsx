@@ -184,6 +184,7 @@ export default function EditTemplatePage() {
             <Label htmlFor="name">Template Name</Label>
             <Input
               id="name"
+              className="hover:border-foreground/20"
               placeholder="e.g., Standard Corporation Tax Reminders"
               {...form.register("name")}
             />
@@ -198,6 +199,7 @@ export default function EditTemplatePage() {
             <Label htmlFor="description">Description (optional)</Label>
             <Textarea
               id="description"
+              className="hover:border-foreground/20"
               placeholder="Internal notes about this template"
               {...form.register("description")}
             />
@@ -257,7 +259,7 @@ export default function EditTemplatePage() {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Button type="submit" disabled={form.formState.isSubmitting} className="active:scale-[0.97]">
             {form.formState.isSubmitting
               ? "Saving..."
               : isNew
