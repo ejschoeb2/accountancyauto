@@ -5,15 +5,15 @@
 See: .planning/PROJECT.md (updated 2026-02-07)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** UAT gap closure
+**Current focus:** UAT gap closure COMPLETE
 
 ## Current Position
 
 Phase: N/A -- UAT gap closure (quick tasks)
-Status: v1.0 MVP shipped, 1 UAT gap remaining (Test 25)
-Last activity: 2026-02-07 -- Completed quick/002-PLAN.md (CSV import wiring)
+Status: v1.0 MVP shipped, ALL UAT gaps closed (Tests 24 + 25)
+Last activity: 2026-02-07 -- Completed quick/003-PLAN.md (QBO status banner)
 
-Progress: v1.0 complete (3 phases, 17 plans) + 2 quick tasks done + 1 gap closure plan queued
+Progress: v1.0 complete (3 phases, 17 plans) + 3 quick tasks done, 0 queued
 
 ## Performance Metrics
 
@@ -26,6 +26,7 @@ Progress: v1.0 complete (3 phases, 17 plans) + 2 quick tasks done + 1 gap closur
 **Quick Tasks:**
 - Quick 001: Design System Styling -- ~10 min, 4 task commits
 - Quick 002: CSV Import Wiring -- ~2 min, 1 task commit
+- Quick 003: QBO Status Banner -- ~3 min, 2 task commits
 
 ## Accumulated Context
 
@@ -38,6 +39,9 @@ See PROJECT.md Key Decisions table for full list.
 | D-Q001-1 | Keep QuickBooks brand color as inline style | #0077C5 is official brand color, intentional override |
 | D-Q001-2 | Keep calendar hex colors as inline styles | react-big-calendar requires inline styles for events |
 | D-Q001-3 | Template edit p-8 equivalent to py-8 px-8 | Shorthand is identical, no change needed |
+| D-Q003-1 | Dynamic import for createAdminClient in getConnectionStatus | Avoids circular dependency, keeps server action clean |
+| D-Q003-2 | Remove "use client" from QBO banner | Only pure functions used, no client interactivity needed |
+| D-Q003-3 | Keep lucide-react icons in banner | Still installed and used in 26 files; material-symbols migration is aspirational |
 
 ### Pending Todos
 
@@ -54,12 +58,11 @@ See PROJECT.md Key Decisions table for full list.
 |---|-------------|------|--------|-----------|
 | 001 | Apply design system styling across the site | 2026-02-07 | 852dea1 | [001-apply-design-system-styling](./quick/001-apply-design-system-styling/) |
 | 002 | Wire CSV import button into clients page | 2026-02-07 | bed8d22 | [002-csv-import-wiring](./quick/002-csv-import-wiring/) |
+| 003 | Redesign QBO status banner for both states | 2026-02-07 | bd7702b | [003-qbo-status-banner](./quick/003-qbo-status-banner/) |
 
 ### Quick Tasks Queued
 
-| # | Description | UAT Test | Directory |
-|---|-------------|----------|-----------|
-| 003 | Redesign QBO status banner for both states | Test 25 | [003-qbo-status-banner](./quick/003-qbo-status-banner/) |
+None -- all UAT gap closure tasks complete.
 
 ### Blockers/Concerns
 
@@ -69,9 +72,9 @@ See PROJECT.md Key Decisions table for full list.
 
 ## Session Continuity
 
-Last session: 2026-02-07T20:43Z
-Stopped at: Completed quick/002-PLAN.md (CSV import wiring)
+Last session: 2026-02-07T20:46Z
+Stopped at: Completed quick/003-PLAN.md (QBO status banner redesign)
 Resume file: None
 
 ---
-*Next step: Execute quick/003 to close final UAT gap (Test 25)*
+*All UAT gaps closed. Ready for deployment and production configuration.*
