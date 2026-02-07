@@ -1,0 +1,133 @@
+// Phase 2: Reminder Engine Database Types
+// TypeScript interfaces mirroring the Phase 2 database schema
+
+// ============================================================================
+// Filing Types
+// ============================================================================
+
+// Filing type identifiers
+export type FilingTypeId =
+  | 'corporation_tax_payment'
+  | 'ct600_filing'
+  | 'companies_house'
+  | 'vat_return'
+  | 'self_assessment';
+
+export interface FilingType {
+  id: FilingTypeId;
+  name: string;
+  description: string | null;
+  applicable_client_types: Array<'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP'>;
+  created_at: string;
+}
+
+// ============================================================================
+// Reminder Templates
+// ============================================================================
+
+export interface TemplateStep {
+  step_number: number;
+  delay_days: number; // days before deadline
+  subject: string;
+  body: string;
+}
+
+export interface ReminderTemplate {
+  id: string;
+  filing_type_id: FilingTypeId;
+  name: string;
+  description: string | null;
+  steps: TemplateStep[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// Client Filing Assignments
+// ============================================================================
+
+export interface ClientFilingAssignment {
+  id: string;
+  client_id: string;
+  filing_type_id: FilingTypeId;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ============================================================================
+// Client Deadline Overrides
+// ============================================================================
+
+export interface ClientDeadlineOverride {
+  id: string;
+  client_id: string;
+  filing_type_id: FilingTypeId;
+  override_date: string; // YYYY-MM-DD
+  reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// Client Template Overrides
+// ============================================================================
+
+export interface ClientTemplateOverride {
+  id: string;
+  client_id: string;
+  template_id: string;
+  step_index: number;
+  overridden_fields: Partial<Pick<TemplateStep, 'subject' | 'body' | 'delay_days'>>;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// Bank Holidays Cache
+// ============================================================================
+
+export interface BankHoliday {
+  id: number;
+  holiday_date: string; // YYYY-MM-DD
+  title: string;
+  region: string;
+  fetched_at: string;
+}
+
+// ============================================================================
+// Reminder Queue
+// ============================================================================
+
+export type ReminderStatus = 'scheduled' | 'pending' | 'sent' | 'cancelled' | 'failed';
+
+export interface ReminderQueueItem {
+  id: string;
+  client_id: string;
+  filing_type_id: FilingTypeId;
+  template_id: string | null;
+  step_index: number;
+  deadline_date: string; // YYYY-MM-DD
+  send_date: string; // YYYY-MM-DD
+  status: ReminderStatus;
+  resolved_subject: string | null;
+  resolved_body: string | null;
+  queued_at: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// Template Placeholder Variables
+// ============================================================================
+
+// Available placeholder variables for template editor reference
+export const PLACEHOLDER_VARIABLES = [
+  { name: 'client_name', description: "Client's company or trading name" },
+  { name: 'deadline', description: 'Deadline date in long format (e.g., 31 January 2026)' },
+  { name: 'deadline_short', description: 'Deadline date in short format (e.g., 31/01/2026)' },
+  { name: 'filing_type', description: 'Type of filing (e.g., Corporation Tax Payment)' },
+  { name: 'days_until_deadline', description: 'Number of days remaining until deadline' },
+  { name: 'accountant_name', description: 'Practice name (Peninsula Accounting)' },
+] as const;
