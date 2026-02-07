@@ -47,6 +47,12 @@ See PROJECT.md Key Decisions table for full list.
 5. Deploy to Vercel Pro
 6. Fix pre-existing TypeScript error in app/actions/quickbooks.ts:36 (getToken type)
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Apply design system styling across the site | 2026-02-07 | 852dea1 | [001-apply-design-system-styling](./quick/001-apply-design-system-styling/) |
+
 ### Blockers/Concerns
 
 - QuickBooks production access requires Intuit app review
