@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 5 of 9 (Rich Text Editor & Templates)
-Plan: 2 of ~4 in current phase
+Plan: 3 of ~4 in current phase
 Status: In progress
-Last activity: 2026-02-08 -- Completed 05-02-PLAN.md
+Last activity: 2026-02-08 -- Completed 05-03-PLAN.md
 
-Progress: [##........] ~21% (4/~19 v1.1 plans estimated)
+Progress: [##........] ~26% (5/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,12 +24,13 @@ Progress: [##........] ~21% (4/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
 - Plan 05-01: 3.5 min
 - Plan 05-02: 4 min
+- Plan 05-03: 3 min
 
 ## Accumulated Context
 
@@ -53,6 +54,9 @@ Recent decisions affecting current work:
 - [05-02]: Zod v4 requires z.record(keyType, valueType) - used z.record(z.string(), z.unknown()) for TipTap attrs
 - [05-02]: /api/email-templates/ routes coexist with v1.0 /api/templates/ (separate tables, no conflict)
 - [05-02]: DELETE returns 409 when template in use by schedule (FK constraint 23503 handled gracefully)
+- [05-03]: Link extension configured with autolink: true for auto-detecting pasted URLs
+- [05-03]: PlaceholderDropdown uses onCloseAutoFocus prevention to avoid stealing focus from editor
+- [05-03]: Subject line editor stores plain text with {{variable}} syntax, renders preview with pills
 
 ### Known Risks
 
@@ -68,10 +72,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T12:15:22Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-02-08T12:23:07Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
-Next step: Continue Phase 5 with template editor UI component (Plan 03/04)
+Next step: Continue Phase 5 with template page integration (Plan 04/04)
 
 ---
-*Phase 5 in progress -- TipTap extensions and API layer complete*
+*Phase 5 in progress -- TipTap editor UI components complete*
