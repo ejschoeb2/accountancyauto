@@ -50,7 +50,7 @@ Requirements for Template & Scheduling Redesign milestone.
 - [ ] **OVRD-02**: User can override schedule timing for specific client
 - [ ] **OVRD-03**: Content overrides apply to template globally (all uses of that template)
 - [ ] **OVRD-04**: Timing overrides apply to specific schedule step for that client
-- [ ] **OVRD-05**: Override precedence is clear: base template → client content override → client timing override
+- [ ] **OVRD-05**: Override precedence is clear: base template -> client content override -> client timing override
 
 ### Ad-Hoc Sending
 
@@ -110,7 +110,7 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Drag-and-drop email builder | Complex, not needed for accountant use case — rich text editor sufficient |
+| Drag-and-drop email builder | Complex, not needed for accountant use case -- rich text editor sufficient |
 | HTML source code editing | Non-technical user, would bypass sanitization safeguards |
 | Server-side Postmark templates | Current React Email pipeline works well, no need to change |
 | Multiple email layout templates | Single-user, one brand, one layout is sufficient |
@@ -125,13 +125,62 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| | | |
+| EDIT-01 | Phase 5 | Pending |
+| EDIT-02 | Phase 5 | Pending |
+| EDIT-03 | Phase 5 | Pending |
+| EDIT-04 | Phase 5 | Pending |
+| EDIT-05 | Phase 5 | Pending |
+| TMPL-01 | Phase 5 | Pending |
+| TMPL-02 | Phase 5 | Pending |
+| TMPL-03 | Phase 5 | Pending |
+| TMPL-04 | Phase 5 | Pending |
+| TMPL-05 | Phase 5 | Pending |
+| RNDR-01 | Phase 6 | Pending |
+| RNDR-02 | Phase 6 | Pending |
+| RNDR-03 | Phase 6 | Pending |
+| RNDR-04 | Phase 6 | Pending |
+| RNDR-05 | Phase 6 | Pending |
+| SCHD-01 | Phase 7 | Pending |
+| SCHD-02 | Phase 7 | Pending |
+| SCHD-03 | Phase 7 | Pending |
+| SCHD-04 | Phase 7 | Pending |
+| SCHD-05 | Phase 7 | Pending |
+| SCHD-06 | Phase 7 | Pending |
+| SCHD-07 | Phase 7 | Pending |
+| SCHD-08 | Phase 7 | Pending |
+| SCHD-09 | Phase 7 | Pending |
+| SCHD-10 | Phase 7 | Pending |
+| OVRD-01 | Phase 7 | Pending |
+| OVRD-02 | Phase 7 | Pending |
+| OVRD-03 | Phase 7 | Pending |
+| OVRD-04 | Phase 7 | Pending |
+| OVRD-05 | Phase 7 | Pending |
+| ADHC-01 | Phase 8 | Pending |
+| ADHC-02 | Phase 8 | Pending |
+| ADHC-03 | Phase 8 | Pending |
+| ADHC-04 | Phase 8 | Pending |
+| ADHC-05 | Phase 8 | Pending |
+| ADHC-06 | Phase 8 | Pending |
+| ADHC-07 | Phase 8 | Pending |
+| ADHC-08 | Phase 8 | Pending |
+| ADHC-09 | Phase 8 | Pending |
+| MIGR-01 | Phase 4 | Pending |
+| MIGR-02 | Phase 4 | Pending |
+| MIGR-03 | Phase 4 | Pending |
+| MIGR-04 | Phase 4 | Pending |
+| MIGR-05 | Phase 4 | Pending |
+| MIGR-06 | Phase 4 | Pending |
+| MIGR-07 | Phase 4 | Pending |
+| QUEU-01 | Phase 9 | Pending |
+| QUEU-02 | Phase 9 | Pending |
+| QUEU-03 | Phase 9 | Pending |
+| QUEU-04 | Phase 9 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 41 total
-- Mapped to phases: TBD
-- Unmapped: TBD
+- v1.1 requirements: 50 total
+- Mapped to phases: 50/50
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-08*
-*Last updated: 2026-02-08 after initial definition*
+*Last updated: 2026-02-08 after roadmap creation (traceability added)*

@@ -1,0 +1,124 @@
+# Roadmap: Peninsula Accounting Client Reminder System
+
+## Milestones
+
+- **v1.0 MVP** - Phases 1-3 (shipped 2026-02-07)
+- **v1.1 Template & Scheduling Redesign** - Phases 4-9 (in progress)
+
+## Phases
+
+<details>
+<summary>v1.0 MVP (Phases 1-3) - SHIPPED 2026-02-07</summary>
+
+### Phase 1: Foundation
+**Goal**: Project scaffolding, QuickBooks integration, client data model
+**Plans**: 7 plans (complete)
+
+### Phase 2: Reminder Engine
+**Goal**: Template system, deadline calculators, queue builder, email delivery
+**Plans**: 5 plans (complete)
+
+### Phase 3: Delivery & Dashboard
+**Goal**: Dashboard, audit logging, calendar, status tracking
+**Plans**: 5 plans (complete)
+
+</details>
+
+### v1.1 Template & Scheduling Redesign (In Progress)
+
+**Milestone Goal:** Decouple email templates from scheduling logic, add rich text editing with live preview, and enable ad-hoc client communications.
+
+**Phase Numbering:**
+- Integer phases (4, 5, 6...): Planned milestone work
+- Decimal phases (4.1, 4.2): Urgent insertions (marked with INSERTED)
+
+- [ ] **Phase 4: Data Migration** - Restructure database from JSONB-embedded templates to normalized tables
+- [ ] **Phase 5: Rich Text Editor & Templates** - TipTap editor with placeholder autocomplete and template CRUD
+- [ ] **Phase 6: Email Rendering & Preview** - Convert TipTap JSON to email-safe HTML with live preview
+- [ ] **Phase 7: Schedule Management & Overrides** - Decoupled scheduling UI with per-client overrides
+- [ ] **Phase 8: Ad-Hoc Sending** - Select clients, pick template, preview, and send outside scheduled flow
+- [ ] **Phase 9: Queue Integration** - Rewire cron queue builder to read from new normalized tables
+
+## Phase Details
+
+### Phase 4: Data Migration
+**Goal**: Existing reminder data is safely restructured into normalized tables without data loss or disruption to the running system
+**Depends on**: Nothing (foundational for v1.1)
+**Requirements**: MIGR-01, MIGR-02, MIGR-03, MIGR-04, MIGR-05, MIGR-06, MIGR-07
+**Success Criteria** (what must be TRUE):
+  1. New email_templates table contains one row per unique template body, with body stored as TipTap JSON (paragraph-wrapped plain text)
+  2. New schedules and schedule_steps tables contain the same step sequences previously embedded in reminder_templates.steps JSONB
+  3. Client overrides are split into content overrides (client_email_overrides) and timing overrides (client_schedule_overrides) with no data lost
+  4. Data verification query confirms row counts match between old and new structures
+  5. Old tables are retained and the existing reminder queue continues to function without disruption
+**Plans**: TBD
+
+### Phase 5: Rich Text Editor & Templates
+**Goal**: User can create and manage standalone email templates using a rich text editor with placeholder autocomplete
+**Depends on**: Phase 4 (email_templates table must exist)
+**Requirements**: EDIT-01, EDIT-02, EDIT-03, EDIT-04, EDIT-05, TMPL-01, TMPL-02, TMPL-03, TMPL-04, TMPL-05
+**Success Criteria** (what must be TRUE):
+  1. User can create a new email template with name, subject line, and rich text body using a toolbar with bold, italic, underline, lists, and links
+  2. User can type `/` in the editor body to trigger an autocomplete dropdown and insert a placeholder that renders as a styled pill (cannot be accidentally split or corrupted)
+  3. User can insert placeholders in the subject line via a button dropdown
+  4. User can paste content from Word or Outlook and the editor strips complex styles without breaking layout
+  5. User can view a list of all templates and edit any existing template with content loading correctly in the editor
+**Plans**: TBD
+
+### Phase 6: Email Rendering & Preview
+**Goal**: User sees a live preview of their email that matches what recipients will actually receive
+**Depends on**: Phase 5 (TipTap editor must produce JSON content)
+**Requirements**: RNDR-01, RNDR-02, RNDR-03, RNDR-04, RNDR-05
+**Success Criteria** (what must be TRUE):
+  1. User sees a live preview pane that updates as they type in the editor, with placeholders filled using sample client data
+  2. User can select a real client from a dropdown and the preview renders with that client's actual data
+  3. Sent emails render correctly in Gmail, Outlook, and Apple Mail (email-safe HTML with inline styles, no broken formatting)
+**Plans**: TBD
+
+### Phase 7: Schedule Management & Overrides
+**Goal**: User can create and manage reminder schedules independently from templates, with per-client overrides for both content and timing
+**Depends on**: Phase 5 (email templates must exist to assign to schedule steps)
+**Requirements**: SCHD-01, SCHD-02, SCHD-03, SCHD-04, SCHD-05, SCHD-06, SCHD-07, SCHD-08, SCHD-09, SCHD-10, OVRD-01, OVRD-02, OVRD-03, OVRD-04, OVRD-05
+**Success Criteria** (what must be TRUE):
+  1. User can create a schedule for a filing type with multiple steps, where each step assigns an email template, a delay-before-deadline in days, and an urgency level
+  2. User can reorder, add, and remove steps within a schedule, and the same template can appear in multiple steps
+  3. User can view all schedules with their filing types and edit any schedule
+  4. User can override email template content for a specific client (applies globally to all uses of that template) and override timing for a specific schedule step for that client
+  5. User can cancel or reschedule an individual upcoming reminder from the schedule view
+**Plans**: TBD
+
+### Phase 8: Ad-Hoc Sending
+**Goal**: User can send one-off emails to selected clients outside the automated reminder schedule
+**Depends on**: Phase 5 (templates), Phase 6 (rendering pipeline)
+**Requirements**: ADHC-01, ADHC-02, ADHC-03, ADHC-04, ADHC-05, ADHC-06, ADHC-07, ADHC-08, ADHC-09
+**Success Criteria** (what must be TRUE):
+  1. User can start an ad-hoc send from the main navigation and select multiple clients via a searchable checkbox list
+  2. User can pick an email template, preview it with selected clients' data, and edit the subject and body before sending
+  3. User sees a confirmation modal with the send count, a progress indicator during sending, and a results summary showing sent/failed counts
+  4. Ad-hoc sends appear in the delivery log with an "ad-hoc" type indicator distinguishing them from scheduled reminders
+**Plans**: TBD
+
+### Phase 9: Queue Integration
+**Goal**: The automated reminder system reads from the new normalized tables, completing the migration from the old JSONB structure
+**Depends on**: Phase 4 (new tables), Phase 7 (schedules and overrides), Phase 6 (rendering pipeline)
+**Requirements**: QUEU-01, QUEU-02, QUEU-03, QUEU-04
+**Success Criteria** (what must be TRUE):
+  1. Queue builder reads from schedules and schedule_steps tables (not reminder_templates.steps JSONB)
+  2. Queue builder resolves email content from email_templates via schedule_step_id and applies content and timing overrides in the correct precedence order
+  3. Existing reminder queue continues to function during the transition period with no missed or duplicate sends
+**Plans**: TBD
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
+(Phases 6 and 7 can potentially execute in parallel after Phase 5)
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 4. Data Migration | v1.1 | TBD | Not started | - |
+| 5. Rich Text Editor & Templates | v1.1 | TBD | Not started | - |
+| 6. Email Rendering & Preview | v1.1 | TBD | Not started | - |
+| 7. Schedule Management & Overrides | v1.1 | TBD | Not started | - |
+| 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
+| 9. Queue Integration | v1.1 | TBD | Not started | - |
