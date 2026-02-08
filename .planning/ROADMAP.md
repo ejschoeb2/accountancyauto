@@ -51,7 +51,10 @@
   3. Client overrides are split into content overrides (client_email_overrides) and timing overrides (client_schedule_overrides) with no data lost
   4. Data verification query confirms row counts match between old and new structures
   5. Old tables are retained and the existing reminder queue continues to function without disruption
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — Create v1.1 normalized tables (DDL migration + TypeScript types)
+- [ ] 04-02-PLAN.md — Migrate v1.0 data to normalized structure + verification script
 
 ### Phase 5: Rich Text Editor & Templates
 **Goal**: User can create and manage standalone email templates using a rich text editor with placeholder autocomplete
@@ -116,7 +119,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 4. Data Migration | v1.1 | TBD | Not started | - |
+| 4. Data Migration | v1.1 | 0/2 | Planning complete | - |
 | 5. Rich Text Editor & Templates | v1.1 | TBD | Not started | - |
 | 6. Email Rendering & Preview | v1.1 | TBD | Not started | - |
 | 7. Schedule Management & Overrides | v1.1 | TBD | Not started | - |
