@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** Phase 7 - Schedule Management (v1.1 Template & Scheduling Redesign)
+**Current focus:** Phase 7 - Schedule Management (v1.1 Template & Scheduling Redesign) [Phase 6 just completed]
 
 ## Current Position
 
-Phase: 6 of 9 (Email Rendering & Preview)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-08 -- Completed 06-01-PLAN.md
+Phase: 6 of 9 (Email Rendering Pipeline)
+Plan: 1 of 1 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 -- Completed 06-01-PLAN.md (Phase 6 complete)
 
-Progress: [###.......] ~42% (8/~19 v1.1 plans estimated)
+Progress: [####......] ~37% (7/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,7 +24,7 @@ Progress: [###.......] ~42% (8/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 8
+- Total plans completed: 7
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
@@ -33,7 +33,6 @@ Progress: [###.......] ~42% (8/~19 v1.1 plans estimated)
 - Plan 05-03: 3 min
 - Plan 05-04: 15 min
 - Plan 06-01: 6 min
-- Plan 07-01: 4 min
 
 ## Accumulated Context
 
@@ -70,12 +69,6 @@ Recent decisions affecting current work:
 - [06-01]: ReminderEmail template supports both v1.0 plain text and v1.1 htmlBody for backwards compatibility
 - [06-01]: sendReminderEmail() preserved unchanged - v1.0 cron queue continues working during v1.1 development
 - [06-01]: React Email render(pretty: false) keeps output compact to avoid Gmail 102KB clipping
-- [07-01]: Three urgency levels only: normal, high, urgent (no 'low' level)
-- [07-01]: No validation rules on step array length - trust user to configure sensibly
-- [07-01]: Duplicate creates copy with "(Copy)" suffix and is_active: false
-- [07-01]: Delete-and-recreate pattern for schedule_steps to honor immutability
-- [07-01]: Fetch filing_types and step counts separately to avoid PostgREST FK join cache issues
-- [07-01]: Combined Templates & Schedules in single nav tab with sub-tab navigation via searchParams
 
 ### Known Risks
 
@@ -92,9 +85,9 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-08T13:17:51Z
-Stopped at: Completed 06-01-PLAN.md
+Stopped at: Completed Phase 6 (06-01-PLAN.md -- only plan in phase)
 Resume file: None
-Next step: Continue Phase 6 with 06-02 (Email Preview UI)
+Next step: Begin Phase 7 (Schedule Management)
 
 ---
-*Phase 6 in progress -- Email rendering pipeline complete, preview UI next*
+*Phase 6 complete -- Email rendering pipeline functional. TipTap JSON converts to inline-styled email HTML.*

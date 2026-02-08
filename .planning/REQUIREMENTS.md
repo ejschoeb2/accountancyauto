@@ -138,8 +138,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RNDR-01 | Phase 6 | Pending |
 | RNDR-02 | Phase 6 | Pending |
 | RNDR-03 | Phase 6 | Pending |
-| RNDR-04 | Phase 6 | Pending |
-| RNDR-05 | Phase 6 | Pending |
+| RNDR-04 | Phase 6 | Complete |
+| RNDR-05 | Phase 6 | Complete |
 | SCHD-01 | Phase 7 | Pending |
 | SCHD-02 | Phase 7 | Pending |
 | SCHD-03 | Phase 7 | Pending |

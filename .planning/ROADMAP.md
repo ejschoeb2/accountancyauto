@@ -33,8 +33,8 @@
 - Decimal phases (4.1, 4.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 4: Data Migration** - Restructure database from JSONB-embedded templates to normalized tables
-- [ ] **Phase 5: Rich Text Editor & Templates** - TipTap editor with placeholder autocomplete and template CRUD
-- [ ] **Phase 6: Email Rendering Pipeline** - Convert TipTap JSON to email-safe HTML with inline styles
+- [x] **Phase 5: Rich Text Editor & Templates** - TipTap editor with placeholder autocomplete and template CRUD
+- [x] **Phase 6: Email Rendering Pipeline** - Convert TipTap JSON to email-safe HTML with inline styles
 - [ ] **Phase 7: Schedule Management** - Schedule creation/editing UI with step management (overrides removed from scope)
 - [ ] **Phase 8: Ad-Hoc Sending** - Select clients, pick template, preview, and send outside scheduled flow
 - [ ] **Phase 9: Queue Integration** - Rewire cron queue builder to read from new normalized tables
@@ -83,7 +83,7 @@ Plans:
   3. All links open in new tab with proper security attributes
 **Plans**: 1 plan
 Plans:
-- [ ] 06-01-PLAN.md — Rendering pipeline: TipTap JSON to inline-styled email HTML + tests
+- [x] 06-01-PLAN.md — Rendering pipeline: TipTap JSON to inline-styled email HTML + tests
 
 ### Phase 7: Schedule Management
 **Goal**: User can create and manage reminder schedules independently from templates, with sub-tab navigation alongside templates
@@ -130,7 +130,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 |-------|-----------|----------------|--------|-----------|
 | 4. Data Migration | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 5. Rich Text Editor & Templates | v1.1 | 4/4 | Complete | 2026-02-08 |
-| 6. Email Rendering Pipeline | v1.1 | 0/1 | Planning complete | - |
+| 6. Email Rendering Pipeline | v1.1 | 1/1 | Complete | 2026-02-08 |
 | 7. Schedule Management | v1.1 | 0/2 | Planning complete | - |
 | 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
 | 9. Queue Integration | v1.1 | TBD | Not started | - |
