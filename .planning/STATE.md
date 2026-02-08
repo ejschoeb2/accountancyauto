@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** v1.1 Template & Scheduling Redesign COMPLETE (all 6 phases done)
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 9 of 9 (Queue Integration)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 -- Completed 09-02-PLAN.md
+Phase: 9 of 9 (all complete)
+Plan: All plans complete
+Status: Ready for next milestone
+Last activity: 2026-02-08 — v1.1 milestone completed and archived
 
-Progress: [##########] 100% (13/13 v1.1 plans complete)
+Progress: [##########] 100% (30/30 total plans across v1.0 + v1.1)
 
 ## Performance Metrics
 
@@ -23,104 +23,49 @@ Progress: [##########] 100% (13/13 v1.1 plans complete)
 - Total execution time: ~78 min
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
-**v1.1:**
-- Total plans completed: 12
-- Phases: 9 (Phase 4-9)
-- Plan 04-01: 2 min
-- Plan 04-02: 3 min
-- Plan 05-01: 3.5 min
-- Plan 05-02: 4 min
-- Plan 05-03: 3 min
-- Plan 05-04: 15 min
-- Plan 06-01: 6 min
-- Plan 07-01: 4 min
-- Plan 07-02: 3 min
-- Plan 08-01: 2 min
-- Plan 08-02: 4 min
-- Plan 09-01: 5 min
-- Plan 09-02: 5 min
+**v1.1 Velocity:**
+- Total plans completed: 13
+- Total execution time: ~60 min
+- Timeline: 2 days (2026-02-07 -> 2026-02-08)
+- Phases: 6 (Phase 4-9)
+- Commits: 62
+- Files changed: 92
 
 ## Accumulated Context
 
 ### Decisions
 
-See PROJECT.md Key Decisions table for full list.
-
-Recent decisions affecting current work:
-- [v1.1 Roadmap]: TipTap 3.x chosen for rich text editor (React 19 compatible, first-party mention/suggestion)
-- [v1.1 Roadmap]: Three-phase migration strategy (add tables, verify data, cleanup old structure)
-- [v1.1 Roadmap]: Composition over embedding -- email templates as standalone entities referenced by ID
-- [04-01]: ON DELETE RESTRICT for schedule_steps -> email_templates FK (prevents breaking schedules by deleting in-use templates)
-- [04-01]: schedule_steps has no updated_at (immutable, modify via delete-and-recreate)
-- [04-01]: All v1.1 tables get full anon CRUD policies (app uses anon role, no Supabase Auth)
-- [04-02]: New UUIDs for all migrated rows (each step becomes its own email_template, can't reuse single template UUID)
-- [04-02]: Urgency level derived from step_number position (1-2 = normal, 3 = high, 4+ = urgent)
-- [04-02]: ON CONFLICT DO UPDATE for override deduplication during migration
-- [05-01]: PlaceholderNode configured as atomic inline (atom: true) prevents corruption
-- [05-01]: Paste always strips formatting to plain text, no Ctrl+Shift+V alternative
-- [05-01]: Pills display as {{variable}} with primary color styling for visual distinction
-- [05-02]: Zod v4 requires z.record(keyType, valueType) - used z.record(z.string(), z.unknown()) for TipTap attrs
-- [05-02]: /api/email-templates/ routes coexist with v1.0 /api/templates/ (separate tables, no conflict)
-- [05-02]: DELETE returns 409 when template in use by schedule (FK constraint 23503 handled gracefully)
-- [05-03]: Link extension configured with autolink: true for auto-detecting pasted URLs
-- [05-03]: PlaceholderDropdown uses onCloseAutoFocus prevention to avoid stealing focus from editor
-- [05-03]: Subject line editor stores plain text with {{variable}} syntax, renders preview with pills
-- [05-04]: Template list page uses server component querying email_templates (not reminder_templates)
-- [05-04]: Create and edit pages use same component structure with conditional behavior
-- [05-04]: Card grid layout for template list (1 col mobile, 2 md, 3 lg)
-- [05-04]: Delete button includes confirmation and gracefully handles FK constraint 409 errors
-- [06-01]: PlaceholderNode renderHTML outputs {{id}} syntax for substituteVariables() to replace
-- [06-01]: getSharedExtensions() used by both editor and renderer to prevent mismatched extensions
-- [06-01]: Link extension configured with target='_blank' and rel='noopener noreferrer' for security
-- [06-01]: ReminderEmail template supports both v1.0 plain text and v1.1 htmlBody for backwards compatibility
-- [06-01]: sendReminderEmail() preserved unchanged - v1.0 cron queue continues working during v1.1 development
-- [06-01]: React Email render(pretty: false) keeps output compact to avoid Gmail 102KB clipping
-- [07-01]: Three urgency levels only: normal, high, urgent (no 'low' level)
-- [07-01]: No validation rules on step array length - trust user to configure sensibly
-- [07-01]: Duplicate creates copy with "(Copy)" suffix and is_active: false
-- [07-01]: Delete-and-recreate pattern for schedule_steps to honor immutability
-- [07-01]: Fetch filing_types and step counts separately to avoid PostgREST FK join cache issues
-- [07-01]: Combined Templates & Schedules in single nav tab with sub-tab navigation via searchParams
-- [07-02]: Card layout for steps (not Accordion) for better visibility of all fields at once
-- [07-02]: Preset delay buttons (7/14/30) + custom input for common + flexible configuration
-- [07-02]: Non-blocking duplicate template warning allows same template in multiple steps
-- [07-02]: useFieldArray move() for step reordering with field.id as React key
-- [08-01]: send_type discriminator column on email_log (DEFAULT 'scheduled', CHECK constraint for values)
-- [08-01]: Ad-hoc sends use placeholder context (filing_type='Ad-hoc', deadline=now) for template variables
-- [08-01]: Ad-hoc sends logged with reminder_queue_id=null and filing_type_id=null
-- [08-01]: Delivery log shows ad-hoc badge with accent styling, scheduled as plain text
-- [08-02]: Multi-step modal pattern with state-driven view switching (select, preview, confirm, sending, results)
-- [08-02]: Preview uses iframe srcDoc for style isolation; previewAdhocEmail server action keeps rendering server-side
-- [08-02]: Sequential send loop with real-time Progress bar (not batch)
-- [08-02]: Lazy Postmark client via Proxy to avoid module-load crash when token missing
-- [09-01]: Remove ALL per-client override processing from queue builder (per user decision from Phase 7)
-- [09-01]: Use step.step_number for step_index in reminder_queue (not array index)
-- [09-01]: Set template_id to schedule.id in reminder_queue (points to schedule, not old reminder_templates)
-- [09-01]: Postmark failures marked as 'pending' for retry (not 'failed') - ensures no missed emails
-- [09-01]: Missing templates/schedules logged to email_log with 'failed' status for visibility
-- [09-02]: All v1.0 code removed in single commit for atomic clean break
-- [09-02]: UrgencyLevel type updated to remove 'low' level per decision [07-01]
-- [09-02]: Template overrides section intentionally removed from client detail page (no per-client overrides per user decision)
-- [09-02]: DROP TABLE migration as independent rollback unit from queue rewiring
+See PROJECT.md Key Decisions table for full list (22 decisions).
 
 ### Known Risks
 
-- ~~Placeholder corruption: TipTap atomic nodes must prevent editor from splitting {{variable}} syntax~~ ✅ Resolved in 05-01 (atom: true configuration)
-- ~~Email rendering: Rich text HTML must convert to email-safe inline-style HTML for Outlook/Gmail~~ ✅ Resolved in 06-01 (TipTap -> generateHTML -> React Email -> inline styles)
-- ~~Queue disruption: Existing cron must continue functioning during entire v1.1 development~~ ✅ Resolved in 09-01 (v1.1 queue builder operational)
+All v1.0 and v1.1 risks resolved. No open risks.
 
-### Tech Debt (from v1.0)
+### Tech Debt
 
-1. PostgREST FK join workaround in audit-log.ts
-2. Phase 1 plans 02-04 missing formal SUMMARY.md files
-3. Phase 1 & 3 missing formal VERIFICATION.md
+1. PostgREST FK join workaround in audit-log.ts (v1.0)
+2. Dual PlaceholderNode implementations — client vs server (v1.1)
+3. Extension config duplicated between editor and renderer (v1.1)
+4. 9 pre-existing test failures in rollover.test.ts and variables.test.ts
+5. Phase 1 plans 02-04 missing formal SUMMARY.md files
+6. Phase 1 & 3 missing formal VERIFICATION.md
+
+### Deferred Features
+
+- RNDR-01/02/03: Live preview pane (descoped from v1.1)
+- SCHD-09/10: Cancel/reschedule individual reminders
+- OVRD-01 to OVRD-05: Per-client override UI (tables exist, no UI)
+- DISC-01 to DISC-04: Template organization (search, filter, usage stats)
+- EMAL-01 to EMAL-03: Email enhancements (plain text fallback, Litmus, retry)
+- CALV-01/02: Calendar view for scheduled reminders
+- QKSN-01: Ad-hoc email from client detail page
 
 ## Session Continuity
 
-Last session: 2026-02-08T14:30:34Z
-Stopped at: Completed 09-02-PLAN.md (Phase 9 Plan 2 of 2 - v1.0 cleanup)
+Last session: 2026-02-08
+Stopped at: v1.1 milestone completed and archived
 Resume file: None
-Next step: Phase 9 complete - v1.1 migration finished. All v1.0 code removed, old tables dropped.
+Next step: /gsd:new-milestone to define next version
 
 ---
-*Phase 9 complete -- v1.1 migration finished. Reminder system fully operational on normalized tables with zero legacy code.*
+*v1.1 milestone complete — system fully operational on normalized architecture*

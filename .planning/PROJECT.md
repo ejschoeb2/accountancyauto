@@ -2,22 +2,11 @@
 
 ## What This Is
 
-A web application for Peninsula Accounting that connects to their QuickBooks Online account, syncs the client list automatically, and sends scheduled email reminders to clients about upcoming filing obligations — year-end accounts, VAT returns, self-assessment deadlines, corporation tax, and Companies House filings. The accountant configures reminder templates and schedules, and the system handles everything else: calculating when reminders are due, sending them at the right time, tracking delivery, and providing a dashboard with traffic-light status indicators to monitor the whole process.
+A web application for Peninsula Accounting that connects to their QuickBooks Online account, syncs the client list automatically, and sends scheduled email reminders to clients about upcoming filing obligations — year-end accounts, VAT returns, self-assessment deadlines, corporation tax, and Companies House filings. The accountant creates rich text email templates with placeholder variables, configures reminder schedules with multi-step escalation, and can send ad-hoc emails to selected clients. The system handles everything else: calculating when reminders are due, rendering emails with client data, sending them at the right time, tracking delivery, and providing a dashboard with traffic-light status indicators to monitor the whole process.
 
 ## Core Value
 
 Accountants spend hours every month manually chasing clients for records and documents. This system automates that entirely while keeping the accountant in full control of messaging and timing.
-
-## Current Milestone: v1.1 Template & Scheduling Redesign
-
-**Goal:** Decouple email templates from scheduling logic, add rich text editing with live preview, and enable ad-hoc client communications.
-
-**Target features:**
-- Standalone email templates with rich text editor and slash-command placeholder insertion
-- Separate scheduling system where templates are assigned to timings
-- Ad-hoc sending capability (select clients, pick template, send immediately)
-- Auto-migration of existing reminder templates to new structure
-- Per-client overrides for both template content and schedule timing
 
 ## Requirements
 
@@ -55,17 +44,29 @@ Accountants spend hours every month manually chasing clients for records and doc
 - ✓ Global and per-client audit logs — v1.0
 - ✓ Dashboard summary metrics (overdue, chasing, sent today) — v1.0
 - ✓ QuickBooks connection status banner — v1.0
+- ✓ Standalone email templates with rich text editor (TipTap) — v1.1
+- ✓ Slash-command autocomplete for placeholder insertion — v1.1
+- ✓ Atomic placeholder pills that cannot be split or corrupted — v1.1
+- ✓ Paste from Word/Outlook strips formatting — v1.1
+- ✓ HTML sanitization on save (Zod TipTap validation) — v1.1
+- ✓ Template body stored as TipTap JSON — v1.1
+- ✓ Template CRUD with card grid list, create/edit pages — v1.1
+- ✓ Subject line placeholder insertion via button dropdown — v1.1
+- ✓ TipTap JSON to email-safe inline-styled HTML via React Email — v1.1
+- ✓ Separate scheduling system (templates assigned to timings) — v1.1
+- ✓ Multi-step schedules with reordering, template/delay/urgency per step — v1.1
+- ✓ Schedule CRUD with sub-tab navigation — v1.1
+- ✓ Ad-hoc sending (select clients, pick template, preview, send) — v1.1
+- ✓ Multi-step send modal with progress tracking — v1.1
+- ✓ Delivery log with ad-hoc/scheduled type indicators — v1.1
+- ✓ Auto-migration of JSONB templates to normalized tables — v1.1
+- ✓ Queue builder reads from normalized tables (schedules/schedule_steps/email_templates) — v1.1
+- ✓ Rich HTML email rendering via TipTap pipeline in cron — v1.1
+- ✓ Complete v1.0 legacy code removal — v1.1
 
 ### Active
 
-- [ ] Standalone email templates (decoupled from scheduling)
-- [ ] Rich text editor with live preview pane
-- [ ] Slash-command autocomplete for placeholder insertion
-- [ ] Separate scheduling page (assign templates to timings)
-- [ ] Multi-step schedules (multiple template + timing pairs per schedule)
-- [ ] Ad-hoc sending (select clients, pick template, send now)
-- [ ] Auto-migration of existing reminder templates to new structure
-- [ ] Per-client overrides for both template content and schedule timing
+(No active requirements — next milestone not yet defined)
 
 ### Out of Scope
 
@@ -74,9 +75,13 @@ Accountants spend hours every month manually chasing clients for records and doc
 - Write access to QuickBooks — read-only client data sync
 - Mobile app — web dashboard only
 - Real-time chat or client portal — email reminders only
-- SMS reminders — email only for v1
+- SMS reminders — email only
 - Billing / payments integration
 - Document upload from clients — just reminders, not a file exchange platform
+- Drag-and-drop email builder — rich text editor sufficient
+- HTML source code editing — non-technical user, would bypass sanitization
+- Real-time collaborative editing — solo practitioner
+- Email analytics (open/click tracking) — privacy concern, no actionable value
 
 ## Context
 
@@ -84,17 +89,17 @@ Accountants spend hours every month manually chasing clients for records and doc
 - **User:** Solo practitioner who is the only dashboard user
 - **Domain:** UK accounting obligations — Companies House annual accounts, HMRC Corporation Tax, Self Assessment, VAT returns (quarterly/monthly), CIS returns, confirmation statements
 - **Client types:** Limited Companies, Sole Traders, Partnerships, LLPs — each with different filing obligations
-- **QuickBooks API:** Uses QBO query API with SQL-like syntax (`SELECT * FROM Customer WHERE Active = true`), webhooks for real-time updates, OAuth 2.0 with 1-hour access tokens and 100-day refresh tokens
-- **Email requirements:** Must appear to come from Peninsula Accounting's domain (not the platform), requires Postmark domain verification with DKIM + return-path CNAME
+- **QuickBooks API:** Uses QBO query API with SQL-like syntax, webhooks for real-time updates, OAuth 2.0 with 1-hour access tokens and 100-day refresh tokens
+- **Email requirements:** Must appear to come from Peninsula Accounting's domain, requires Postmark domain verification with DKIM + return-path CNAME
 - **Filing deadlines are mostly formulaic:** Corporation Tax = year-end + 9 months 1 day, Companies House = year-end + 9 months (private), VAT = quarter-end + 1 month 7 days, Self Assessment = 31 January following tax year — all overridable per client
-- **Intuit Developer Portal:** Requires app registration, sandbox available for development, production requires app review
-- **Current state:** v1.0 MVP shipped 2026-02-07 — 98 TypeScript files, 12,430 LOC, Next.js + Supabase + Postmark
-- **Audit score:** 32/32 requirements (100%), 18/18 cross-phase connections (100%), 4/4 E2E flows complete
-- **UAT results:** 20/28 tests passed, 7 gaps resolved via quick tasks, 1 skipped by design
+- **Current state:** v1.1 shipped 2026-02-08 — 14,567 LOC TypeScript, Next.js + Supabase + Postmark + TipTap 3.x
+- **Architecture:** Normalized relational tables (email_templates, schedules, schedule_steps), TipTap JSON for template bodies, React Email for rendering, two-stage cron (queue + send)
+- **v1.1 audit:** 40/40 requirements satisfied, 10/10 cross-phase integrations, 3/3 E2E flows, UAT 17/17 after fixes
+- **Milestones shipped:** v1.0 MVP (2026-02-07), v1.1 Template & Scheduling Redesign (2026-02-08)
 
 ## Constraints
 
-- **Tech stack:** Next.js on Vercel Pro, Supabase (Postgres + Auth + Edge Functions), Postmark for transactional email
+- **Tech stack:** Next.js on Vercel Pro, Supabase (Postgres + Auth + Edge Functions), Postmark for transactional email, TipTap 3.x for rich text editing
 - **QuickBooks scope:** `com.intuit.quickbooks.accounting` — read-only access to customer records
 - **Vercel Pro:** Required for cron jobs (daily scheduler)
 - **Postmark domain verification:** One-time DNS setup required before emails can be sent from practice domain
@@ -119,6 +124,14 @@ Accountants spend hours every month manually chasing clients for records and doc
 | Queue pattern for emails | Cron marks pending, separate process sends emails | Good |
 | HMAC-SHA256 webhook verification | Timing-safe comparison prevents replay attacks | Good |
 | React Email templates | Inline CSS for email client compatibility | Good |
+| TipTap 3.x for rich text | React 19 compatible, atomic placeholder nodes, clean JSON output | Good |
+| Composition over embedding | Email templates as standalone entities referenced by FK, not JSONB blobs | Good |
+| ON DELETE RESTRICT for template FK | Prevents breaking schedules by deleting in-use templates | Good |
+| Per-client overrides deferred | Tables exist but no UI — simplifies v1.1, can add later | Good |
+| Schedule duplicate removed | One schedule per filing type by design; UNIQUE constraint makes duplication impractical | Good |
+| Lazy Postmark client | Proxy pattern avoids module-load crash when token missing | Good |
+| Three urgency levels only | normal/high/urgent — 'low' removed for simplicity | Good |
+| Paste always strips formatting | Plain text only, no Ctrl+Shift+V — predictable paste behavior | Good |
 
 ---
-*Last updated: 2026-02-08 after v1.1 milestone initialization*
+*Last updated: 2026-02-08 after v1.1 milestone completion*
