@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
 import { AVAILABLE_PLACEHOLDERS } from '@/lib/templates/variables'
 
 interface PlaceholderDropdownProps {
@@ -25,8 +26,14 @@ export function PlaceholderDropdown({ onSelect }: PlaceholderDropdownProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" type="button">
-          Insert Placeholder
+        <Button
+          variant="ghost"
+          size="icon"
+          type="button"
+          className="h-10 w-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97]"
+          title="Insert placeholder"
+        >
+          <Plus className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

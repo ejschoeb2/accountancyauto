@@ -37,7 +37,8 @@ export function SubjectLineEditor({ value, onChange }: SubjectLineEditorProps) {
   )
 
   return (
-    <div className="flex items-center gap-2 border-b px-4 py-3">
+    <div className="flex items-center gap-3 border-b px-4 py-3">
+      <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
       <Input
         ref={inputRef}
         type="text"
