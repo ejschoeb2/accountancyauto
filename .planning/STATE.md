@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 
 ## Current Position
 
-Phase: 8 of 9 (Ad-Hoc Sending)
+Phase: 9 of 9 (Queue Integration)
 Plan: 1 of 2 in current phase
 Status: In progress
-Last activity: 2026-02-08 -- Completed 08-01-PLAN.md
+Last activity: 2026-02-08 -- Completed 09-01-PLAN.md
 
-Progress: [#####.....] ~50% (10/~20 v1.1 plans estimated)
+Progress: [#####.....] ~55% (11/~20 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,8 +24,8 @@ Progress: [#####.....] ~50% (10/~20 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 10
-- Phases: 8 (Phase 4-9)
+- Total plans completed: 11
+- Phases: 9 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
 - Plan 05-01: 3.5 min
@@ -36,6 +36,7 @@ Progress: [#####.....] ~50% (10/~20 v1.1 plans estimated)
 - Plan 07-01: 4 min
 - Plan 07-02: 3 min
 - Plan 08-01: 2 min
+- Plan 09-01: 5 min
 
 ## Accumulated Context
 
@@ -86,12 +87,17 @@ Recent decisions affecting current work:
 - [08-01]: Ad-hoc sends use placeholder context (filing_type='Ad-hoc', deadline=now) for template variables
 - [08-01]: Ad-hoc sends logged with reminder_queue_id=null and filing_type_id=null
 - [08-01]: Delivery log shows ad-hoc badge with accent styling, scheduled as plain text
+- [09-01]: Remove ALL per-client override processing from queue builder (per user decision from Phase 7)
+- [09-01]: Use step.step_number for step_index in reminder_queue (not array index)
+- [09-01]: Set template_id to schedule.id in reminder_queue (points to schedule, not old reminder_templates)
+- [09-01]: Postmark failures marked as 'pending' for retry (not 'failed') - ensures no missed emails
+- [09-01]: Missing templates/schedules logged to email_log with 'failed' status for visibility
 
 ### Known Risks
 
 - ~~Placeholder corruption: TipTap atomic nodes must prevent editor from splitting {{variable}} syntax~~ ✅ Resolved in 05-01 (atom: true configuration)
 - ~~Email rendering: Rich text HTML must convert to email-safe inline-style HTML for Outlook/Gmail~~ ✅ Resolved in 06-01 (TipTap -> generateHTML -> React Email -> inline styles)
-- Queue disruption: Existing cron must continue functioning during entire v1.1 development
+- ~~Queue disruption: Existing cron must continue functioning during entire v1.1 development~~ ✅ Resolved in 09-01 (v1.1 queue builder operational)
 
 ### Tech Debt (from v1.0)
 
@@ -101,10 +107,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T14:15:58Z
-Stopped at: Completed 08-01-PLAN.md (Phase 8 Plan 1 of 2)
+Last session: 2026-02-08T14:21:28Z
+Stopped at: Completed 09-01-PLAN.md (Phase 9 Plan 1 of 2)
 Resume file: None
-Next step: Execute 08-02-PLAN.md (UI for ad-hoc sending)
+Next step: Execute 09-02-PLAN.md (v1.0 cleanup - drop old tables and code)
 
 ---
-*Phase 7 complete -- Schedule management with interactive editor, step reordering, and template selection.*
+*Phase 9 in progress -- Automated reminder cron system rewired to v1.1 normalized tables with TipTap rendering pipeline.*
