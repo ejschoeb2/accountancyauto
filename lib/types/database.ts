@@ -112,6 +112,7 @@ export interface ReminderQueueItem {
   status: ReminderStatus;
   resolved_subject: string | null;
   resolved_body: string | null;
+  html_body: string | null; // v1.1 rich HTML from renderTipTapEmail()
   queued_at: string | null;
   sent_at: string | null;
   created_at: string;

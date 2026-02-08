@@ -1,11 +1,10 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { UTCDate } from '@date-fns/utc';
 import { subDays, format } from 'date-fns';
-import { FilingTypeId, ClientFilingAssignment, ReminderTemplate, ClientDeadlineOverride, ClientTemplateOverride, TemplateStep } from '@/lib/types/database';
+import { FilingTypeId, ClientFilingAssignment, ClientDeadlineOverride, Schedule, ScheduleStep, EmailTemplate } from '@/lib/types/database';
 import { calculateDeadline } from '@/lib/deadlines/calculators';
 import { getNextWorkingDay } from '@/lib/deadlines/working-days';
 import { getUKBankHolidaySet } from '@/lib/bank-holidays/cache';
-import { resolveTemplateForClient } from '@/lib/templates/inheritance';
 
 interface Client {
   id: string;
@@ -22,7 +21,25 @@ interface BuildResult {
 }
 
 /**
- * Build reminder queue from templates, filing assignments, and deadlines
+ * Log warnings/errors to email_log for visibility
+ */
+async function logQueueWarning(supabase: SupabaseClient, entry: {
+  message: string;
+  client_id?: string;
+  filing_type_id?: string;
+}): Promise<void> {
+  await supabase.from('email_log').insert({
+    client_id: entry.client_id || null,
+    filing_type_id: entry.filing_type_id || null,
+    delivery_status: 'failed',
+    bounce_description: `[QUEUE] ${entry.message}`,
+    subject: 'Queue Builder Warning',
+    sent_at: new Date().toISOString(),
+  });
+}
+
+/**
+ * Build reminder queue from schedules, filing assignments, and deadlines (v1.1)
  * Idempotent: won't create duplicates if queue already populated
  */
 export async function buildReminderQueue(supabase: SupabaseClient): Promise<BuildResult> {
@@ -43,21 +60,58 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
     return { created: 0, skipped: 0 };
   }
 
-  // Fetch all active reminder templates
-  const { data: templates, error: templatesError } = await supabase
-    .from('reminder_templates')
+  // Fetch v1.1 normalized tables (PostgREST FK workaround: fetch separately and map in app)
+  const { data: schedules, error: schedulesError } = await supabase
+    .from('schedules')
+    .select('*')
+    .eq('is_active', true);
+
+  if (schedulesError) {
+    throw new Error(`Failed to fetch schedules: ${schedulesError.message}`);
+  }
+
+  const { data: scheduleSteps, error: stepsError } = await supabase
+    .from('schedule_steps')
+    .select('*')
+    .order('step_number', { ascending: true });
+
+  if (stepsError) {
+    throw new Error(`Failed to fetch schedule steps: ${stepsError.message}`);
+  }
+
+  const { data: emailTemplates, error: templatesError } = await supabase
+    .from('email_templates')
     .select('*')
     .eq('is_active', true);
 
   if (templatesError) {
-    throw new Error(`Failed to fetch templates: ${templatesError.message}`);
+    throw new Error(`Failed to fetch email templates: ${templatesError.message}`);
   }
 
-  if (!templates || templates.length === 0) {
+  if (!schedules || schedules.length === 0) {
     return { created: 0, skipped: 0 };
   }
 
-  // Fetch all client overrides (deadline and template)
+  // Build application-level lookup maps
+  const scheduleByFilingType = new Map<string, Schedule>();
+  schedules.forEach((schedule) => {
+    scheduleByFilingType.set(schedule.filing_type_id, schedule);
+  });
+
+  const stepsBySchedule = new Map<string, ScheduleStep[]>();
+  (scheduleSteps || []).forEach((step) => {
+    if (!stepsBySchedule.has(step.schedule_id)) {
+      stepsBySchedule.set(step.schedule_id, []);
+    }
+    stepsBySchedule.get(step.schedule_id)!.push(step);
+  });
+
+  const templateMap = new Map<string, EmailTemplate>();
+  (emailTemplates || []).forEach((template) => {
+    templateMap.set(template.id, template);
+  });
+
+  // Fetch deadline overrides (these remain relevant - not template overrides)
   const { data: deadlineOverrides, error: deadlineError } = await supabase
     .from('client_deadline_overrides')
     .select('*');
@@ -66,36 +120,14 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
     throw new Error(`Failed to fetch deadline overrides: ${deadlineError.message}`);
   }
 
-  const { data: templateOverrides, error: templateError } = await supabase
-    .from('client_template_overrides')
-    .select('*');
-
-  if (templateError) {
-    throw new Error(`Failed to fetch template overrides: ${templateError.message}`);
-  }
-
-  // Fetch bank holidays
   const holidays = await getUKBankHolidaySet();
 
-  // Group overrides by client for quick lookup
   const deadlineOverrideMap = new Map<string, Map<string, ClientDeadlineOverride>>();
   (deadlineOverrides || []).forEach((override) => {
     if (!deadlineOverrideMap.has(override.client_id)) {
       deadlineOverrideMap.set(override.client_id, new Map());
     }
     deadlineOverrideMap.get(override.client_id)!.set(override.filing_type_id, override);
-  });
-
-  const templateOverrideMap = new Map<string, Map<string, ClientTemplateOverride[]>>();
-  (templateOverrides || []).forEach((override) => {
-    const key = `${override.client_id}_${override.template_id}`;
-    if (!templateOverrideMap.has(key)) {
-      templateOverrideMap.set(key, new Map());
-    }
-    if (!templateOverrideMap.get(key)!.has(override.template_id)) {
-      templateOverrideMap.get(key)!.set(override.template_id, []);
-    }
-    templateOverrideMap.get(key)!.get(override.template_id)!.push(override);
   });
 
   // Process each client + filing type pair
@@ -135,25 +167,45 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
       continue;
     }
 
-    // Find the reminder template for this filing type
-    const template = templates.find((t) => t.filing_type_id === filingTypeId);
-    if (!template) {
-      // No template exists for this filing type
+    // Look up schedule by filing type
+    const schedule = scheduleByFilingType.get(filingTypeId);
+    if (!schedule) {
+      // Log warning to email_log and skip
+      await logQueueWarning(supabase, {
+        message: `No schedule found for filing type ${filingTypeId}`,
+        client_id: client.id,
+        filing_type_id: filingTypeId,
+      });
       skipped++;
       continue;
     }
 
-    // Resolve template steps with client overrides
-    const clientOverrides = templateOverrideMap.get(`${client.id}_${template.id}`)?.get(template.id) || [];
-    const overrideEntries = clientOverrides.map((override) => ({
-      step_index: override.step_index,
-      overridden_fields: override.overridden_fields,
-    }));
-    const resolvedSteps = resolveTemplateForClient(template.steps, overrideEntries);
+    // Get steps for this schedule
+    const steps = stepsBySchedule.get(schedule.id) || [];
+    if (steps.length === 0) {
+      await logQueueWarning(supabase, {
+        message: `Schedule ${schedule.id} has no steps`,
+        client_id: client.id,
+        filing_type_id: filingTypeId,
+      });
+      skipped++;
+      continue;
+    }
 
     // Create queue entries for each step
-    for (let i = 0; i < resolvedSteps.length; i++) {
-      const step = resolvedSteps[i];
+    for (const step of steps) {
+      // Look up template for this step
+      const template = templateMap.get(step.email_template_id);
+      if (!template) {
+        // Log warning and skip this step (continue with remaining steps)
+        await logQueueWarning(supabase, {
+          message: `Template ${step.email_template_id} not found for schedule ${schedule.id} step ${step.step_number}`,
+          client_id: client.id,
+          filing_type_id: filingTypeId,
+        });
+        skipped++;
+        continue;
+      }
 
       // Calculate send_date = deadline_date - delay_days
       let sendDate = subDays(new UTCDate(deadlineDate), step.delay_days);
@@ -165,12 +217,13 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
       const deadlineDateStr = format(deadlineDate, 'yyyy-MM-dd');
 
       // Check if this exact reminder already exists (idempotent)
+      // Idempotency check: client_id + filing_type_id + step_number + deadline_date
       const { data: existing, error: existingError } = await supabase
         .from('reminder_queue')
         .select('id')
         .eq('client_id', client.id)
         .eq('filing_type_id', filingTypeId)
-        .eq('step_index', i)
+        .eq('step_index', step.step_number)
         .eq('deadline_date', deadlineDateStr)
         .single();
 
@@ -186,8 +239,8 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
         .insert({
           client_id: client.id,
           filing_type_id: filingTypeId,
-          template_id: template.id,
-          step_index: i,
+          template_id: schedule.id, // Points to schedule (not old reminder_templates)
+          step_index: step.step_number, // Use step_number from schedule_steps
           deadline_date: deadlineDateStr,
           send_date: sendDateStr,
           status: 'scheduled',
@@ -195,7 +248,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
 
       if (insertError) {
         // Log error but continue processing
-        console.error(`Failed to insert reminder for client ${client.id}, filing ${filingTypeId}, step ${i}:`, insertError);
+        console.error(`Failed to insert reminder for client ${client.id}, filing ${filingTypeId}, step ${step.step_number}:`, insertError);
         skipped++;
       } else {
         created++;
@@ -207,7 +260,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
 }
 
 /**
- * Rebuild queue entries for a specific client
+ * Rebuild queue entries for a specific client (v1.1)
  * Used when client metadata, assignments, or overrides change
  */
 export async function rebuildQueueForClient(
@@ -252,17 +305,53 @@ export async function rebuildQueueForClient(
     return;
   }
 
-  // Fetch active templates
-  const { data: templates, error: templatesError } = await supabase
-    .from('reminder_templates')
+  // Fetch v1.1 normalized tables
+  const { data: schedules, error: schedulesError } = await supabase
+    .from('schedules')
+    .select('*')
+    .eq('is_active', true);
+
+  if (schedulesError) {
+    throw new Error(`Failed to fetch schedules: ${schedulesError.message}`);
+  }
+
+  const { data: scheduleSteps, error: stepsError } = await supabase
+    .from('schedule_steps')
+    .select('*')
+    .order('step_number', { ascending: true });
+
+  if (stepsError) {
+    throw new Error(`Failed to fetch schedule steps: ${stepsError.message}`);
+  }
+
+  const { data: emailTemplates, error: templatesError } = await supabase
+    .from('email_templates')
     .select('*')
     .eq('is_active', true);
 
   if (templatesError) {
-    throw new Error(`Failed to fetch templates: ${templatesError.message}`);
+    throw new Error(`Failed to fetch email templates: ${templatesError.message}`);
   }
 
-  // Fetch client overrides
+  // Build lookup maps
+  const scheduleByFilingType = new Map<string, Schedule>();
+  (schedules || []).forEach((schedule) => {
+    scheduleByFilingType.set(schedule.filing_type_id, schedule);
+  });
+
+  const stepsBySchedule = new Map<string, ScheduleStep[]>();
+  (scheduleSteps || []).forEach((step) => {
+    if (!stepsBySchedule.has(step.schedule_id)) {
+      stepsBySchedule.set(step.schedule_id, []);
+    }
+    stepsBySchedule.get(step.schedule_id)!.push(step);
+  });
+
+  const templateMap = new Map<string, EmailTemplate>();
+  (emailTemplates || []).forEach((template) => {
+    templateMap.set(template.id, template);
+  });
+
   const { data: deadlineOverrides, error: deadlineError } = await supabase
     .from('client_deadline_overrides')
     .select('*')
@@ -272,29 +361,12 @@ export async function rebuildQueueForClient(
     throw new Error(`Failed to fetch deadline overrides: ${deadlineError.message}`);
   }
 
-  const { data: templateOverrides, error: templateError } = await supabase
-    .from('client_template_overrides')
-    .select('*')
-    .eq('client_id', clientId);
-
-  if (templateError) {
-    throw new Error(`Failed to fetch template overrides: ${templateError.message}`);
-  }
-
   const holidays = await getUKBankHolidaySet();
 
   // Build overrides maps
   const deadlineOverrideMap = new Map<string, ClientDeadlineOverride>();
   (deadlineOverrides || []).forEach((override) => {
     deadlineOverrideMap.set(override.filing_type_id, override);
-  });
-
-  const templateOverrideMap = new Map<string, ClientTemplateOverride[]>();
-  (templateOverrides || []).forEach((override) => {
-    if (!templateOverrideMap.has(override.template_id)) {
-      templateOverrideMap.set(override.template_id, []);
-    }
-    templateOverrideMap.get(override.template_id)!.push(override);
   });
 
   // Process each assignment
@@ -328,23 +400,39 @@ export async function rebuildQueueForClient(
       continue;
     }
 
-    // Find template
-    const template = templates?.find((t) => t.filing_type_id === filingTypeId);
-    if (!template) {
+    // Look up schedule
+    const schedule = scheduleByFilingType.get(filingTypeId);
+    if (!schedule) {
+      await logQueueWarning(supabase, {
+        message: `No schedule found for filing type ${filingTypeId}`,
+        client_id: clientId,
+        filing_type_id: filingTypeId,
+      });
       continue;
     }
 
-    // Resolve steps
-    const clientOverrides = templateOverrideMap.get(template.id) || [];
-    const overrideEntries = clientOverrides.map((override) => ({
-      step_index: override.step_index,
-      overridden_fields: override.overridden_fields,
-    }));
-    const resolvedSteps = resolveTemplateForClient(template.steps, overrideEntries);
+    const steps = stepsBySchedule.get(schedule.id) || [];
+    if (steps.length === 0) {
+      await logQueueWarning(supabase, {
+        message: `Schedule ${schedule.id} has no steps`,
+        client_id: clientId,
+        filing_type_id: filingTypeId,
+      });
+      continue;
+    }
 
     // Create queue entries
-    for (let i = 0; i < resolvedSteps.length; i++) {
-      const step = resolvedSteps[i];
+    for (const step of steps) {
+      const template = templateMap.get(step.email_template_id);
+      if (!template) {
+        await logQueueWarning(supabase, {
+          message: `Template ${step.email_template_id} not found for schedule ${schedule.id} step ${step.step_number}`,
+          client_id: clientId,
+          filing_type_id: filingTypeId,
+        });
+        continue;
+      }
+
       let sendDate = subDays(new UTCDate(deadlineDate), step.delay_days);
       sendDate = new UTCDate(getNextWorkingDay(sendDate, holidays));
 
@@ -354,8 +442,8 @@ export async function rebuildQueueForClient(
       await supabase.from('reminder_queue').insert({
         client_id: client.id,
         filing_type_id: filingTypeId,
-        template_id: template.id,
-        step_index: i,
+        template_id: schedule.id,
+        step_index: step.step_number,
         deadline_date: deadlineDateStr,
         send_date: sendDateStr,
         status: 'scheduled',
