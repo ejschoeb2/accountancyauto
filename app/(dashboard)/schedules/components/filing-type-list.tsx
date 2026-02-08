@@ -18,6 +18,11 @@ import {
 import { toast } from 'sonner'
 import type { FilingType, FilingTypeId } from '@/lib/types/database'
 
+const STATUS_BADGE_CLASS: Record<boolean, string> = {
+  true: 'bg-status-success text-white hover:bg-status-success font-sans',
+  false: 'bg-status-neutral/20 text-status-neutral hover:bg-status-neutral/20 font-sans',
+}
+
 export interface StepDisplay {
   step_number: number
   template_name: string
@@ -85,7 +90,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {schedule && (
-                    <Badge variant={schedule.is_active ? 'default' : 'secondary'}>
+                    <Badge className={STATUS_BADGE_CLASS[schedule.is_active ? 'true' : 'false']}>
                       {schedule.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   )}

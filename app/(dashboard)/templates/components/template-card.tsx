@@ -10,6 +10,11 @@ import { toast } from 'sonner'
 import type { EmailTemplate } from '@/lib/types/database'
 import { formatDistanceToNow } from 'date-fns'
 
+const STATUS_BADGE_CLASS: Record<boolean, string> = {
+  true: 'bg-status-success text-white hover:bg-status-success font-sans',
+  false: 'bg-status-neutral/20 text-status-neutral hover:bg-status-neutral/20 font-sans',
+}
+
 interface TemplateCardProps {
   template: EmailTemplate
 }
@@ -50,7 +55,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
         {/* Left: name + subject */}
         <div className="flex items-center gap-4 min-w-0">
           <h3 className="font-semibold text-lg whitespace-nowrap">{template.name}</h3>
-          <Badge variant={template.is_active ? 'default' : 'secondary'}>
+          <Badge className={STATUS_BADGE_CLASS[template.is_active ? 'true' : 'false']}>
             {template.is_active ? 'Active' : 'Inactive'}
           </Badge>
           <p className="text-sm text-muted-foreground truncate">
