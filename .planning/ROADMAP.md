@@ -66,7 +66,12 @@ Plans:
   3. User can insert placeholders in the subject line via a button dropdown
   4. User can paste content from Word or Outlook and the editor strips complex styles without breaking layout
   5. User can view a list of all templates and edit any existing template with content loading correctly in the editor
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 05-01-PLAN.md — Install TipTap + create PlaceholderNode and PasteHandler extensions
+- [ ] 05-02-PLAN.md — API routes for email_templates CRUD (validation, list, create, update, delete)
+- [ ] 05-03-PLAN.md — TipTap editor component, toolbar, placeholder dropdown, subject line editor
+- [ ] 05-04-PLAN.md — Template list page (card grid) and create/edit pages with visual verification
 
 ### Phase 6: Email Rendering Pipeline
 **Goal**: TipTap JSON content converts to email-safe HTML with inline styles for correct rendering in Gmail, Outlook, and Apple Mail
@@ -122,7 +127,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 4. Data Migration | v1.1 | 2/2 | Complete | 2026-02-08 |
-| 5. Rich Text Editor & Templates | v1.1 | TBD | Not started | - |
+| 5. Rich Text Editor & Templates | v1.1 | 0/4 | Planning complete | - |
 | 6. Email Rendering Pipeline | v1.1 | 0/1 | Not started | - |
 | 7. Schedule Management & Overrides | v1.1 | TBD | Not started | - |
 | 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
