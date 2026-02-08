@@ -119,6 +119,76 @@ export interface ReminderQueueItem {
 }
 
 // ============================================================================
+// v1.1 Normalized Tables
+// ============================================================================
+
+export interface TipTapDocument {
+  type: 'doc';
+  content: TipTapNode[];
+}
+
+export interface TipTapNode {
+  type: string;
+  content?: TipTapNode[];
+  text?: string;
+  attrs?: Record<string, unknown>;
+  marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+}
+
+export type UrgencyLevel = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body_json: TipTapDocument;
+  body_plain: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Schedule {
+  id: string;
+  filing_type_id: FilingTypeId;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduleStep {
+  id: string;
+  schedule_id: string;
+  email_template_id: string;
+  step_number: number;
+  delay_days: number;
+  urgency_level: UrgencyLevel;
+  created_at: string;
+}
+
+export interface ClientEmailOverride {
+  id: string;
+  client_id: string;
+  email_template_id: string;
+  subject_override: string | null;
+  body_json_override: TipTapDocument | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientScheduleOverride {
+  id: string;
+  client_id: string;
+  schedule_step_id: string;
+  delay_days_override: number | null;
+  is_skipped: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
 // Template Placeholder Variables
 // ============================================================================
 
