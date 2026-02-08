@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 
 ## Current Position
 
-Phase: 7 of 9 (Schedule Management)
+Phase: 6 of 9 (Email Rendering & Preview)
 Plan: 1 of 2 in current phase
 Status: In progress
-Last activity: 2026-02-08 -- Completed 07-01-PLAN.md
+Last activity: 2026-02-08 -- Completed 06-01-PLAN.md
 
-Progress: [###.......] ~37% (7/~19 v1.1 plans estimated)
+Progress: [###.......] ~42% (8/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,7 +24,7 @@ Progress: [###.......] ~37% (7/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
@@ -32,6 +32,7 @@ Progress: [###.......] ~37% (7/~19 v1.1 plans estimated)
 - Plan 05-02: 4 min
 - Plan 05-03: 3 min
 - Plan 05-04: 15 min
+- Plan 06-01: 6 min
 - Plan 07-01: 4 min
 
 ## Accumulated Context
@@ -63,6 +64,12 @@ Recent decisions affecting current work:
 - [05-04]: Create and edit pages use same component structure with conditional behavior
 - [05-04]: Card grid layout for template list (1 col mobile, 2 md, 3 lg)
 - [05-04]: Delete button includes confirmation and gracefully handles FK constraint 409 errors
+- [06-01]: PlaceholderNode renderHTML outputs {{id}} syntax for substituteVariables() to replace
+- [06-01]: getSharedExtensions() used by both editor and renderer to prevent mismatched extensions
+- [06-01]: Link extension configured with target='_blank' and rel='noopener noreferrer' for security
+- [06-01]: ReminderEmail template supports both v1.0 plain text and v1.1 htmlBody for backwards compatibility
+- [06-01]: sendReminderEmail() preserved unchanged - v1.0 cron queue continues working during v1.1 development
+- [06-01]: React Email render(pretty: false) keeps output compact to avoid Gmail 102KB clipping
 - [07-01]: Three urgency levels only: normal, high, urgent (no 'low' level)
 - [07-01]: No validation rules on step array length - trust user to configure sensibly
 - [07-01]: Duplicate creates copy with "(Copy)" suffix and is_active: false
@@ -73,7 +80,7 @@ Recent decisions affecting current work:
 ### Known Risks
 
 - ~~Placeholder corruption: TipTap atomic nodes must prevent editor from splitting {{variable}} syntax~~ ✅ Resolved in 05-01 (atom: true configuration)
-- Email rendering: Rich text HTML must convert to email-safe inline-style HTML for Outlook/Gmail
+- ~~Email rendering: Rich text HTML must convert to email-safe inline-style HTML for Outlook/Gmail~~ ✅ Resolved in 06-01 (TipTap -> generateHTML -> React Email -> inline styles)
 - Queue disruption: Existing cron must continue functioning during entire v1.1 development
 
 ### Tech Debt (from v1.0)
@@ -84,10 +91,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T13:17:05Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-02-08T13:17:51Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
-Next step: Continue Phase 7 with 07-02 (Schedule Editor UI)
+Next step: Continue Phase 6 with 06-02 (Email Preview UI)
 
 ---
-*Phase 7 in progress -- Schedule CRUD API complete, sub-tab navigation integrated*
+*Phase 6 in progress -- Email rendering pipeline complete, preview UI next*
