@@ -71,12 +71,12 @@ export function PlaceholderDropdown({
         <Button
           ref={dropdownRef}
           variant="ghost"
-          size="icon"
           type="button"
-          className="h-10 w-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97]"
+          className="px-4 py-2 h-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
           title="Insert placeholder"
         >
           <Plus className="h-5 w-5" />
+          Insert
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

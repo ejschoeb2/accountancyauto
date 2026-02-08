@@ -2,7 +2,6 @@
 
 import { Button } from '@/components/ui/button'
 import { Bold, Italic, List, ListOrdered, Link2, Unlink } from 'lucide-react'
-import { PlaceholderDropdown } from './placeholder-dropdown'
 import type { Editor } from '@tiptap/react'
 
 interface EditorToolbarProps {
@@ -109,20 +108,6 @@ export function EditorToolbar({ editor, placeholderButtonSlot }: EditorToolbarPr
         </Button>
       )}
 
-      {/* Separator */}
-      <div className="w-px h-6 bg-border mx-1" />
-
-      {/* Placeholder Button - uses unified slot if provided */}
-      {placeholderButtonSlot || (
-        <PlaceholderDropdown
-          onSelect={(id, label) => {
-            editor.chain().focus().insertContent({
-              type: 'placeholder',
-              attrs: { id, label },
-            }).run()
-          }}
-        />
-      )}
     </div>
   )
 }
