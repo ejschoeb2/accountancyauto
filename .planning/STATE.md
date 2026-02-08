@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 5 of 9 (Rich Text Editor & Templates)
-Plan: 3 of ~4 in current phase
-Status: In progress
-Last activity: 2026-02-08 -- Completed 05-03-PLAN.md
+Plan: 4 of 4 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 -- Completed 05-04-PLAN.md
 
-Progress: [##........] ~26% (5/~19 v1.1 plans estimated)
+Progress: [##........] ~32% (6/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,13 +24,14 @@ Progress: [##........] ~26% (5/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
 - Plan 05-01: 3.5 min
 - Plan 05-02: 4 min
 - Plan 05-03: 3 min
+- Plan 05-04: 15 min
 
 ## Accumulated Context
 
@@ -57,6 +58,10 @@ Recent decisions affecting current work:
 - [05-03]: Link extension configured with autolink: true for auto-detecting pasted URLs
 - [05-03]: PlaceholderDropdown uses onCloseAutoFocus prevention to avoid stealing focus from editor
 - [05-03]: Subject line editor stores plain text with {{variable}} syntax, renders preview with pills
+- [05-04]: Template list page uses server component querying email_templates (not reminder_templates)
+- [05-04]: Create and edit pages use same component structure with conditional behavior
+- [05-04]: Card grid layout for template list (1 col mobile, 2 md, 3 lg)
+- [05-04]: Delete button includes confirmation and gracefully handles FK constraint 409 errors
 
 ### Known Risks
 
@@ -72,10 +77,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T12:23:07Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-02-08T12:45:00Z
+Stopped at: Completed 05-04-PLAN.md (Phase 5 complete)
 Resume file: None
-Next step: Continue Phase 5 with template page integration (Plan 04/04)
+Next step: Begin Phase 6 (Schedule UI) or Phase 7 (Schedule API)
 
 ---
-*Phase 5 in progress -- TipTap editor UI components complete*
+*Phase 5 complete -- Email template CRUD workflow with rich text editor fully functional*
