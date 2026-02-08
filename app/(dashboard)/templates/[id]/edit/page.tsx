@@ -168,31 +168,28 @@ export default function EditTemplatePage() {
         </div>
       </div>
 
-      {/* Template Details */}
-      <div className="rounded-lg border p-8 space-y-6">
-        <h2 className="text-lg font-semibold">Template Details</h2>
+      {/* Template Name */}
+      <div className="space-y-2">
+        <Label htmlFor="name">Template Name</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g., Monthly VAT Reminder"
+          className="hover:border-foreground/20"
+        />
+      </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="name">Template Name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g., Monthly VAT Reminder"
-            className="hover:border-foreground/20"
-          />
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="is_active"
-            checked={isActive}
-            onCheckedChange={(checked) => setIsActive(checked as boolean)}
-          />
-          <Label htmlFor="is_active" className="cursor-pointer">
-            Active (available for use in schedules)
-          </Label>
-        </div>
+      {/* Active Checkbox */}
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="is_active"
+          checked={isActive}
+          onCheckedChange={(checked) => setIsActive(checked as boolean)}
+        />
+        <Label htmlFor="is_active" className="cursor-pointer">
+          Active (available for use in schedules)
+        </Label>
       </div>
 
       {/* Email Composer */}
