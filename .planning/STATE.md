@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 5 of 9 (Rich Text Editor & Templates)
-Plan: 1 of ~4 in current phase
+Plan: 2 of ~4 in current phase
 Status: In progress
-Last activity: 2026-02-08 -- Completed 05-01-PLAN.md
+Last activity: 2026-02-08 -- Completed 05-02-PLAN.md
 
-Progress: [##........] ~16% (3/~19 v1.1 plans estimated)
+Progress: [##........] ~21% (4/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,11 +24,12 @@ Progress: [##........] ~16% (3/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
 - Plan 05-01: 3.5 min
+- Plan 05-02: 4 min
 
 ## Accumulated Context
 
@@ -49,13 +50,15 @@ Recent decisions affecting current work:
 - [05-01]: PlaceholderNode configured as atomic inline (atom: true) prevents corruption
 - [05-01]: Paste always strips formatting to plain text, no Ctrl+Shift+V alternative
 - [05-01]: Pills display as {{variable}} with primary color styling for visual distinction
+- [05-02]: Zod v4 requires z.record(keyType, valueType) - used z.record(z.string(), z.unknown()) for TipTap attrs
+- [05-02]: /api/email-templates/ routes coexist with v1.0 /api/templates/ (separate tables, no conflict)
+- [05-02]: DELETE returns 409 when template in use by schedule (FK constraint 23503 handled gracefully)
 
 ### Known Risks
 
 - ~~Placeholder corruption: TipTap atomic nodes must prevent editor from splitting {{variable}} syntax~~ ✅ Resolved in 05-01 (atom: true configuration)
 - Email rendering: Rich text HTML must convert to email-safe inline-style HTML for Outlook/Gmail
 - Queue disruption: Existing cron must continue functioning during entire v1.1 development
-- List nesting prevention: Configuration for flat lists only needs testing in Plan 02
 
 ### Tech Debt (from v1.0)
 
@@ -65,10 +68,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T12:14:16Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-02-08T12:15:22Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
-Next step: Continue Phase 5 with template editor UI component (Plan 02/03)
+Next step: Continue Phase 5 with template editor UI component (Plan 03/04)
 
 ---
-*Phase 5 in progress -- TipTap extensions foundation complete*
+*Phase 5 in progress -- TipTap extensions and API layer complete*
