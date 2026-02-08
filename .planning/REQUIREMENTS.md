@@ -125,16 +125,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EDIT-01 | Phase 5 | Pending |
-| EDIT-02 | Phase 5 | Pending |
-| EDIT-03 | Phase 5 | Pending |
-| EDIT-04 | Phase 5 | Pending |
-| EDIT-05 | Phase 5 | Pending |
-| TMPL-01 | Phase 5 | Pending |
-| TMPL-02 | Phase 5 | Pending |
-| TMPL-03 | Phase 5 | Pending |
-| TMPL-04 | Phase 5 | Pending |
-| TMPL-05 | Phase 5 | Pending |
+| EDIT-01 | Phase 5 | Complete |
+| EDIT-02 | Phase 5 | Complete |
+| EDIT-03 | Phase 5 | Complete |
+| EDIT-04 | Phase 5 | Complete |
+| EDIT-05 | Phase 5 | Complete |
+| TMPL-01 | Phase 5 | Complete |
+| TMPL-02 | Phase 5 | Complete |
+| TMPL-03 | Phase 5 | Complete |
+| TMPL-04 | Phase 5 | Complete |
+| TMPL-05 | Phase 5 | Complete |
 | RNDR-01 | Phase 6 | Pending |
 | RNDR-02 | Phase 6 | Pending |
 | RNDR-03 | Phase 6 | Pending |

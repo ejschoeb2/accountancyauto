@@ -129,7 +129,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 4. Data Migration | v1.1 | 2/2 | Complete | 2026-02-08 |
-| 5. Rich Text Editor & Templates | v1.1 | 0/4 | Planning complete | - |
+| 5. Rich Text Editor & Templates | v1.1 | 4/4 | Complete | 2026-02-08 |
 | 6. Email Rendering Pipeline | v1.1 | 0/1 | Planning complete | - |
 | 7. Schedule Management | v1.1 | 0/2 | Planning complete | - |
 | 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
