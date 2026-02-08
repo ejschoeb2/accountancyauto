@@ -41,6 +41,7 @@ import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { BulkEditModal } from "./bulk-edit-modal";
+import { SendEmailModal } from "./send-email-modal";
 import {
   type Client,
   type BulkUpdateFields,
@@ -111,6 +112,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
   const [pausedFilter, setPausedFilter] = useState<boolean>(initialFilter === "paused");
   const [showFilters, setShowFilters] = useState(initialFilter ? true : false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   function toggleStatusFilter(status: TrafficLightStatus) {
@@ -726,6 +728,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       <BulkActionsToolbar
         selectedCount={selectedClients.length}
         onBulkEdit={() => setIsBulkModalOpen(true)}
+        onSendEmail={() => setIsSendEmailModalOpen(true)}
         onClearSelection={() => setRowSelection({})}
       />
 
@@ -735,6 +738,13 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
         onClose={() => setIsBulkModalOpen(false)}
         selectedClients={selectedClients}
         onSave={handleBulkUpdate}
+      />
+
+      {/* Send Email Modal */}
+      <SendEmailModal
+        open={isSendEmailModalOpen}
+        onClose={() => setIsSendEmailModalOpen(false)}
+        selectedClients={selectedClients}
       />
     </div>
   );

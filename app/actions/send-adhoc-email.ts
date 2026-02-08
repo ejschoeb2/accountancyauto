@@ -109,3 +109,55 @@ export async function sendAdhocEmail(
     };
   }
 }
+
+/**
+ * Preview an ad-hoc email with template rendering
+ *
+ * Renders the template with sample data to show what the email will look like.
+ *
+ * @param params - Template ID and client name for preview
+ * @returns Rendered HTML and subject, or error message
+ */
+export async function previewAdhocEmail(params: {
+  templateId: string;
+  clientName: string;
+}): Promise<{ html: string; subject: string } | { error: string }> {
+  try {
+    const supabase = await createClient();
+
+    // Fetch the email template
+    const { data: template, error: templateError } = await supabase
+      .from('email_templates')
+      .select('id, subject, body_json')
+      .eq('id', params.templateId)
+      .single();
+
+    if (templateError || !template) {
+      return {
+        error: `Template not found: ${templateError?.message || 'Unknown error'}`,
+      };
+    }
+
+    // Render the template with sample data
+    const rendered = await renderTipTapEmail({
+      bodyJson: template.body_json,
+      subject: template.subject,
+      context: {
+        client_name: params.clientName,
+        filing_type: 'Ad-hoc',
+        deadline: new Date(),
+        accountant_name: 'Peninsula Accounting',
+      },
+    });
+
+    return {
+      html: rendered.html,
+      subject: rendered.subject,
+    };
+  } catch (error) {
+    console.error('previewAdhocEmail error:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}

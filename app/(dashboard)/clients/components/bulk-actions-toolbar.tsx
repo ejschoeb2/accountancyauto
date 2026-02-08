@@ -1,18 +1,20 @@
 "use client";
 
+import { Pencil, X, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils";
 
 interface BulkActionsToolbarProps {
   selectedCount: number;
   onBulkEdit: () => void;
+  onSendEmail: () => void;
   onClearSelection: () => void;
 }
 
 export function BulkActionsToolbar({
   selectedCount,
   onBulkEdit,
+  onSendEmail,
   onClearSelection,
 }: BulkActionsToolbarProps) {
   const isVisible = selectedCount > 0;
@@ -30,24 +32,34 @@ export function BulkActionsToolbar({
         <span className="text-sm font-medium whitespace-nowrap">
           {selectedCount} client{selectedCount !== 1 ? "s" : ""} selected
         </span>
-        
+
         <div className="flex items-center gap-2">
           <Button
             size="sm"
             onClick={onBulkEdit}
             className="gap-2 active:scale-[0.97]"
           >
-            <Icon name="edit" size="sm" />
+            <Pencil className="size-4" />
             Bulk Edit
           </Button>
-          
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onSendEmail}
+            className="gap-2 active:scale-[0.97]"
+          >
+            <Mail className="size-4" />
+            Send Email
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
             onClick={onClearSelection}
             className="gap-2"
           >
-            <Icon name="close" size="sm" />
+            <X className="size-4" />
             Clear
           </Button>
         </div>
