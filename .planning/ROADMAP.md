@@ -104,11 +104,14 @@ Plans:
 **Depends on**: Phase 5 (templates), Phase 6 (rendering pipeline)
 **Requirements**: ADHC-01, ADHC-02, ADHC-03, ADHC-04, ADHC-05, ADHC-06, ADHC-07, ADHC-08, ADHC-09
 **Success Criteria** (what must be TRUE):
-  1. User can start an ad-hoc send from the main navigation and select multiple clients via a searchable checkbox list
-  2. User can pick an email template, preview it with selected clients' data, and edit the subject and body before sending
+  1. User can start an ad-hoc send from the clients page bulk actions toolbar
+  2. User can pick an email template, preview it with selected clients' data (template used as-is, no inline editing)
   3. User sees a confirmation modal with the send count, a progress indicator during sending, and a results summary showing sent/failed counts
   4. Ad-hoc sends appear in the delivery log with an "ad-hoc" type indicator distinguishing them from scheduled reminders
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 08-01-PLAN.md — Server action for ad-hoc sending, email_log send_type column, delivery log ad-hoc badge
+- [ ] 08-02-PLAN.md — Send Email modal (template select, preview, confirm, progress, results) + toolbar wiring
 
 ### Phase 9: Queue Integration
 **Goal**: The automated reminder system reads from the new normalized tables, completing the migration from the old JSONB structure
@@ -135,5 +138,5 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Rich Text Editor & Templates | v1.1 | 4/4 | Complete | 2026-02-08 |
 | 6. Email Rendering Pipeline | v1.1 | 1/1 | Complete | 2026-02-08 |
 | 7. Schedule Management | v1.1 | 2/2 | Complete | 2026-02-08 |
-| 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
+| 8. Ad-Hoc Sending | v1.1 | 0/2 | In progress | - |
 | 9. Queue Integration | v1.1 | 0/2 | Not started | - |
