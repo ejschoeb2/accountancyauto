@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-07)
+See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** v1.0 MVP COMPLETE — Ready for production deployment
+**Current focus:** v1.1 Template & Scheduling Redesign — Defining requirements
 
 ## Current Position
 
-Phase: N/A -- Milestone v1.0 complete and archived
-Status: ✅ v1.0 MVP shipped and tagged
-Last activity: 2026-02-07 -- Completed milestone v1.0
+Phase: Not started (defining requirements)
+Status: Milestone v1.1 started
+Last activity: 2026-02-08 — Milestone v1.1 initialized
 
-Progress: v1.0 complete (3 phases, 17 plans) + 3 quick tasks
-Next: Start v1.1 milestone with /gsd:new-milestone
+Progress: Gathering requirements
+Next: Define requirements, create roadmap
 
 ## Performance Metrics
 

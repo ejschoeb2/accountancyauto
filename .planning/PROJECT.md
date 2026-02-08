@@ -8,6 +8,17 @@ A web application for Peninsula Accounting that connects to their QuickBooks Onl
 
 Accountants spend hours every month manually chasing clients for records and documents. This system automates that entirely while keeping the accountant in full control of messaging and timing.
 
+## Current Milestone: v1.1 Template & Scheduling Redesign
+
+**Goal:** Decouple email templates from scheduling logic, add rich text editing with live preview, and enable ad-hoc client communications.
+
+**Target features:**
+- Standalone email templates with rich text editor and slash-command placeholder insertion
+- Separate scheduling system where templates are assigned to timings
+- Ad-hoc sending capability (select clients, pick template, send immediately)
+- Auto-migration of existing reminder templates to new structure
+- Per-client overrides for both template content and schedule timing
+
 ## Requirements
 
 ### Validated
@@ -47,10 +58,14 @@ Accountants spend hours every month manually chasing clients for records and doc
 
 ### Active
 
-- [ ] Upcoming reminders view (7/14/30 day lookahead)
-- [ ] Settings area for templates, QuickBooks status, email domain verification, practice details
-- [ ] Email retry logic (3 retries over 24 hours)
-- [ ] Daily background sync as safety net for missed webhooks
+- [ ] Standalone email templates (decoupled from scheduling)
+- [ ] Rich text editor with live preview pane
+- [ ] Slash-command autocomplete for placeholder insertion
+- [ ] Separate scheduling page (assign templates to timings)
+- [ ] Multi-step schedules (multiple template + timing pairs per schedule)
+- [ ] Ad-hoc sending (select clients, pick template, send now)
+- [ ] Auto-migration of existing reminder templates to new structure
+- [ ] Per-client overrides for both template content and schedule timing
 
 ### Out of Scope
 
@@ -106,4 +121,4 @@ Accountants spend hours every month manually chasing clients for records and doc
 | React Email templates | Inline CSS for email client compatibility | Good |
 
 ---
-*Last updated: 2026-02-07 after v1.0 MVP milestone completion*
+*Last updated: 2026-02-08 after v1.1 milestone initialization*
