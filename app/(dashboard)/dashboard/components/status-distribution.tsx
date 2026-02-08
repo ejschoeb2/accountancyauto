@@ -25,28 +25,28 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
       label: 'Overdue',
       count: statusCounts.red,
       percentage: total > 0 ? (statusCounts.red / total) * 100 : 0,
-      color: 'hsl(var(--status-danger))',
+      color: '#ef4444',
       bgColor: 'bg-status-danger',
     },
     {
       label: 'Chasing',
       count: statusCounts.amber,
       percentage: total > 0 ? (statusCounts.amber / total) * 100 : 0,
-      color: 'hsl(var(--status-warning))',
+      color: '#f59e0b',
       bgColor: 'bg-status-warning',
     },
     {
       label: 'Up to Date',
       count: statusCounts.green,
       percentage: total > 0 ? (statusCounts.green / total) * 100 : 0,
-      color: 'hsl(var(--status-success))',
+      color: '#10b981',
       bgColor: 'bg-status-success',
     },
     {
       label: 'Paused',
       count: statusCounts.grey,
       percentage: total > 0 ? (statusCounts.grey / total) * 100 : 0,
-      color: 'hsl(var(--status-neutral))',
+      color: '#9ca3af',
       bgColor: 'bg-status-neutral',
     },
   ].filter((item) => item.count > 0); // Only show statuses with clients
@@ -87,7 +87,7 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
                     }}
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="size-32 rounded-full bg-white flex flex-col items-center justify-center">
+                    <div className="size-32 rounded-full bg-card flex flex-col items-center justify-center">
                       <span className="text-3xl font-bold">{total}</span>
                       <span className="text-xs text-muted-foreground">Clients</span>
                     </div>

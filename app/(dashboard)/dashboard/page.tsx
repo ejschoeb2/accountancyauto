@@ -1,24 +1,25 @@
 import { createClient } from '@/lib/supabase/server';
 import { getDashboardMetrics, getClientStatusList } from '@/lib/dashboard/metrics';
-import { getAuditLog } from '@/app/actions/audit-log';
 import { SummaryCards } from './components/summary-cards';
-import { DashboardTabs } from './components/dashboard-tabs';
+import { UpcomingDeadlines } from './components/upcoming-deadlines';
+import { StatusDistribution } from './components/status-distribution';
+import { AlertFeed } from './components/alert-feed';
+import { AuditLogCard } from './components/audit-log-card';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
   // Fetch dashboard data
-  const [metrics, clientStatusList, auditLogResult] = await Promise.all([
+  const [metrics, clientStatusList] = await Promise.all([
     getDashboardMetrics(supabase),
     getClientStatusList(supabase),
-    getAuditLog({ offset: 0, limit: 20 }), // Fetch first page of audit log
   ]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+      <div className="space-y-1">
+        <h1 className="text-foreground">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Monitor client reminder status and email activity
         </p>
@@ -27,12 +28,17 @@ export default async function DashboardPage() {
       {/* Summary metrics */}
       <SummaryCards metrics={metrics} />
 
-      {/* Tabbed interface: Client Status and Audit Log */}
-      <DashboardTabs
-        clients={clientStatusList}
-        initialAuditData={auditLogResult.data}
-        auditTotalCount={auditLogResult.totalCount}
-      />
+      {/* Upcoming Deadlines & Recent Emails */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UpcomingDeadlines clients={clientStatusList} />
+        <AuditLogCard />
+      </div>
+
+      {/* Alerts & Status Distribution */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <AlertFeed />
+        <StatusDistribution clients={clientStatusList} />
+      </div>
     </div>
   );
 }
