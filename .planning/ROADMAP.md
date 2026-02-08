@@ -118,7 +118,10 @@ Plans:
   1. Queue builder reads from schedules and schedule_steps tables (not reminder_templates.steps JSONB)
   2. Queue builder resolves email content from email_templates via schedule_step_id and applies content and timing overrides in the correct precedence order
   3. Existing reminder queue continues to function during the transition period with no missed or duplicate sends
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 09-01-PLAN.md -- Rewire queue builder, scheduler, and send-emails cron to v1.1 tables + rendering
+- [ ] 09-02-PLAN.md -- Remove all v1.0 code references and drop reminder_templates table
 
 ## Progress
 
@@ -133,4 +136,4 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Email Rendering Pipeline | v1.1 | 1/1 | Complete | 2026-02-08 |
 | 7. Schedule Management | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
-| 9. Queue Integration | v1.1 | TBD | Not started | - |
+| 9. Queue Integration | v1.1 | 0/2 | Not started | - |
