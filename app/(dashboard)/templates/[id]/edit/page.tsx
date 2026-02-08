@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { CheckCircle, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -145,19 +146,24 @@ export default function EditTemplatePage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="text-foreground">Edit Template</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
-            variant="destructive"
+            variant="ghost"
+            size="icon"
             onClick={() => setShowDeleteDialog(true)}
+            className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
+            title="Delete template"
           >
-            Delete
+            <Trash2 className="h-5 w-5" />
           </Button>
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="active:scale-[0.97]"
+            size="icon"
+            className="h-10 w-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97]"
+            title={saving ? 'Saving...' : 'Save template'}
           >
-            {saving ? 'Saving...' : 'Save'}
+            <CheckCircle className="h-5 w-5" />
           </Button>
         </div>
       </div>

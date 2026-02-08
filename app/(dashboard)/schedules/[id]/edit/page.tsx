@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ScheduleStepEditor } from '../../components/schedule-step-editor'
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
+import { CheckCircle, Trash2 } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -27,11 +28,12 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { scheduleSchema, type ScheduleInput } from '@/lib/validations/schedule'
-import type { FilingType, EmailTemplate, Schedule, ScheduleStep } from '@/lib/types/database'
+import type { FilingType, FilingTypeId, EmailTemplate, Schedule, ScheduleStep } from '@/lib/types/database'
 
 export default function EditSchedulePage() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const scheduleId = params.id as string
   const isNew = scheduleId === 'new'
 
@@ -40,13 +42,23 @@ export default function EditSchedulePage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  const VALID_FILING_TYPE_IDS: FilingTypeId[] = [
+    'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return', 'self_assessment',
+  ]
+  const prefillFilingType = searchParams.get('filing_type_id')
+  const defaultFilingTypeId: FilingTypeId = (
+    isNew && prefillFilingType && VALID_FILING_TYPE_IDS.includes(prefillFilingType as FilingTypeId)
+      ? prefillFilingType
+      : 'corporation_tax_payment'
+  ) as FilingTypeId
+
   const [filingTypes, setFilingTypes] = useState<FilingType[]>([])
   const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string }>>([])
 
   const form = useForm<ScheduleInput>({
     resolver: zodResolver(scheduleSchema),
     defaultValues: {
-      filing_type_id: 'corporation_tax_payment',
+      filing_type_id: defaultFilingTypeId,
       name: '',
       description: '',
       steps: [],
@@ -84,7 +96,7 @@ export default function EditSchedulePage() {
               const error = await scheduleResponse.json()
               toast.error(error.error || 'Failed to load schedule')
             }
-            router.push('/templates?tab=schedules')
+            router.push('/schedules')
             return
           }
 
@@ -99,7 +111,6 @@ export default function EditSchedulePage() {
             steps: scheduleData.steps.map(step => ({
               email_template_id: step.email_template_id,
               delay_days: step.delay_days,
-              urgency_level: step.urgency_level,
             })),
           })
         }
@@ -107,7 +118,7 @@ export default function EditSchedulePage() {
         setLoading(false)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load data')
-        router.push('/templates?tab=schedules')
+        router.push('/schedules')
       }
     }
 
@@ -132,7 +143,7 @@ export default function EditSchedulePage() {
       }
 
       toast.success(isNew ? 'Schedule created!' : 'Schedule updated!')
-      router.push('/templates?tab=schedules')
+      router.push('/schedules')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Failed to ${isNew ? 'create' : 'update'} schedule`)
     } finally {
@@ -153,7 +164,7 @@ export default function EditSchedulePage() {
       }
 
       toast.success('Schedule deleted!')
-      router.push('/templates?tab=schedules')
+      router.push('/schedules')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete schedule')
       setDeleting(false)
@@ -162,7 +173,7 @@ export default function EditSchedulePage() {
   }
 
   const handleCancel = () => {
-    router.push('/templates?tab=schedules')
+    router.push('/schedules')
   }
 
   if (loading) {
@@ -178,22 +189,28 @@ export default function EditSchedulePage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="text-foreground">{isNew ? 'Create Schedule' : 'Edit Schedule'}</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {!isNew && (
             <Button
               type="button"
-              variant="destructive"
+              variant="ghost"
+              size="icon"
               onClick={() => setShowDeleteDialog(true)}
+              className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
+              title="Delete schedule"
             >
-              Delete
+              <Trash2 className="h-5 w-5" />
             </Button>
           )}
           <Button
             type="submit"
+            variant="ghost"
+            size="icon"
             disabled={saving}
-            className="active:scale-[0.97]"
+            className="h-10 w-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97]"
+            title={saving ? 'Saving...' : isNew ? 'Create schedule' : 'Save changes'}
           >
-            {saving ? 'Saving...' : isNew ? 'Create Schedule' : 'Save Changes'}
+            <CheckCircle className="h-5 w-5" />
           </Button>
         </div>
       </div>
@@ -272,7 +289,7 @@ export default function EditSchedulePage() {
       {/* Schedule Steps */}
       <div className="rounded-lg border p-8 space-y-6">
         <h2 className="text-lg font-semibold">Schedule Steps</h2>
-        <ScheduleStepEditor form={form} templates={emailTemplates} />
+        <ScheduleStepEditor form={form} templates={emailTemplates} filingTypes={filingTypes.map(ft => ({ id: ft.id, name: ft.name }))} />
       </div>
 
       {/* Bottom action bar */}
