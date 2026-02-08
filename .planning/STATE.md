@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 4 of 9 (Data Migration)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-02-08 -- Roadmap created for v1.1 milestone
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-08 -- Completed 04-01-PLAN.md
 
-Progress: [..........] 0%
+Progress: [#.........] ~5% (1/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,8 +24,9 @@ Progress: [..........] 0%
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 0
+- Total plans completed: 1
 - Phases: 6 (Phase 4-9)
+- Plan 04-01: 2 min
 
 ## Accumulated Context
 
@@ -37,6 +38,9 @@ Recent decisions affecting current work:
 - [v1.1 Roadmap]: TipTap 3.x chosen for rich text editor (React 19 compatible, first-party mention/suggestion)
 - [v1.1 Roadmap]: Three-phase migration strategy (add tables, verify data, cleanup old structure)
 - [v1.1 Roadmap]: Composition over embedding -- email templates as standalone entities referenced by ID
+- [04-01]: ON DELETE RESTRICT for schedule_steps -> email_templates FK (prevents breaking schedules by deleting in-use templates)
+- [04-01]: schedule_steps has no updated_at (immutable, modify via delete-and-recreate)
+- [04-01]: All v1.1 tables get full anon CRUD policies (app uses anon role, no Supabase Auth)
 
 ### Known Risks
 
@@ -54,9 +58,9 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-08
-Activity: Created v1.1 roadmap (6 phases, 50 requirements mapped)
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
-Next step: /gsd:plan-phase 4
+Next step: Execute 04-02-PLAN.md (migrate v1.0 data to normalized structure)
 
 ---
-*v1.1 roadmap created -- 50/50 requirements mapped across 6 phases*
+*Phase 4 plan 1/2 complete -- v1.1 normalized tables created*
