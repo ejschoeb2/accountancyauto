@@ -33,14 +33,14 @@ Requirements for Template & Scheduling Redesign milestone.
 
 ### Scheduling System
 
-- [ ] **SCHD-01**: User can create schedule for a filing type
-- [ ] **SCHD-02**: User can add multiple steps to schedule (each step = template + timing + urgency)
-- [ ] **SCHD-03**: User can specify delay in days before deadline for each step
-- [ ] **SCHD-04**: User can assign email template to each schedule step from template list
-- [ ] **SCHD-05**: User can reorder schedule steps
-- [ ] **SCHD-06**: User can view list of all schedules with their filing types
-- [ ] **SCHD-07**: User can edit schedule (add/remove/reorder steps)
-- [ ] **SCHD-08**: One template can be used in multiple schedule steps
+- [x] **SCHD-01**: User can create schedule for a filing type
+- [x] **SCHD-02**: User can add multiple steps to schedule (each step = template + timing + urgency)
+- [x] **SCHD-03**: User can specify delay in days before deadline for each step
+- [x] **SCHD-04**: User can assign email template to each schedule step from template list
+- [x] **SCHD-05**: User can reorder schedule steps
+- [x] **SCHD-06**: User can view list of all schedules with their filing types
+- [x] **SCHD-07**: User can edit schedule (add/remove/reorder steps)
+- [x] **SCHD-08**: One template can be used in multiple schedule steps
 - [ ] **SCHD-09**: User can cancel individual scheduled reminder from schedule view
 - [ ] **SCHD-10**: User can reschedule individual reminder to different date
 
@@ -140,14 +140,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RNDR-03 | Phase 6 | Pending |
 | RNDR-04 | Phase 6 | Complete |
 | RNDR-05 | Phase 6 | Complete |
-| SCHD-01 | Phase 7 | Pending |
-| SCHD-02 | Phase 7 | Pending |
-| SCHD-03 | Phase 7 | Pending |
-| SCHD-04 | Phase 7 | Pending |
-| SCHD-05 | Phase 7 | Pending |
-| SCHD-06 | Phase 7 | Pending |
-| SCHD-07 | Phase 7 | Pending |
-| SCHD-08 | Phase 7 | Pending |
+| SCHD-01 | Phase 7 | Complete |
+| SCHD-02 | Phase 7 | Complete |
+| SCHD-03 | Phase 7 | Complete |
+| SCHD-04 | Phase 7 | Complete |
+| SCHD-05 | Phase 7 | Complete |
+| SCHD-06 | Phase 7 | Complete |
+| SCHD-07 | Phase 7 | Complete |
+| SCHD-08 | Phase 7 | Complete |
 | SCHD-09 | Phase 7 | Pending |
 | SCHD-10 | Phase 7 | Pending |
 | OVRD-01 | Phase 7 | Pending |
