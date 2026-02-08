@@ -76,10 +76,10 @@ Requirements for Template & Scheduling Redesign milestone.
 
 ### Queue Integration
 
-- [ ] **QUEU-01**: Queue builder reads from new schedules + schedule_steps tables
-- [ ] **QUEU-02**: Queue builder resolves email content from email_templates via schedule_step_id
-- [ ] **QUEU-03**: Queue builder applies content and timing overrides in correct precedence order
-- [ ] **QUEU-04**: Existing reminder queue continues to function during migration (no disruption)
+- [x] **QUEU-01**: Queue builder reads from new schedules + schedule_steps tables
+- [x] **QUEU-02**: Queue builder resolves email content from email_templates via schedule_step_id
+- [x] **QUEU-03**: Queue builder applies content and timing overrides in correct precedence order
+- [x] **QUEU-04**: Existing reminder queue continues to function during migration (no disruption)
 
 ## v2 Requirements
 
@@ -171,10 +171,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MIGR-05 | Phase 4 | Complete |
 | MIGR-06 | Phase 4 | Complete |
 | MIGR-07 | Phase 4 | Complete |
-| QUEU-01 | Phase 9 | Pending |
-| QUEU-02 | Phase 9 | Pending |
-| QUEU-03 | Phase 9 | Pending |
-| QUEU-04 | Phase 9 | Pending |
+| QUEU-01 | Phase 9 | Complete |
+| QUEU-02 | Phase 9 | Complete |
+| QUEU-03 | Phase 9 | Complete |
+| QUEU-04 | Phase 9 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 50 total

@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** Phase 7 - Schedule Management (v1.1 Template & Scheduling Redesign) [Phase 6 just completed]
+**Current focus:** v1.1 Template & Scheduling Redesign COMPLETE (all 6 phases done)
 
 ## Current Position
 
@@ -14,7 +14,7 @@ Plan: 2 of 2 in current phase
 Status: Phase complete
 Last activity: 2026-02-08 -- Completed 09-02-PLAN.md
 
-Progress: [######....] ~60% (12/~20 v1.1 plans estimated)
+Progress: [##########] 100% (13/13 v1.1 plans complete)
 
 ## Performance Metrics
 
