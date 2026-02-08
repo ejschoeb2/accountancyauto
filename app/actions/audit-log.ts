@@ -12,6 +12,7 @@ export interface AuditEntry {
   delivery_status: 'sent' | 'delivered' | 'bounced' | 'failed';
   recipient_email: string;
   subject: string;
+  send_type: 'scheduled' | 'ad-hoc';
 }
 
 export interface AuditLogParams {
@@ -51,6 +52,7 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
       delivery_status,
       recipient_email,
       subject,
+      send_type,
       clients!inner(company_name)
     `, { count: 'exact' });
 
@@ -97,6 +99,7 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     delivery_status: row.delivery_status,
     recipient_email: row.recipient_email,
     subject: row.subject,
+    send_type: row.send_type || 'scheduled',
   }));
 
   return {
