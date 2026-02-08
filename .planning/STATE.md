@@ -24,7 +24,7 @@ Progress: [#####.....] ~55% (11/~20 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Phases: 9 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
@@ -36,6 +36,7 @@ Progress: [#####.....] ~55% (11/~20 v1.1 plans estimated)
 - Plan 07-01: 4 min
 - Plan 07-02: 3 min
 - Plan 08-01: 2 min
+- Plan 08-02: 4 min
 - Plan 09-01: 5 min
 
 ## Accumulated Context
@@ -87,6 +88,10 @@ Recent decisions affecting current work:
 - [08-01]: Ad-hoc sends use placeholder context (filing_type='Ad-hoc', deadline=now) for template variables
 - [08-01]: Ad-hoc sends logged with reminder_queue_id=null and filing_type_id=null
 - [08-01]: Delivery log shows ad-hoc badge with accent styling, scheduled as plain text
+- [08-02]: Multi-step modal pattern with state-driven view switching (select, preview, confirm, sending, results)
+- [08-02]: Preview uses iframe srcDoc for style isolation; previewAdhocEmail server action keeps rendering server-side
+- [08-02]: Sequential send loop with real-time Progress bar (not batch)
+- [08-02]: Lazy Postmark client via Proxy to avoid module-load crash when token missing
 - [09-01]: Remove ALL per-client override processing from queue builder (per user decision from Phase 7)
 - [09-01]: Use step.step_number for step_index in reminder_queue (not array index)
 - [09-01]: Set template_id to schedule.id in reminder_queue (points to schedule, not old reminder_templates)

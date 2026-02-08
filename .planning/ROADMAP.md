@@ -36,7 +36,7 @@
 - [x] **Phase 5: Rich Text Editor & Templates** - TipTap editor with placeholder autocomplete and template CRUD
 - [x] **Phase 6: Email Rendering Pipeline** - Convert TipTap JSON to email-safe HTML with inline styles
 - [x] **Phase 7: Schedule Management** - Schedule creation/editing UI with step management (overrides removed from scope)
-- [ ] **Phase 8: Ad-Hoc Sending** - Select clients, pick template, preview, and send outside scheduled flow
+- [x] **Phase 8: Ad-Hoc Sending** - Select clients, pick template, preview, and send outside scheduled flow
 - [ ] **Phase 9: Queue Integration** - Rewire cron queue builder to read from new normalized tables
 
 ## Phase Details
@@ -110,8 +110,8 @@ Plans:
   4. Ad-hoc sends appear in the delivery log with an "ad-hoc" type indicator distinguishing them from scheduled reminders
 **Plans**: 2 plans
 Plans:
-- [ ] 08-01-PLAN.md — Server action for ad-hoc sending, email_log send_type column, delivery log ad-hoc badge
-- [ ] 08-02-PLAN.md — Send Email modal (template select, preview, confirm, progress, results) + toolbar wiring
+- [x] 08-01-PLAN.md — Server action for ad-hoc sending, email_log send_type column, delivery log ad-hoc badge
+- [x] 08-02-PLAN.md — Send Email modal (template select, preview, confirm, progress, results) + toolbar wiring
 
 ### Phase 9: Queue Integration
 **Goal**: The automated reminder system reads from the new normalized tables, completing the migration from the old JSONB structure
@@ -138,5 +138,5 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Rich Text Editor & Templates | v1.1 | 4/4 | Complete | 2026-02-08 |
 | 6. Email Rendering Pipeline | v1.1 | 1/1 | Complete | 2026-02-08 |
 | 7. Schedule Management | v1.1 | 2/2 | Complete | 2026-02-08 |
-| 8. Ad-Hoc Sending | v1.1 | 0/2 | In progress | - |
+| 8. Ad-Hoc Sending | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 9. Queue Integration | v1.1 | 0/2 | Not started | - |

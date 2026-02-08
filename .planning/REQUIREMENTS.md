@@ -54,15 +54,15 @@ Requirements for Template & Scheduling Redesign milestone.
 
 ### Ad-Hoc Sending
 
-- [ ] **ADHC-01**: User can start ad-hoc send wizard from main navigation
-- [ ] **ADHC-02**: Step 1: User can select multiple clients via searchable checkbox list
-- [ ] **ADHC-03**: Step 2: User can pick email template from list
-- [ ] **ADHC-04**: Step 3: User can preview email with selected clients' data
-- [ ] **ADHC-05**: Step 3: User can edit subject and body before sending
-- [ ] **ADHC-06**: Step 4: User sees confirmation modal with send count before final send
-- [ ] **ADHC-07**: User sees progress indicator during bulk send
-- [ ] **ADHC-08**: User sees results summary (sent/failed counts) after send completes
-- [ ] **ADHC-09**: Ad-hoc sends appear in delivery log with "ad-hoc" type indicator
+- [x] **ADHC-01**: User can start ad-hoc send wizard from main navigation
+- [x] **ADHC-02**: Step 1: User can select multiple clients via searchable checkbox list
+- [x] **ADHC-03**: Step 2: User can pick email template from list
+- [x] **ADHC-04**: Step 3: User can preview email with selected clients' data
+- [x] **ADHC-05**: Step 3: User can edit subject and body before sending
+- [x] **ADHC-06**: Step 4: User sees confirmation modal with send count before final send
+- [x] **ADHC-07**: User sees progress indicator during bulk send
+- [x] **ADHC-08**: User sees results summary (sent/failed counts) after send completes
+- [x] **ADHC-09**: Ad-hoc sends appear in delivery log with "ad-hoc" type indicator
 
 ### Data Migration
 
@@ -155,15 +155,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OVRD-03 | Phase 7 | Pending |
 | OVRD-04 | Phase 7 | Pending |
 | OVRD-05 | Phase 7 | Pending |
-| ADHC-01 | Phase 8 | Pending |
-| ADHC-02 | Phase 8 | Pending |
-| ADHC-03 | Phase 8 | Pending |
-| ADHC-04 | Phase 8 | Pending |
-| ADHC-05 | Phase 8 | Pending |
-| ADHC-06 | Phase 8 | Pending |
-| ADHC-07 | Phase 8 | Pending |
-| ADHC-08 | Phase 8 | Pending |
-| ADHC-09 | Phase 8 | Pending |
+| ADHC-01 | Phase 8 | Complete |
+| ADHC-02 | Phase 8 | Complete |
+| ADHC-03 | Phase 8 | Complete |
+| ADHC-04 | Phase 8 | Complete |
+| ADHC-05 | Phase 8 | Complete |
+| ADHC-06 | Phase 8 | Complete |
+| ADHC-07 | Phase 8 | Complete |
+| ADHC-08 | Phase 8 | Complete |
+| ADHC-09 | Phase 8 | Complete |
 | MIGR-01 | Phase 4 | Complete |
 | MIGR-02 | Phase 4 | Complete |
 | MIGR-03 | Phase 4 | Complete |
