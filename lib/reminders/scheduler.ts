@@ -3,7 +3,7 @@ import { UTCDate } from '@date-fns/utc';
 import { toZonedTime } from 'date-fns-tz';
 import { format, addMinutes } from 'date-fns';
 import { buildReminderQueue } from './queue-builder';
-import { substituteVariables } from '@/lib/templates/variables';
+import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { rolloverDeadline } from '@/lib/deadlines/rollover';
 
 export interface ProcessResult {
@@ -26,12 +26,12 @@ interface FilingType {
 }
 
 /**
- * Process daily reminders
+ * Process daily reminders (v1.1)
  * - Acquires distributed lock
  * - Checks if it's 9am UK time
  * - Builds/updates queue
  * - Marks due reminders as pending
- * - Resolves template variables
+ * - Resolves template variables using v1.1 TipTap rendering
  * - Handles deadline rollover
  */
 export async function processReminders(supabase: SupabaseClient): Promise<ProcessResult> {
@@ -108,52 +108,95 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
 
     result.queued = dueReminders.length;
 
-    // Step 6: Resolve template variables for each pending reminder
+    // Step 6: Resolve template variables for each pending reminder using v1.1 TipTap rendering
     for (const reminder of dueReminders) {
       try {
         const client = reminder.clients as Client;
         const filingType = reminder.filing_types as FilingType;
 
-        // Fetch the template to get subject and body
-        const { data: template, error: templateError } = await supabase
-          .from('reminder_templates')
+        // Fetch the schedule for this filing type
+        const { data: schedule, error: scheduleError } = await supabase
+          .from('schedules')
           .select('*')
-          .eq('id', reminder.template_id)
+          .eq('filing_type_id', reminder.filing_type_id)
+          .eq('is_active', true)
+          .single();
+
+        if (scheduleError || !schedule) {
+          result.errors.push(`Failed to fetch schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
+          continue;
+        }
+
+        // Fetch schedule_steps for that schedule
+        const { data: steps, error: stepsError } = await supabase
+          .from('schedule_steps')
+          .select('*')
+          .eq('schedule_id', schedule.id)
+          .order('step_number', { ascending: true });
+
+        if (stepsError || !steps) {
+          result.errors.push(`Failed to fetch schedule steps for reminder ${reminder.id}: ${stepsError?.message || 'No steps found'}`);
+          continue;
+        }
+
+        // Find the step matching reminder.step_index
+        const step = steps.find((s) => s.step_number === reminder.step_index);
+        if (!step) {
+          result.errors.push(`Step ${reminder.step_index} not found in schedule ${schedule.id} for reminder ${reminder.id}`);
+          continue;
+        }
+
+        // Fetch the email template for that step
+        const { data: template, error: templateError } = await supabase
+          .from('email_templates')
+          .select('*')
+          .eq('id', step.email_template_id)
           .single();
 
         if (templateError || !template) {
-          result.errors.push(`Failed to fetch template for reminder ${reminder.id}`);
+          result.errors.push(`Failed to fetch template for reminder ${reminder.id}: ${templateError?.message || 'No template found'}`);
           continue;
         }
 
-        const step = template.steps[reminder.step_index];
-        if (!step) {
-          result.errors.push(`Step ${reminder.step_index} not found in template ${reminder.template_id}`);
-          continue;
-        }
+        // Render email using v1.1 TipTap pipeline
+        try {
+          const rendered = await renderTipTapEmail({
+            bodyJson: template.body_json,
+            subject: template.subject,
+            context: {
+              client_name: client.company_name,
+              deadline: new UTCDate(reminder.deadline_date),
+              filing_type: filingType.name,
+              accountant_name: 'Peninsula Accounting',
+            },
+          });
 
-        // Substitute variables
-        const context = {
-          client_name: client.company_name,
-          deadline: new UTCDate(reminder.deadline_date),
-          filing_type: filingType.name,
-          accountant_name: 'Peninsula Accounting',
-        };
+          // Update reminder_queue with rendered content
+          const { error: resolveError } = await supabase
+            .from('reminder_queue')
+            .update({
+              resolved_subject: rendered.subject,
+              resolved_body: rendered.text, // Plain text fallback
+              html_body: rendered.html,     // Rich HTML from v1.1 pipeline
+            })
+            .eq('id', reminder.id);
 
-        const resolvedSubject = substituteVariables(step.subject, context);
-        const resolvedBody = substituteVariables(step.body, context);
+          if (resolveError) {
+            result.errors.push(`Failed to update resolved content for reminder ${reminder.id}: ${resolveError.message}`);
+          }
+        } catch (renderError) {
+          const message = renderError instanceof Error ? renderError.message : 'Unknown rendering error';
+          result.errors.push(`Failed to render template for reminder ${reminder.id}: ${message}`);
 
-        // Update the reminder with resolved content
-        const { error: resolveError } = await supabase
-          .from('reminder_queue')
-          .update({
-            resolved_subject: resolvedSubject,
-            resolved_body: resolvedBody,
-          })
-          .eq('id', reminder.id);
-
-        if (resolveError) {
-          result.errors.push(`Failed to resolve variables for reminder ${reminder.id}: ${resolveError.message}`);
+          // Log rendering failure to email_log
+          await supabase.from('email_log').insert({
+            client_id: reminder.client_id,
+            filing_type_id: reminder.filing_type_id,
+            delivery_status: 'failed',
+            bounce_description: `[RENDER] ${message}`,
+            subject: 'Template Rendering Failed',
+            sent_at: new Date().toISOString(),
+          });
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';

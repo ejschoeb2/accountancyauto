@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendReminderEmail } from '@/lib/email/sender';
+import { sendRichEmail } from '@/lib/email/sender';
 
 // Force dynamic for cron
 export const dynamic = 'force-dynamic';
@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 /**
- * GET /api/cron/send-emails
- * Processes pending reminder_queue entries and sends emails via Postmark
+ * GET /api/cron/send-emails (v1.1)
+ * Processes pending reminder_queue entries and sends rich HTML emails via Postmark
  * Runs at :10 past 8am and 9am UTC (10 minutes after reminders cron)
  * Validates CRON_SECRET header for security
  */
@@ -27,13 +27,14 @@ export async function GET(request: NextRequest) {
     // Use admin client for service-role access
     const adminClient = createAdminClient();
 
-    // Query pending reminders with resolved subject/body
+    // Query pending reminders with resolved subject/body AND html_body
     const { data: pendingReminders, error: queryError } = await adminClient
       .from('reminder_queue')
       .select('*, clients!inner(company_name, primary_email)')
       .eq('status', 'pending')
       .not('resolved_subject', 'is', null)
-      .not('resolved_body', 'is', null);
+      .not('resolved_body', 'is', null)
+      .not('html_body', 'is', null); // v1.1: also check for html_body
 
     if (queryError) {
       throw new Error(`Failed to query pending reminders: ${queryError.message}`);
@@ -72,13 +73,12 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        // Send email via Postmark
-        const result = await sendReminderEmail({
+        // Send rich HTML email via Postmark (v1.1)
+        const result = await sendRichEmail({
           to: client.primary_email,
           subject: reminder.resolved_subject!,
-          body: reminder.resolved_body!,
-          clientName: client.company_name,
-          filingType: reminder.filing_type_id,
+          html: reminder.html_body!,     // v1.1 rich HTML
+          text: reminder.resolved_body!, // Plain text fallback
         });
 
         // Update reminder_queue: status = sent, sent_at = now
@@ -118,10 +118,10 @@ export async function GET(request: NextRequest) {
         console.error(`Failed to send email for reminder ${reminder.id}:`, error);
         errors.push(`Failed to send to ${client.primary_email}: ${errorMessage}`);
 
-        // Update reminder_queue: status = failed
+        // Keep as pending for retry on next cron run (per user decision - no missed emails)
         await adminClient
           .from('reminder_queue')
-          .update({ status: 'failed' })
+          .update({ status: 'pending' })
           .eq('id', reminder.id);
 
         // Insert email_log entry for failed send
