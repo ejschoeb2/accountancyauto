@@ -3,6 +3,10 @@
  *
  * Branded HTML email for client filing reminders
  * All styles are inline for email client compatibility
+ *
+ * Supports two modes:
+ * - v1.0: Plain text body with clientName, filingType (backwards compatible)
+ * - v1.1: Rich HTML body from TipTap renderer
  */
 
 import {
@@ -16,21 +20,27 @@ import {
 } from '@react-email/components';
 
 interface ReminderEmailProps {
-  clientName: string;
   subject: string;
-  body: string;
-  filingType: string;
+  // v1.0 backwards compatibility: plain text mode
+  body?: string;
+  clientName?: string;
+  filingType?: string;
+  // v1.1 rich text mode: pre-rendered HTML
+  htmlBody?: string;
 }
 
 export default function ReminderEmail({
-  clientName,
   subject,
   body,
+  clientName,
   filingType,
+  htmlBody,
 }: ReminderEmailProps) {
   return (
     <Html>
-      <Head />
+      <Head>
+        <meta charSet="UTF-8" />
+      </Head>
       <Body style={{ backgroundColor: '#f4f4f4', fontFamily: 'Arial, sans-serif', margin: 0, padding: 0 }}>
         <Container style={{ maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff', padding: '0' }}>
           {/* Header with logo/branding */}
@@ -46,17 +56,32 @@ export default function ReminderEmail({
               {subject}
             </Heading>
 
-            <Text style={{ color: '#666666', fontSize: '14px', lineHeight: '1.6', marginBottom: '15px' }}>
-              Dear {clientName},
-            </Text>
+            {/* v1.1 rich text mode */}
+            {htmlBody ? (
+              <div
+                style={{
+                  color: '#333333',
+                  fontSize: '14px',
+                  lineHeight: '1.6',
+                }}
+                dangerouslySetInnerHTML={{ __html: htmlBody }}
+              />
+            ) : (
+              /* v1.0 plain text mode (backwards compatible) */
+              <>
+                <Text style={{ color: '#666666', fontSize: '14px', lineHeight: '1.6', marginBottom: '15px' }}>
+                  Dear {clientName},
+                </Text>
 
-            <Text style={{ color: '#666666', fontSize: '14px', lineHeight: '1.6', marginBottom: '15px', whiteSpace: 'pre-wrap' }}>
-              {body}
-            </Text>
+                <Text style={{ color: '#666666', fontSize: '14px', lineHeight: '1.6', marginBottom: '15px', whiteSpace: 'pre-wrap' }}>
+                  {body}
+                </Text>
 
-            <Text style={{ color: '#666666', fontSize: '14px', lineHeight: '1.6', marginBottom: '15px' }}>
-              Filing Type: <strong>{filingType}</strong>
-            </Text>
+                <Text style={{ color: '#666666', fontSize: '14px', lineHeight: '1.6', marginBottom: '15px' }}>
+                  Filing Type: <strong>{filingType}</strong>
+                </Text>
+              </>
+            )}
           </Section>
 
           {/* Footer */}
