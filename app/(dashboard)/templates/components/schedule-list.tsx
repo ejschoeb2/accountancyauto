@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Copy, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import type { Schedule } from '@/lib/types/database'
@@ -21,29 +21,6 @@ interface ScheduleListProps {
 export function ScheduleList({ schedules }: ScheduleListProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
-
-  const handleDuplicate = async (scheduleId: string, scheduleName: string) => {
-    setDuplicatingId(scheduleId)
-    try {
-      const res = await fetch(`/api/schedules/${scheduleId}/duplicate`, {
-        method: 'POST',
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to duplicate schedule')
-      }
-
-      toast.success(`Duplicated "${scheduleName}"`)
-      router.refresh()
-    } catch (error) {
-      console.error('Error duplicating schedule:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to duplicate schedule')
-    } finally {
-      setDuplicatingId(null)
-    }
-  }
 
   const handleDelete = async (scheduleId: string, scheduleName: string) => {
     if (!confirm(`Are you sure you want to delete "${scheduleName}"?\n\nThis will remove the schedule and all its steps. This action cannot be undone.`)) {
@@ -117,15 +94,6 @@ export function ScheduleList({ schedules }: ScheduleListProps) {
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDuplicate(schedule.id, schedule.name)}
-                disabled={duplicatingId === schedule.id}
-              >
-                <Copy className="size-4 mr-1.5" />
-                {duplicatingId === schedule.id ? 'Duplicating...' : 'Duplicate'}
-              </Button>
               <Button
                 variant="ghost"
                 size="sm"

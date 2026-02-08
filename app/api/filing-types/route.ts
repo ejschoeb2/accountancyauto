@@ -21,7 +21,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ filing_types: data || [] });
+    return NextResponse.json(data || []);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
