@@ -35,7 +35,7 @@
 - [x] **Phase 4: Data Migration** - Restructure database from JSONB-embedded templates to normalized tables
 - [ ] **Phase 5: Rich Text Editor & Templates** - TipTap editor with placeholder autocomplete and template CRUD
 - [ ] **Phase 6: Email Rendering Pipeline** - Convert TipTap JSON to email-safe HTML with inline styles
-- [ ] **Phase 7: Schedule Management & Overrides** - Decoupled scheduling UI with per-client overrides
+- [ ] **Phase 7: Schedule Management** - Schedule creation/editing UI with step management (overrides removed from scope)
 - [ ] **Phase 8: Ad-Hoc Sending** - Select clients, pick template, preview, and send outside scheduled flow
 - [ ] **Phase 9: Queue Integration** - Rewire cron queue builder to read from new normalized tables
 
@@ -85,17 +85,19 @@ Plans:
 Plans:
 - [ ] 06-01-PLAN.md — Rendering pipeline: TipTap JSON to inline-styled email HTML + tests
 
-### Phase 7: Schedule Management & Overrides
-**Goal**: User can create and manage reminder schedules independently from templates, with per-client overrides for both content and timing
+### Phase 7: Schedule Management
+**Goal**: User can create and manage reminder schedules independently from templates, with sub-tab navigation alongside templates
 **Depends on**: Phase 5 (email templates must exist to assign to schedule steps)
-**Requirements**: SCHD-01, SCHD-02, SCHD-03, SCHD-04, SCHD-05, SCHD-06, SCHD-07, SCHD-08, SCHD-09, SCHD-10, OVRD-01, OVRD-02, OVRD-03, OVRD-04, OVRD-05
+**Requirements**: SCHD-01, SCHD-02, SCHD-03, SCHD-04, SCHD-05, SCHD-06, SCHD-07, SCHD-08
 **Success Criteria** (what must be TRUE):
   1. User can create a schedule for a filing type with multiple steps, where each step assigns an email template, a delay-before-deadline in days, and an urgency level
   2. User can reorder, add, and remove steps within a schedule, and the same template can appear in multiple steps
   3. User can view all schedules with their filing types and edit any schedule
-  4. User can override email template content for a specific client (applies globally to all uses of that template) and override timing for a specific schedule step for that client
-  5. User can cancel or reschedule an individual upcoming reminder from the schedule view
-**Plans**: TBD
+  4. User can duplicate a schedule with "(Copy)" suffix
+**Plans**: 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — Validation schema, CRUD API routes, sub-tab navigation, schedule list
+- [ ] 07-02-PLAN.md — Schedule editor page with step management (reorder, template/delay/urgency config)
 
 ### Phase 8: Ad-Hoc Sending
 **Goal**: User can send one-off emails to selected clients outside the automated reminder schedule
@@ -128,7 +130,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 |-------|-----------|----------------|--------|-----------|
 | 4. Data Migration | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 5. Rich Text Editor & Templates | v1.1 | 0/4 | Planning complete | - |
-| 6. Email Rendering Pipeline | v1.1 | 0/1 | Not started | - |
-| 7. Schedule Management & Overrides | v1.1 | TBD | Not started | - |
+| 6. Email Rendering Pipeline | v1.1 | 0/1 | Planning complete | - |
+| 7. Schedule Management | v1.1 | 0/2 | Planning complete | - |
 | 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
 | 9. Queue Integration | v1.1 | TBD | Not started | - |
