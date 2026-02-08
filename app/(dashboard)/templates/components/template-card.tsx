@@ -3,17 +3,11 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EmailTemplate } from '@/lib/types/database'
 import { formatDistanceToNow } from 'date-fns'
-
-const STATUS_BADGE_CLASS: Record<boolean, string> = {
-  true: 'bg-status-success text-white hover:bg-status-success font-sans',
-  false: 'bg-status-neutral/20 text-status-neutral hover:bg-status-neutral/20 font-sans',
-}
 
 interface TemplateCardProps {
   template: EmailTemplate
@@ -55,9 +49,19 @@ export function TemplateCard({ template }: TemplateCardProps) {
         {/* Left: name + subject */}
         <div className="flex items-center gap-4 min-w-0">
           <h3 className="font-semibold text-lg whitespace-nowrap">{template.name}</h3>
-          <Badge className={STATUS_BADGE_CLASS[template.is_active ? 'true' : 'false']}>
-            {template.is_active ? 'Active' : 'Inactive'}
-          </Badge>
+          <div className={`px-3 py-2 rounded-md inline-flex items-center ${
+            template.is_active
+              ? 'bg-status-success/10'
+              : 'bg-status-neutral/10'
+          }`}>
+            <span className={`text-sm font-medium ${
+              template.is_active
+                ? 'text-status-success'
+                : 'text-status-neutral'
+            }`}>
+              {template.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
           <p className="text-sm text-muted-foreground truncate">
             {template.subject}
           </p>
