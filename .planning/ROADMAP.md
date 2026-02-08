@@ -34,7 +34,7 @@
 
 - [x] **Phase 4: Data Migration** - Restructure database from JSONB-embedded templates to normalized tables
 - [ ] **Phase 5: Rich Text Editor & Templates** - TipTap editor with placeholder autocomplete and template CRUD
-- [ ] **Phase 6: Email Rendering & Preview** - Convert TipTap JSON to email-safe HTML with live preview
+- [ ] **Phase 6: Email Rendering Pipeline** - Convert TipTap JSON to email-safe HTML with inline styles
 - [ ] **Phase 7: Schedule Management & Overrides** - Decoupled scheduling UI with per-client overrides
 - [ ] **Phase 8: Ad-Hoc Sending** - Select clients, pick template, preview, and send outside scheduled flow
 - [ ] **Phase 9: Queue Integration** - Rewire cron queue builder to read from new normalized tables
@@ -68,15 +68,17 @@ Plans:
   5. User can view a list of all templates and edit any existing template with content loading correctly in the editor
 **Plans**: TBD
 
-### Phase 6: Email Rendering & Preview
-**Goal**: User sees a live preview of their email that matches what recipients will actually receive
+### Phase 6: Email Rendering Pipeline
+**Goal**: TipTap JSON content converts to email-safe HTML with inline styles for correct rendering in Gmail, Outlook, and Apple Mail
 **Depends on**: Phase 5 (TipTap editor must produce JSON content)
-**Requirements**: RNDR-01, RNDR-02, RNDR-03, RNDR-04, RNDR-05
+**Requirements**: RNDR-04, RNDR-05 (RNDR-01, RNDR-02, RNDR-03 removed from scope -- preview UI not needed)
 **Success Criteria** (what must be TRUE):
-  1. User sees a live preview pane that updates as they type in the editor, with placeholders filled using sample client data
-  2. User can select a real client from a dropdown and the preview renders with that client's actual data
-  3. Sent emails render correctly in Gmail, Outlook, and Apple Mail (email-safe HTML with inline styles, no broken formatting)
-**Plans**: TBD
+  1. Sent emails render correctly in Gmail, Outlook, and Apple Mail (email-safe HTML with inline styles, no broken formatting)
+  2. Placeholders are replaced with client data at render time, with fallback text for missing values
+  3. All links open in new tab with proper security attributes
+**Plans**: 1 plan
+Plans:
+- [ ] 06-01-PLAN.md — Rendering pipeline: TipTap JSON to inline-styled email HTML + tests
 
 ### Phase 7: Schedule Management & Overrides
 **Goal**: User can create and manage reminder schedules independently from templates, with per-client overrides for both content and timing
@@ -121,7 +123,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 |-------|-----------|----------------|--------|-----------|
 | 4. Data Migration | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 5. Rich Text Editor & Templates | v1.1 | TBD | Not started | - |
-| 6. Email Rendering & Preview | v1.1 | TBD | Not started | - |
+| 6. Email Rendering Pipeline | v1.1 | 0/1 | Not started | - |
 | 7. Schedule Management & Overrides | v1.1 | TBD | Not started | - |
 | 8. Ad-Hoc Sending | v1.1 | TBD | Not started | - |
 | 9. Queue Integration | v1.1 | TBD | Not started | - |
