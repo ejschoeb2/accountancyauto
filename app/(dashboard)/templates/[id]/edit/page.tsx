@@ -195,16 +195,12 @@ export default function EditTemplatePage() {
         </div>
       </div>
 
-      {/* Subject Line */}
-      <div className="rounded-lg border p-8 space-y-6">
-        <h2 className="text-lg font-semibold">Subject Line</h2>
+      {/* Email Composer */}
+      <div className="rounded-lg border overflow-hidden flex flex-col">
         <SubjectLineEditor value={subject} onChange={setSubject} />
-      </div>
-
-      {/* Email Body */}
-      <div className="rounded-lg border p-8 space-y-6">
-        <h2 className="text-lg font-semibold">Email Body</h2>
-        <TemplateEditor initialContent={bodyJson} onUpdate={setBodyJson} />
+        <div className="flex-1">
+          <TemplateEditor initialContent={bodyJson} onUpdate={setBodyJson} />
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}

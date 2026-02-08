@@ -66,11 +66,11 @@ export function TemplateEditor({ initialContent, onUpdate }: TemplateEditorProps
   }
 
   return (
-    <div className="rounded-lg border">
+    <div className="flex flex-col h-full">
       <EditorToolbar editor={editor} />
       <EditorContent
         editor={editor}
-        className="prose prose-sm max-w-none p-4 min-h-[200px] focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[200px]"
+        className="prose prose-sm max-w-none p-4 min-h-[300px] flex-1 focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-full"
       />
     </div>
   )
