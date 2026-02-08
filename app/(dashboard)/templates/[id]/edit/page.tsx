@@ -1,273 +1,234 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { useState, useEffect } from 'react'
+import { useRouter, useParams } from 'next/navigation'
+import { TemplateEditor } from '../../components/template-editor'
+import { SubjectLineEditor } from '../../components/subject-line-editor'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { TemplateStepEditor } from "../../components/template-step-editor";
-import { templateSchema, type TemplateInput } from "@/lib/validations/template";
-import { AVAILABLE_PLACEHOLDERS } from "@/lib/templates/variables";
-import type { ReminderTemplate, FilingType } from "@/lib/types/database";
-import { toast } from "sonner";
-
-type TemplateWithFilingType = ReminderTemplate & {
-  filing_types: FilingType;
-};
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { toast } from 'sonner'
+import type { TipTapDocument, EmailTemplate } from '@/lib/types/database'
 
 export default function EditTemplatePage() {
-  const router = useRouter();
-  const params = useParams();
-  const templateId = params.id as string;
-  const isNew = templateId === "new";
+  const router = useRouter()
+  const params = useParams()
+  const templateId = params.id as string
 
-  const [loading, setLoading] = useState(!isNew);
-  const [filingTypes, setFilingTypes] = useState<FilingType[]>([]);
-
-  const form = useForm<TemplateInput>({
-    resolver: zodResolver(templateSchema) as any,
-    defaultValues: {
-      filing_type_id: "corporation_tax_payment",
-      name: "",
-      description: "",
-      steps: [],
-      is_active: true,
-    },
-  });
-
-  // Load filing types
-  useEffect(() => {
-    fetch("/api/filing-types")
-      .then((res) => res.json())
-      .then((data) => setFilingTypes(data.filing_types || []))
-      .catch((err) => {
-        console.error("Failed to load filing types:", err);
-        toast.error("Failed to load filing types");
-      });
-  }, []);
+  const [loading, setLoading] = useState(true)
+  const [name, setName] = useState('')
+  const [subject, setSubject] = useState('')
+  const [bodyJson, setBodyJson] = useState<TipTapDocument | null>(null)
+  const [isActive, setIsActive] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Load existing template
   useEffect(() => {
-    if (!isNew) {
-      fetch(`/api/templates/${templateId}`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to load template");
-          return res.json();
-        })
-        .then((data: TemplateWithFilingType) => {
-          form.reset({
-            filing_type_id: data.filing_type_id,
-            name: data.name,
-            description: data.description || "",
-            steps: data.steps,
-            is_active: data.is_active,
-          });
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to load template:", err);
-          toast.error("Failed to load template");
-          router.push("/templates");
-        });
+    const loadTemplate = async () => {
+      try {
+        const response = await fetch(`/api/email-templates/${templateId}`)
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error('Template not found')
+          } else {
+            const error = await response.json()
+            toast.error(error.error || 'Failed to load template')
+          }
+          router.push('/templates')
+          return
+        }
+
+        const template: EmailTemplate = await response.json()
+        setName(template.name)
+        setSubject(template.subject)
+        setBodyJson(template.body_json)
+        setIsActive(template.is_active)
+        setLoading(false)
+      } catch (error) {
+        toast.error('Failed to load template')
+        router.push('/templates')
+      }
     }
-  }, [isNew, templateId, form, router]);
 
-  const onSubmit = async (data: TemplateInput) => {
+    loadTemplate()
+  }, [templateId, router])
+
+  const handleSave = async () => {
+    // Validation
+    if (!name.trim()) {
+      toast.error('Template name is required')
+      return
+    }
+    if (!subject.trim()) {
+      toast.error('Subject line is required')
+      return
+    }
+    if (!bodyJson) {
+      toast.error('Email body is required')
+      return
+    }
+
+    setSaving(true)
     try {
-      const url = isNew ? "/api/templates" : `/api/templates/${templateId}`;
-      const method = isNew ? "POST" : "PUT";
+      const response = await fetch(`/api/email-templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          subject,
+          body_json: bodyJson,
+          is_active: isActive,
+        }),
+      })
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to save template");
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update template')
       }
 
-      toast.success(isNew ? "Template created!" : "Template updated!");
-      router.push("/templates");
-    } catch (err) {
-      console.error("Failed to save template:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to save template");
+      toast.success('Template updated!')
+      router.push('/templates')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update template')
+    } finally {
+      setSaving(false)
     }
-  };
+  }
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this template?")) {
-      return;
-    }
-
+    setDeleting(true)
     try {
-      const res = await fetch(`/api/templates/${templateId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(`/api/email-templates/${templateId}`, {
+        method: 'DELETE',
+      })
 
-      if (!res.ok) {
-        throw new Error("Failed to delete template");
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete template')
       }
 
-      toast.success("Template deleted!");
-      router.push("/templates");
-    } catch (err) {
-      console.error("Failed to delete template:", err);
-      toast.error("Failed to delete template");
+      toast.success('Template deleted!')
+      router.push('/templates')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete template')
+      setDeleting(false)
+      setShowDeleteDialog(false)
     }
-  };
+  }
+
+  const handleCancel = () => {
+    router.push('/templates')
+  }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Loading...</h1>
+        <h1 className="text-foreground">Loading...</h1>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-10">
+      {/* Page header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {isNew ? "Create Template" : "Edit Template"}
-        </h1>
-        {!isNew && (
-          <Button variant="destructive" onClick={handleDelete}>
-            Delete Template
+        <h1 className="text-foreground">Edit Template</h1>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="destructive"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            Delete
           </Button>
-        )}
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="active:scale-[0.97]"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+        </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
-        <div className="rounded-lg border p-8 space-y-6">
-          <h2 className="text-lg font-semibold">Basic Information</h2>
+      {/* Template Details */}
+      <div className="rounded-lg border p-8 space-y-6">
+        <h2 className="text-lg font-semibold">Template Details</h2>
 
-          <div className="space-y-2">
-            <Label htmlFor="filing_type_id">Filing Type</Label>
-            <Select
-              value={form.watch("filing_type_id")}
-              onValueChange={(value) =>
-                form.setValue("filing_type_id", value as any)
-              }
+        <div className="space-y-2">
+          <Label htmlFor="name">Template Name</Label>
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g., Monthly VAT Reminder"
+            className="hover:border-foreground/20"
+          />
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="is_active"
+            checked={isActive}
+            onCheckedChange={(checked) => setIsActive(checked as boolean)}
+          />
+          <Label htmlFor="is_active" className="cursor-pointer">
+            Active (available for use in schedules)
+          </Label>
+        </div>
+      </div>
+
+      {/* Subject Line */}
+      <div className="rounded-lg border p-8 space-y-6">
+        <h2 className="text-lg font-semibold">Subject Line</h2>
+        <SubjectLineEditor value={subject} onChange={setSubject} />
+      </div>
+
+      {/* Email Body */}
+      <div className="rounded-lg border p-8 space-y-6">
+        <h2 className="text-lg font-semibold">Email Body</h2>
+        <TemplateEditor initialContent={bodyJson} onUpdate={setBodyJson} />
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Template</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this template? This action cannot be undone.
+              {' '}If this template is in use by any schedules, deletion will fail.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleting}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select filing type" />
-              </SelectTrigger>
-              <SelectContent>
-                {filingTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.formState.errors.filing_type_id && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.filing_type_id.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="name">Template Name</Label>
-            <Input
-              id="name"
-              className="hover:border-foreground/20"
-              placeholder="e.g., Standard Corporation Tax Reminders"
-              {...form.register("name")}
-            />
-            {form.formState.errors.name && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.name.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description (optional)</Label>
-            <Textarea
-              id="description"
-              className="hover:border-foreground/20"
-              placeholder="Internal notes about this template"
-              {...form.register("description")}
-            />
-            {form.formState.errors.description && (
-              <p className="text-sm text-destructive">
-                {form.formState.errors.description.message}
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="is_active"
-              checked={form.watch("is_active")}
-              onCheckedChange={(checked) =>
-                form.setValue("is_active", checked as boolean)
-              }
-            />
-            <Label htmlFor="is_active" className="cursor-pointer">
-              Active (will be used for new reminders)
-            </Label>
-          </div>
-        </div>
-
-        <div className="rounded-lg border p-8 space-y-6">
-          <TemplateStepEditor form={form} />
-        </div>
-
-        <div className="rounded-lg border p-8 space-y-4">
-          <h2 className="text-lg font-semibold">Available Placeholders</h2>
-          <p className="text-sm text-muted-foreground">
-            Use these placeholders in your subject and body text. They will be
-            replaced with actual values when reminders are sent.
-          </p>
-          <div className="grid gap-3 md:grid-cols-2">
-            {AVAILABLE_PLACEHOLDERS.map((placeholder) => (
-              <div
-                key={placeholder.name}
-                className="rounded-lg border p-3 space-y-1"
-              >
-                <code className="text-sm font-mono bg-muted px-1.5 py-0.5 rounded">
-                  {`{{${placeholder.name}}}`}
-                </code>
-                <p className="text-sm text-muted-foreground">
-                  {placeholder.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/templates")}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting} className="active:scale-[0.97]">
-            {form.formState.isSubmitting
-              ? "Saving..."
-              : isNew
-              ? "Create Template"
-              : "Save Changes"}
-          </Button>
-        </div>
-      </form>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
+  )
 }
