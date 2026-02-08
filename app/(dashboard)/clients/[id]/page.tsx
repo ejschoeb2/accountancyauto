@@ -1,11 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Icon } from '@/components/ui/icon';
+import { ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FilingAssignments } from './components/filing-assignments';
-import { TemplateOverrides } from './components/template-overrides';
 import { RecordsReceived } from './components/records-received';
 import { ClientAuditLog } from './components/client-audit-log';
 
@@ -28,19 +27,6 @@ export default async function ClientPage({ params }: ClientPageProps) {
     notFound();
   }
 
-  // Fetch active filing assignments for records-received component
-  const { data: assignmentsRaw } = await supabase
-    .from('client_filing_assignments')
-    .select('id, filing_type_id, filing_types!inner(id, name)')
-    .eq('client_id', id)
-    .eq('is_active', true);
-
-  // Transform to match expected type (Supabase returns filing_types as array, we need object)
-  const assignments = assignmentsRaw?.map((a: any) => ({
-    id: a.id,
-    filing_type_id: a.filing_type_id,
-    filing_types: Array.isArray(a.filing_types) ? a.filing_types[0] : a.filing_types,
-  })) || [];
 
   return (
     <div className="space-y-6">
@@ -48,7 +34,7 @@ export default async function ClientPage({ params }: ClientPageProps) {
       <div>
         <Link href="/clients">
           <Button variant="ghost" size="sm">
-            <Icon name="arrow_back" size="sm" className="mr-2" />
+            <ArrowLeft className="size-4 mr-2" />
             Back to clients
           </Button>
         </Link>
@@ -139,15 +125,7 @@ export default async function ClientPage({ params }: ClientPageProps) {
       <FilingAssignments clientId={id} />
 
       {/* Records received and reminder pause */}
-      <RecordsReceived
-        clientId={id}
-        assignments={assignments}
-        recordsReceivedFor={client.records_received_for || []}
-        remindersPaused={client.reminders_paused}
-      />
-
-      {/* Template overrides */}
-      <TemplateOverrides clientId={id} />
+      <RecordsReceived clientId={id} />
 
       {/* Reminder history / Audit log */}
       <div className="rounded-lg border py-8 px-8">

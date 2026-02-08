@@ -90,7 +90,7 @@ export default function EditSchedulePage() {
 
           const scheduleData: Schedule & { steps: ScheduleStep[] } = await scheduleResponse.json()
 
-          // Map schedule data to form format (filter out 'low' urgency level)
+          // Map schedule data to form format
           form.reset({
             filing_type_id: scheduleData.filing_type_id,
             name: scheduleData.name,
@@ -99,7 +99,7 @@ export default function EditSchedulePage() {
             steps: scheduleData.steps.map(step => ({
               email_template_id: step.email_template_id,
               delay_days: step.delay_days,
-              urgency_level: step.urgency_level === 'low' ? 'normal' : step.urgency_level as 'normal' | 'high' | 'urgent',
+              urgency_level: step.urgency_level,
             })),
           })
         }

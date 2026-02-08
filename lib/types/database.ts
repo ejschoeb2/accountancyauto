@@ -21,27 +21,6 @@ export interface FilingType {
   created_at: string;
 }
 
-// ============================================================================
-// Reminder Templates
-// ============================================================================
-
-export interface TemplateStep {
-  step_number: number;
-  delay_days: number; // days before deadline
-  subject: string;
-  body: string;
-}
-
-export interface ReminderTemplate {
-  id: string;
-  filing_type_id: FilingTypeId;
-  name: string;
-  description: string | null;
-  steps: TemplateStep[];
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
 
 // ============================================================================
 // Client Filing Assignments
@@ -69,19 +48,6 @@ export interface ClientDeadlineOverride {
   updated_at: string;
 }
 
-// ============================================================================
-// Client Template Overrides
-// ============================================================================
-
-export interface ClientTemplateOverride {
-  id: string;
-  client_id: string;
-  template_id: string;
-  step_index: number;
-  overridden_fields: Partial<Pick<TemplateStep, 'subject' | 'body' | 'delay_days'>>;
-  created_at: string;
-  updated_at: string;
-}
 
 // ============================================================================
 // Bank Holidays Cache
@@ -136,7 +102,7 @@ export interface TipTapNode {
   marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
 }
 
-export type UrgencyLevel = 'low' | 'normal' | 'high' | 'urgent';
+export type UrgencyLevel = 'normal' | 'high' | 'urgent';
 
 export interface EmailTemplate {
   id: string;
