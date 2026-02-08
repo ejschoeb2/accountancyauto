@@ -32,7 +32,7 @@
 - Integer phases (4, 5, 6...): Planned milestone work
 - Decimal phases (4.1, 4.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 4: Data Migration** - Restructure database from JSONB-embedded templates to normalized tables
+- [x] **Phase 4: Data Migration** - Restructure database from JSONB-embedded templates to normalized tables
 - [ ] **Phase 5: Rich Text Editor & Templates** - TipTap editor with placeholder autocomplete and template CRUD
 - [ ] **Phase 6: Email Rendering & Preview** - Convert TipTap JSON to email-safe HTML with live preview
 - [ ] **Phase 7: Schedule Management & Overrides** - Decoupled scheduling UI with per-client overrides
@@ -53,8 +53,8 @@
   5. Old tables are retained and the existing reminder queue continues to function without disruption
 **Plans**: 2 plans
 Plans:
-- [ ] 04-01-PLAN.md — Create v1.1 normalized tables (DDL migration + TypeScript types)
-- [ ] 04-02-PLAN.md — Migrate v1.0 data to normalized structure + verification script
+- [x] 04-01-PLAN.md — Create v1.1 normalized tables (DDL migration + TypeScript types)
+- [x] 04-02-PLAN.md — Migrate v1.0 data to normalized structure + verification script
 
 ### Phase 5: Rich Text Editor & Templates
 **Goal**: User can create and manage standalone email templates using a rich text editor with placeholder autocomplete
@@ -119,7 +119,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 4. Data Migration | v1.1 | 0/2 | Planning complete | - |
+| 4. Data Migration | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 5. Rich Text Editor & Templates | v1.1 | TBD | Not started | - |
 | 6. Email Rendering & Preview | v1.1 | TBD | Not started | - |
 | 7. Schedule Management & Overrides | v1.1 | TBD | Not started | - |
