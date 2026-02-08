@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** Phase 5 - Rich Text Editor (v1.1 Template & Scheduling Redesign)
+**Current focus:** Phase 7 - Schedule Management (v1.1 Template & Scheduling Redesign)
 
 ## Current Position
 
-Phase: 5 of 9 (Rich Text Editor & Templates)
-Plan: 4 of 4 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 -- Completed 05-04-PLAN.md
+Phase: 7 of 9 (Schedule Management)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-08 -- Completed 07-01-PLAN.md
 
-Progress: [##........] ~32% (6/~19 v1.1 plans estimated)
+Progress: [###.......] ~37% (7/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,7 +24,7 @@ Progress: [##........] ~32% (6/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
@@ -32,6 +32,7 @@ Progress: [##........] ~32% (6/~19 v1.1 plans estimated)
 - Plan 05-02: 4 min
 - Plan 05-03: 3 min
 - Plan 05-04: 15 min
+- Plan 07-01: 4 min
 
 ## Accumulated Context
 
@@ -62,6 +63,12 @@ Recent decisions affecting current work:
 - [05-04]: Create and edit pages use same component structure with conditional behavior
 - [05-04]: Card grid layout for template list (1 col mobile, 2 md, 3 lg)
 - [05-04]: Delete button includes confirmation and gracefully handles FK constraint 409 errors
+- [07-01]: Three urgency levels only: normal, high, urgent (no 'low' level)
+- [07-01]: No validation rules on step array length - trust user to configure sensibly
+- [07-01]: Duplicate creates copy with "(Copy)" suffix and is_active: false
+- [07-01]: Delete-and-recreate pattern for schedule_steps to honor immutability
+- [07-01]: Fetch filing_types and step counts separately to avoid PostgREST FK join cache issues
+- [07-01]: Combined Templates & Schedules in single nav tab with sub-tab navigation via searchParams
 
 ### Known Risks
 
@@ -77,10 +84,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T12:45:00Z
-Stopped at: Completed 05-04-PLAN.md (Phase 5 complete)
+Last session: 2026-02-08T13:17:05Z
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None
-Next step: Begin Phase 6 (Schedule UI) or Phase 7 (Schedule API)
+Next step: Continue Phase 7 with 07-02 (Schedule Editor UI)
 
 ---
-*Phase 5 complete -- Email template CRUD workflow with rich text editor fully functional*
+*Phase 7 in progress -- Schedule CRUD API complete, sub-tab navigation integrated*
