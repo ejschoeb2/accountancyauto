@@ -113,7 +113,6 @@ export async function POST(request: Request) {
       email_template_id: step.email_template_id,
       step_number: index + 1, // 1-based indexing
       delay_days: step.delay_days,
-      urgency_level: step.urgency_level,
     }));
 
     const { error: stepsError } = await supabase

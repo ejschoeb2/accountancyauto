@@ -1,7 +1,7 @@
 "use client";
 
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 
 interface CsvImportButtonProps {
   onClick: () => void;
@@ -9,12 +9,12 @@ interface CsvImportButtonProps {
 
 /**
  * Button to open the CSV import dialog.
- * Uses secondary/outline style as it's not the primary action.
+ * Uses primary button styling like other main action buttons.
  */
 export function CsvImportButton({ onClick }: CsvImportButtonProps) {
   return (
-    <Button variant="outline" onClick={onClick}>
-      <Icon name="upload" size="sm" />
+    <Button onClick={onClick} className="active:scale-[0.97]">
+      <Upload className="size-4" />
       Import CSV
     </Button>
   );

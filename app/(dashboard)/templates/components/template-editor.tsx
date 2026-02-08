@@ -7,71 +7,90 @@ import { PlaceholderNode } from '../extensions/placeholder-node'
 import { PasteHandler } from '../extensions/paste-handler'
 import { EditorToolbar } from './template-editor-toolbar'
 import type { TipTapDocument } from '@/lib/types/database'
-import { useEffect } from 'react'
+import { useEffect, forwardRef, useImperativeHandle } from 'react'
 
 interface TemplateEditorProps {
   initialContent?: TipTapDocument | null
   onUpdate?: (json: TipTapDocument) => void
+  placeholderButtonSlot?: React.ReactNode
 }
 
-export function TemplateEditor({ initialContent, onUpdate }: TemplateEditorProps) {
-  const editor = useEditor({
-    immediatelyRender: false, // CRITICAL: Next.js SSR
-    shouldRerenderOnTransaction: false, // Performance optimization
+export interface TemplateEditorHandle {
+  insertPlaceholder: (id: string, label: string) => void
+}
 
-    extensions: [
-      StarterKit.configure({
-        heading: false,
-        blockquote: false,
-        codeBlock: false,
-        horizontalRule: false,
-        code: false,
-        strike: false,
-      }),
-      Link.configure({
-        openOnClick: false,
-        autolink: true, // Auto-detect pasted URLs per user decision
-        HTMLAttributes: {
-          class: 'text-primary underline',
-        },
-      }),
-      PlaceholderNode,
-      PasteHandler,
-    ],
+export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorProps>(
+  ({ initialContent, onUpdate, placeholderButtonSlot }, ref) => {
+    const editor = useEditor({
+      immediatelyRender: false, // CRITICAL: Next.js SSR
+      shouldRerenderOnTransaction: false, // Performance optimization
 
-    content: initialContent || {
-      type: 'doc',
-      content: [{ type: 'paragraph' }],
-    },
+      extensions: [
+        StarterKit.configure({
+          heading: false,
+          blockquote: false,
+          codeBlock: false,
+          horizontalRule: false,
+          code: false,
+          strike: false,
+        }),
+        Link.configure({
+          openOnClick: false,
+          autolink: true, // Auto-detect pasted URLs per user decision
+          HTMLAttributes: {
+            class: 'text-primary underline',
+          },
+        }),
+        PlaceholderNode,
+        PasteHandler,
+      ],
 
-    onUpdate: ({ editor }) => {
-      onUpdate?.(editor.getJSON() as TipTapDocument)
-    },
-  })
+      content: initialContent || {
+        type: 'doc',
+        content: [{ type: 'paragraph' }],
+      },
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      editor?.destroy()
+      onUpdate: ({ editor }) => {
+        onUpdate?.(editor.getJSON() as TipTapDocument)
+      },
+    })
+
+    // Expose insertPlaceholder method
+    useImperativeHandle(ref, () => ({
+      insertPlaceholder: (id: string, label: string) => {
+        if (editor) {
+          editor.chain().focus().insertContent({
+            type: 'placeholder',
+            attrs: { id, label },
+          }).run()
+        }
+      },
+    }), [editor])
+
+    // Cleanup on unmount
+    useEffect(() => {
+      return () => {
+        editor?.destroy()
+      }
+    }, [editor])
+
+    // Loading state
+    if (!editor) {
+      return (
+        <div className="rounded-lg border p-4 text-muted-foreground">
+          Loading editor...
+        </div>
+      )
     }
-  }, [editor])
 
-  // Loading state
-  if (!editor) {
     return (
-      <div className="rounded-lg border p-4 text-muted-foreground">
-        Loading editor...
+      <div className="flex flex-col h-full">
+        <EditorToolbar editor={editor} placeholderButtonSlot={placeholderButtonSlot} />
+        <EditorContent
+          editor={editor}
+          className="prose prose-sm max-w-none p-4 min-h-[300px] flex-1 focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-full"
+        />
       </div>
     )
   }
-
-  return (
-    <div className="flex flex-col h-full">
-      <EditorToolbar editor={editor} />
-      <EditorContent
-        editor={editor}
-        className="prose prose-sm max-w-none p-4 min-h-[300px] flex-1 focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-full"
-      />
-    </div>
-  )
-}
+)

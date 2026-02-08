@@ -2,7 +2,7 @@
   "mode": "yolo",
   "depth": "standard",
   "parallelization": true,
-  "model_profile": "quality",
+  "model_profile": "balanced",
   "workflow": {
     "research": true,
     "plan_check": false,

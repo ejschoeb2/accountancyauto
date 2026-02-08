@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Check, Play, Pause } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 import { toast } from "sonner";
 
 interface FilingAssignment {
@@ -17,20 +17,51 @@ interface FilingAssignment {
 
 interface RecordsReceivedProps {
   clientId: string;
-  assignments: FilingAssignment[];
-  recordsReceivedFor: string[];
-  remindersPaused: boolean;
 }
 
-export function RecordsReceived({
-  clientId,
-  assignments,
-  recordsReceivedFor,
-  remindersPaused,
-}: RecordsReceivedProps) {
-  const [recordsReceived, setRecordsReceived] = useState<string[]>(recordsReceivedFor || []);
-  const [paused, setPaused] = useState(remindersPaused);
+export function RecordsReceived({ clientId }: RecordsReceivedProps) {
+  const [assignments, setAssignments] = useState<FilingAssignment[]>([]);
+  const [recordsReceived, setRecordsReceived] = useState<string[]>([]);
+  const [paused, setPaused] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Fetch assignments and client data client-side
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [filingsRes, clientRes] = await Promise.all([
+          fetch(`/api/clients/${clientId}/filings`),
+          fetch(`/api/clients/${clientId}`),
+        ]);
+
+        if (filingsRes.ok) {
+          const filingsData = await filingsRes.json();
+          const active = (filingsData.filings || [])
+            .filter((f: any) => f.is_active)
+            .map((f: any) => ({
+              id: f.filing_type.id,
+              filing_type_id: f.filing_type.id,
+              filing_types: { id: f.filing_type.id, name: f.filing_type.name },
+            }));
+          setAssignments(active);
+        }
+
+        if (clientRes.ok) {
+          const clientData = await clientRes.json();
+          const client = clientData.data || clientData;
+          setRecordsReceived(client.records_received_for || []);
+          setPaused(client.reminders_paused || false);
+        }
+      } catch (error) {
+        // Silently fail - component just won't render
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [clientId]);
 
   async function handleRecordsReceivedToggle(filingTypeId: string, checked: boolean) {
     setIsUpdating(true);
@@ -95,6 +126,15 @@ export function RecordsReceived({
     }
   }
 
+  if (loading) {
+    return (
+      <div className="rounded-lg border py-8 px-8">
+        <h2 className="text-lg font-semibold mb-4">Records & Reminders</h2>
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
   if (assignments.length === 0) {
     return null;
   }
@@ -112,12 +152,12 @@ export function RecordsReceived({
         >
           {paused ? (
             <>
-              <Icon name="play_arrow" size="sm" className="mr-2" />
+              <Play className="size-4 mr-2" />
               Resume Reminders
             </>
           ) : (
             <>
-              <Icon name="pause" size="sm" className="mr-2" />
+              <Pause className="size-4 mr-2" />
               Pause Reminders
             </>
           )}
@@ -155,7 +195,7 @@ export function RecordsReceived({
                 {assignment.filing_types.name}
               </label>
               {isReceived && (
-                <Icon name="check" size="sm" className="text-status-success" />
+                <Check className="size-4 text-status-success" />
               )}
             </div>
           );

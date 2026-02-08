@@ -142,9 +142,12 @@ export function EditableCell({
 
     return (
       <div
-        onClick={handleStartEdit}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleStartEdit();
+        }}
         className={cn(
-          "cursor-pointer rounded px-2 py-1 -mx-2 -my-1 transition-colors",
+          "cursor-pointer rounded px-2 py-1 -mx-2 -my-1 transition-colors font-semibold",
           !disabled && "hover:bg-muted/50",
           disabled && "cursor-default"
         )}

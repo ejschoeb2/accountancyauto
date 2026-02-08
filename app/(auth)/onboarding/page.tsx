@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
 import {
   initiateQuickBooksOAuth,
   syncClientsAction,
@@ -90,7 +90,7 @@ function OnboardingContent() {
             style={{ backgroundColor: "#0077C5" }} /* QuickBooks brand color - intentional override */
           >
             {isLoading ? (
-              <Icon name="progress_activity" size="md" className="mr-2 animate-spin" />
+              <Loader2 className="size-5 mr-2 animate-spin" />
             ) : null}
             Connect QuickBooks Online
           </Button>
@@ -99,7 +99,7 @@ function OnboardingContent() {
 
       {step === "connecting" && (
         <div className="space-y-4">
-          <Icon name="progress_activity" size="xl" className="mx-auto animate-spin text-muted-foreground" />
+          <Loader2 className="size-8 mx-auto animate-spin text-muted-foreground" />
           <h2 className="text-xl font-semibold">Connecting to QuickBooks...</h2>
           <p className="text-muted-foreground">
             Please complete the authorization in the QuickBooks window.
@@ -109,7 +109,7 @@ function OnboardingContent() {
 
       {step === "syncing" && (
         <div className="space-y-4">
-          <Icon name="progress_activity" size="xl" className="mx-auto animate-spin text-muted-foreground" />
+          <Loader2 className="size-8 mx-auto animate-spin text-muted-foreground" />
           <h2 className="text-xl font-semibold">Syncing your clients...</h2>
           <p className="text-muted-foreground">
             This may take a moment depending on the number of clients.
@@ -120,7 +120,7 @@ function OnboardingContent() {
       {step === "complete" && (
         <div className="space-y-4">
           <div className="mx-auto w-16 h-16 bg-status-success/10 rounded-full flex items-center justify-center">
-            <Icon name="check_circle" size="xl" className="text-status-success" />
+            <CheckCircle className="size-8 text-status-success" />
           </div>
           <h2 className="text-2xl font-bold">All set!</h2>
           <p className="text-muted-foreground">
@@ -135,7 +135,7 @@ function OnboardingContent() {
       {step === "error" && (
         <div className="space-y-4">
           <div className="mx-auto w-16 h-16 bg-status-danger/10 rounded-full flex items-center justify-center">
-            <Icon name="cancel" size="xl" className="text-status-danger" />
+            <XCircle className="size-8 text-status-danger" />
           </div>
           <h2 className="text-2xl font-bold">Something went wrong</h2>
           <p className="text-muted-foreground">{errorMessage}</p>
@@ -153,7 +153,7 @@ export default function OnboardingPage() {
     <Suspense
       fallback={
         <div className="text-center space-y-4">
-          <Icon name="progress_activity" size="xl" className="mx-auto animate-spin text-muted-foreground" />
+          <Loader2 className="size-8 mx-auto animate-spin text-muted-foreground" />
           <h2 className="text-xl font-semibold">Loading...</h2>
         </div>
       }

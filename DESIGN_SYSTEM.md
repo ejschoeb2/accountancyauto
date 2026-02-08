@@ -52,7 +52,8 @@ className="border-status-warning/20"
 
 | Role | Font | CSS Variable |
 |------|------|-------------|
-| Primary (UI) | Inter | `--font-inter` / `font-sans` |
+| Primary (UI) | Figtree | `--font-figtree` / `font-sans` |
+| Headers (Display) | Outfit | `--font-outfit` / `font-display` |
 | Monospace | JetBrains Mono | `--font-jetbrains-mono` / `font-mono` |
 
 Loaded via `next/font/google` in `app/layout.tsx`.

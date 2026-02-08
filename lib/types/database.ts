@@ -102,8 +102,6 @@ export interface TipTapNode {
   marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
 }
 
-export type UrgencyLevel = 'normal' | 'high' | 'urgent';
-
 export interface EmailTemplate {
   id: string;
   name: string;
@@ -131,7 +129,6 @@ export interface ScheduleStep {
   email_template_id: string;
   step_number: number;
   delay_days: number;
-  urgency_level: UrgencyLevel;
   created_at: string;
 }
 

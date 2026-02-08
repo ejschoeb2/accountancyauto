@@ -7,9 +7,10 @@ import type { Editor } from '@tiptap/react'
 
 interface EditorToolbarProps {
   editor: Editor | null
+  placeholderButtonSlot?: React.ReactNode
 }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, placeholderButtonSlot }: EditorToolbarProps) {
   if (!editor) {
     return null
   }
@@ -111,15 +112,17 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       {/* Separator */}
       <div className="w-px h-6 bg-border mx-1" />
 
-      {/* Placeholder Dropdown */}
-      <PlaceholderDropdown
-        onSelect={(id, label) => {
-          editor.chain().focus().insertContent({
-            type: 'placeholder',
-            attrs: { id, label },
-          }).run()
-        }}
-      />
+      {/* Placeholder Button - uses unified slot if provided */}
+      {placeholderButtonSlot || (
+        <PlaceholderDropdown
+          onSelect={(id, label) => {
+            editor.chain().focus().insertContent({
+              type: 'placeholder',
+              attrs: { id, label },
+            }).run()
+          }}
+        />
+      )}
     </div>
   )
 }

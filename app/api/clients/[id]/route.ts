@@ -38,13 +38,7 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    // Verify user is authenticated
     const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
 
     // Fetch current client state before update
     const { data: currentClient, error: fetchError } = await supabase

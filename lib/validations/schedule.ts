@@ -6,7 +6,6 @@ import { z } from "zod";
 export const scheduleStepSchema = z.object({
   email_template_id: z.string().uuid("Invalid email template ID"),
   delay_days: z.number().int().min(1).max(365),
-  urgency_level: z.enum(['normal', 'high', 'urgent'] as const),
 });
 
 /**

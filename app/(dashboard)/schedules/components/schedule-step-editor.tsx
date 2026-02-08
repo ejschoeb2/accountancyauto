@@ -18,9 +18,10 @@ import type { ScheduleInput } from "@/lib/validations/schedule";
 interface ScheduleStepEditorProps {
   form: UseFormReturn<ScheduleInput>;
   templates: Array<{ id: string; name: string }>;
+  filingTypes: Array<{ id: string; name: string }>;
 }
 
-export function ScheduleStepEditor({ form, templates }: ScheduleStepEditorProps) {
+export function ScheduleStepEditor({ form, templates, filingTypes }: ScheduleStepEditorProps) {
   const { fields, append, remove, move } = useFieldArray({
     control: form.control,
     name: "steps",
@@ -30,7 +31,6 @@ export function ScheduleStepEditor({ form, templates }: ScheduleStepEditorProps)
     append({
       email_template_id: "",
       delay_days: 7,
-      urgency_level: "normal",
     });
   };
 
@@ -175,30 +175,31 @@ export function ScheduleStepEditor({ form, templates }: ScheduleStepEditorProps)
               )}
             </div>
 
-            {/* Urgency level */}
+            {/* Deadline reference */}
             <div className="space-y-2">
-              <Label htmlFor={`steps.${index}.urgency_level`}>
-                Urgency Level
+              <Label htmlFor={`steps.${index}.deadline_ref`}>
+                Deadline
               </Label>
               <Select
-                value={form.watch(`steps.${index}.urgency_level`)}
-                onValueChange={(value) => form.setValue(`steps.${index}.urgency_level`, value as "normal" | "high" | "urgent")}
+                value={form.watch('filing_type_id')}
+                onValueChange={(value) => form.setValue('filing_type_id', value as ScheduleInput['filing_type_id'])}
               >
-                <SelectTrigger id={`steps.${index}.urgency_level`}>
-                  <SelectValue />
+                <SelectTrigger id={`steps.${index}.deadline_ref`}>
+                  <SelectValue placeholder="Select deadline" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
+                  {filingTypes.map((ft) => (
+                    <SelectItem key={ft.id} value={ft.id}>
+                      {ft.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.steps?.[index]?.urgency_level && (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.steps[index].urgency_level?.message}
-                </p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                The filing deadline this reminder counts back from
+              </p>
             </div>
+
           </Card>
         ))}
       </div>

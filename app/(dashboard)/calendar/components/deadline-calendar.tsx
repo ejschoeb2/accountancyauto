@@ -4,7 +4,9 @@ import { useState, useCallback, useMemo } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import { enGB } from "date-fns/locale";
+import { Icon } from "@/components/ui/icon";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import "../calendar-styles.css";
 
 const localizer = dateFnsLocalizer({
   format,
@@ -121,15 +123,57 @@ export function DeadlineCalendar({ initialEvents, initialDate }: DeadlineCalenda
     };
   }, []);
 
-  // Custom event tooltip
+  // Custom event component
   const EventComponent = ({ event }: { event: CalendarEvent }) => {
     const { resource } = event;
     return (
-      <div className="flex items-center gap-1">
-        <span className="truncate">{resource.client_name}</span>
+      <div className="flex items-center gap-1.5 w-full">
+        <span className="truncate flex-1">{resource.client_name}</span>
         {resource.is_overridden && (
-          <span className="text-xs opacity-75">(custom)</span>
+          <Icon name="edit" size="sm" className="opacity-75 flex-shrink-0" />
         )}
+      </div>
+    );
+  };
+
+  // Custom toolbar
+  const CustomToolbar = (toolbar: {
+    date: Date;
+    onNavigate: (action: 'PREV' | 'NEXT' | 'TODAY') => void;
+  }) => {
+    const goToBack = () => {
+      toolbar.onNavigate('PREV');
+    };
+
+    const goToNext = () => {
+      toolbar.onNavigate('NEXT');
+    };
+
+    const goToToday = () => {
+      toolbar.onNavigate('TODAY');
+    };
+
+    const label = () => {
+      const date = toolbar.date;
+      return format(date, 'MMMM yyyy', { locale: enGB });
+    };
+
+    return (
+      <div className="rbc-toolbar">
+        <div className="rbc-btn-group">
+          <button type="button" onClick={goToToday}>
+            Today
+          </button>
+        </div>
+        <div className="rbc-toolbar-label">{label()}</div>
+        <div className="rbc-btn-group">
+          <button type="button" onClick={goToBack} aria-label="Previous month">
+            <Icon name="chevron_left" size="sm" />
+          </button>
+          <button type="button" onClick={goToNext} aria-label="Next month">
+            <Icon name="chevron_right" size="sm" />
+          </button>
+        </div>
       </div>
     );
   };
@@ -137,9 +181,10 @@ export function DeadlineCalendar({ initialEvents, initialDate }: DeadlineCalenda
   return (
     <div className="relative">
       {isLoading && (
-        <div className="absolute top-4 right-4 z-10">
-          <div className="bg-background border rounded-md px-3 py-2 text-sm">
-            Loading...
+        <div className="calendar-loading-overlay">
+          <div className="bg-background border rounded-md px-3 py-2 text-sm flex items-center gap-2 shadow-sm">
+            <Icon name="progress_activity" size="sm" className="animate-spin text-accent" />
+            <span className="text-muted-foreground">Loading...</span>
           </div>
         </div>
       )}
@@ -148,7 +193,7 @@ export function DeadlineCalendar({ initialEvents, initialDate }: DeadlineCalenda
         events={calendarEvents}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 600, minHeight: 600 }}
+        style={{ height: 650, minHeight: 650 }}
         views={["month"]}
         defaultView="month"
         date={currentDate}
@@ -156,6 +201,7 @@ export function DeadlineCalendar({ initialEvents, initialDate }: DeadlineCalenda
         eventPropGetter={eventStyleGetter}
         components={{
           event: EventComponent,
+          toolbar: CustomToolbar,
         }}
         tooltipAccessor={(event: CalendarEvent) => {
           const { resource } = event;

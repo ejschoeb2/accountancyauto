@@ -13,7 +13,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { Search, X, SlidersHorizontal, Calendar, Percent } from "lucide-react";
+import { Search, X, SlidersHorizontal, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -476,9 +476,16 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
             return <span className="text-muted-foreground">—</span>;
           }
           return (
-            <div className="size-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <Percent className="size-5 text-purple-600" />
-            </div>
+            <EditableCell
+              value={client.vat_quarter}
+              type="select"
+              options={VAT_QUARTER_OPTIONS}
+              onSave={async (value) => {
+                startTransition(async () => {
+                  await handleCellEdit(client.id, "vat_quarter", value);
+                });
+              }}
+            />
           );
         },
       },

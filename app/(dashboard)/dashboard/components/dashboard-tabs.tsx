@@ -4,17 +4,14 @@ import { useState } from 'react';
 import { ClientStatusTable } from './client-status-table';
 import { AuditLogTable } from './audit-log-table';
 import type { ClientStatusRow } from '@/lib/dashboard/metrics';
-import type { AuditEntry } from '@/app/actions/audit-log';
 
 interface DashboardTabsProps {
   clients: ClientStatusRow[];
-  initialAuditData: AuditEntry[];
-  auditTotalCount: number;
 }
 
 type TabType = 'status' | 'audit';
 
-export function DashboardTabs({ clients, initialAuditData, auditTotalCount }: DashboardTabsProps) {
+export function DashboardTabs({ clients }: DashboardTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>('status');
 
   return (
@@ -28,7 +25,7 @@ export function DashboardTabs({ clients, initialAuditData, auditTotalCount }: Da
               whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
               ${
                 activeTab === 'status'
-                  ? 'border-primary text-primary'
+                  ? 'border-accent text-accent'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }
             `}
@@ -41,7 +38,7 @@ export function DashboardTabs({ clients, initialAuditData, auditTotalCount }: Da
               whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200
               ${
                 activeTab === 'audit'
-                  ? 'border-primary text-primary'
+                  ? 'border-accent text-accent'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
               }
             `}
@@ -54,9 +51,7 @@ export function DashboardTabs({ clients, initialAuditData, auditTotalCount }: Da
       {/* Tab content */}
       <div>
         {activeTab === 'status' && <ClientStatusTable clients={clients} />}
-        {activeTab === 'audit' && (
-          <AuditLogTable initialData={initialAuditData} totalCount={auditTotalCount} />
-        )}
+        {activeTab === 'audit' && <AuditLogTable />}
       </div>
     </div>
   );

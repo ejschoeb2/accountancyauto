@@ -1,39 +1,33 @@
-import Link from "next/link";
-import { Waves } from "lucide-react";
-import { getConnectionStatus } from "@/app/actions/quickbooks";
-import { QboStatusBanner } from "@/components/qbo-status-banner";
+import Image from "next/image";
 import { NavLinks } from "@/components/nav-links";
+import { SettingsLink } from "@/components/settings-link";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const connectionStatus = await getConnectionStatus();
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header / Navigation */}
       <header className="bg-white">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           {/* Branding */}
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 bg-primary rounded-xl px-4 py-2.5 hover:opacity-90 transition-opacity"
-          >
-            <Waves className="h-5 w-5 text-white" />
-            <span className="font-display font-medium text-lg text-white tracking-tight">
+          <div className="flex items-center gap-4">
+            <Image src="/logofini.png" alt="Logo" width={32} height={32} className="object-contain" />
+            <div className="w-px h-10 bg-border" />
+            <span className="font-sans font-bold tracking-tight text-xl text-foreground">
               Peninsula Accounting
             </span>
-          </Link>
+          </div>
 
-          {/* Navigation Links */}
-          <NavLinks />
+          {/* Navigation Links & Settings */}
+          <div className="flex items-center gap-4">
+            <NavLinks />
+            <SettingsLink />
+          </div>
         </div>
       </header>
-
-      {/* QBO Status Banner */}
-      <QboStatusBanner connected={connectionStatus.connected} lastSyncTime={connectionStatus.lastSyncTime} />
 
       {/* Main Content */}
       <main className="flex-1 px-8 py-10 max-w-7xl mx-auto w-full">

@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +12,19 @@ import { Plus } from 'lucide-react'
 import { AVAILABLE_PLACEHOLDERS } from '@/lib/templates/variables'
 
 interface PlaceholderDropdownProps {
-  onSelect: (id: string, label: string) => void
+  onSelect?: (id: string, label: string) => void
+  // For unified mode - support both subject input and editor
+  subjectInputRef?: React.RefObject<HTMLInputElement>
+  onEditorInsert?: (id: string, label: string) => void
 }
 
-export function PlaceholderDropdown({ onSelect }: PlaceholderDropdownProps) {
+export function PlaceholderDropdown({
+  onSelect,
+  subjectInputRef,
+  onEditorInsert,
+}: PlaceholderDropdownProps) {
+  const dropdownRef = useRef<HTMLButtonElement>(null)
+
   // Convert snake_case to Title Case
   const toTitleCase = (str: string): string => {
     return str
@@ -23,10 +33,43 @@ export function PlaceholderDropdown({ onSelect }: PlaceholderDropdownProps) {
       .join(' ')
   }
 
+  const handlePlaceholderSelect = (id: string, label: string) => {
+    // Legacy mode - single callback
+    if (onSelect) {
+      onSelect(id, label)
+      return
+    }
+
+    // Unified mode - detect which field has focus
+    if (subjectInputRef?.current === document.activeElement) {
+      // Subject input has focus
+      const input = subjectInputRef.current
+      const cursorPosition = input.selectionStart ?? input.value.length
+      const textBefore = input.value.slice(0, cursorPosition)
+      const textAfter = input.value.slice(cursorPosition)
+      const placeholderText = `{{${id}}}`
+      const newValue = textBefore + placeholderText + textAfter
+
+      input.value = newValue
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+
+      // Restore focus and set cursor
+      setTimeout(() => {
+        input.focus()
+        const newCursorPosition = cursorPosition + placeholderText.length
+        input.setSelectionRange(newCursorPosition, newCursorPosition)
+      }, 0)
+    } else {
+      // Body editor has focus
+      onEditorInsert?.(id, label)
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          ref={dropdownRef}
           variant="ghost"
           size="icon"
           type="button"
@@ -39,11 +82,13 @@ export function PlaceholderDropdown({ onSelect }: PlaceholderDropdownProps) {
       <DropdownMenuContent
         align="start"
         onCloseAutoFocus={(e) => e.preventDefault()}
+        className="bg-popover text-popover-foreground rounded-md border shadow-md"
       >
         {AVAILABLE_PLACEHOLDERS.map((placeholder) => (
           <DropdownMenuItem
             key={placeholder.name}
-            onClick={() => onSelect(placeholder.name, toTitleCase(placeholder.name))}
+            onClick={() => handlePlaceholderSelect(placeholder.name, toTitleCase(placeholder.name))}
+            className="focus:bg-muted/30 focus:text-foreground rounded-sm px-2 py-1.5 text-sm cursor-default"
           >
             <div className="flex flex-col">
               <span className="font-medium">{toTitleCase(placeholder.name)}</span>

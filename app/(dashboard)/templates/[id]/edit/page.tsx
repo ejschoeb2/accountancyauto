@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { TemplateEditor } from '../../components/template-editor'
 import { SubjectLineEditor } from '../../components/subject-line-editor'
+import { PlaceholderDropdown } from '../../components/placeholder-dropdown'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,6 +34,10 @@ export default function EditTemplatePage() {
   const [saving, setSaving] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // Refs for unified placeholder insertion
+  const subjectInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void } | null>(null)
 
   // Load existing template
   useEffect(() => {
@@ -194,9 +199,21 @@ export default function EditTemplatePage() {
 
       {/* Email Composer */}
       <div className="rounded-lg border overflow-hidden flex flex-col">
-        <SubjectLineEditor value={subject} onChange={setSubject} />
+        <SubjectLineEditor ref={subjectInputRef} value={subject} onChange={setSubject} />
         <div className="flex-1">
-          <TemplateEditor initialContent={bodyJson} onUpdate={setBodyJson} />
+          <TemplateEditor
+            ref={editorRef}
+            initialContent={bodyJson}
+            onUpdate={setBodyJson}
+            placeholderButtonSlot={
+              <PlaceholderDropdown
+                subjectInputRef={subjectInputRef}
+                onEditorInsert={(id, label) => {
+                  editorRef.current?.insertPlaceholder(id, label)
+                }}
+              />
+            }
+          />
         </div>
       </div>
 

@@ -12,7 +12,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Icon } from "@/components/ui/icon";
+import {
+  FileText,
+  AlertCircle,
+  Download,
+  Upload,
+  Loader2,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  AlertTriangle,
+  XCircle,
+} from "lucide-react";
 import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
 import {
   importClientMetadata,
@@ -192,7 +203,7 @@ export function CsvImportDialog({
                   className="hidden"
                   onChange={handleFileChange}
                 />
-                <Icon name="description" size="xl" className="mx-auto text-muted-foreground mb-4" />
+                <FileText className="size-8 mx-auto text-muted-foreground mb-4" />
                 {selectedFile ? (
                   <div className="space-y-2">
                     <p className="font-medium">{selectedFile.name}</p>
@@ -214,7 +225,7 @@ export function CsvImportDialog({
 
               {error && (
                 <div className="flex items-center gap-2 text-destructive text-sm">
-                  <Icon name="error" size="sm" />
+                  <AlertCircle className="size-4" />
                   {error}
                 </div>
               )}
@@ -222,7 +233,7 @@ export function CsvImportDialog({
               {/* Template download */}
               <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Icon name="download" size="md" className="text-muted-foreground" />
+                  <Download className="size-5 text-muted-foreground" />
                   <div>
                     <p className="font-medium">Need a template?</p>
                     <p className="text-sm text-muted-foreground">
@@ -253,7 +264,7 @@ export function CsvImportDialog({
                 Cancel
               </Button>
               <Button onClick={handleImport} disabled={!selectedFile} className="active:scale-[0.97]">
-                <Icon name="upload" size="sm" />
+                <Upload className="size-4" />
                 Import
               </Button>
             </DialogFooter>
@@ -262,7 +273,7 @@ export function CsvImportDialog({
 
         {state === "importing" && (
           <div className="py-12 flex flex-col items-center justify-center space-y-4">
-            <Icon name="progress_activity" size="xl" className="animate-spin text-primary" />
+            <Loader2 className="size-8 animate-spin text-primary" />
             <div className="text-center space-y-2">
               <p className="font-medium text-lg">Importing...</p>
               <p className="text-sm text-muted-foreground">
@@ -301,7 +312,7 @@ export function CsvImportDialog({
                     </p>
                     {result.summary.updatedClients > 0 && (
                       <Badge variant="default" className="bg-status-success">
-                        <Icon name="check_circle" size="sm" className="mr-1" />
+                        <CheckCircle className="size-4 mr-1" />
                         Success
                       </Badge>
                     )}
@@ -317,15 +328,15 @@ export function CsvImportDialog({
                     onClick={() => setShowUnmatched(!showUnmatched)}
                   >
                     {showUnmatched ? (
-                      <Icon name="keyboard_arrow_down" size="sm" />
+                      <ChevronDown className="size-4" />
                     ) : (
-                      <Icon name="chevron_right" size="sm" />
+                      <ChevronRight className="size-4" />
                     )}
                     <span className="text-sm text-muted-foreground">
                       Unmatched rows ({result.summary.unmatchedRows})
                     </span>
                     <Badge variant="outline" className="ml-auto text-status-warning">
-                      <Icon name="warning" size="sm" className="mr-1" />
+                      <AlertTriangle className="size-4 mr-1" />
                       Skipped
                     </Badge>
                   </button>
@@ -349,15 +360,15 @@ export function CsvImportDialog({
                     onClick={() => setShowErrors(!showErrors)}
                   >
                     {showErrors ? (
-                      <Icon name="keyboard_arrow_down" size="sm" />
+                      <ChevronDown className="size-4" />
                     ) : (
-                      <Icon name="chevron_right" size="sm" />
+                      <ChevronRight className="size-4" />
                     )}
                     <span className="text-sm text-muted-foreground">
                       Validation errors ({result.summary.validationErrors})
                     </span>
                     <Badge variant="outline" className="ml-auto text-destructive">
-                      <Icon name="cancel" size="sm" className="mr-1" />
+                      <XCircle className="size-4 mr-1" />
                       Failed
                     </Badge>
                   </button>
@@ -382,7 +393,7 @@ export function CsvImportDialog({
               {result.summary.unmatchedRows === 0 &&
                 result.summary.validationErrors === 0 && (
                   <div className="flex items-center gap-2 p-4 bg-status-success/10 rounded-lg">
-                    <Icon name="check_circle" size="md" className="text-status-success" />
+                    <CheckCircle className="size-5 text-status-success" />
                     <p className="text-sm text-status-success">
                       All rows imported successfully!
                     </p>

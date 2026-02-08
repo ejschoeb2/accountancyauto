@@ -1,6 +1,6 @@
 "use client"
 
-import { Icon } from "@/components/ui/icon"
+import { CheckCircle, Info, AlertTriangle, AlertCircle, Loader2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
@@ -12,11 +12,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
-        success: <Icon name="check_circle" size="sm" />,
-        info: <Icon name="info" size="sm" />,
-        warning: <Icon name="warning" size="sm" />,
-        error: <Icon name="error" size="sm" />,
-        loading: <Icon name="progress_activity" size="sm" className="animate-spin" />,
+        success: <CheckCircle className="size-4" />,
+        info: <Info className="size-4" />,
+        warning: <AlertTriangle className="size-4" />,
+        error: <AlertCircle className="size-4" />,
+        loading: <Loader2 className="size-4 animate-spin" />,
       }}
       style={
         {

@@ -3,7 +3,10 @@
 -- Migration 20260208000002 performed the data migration
 -- All application code now reads from v1.1 tables exclusively
 
--- First drop the client_template_overrides table (references reminder_templates via template_id FK)
+-- First drop the foreign key constraint from reminder_queue
+ALTER TABLE reminder_queue DROP CONSTRAINT IF EXISTS reminder_queue_template_id_fkey;
+
+-- Drop the client_template_overrides table (references reminder_templates via template_id FK)
 DROP TABLE IF EXISTS client_template_overrides;
 
 -- Drop the reminder_templates table

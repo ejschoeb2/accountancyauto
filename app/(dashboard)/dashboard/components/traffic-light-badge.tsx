@@ -13,19 +13,19 @@ const STATUS_CONFIG: Record<
 > = {
   green: {
     label: 'On Track',
-    className: 'bg-status-success text-white hover:bg-status-success',
+    className: 'bg-status-success text-white hover:bg-status-success font-sans',
   },
   amber: {
     label: 'Chasing',
-    className: 'bg-status-warning text-white hover:bg-status-warning',
+    className: 'bg-status-warning text-white hover:bg-status-warning font-sans',
   },
   red: {
     label: 'Overdue',
-    className: 'bg-status-danger text-white hover:bg-status-danger',
+    className: 'bg-status-danger text-white hover:bg-status-danger font-sans',
   },
   grey: {
     label: 'Inactive',
-    className: 'bg-status-neutral/20 text-status-neutral hover:bg-status-neutral/20',
+    className: 'bg-status-neutral/20 text-status-neutral hover:bg-status-neutral/20 font-sans',
   },
 };
 

@@ -52,14 +52,14 @@ export function ClientStatusTable({ clients }: ClientStatusTableProps) {
         </Button>
       </div>
 
-      <div className="border rounded-lg">
+      <div className="border rounded-lg overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Client Name</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Next Deadline</TableHead>
-              <TableHead className="text-right">Days Until Deadline</TableHead>
+            <TableRow className="bg-muted/50">
+              <TableHead className="font-semibold text-foreground">Client Name</TableHead>
+              <TableHead className="font-semibold text-foreground">Status</TableHead>
+              <TableHead className="font-semibold text-foreground">Next Deadline</TableHead>
+              <TableHead className="font-semibold text-foreground text-right">Days Until Deadline</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

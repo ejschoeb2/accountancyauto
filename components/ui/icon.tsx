@@ -14,9 +14,10 @@ interface IconProps {
   size?: IconSize;
   className?: string;
   filled?: boolean;
+  style?: React.CSSProperties;
 }
 
-export function Icon({ name, size = "md", className, filled = false }: IconProps) {
+export function Icon({ name, size = "md", className, filled = false, style }: IconProps) {
   return (
     <span
       className={cn(
@@ -25,7 +26,11 @@ export function Icon({ name, size = "md", className, filled = false }: IconProps
         filled && "font-variation-settings-fill",
         className
       )}
-      style={filled ? { fontVariationSettings: "'FILL' 1" } : undefined}
+      style={
+        filled
+          ? { fontVariationSettings: "'FILL' 1", ...style }
+          : style
+      }
       aria-hidden="true"
     >
       {name}
