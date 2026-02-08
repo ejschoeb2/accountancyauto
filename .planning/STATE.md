@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 
 ## Current Position
 
-Phase: 7 of 9 (Schedule Management)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 -- Completed 07-02-PLAN.md (Phase 7 complete)
+Phase: 8 of 9 (Ad-Hoc Sending)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-08 -- Completed 08-01-PLAN.md
 
-Progress: [#####.....] ~47% (9/~19 v1.1 plans estimated)
+Progress: [#####.....] ~50% (10/~20 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,8 +24,8 @@ Progress: [#####.....] ~47% (9/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 9
-- Phases: 7 (Phase 4-9)
+- Total plans completed: 10
+- Phases: 8 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
 - Plan 05-01: 3.5 min
@@ -35,6 +35,7 @@ Progress: [#####.....] ~47% (9/~19 v1.1 plans estimated)
 - Plan 06-01: 6 min
 - Plan 07-01: 4 min
 - Plan 07-02: 3 min
+- Plan 08-01: 2 min
 
 ## Accumulated Context
 
@@ -81,6 +82,10 @@ Recent decisions affecting current work:
 - [07-02]: Preset delay buttons (7/14/30) + custom input for common + flexible configuration
 - [07-02]: Non-blocking duplicate template warning allows same template in multiple steps
 - [07-02]: useFieldArray move() for step reordering with field.id as React key
+- [08-01]: send_type discriminator column on email_log (DEFAULT 'scheduled', CHECK constraint for values)
+- [08-01]: Ad-hoc sends use placeholder context (filing_type='Ad-hoc', deadline=now) for template variables
+- [08-01]: Ad-hoc sends logged with reminder_queue_id=null and filing_type_id=null
+- [08-01]: Delivery log shows ad-hoc badge with accent styling, scheduled as plain text
 
 ### Known Risks
 
@@ -96,10 +101,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T13:25:25Z
-Stopped at: Completed Phase 7 (07-02-PLAN.md -- final plan in phase)
+Last session: 2026-02-08T14:15:58Z
+Stopped at: Completed 08-01-PLAN.md (Phase 8 Plan 1 of 2)
 Resume file: None
-Next step: Begin Phase 8 (Queue Generation & Cron Migration)
+Next step: Execute 08-02-PLAN.md (UI for ad-hoc sending)
 
 ---
 *Phase 7 complete -- Schedule management with interactive editor, step reordering, and template selection.*
