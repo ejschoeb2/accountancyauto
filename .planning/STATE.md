@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-08)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** Phase 4 - Data Migration (v1.1 Template & Scheduling Redesign)
+**Current focus:** Phase 5 - Rich Text Editor (v1.1 Template & Scheduling Redesign)
 
 ## Current Position
 
 Phase: 4 of 9 (Data Migration)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-08 -- Completed 04-01-PLAN.md
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-08 -- Completed 04-02-PLAN.md
 
-Progress: [#.........] ~5% (1/~19 v1.1 plans estimated)
+Progress: [##........] ~10% (2/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,9 +24,10 @@ Progress: [#.........] ~5% (1/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 1
+- Total plans completed: 2
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
+- Plan 04-02: 3 min
 
 ## Accumulated Context
 
@@ -41,10 +42,12 @@ Recent decisions affecting current work:
 - [04-01]: ON DELETE RESTRICT for schedule_steps -> email_templates FK (prevents breaking schedules by deleting in-use templates)
 - [04-01]: schedule_steps has no updated_at (immutable, modify via delete-and-recreate)
 - [04-01]: All v1.1 tables get full anon CRUD policies (app uses anon role, no Supabase Auth)
+- [04-02]: New UUIDs for all migrated rows (each step becomes its own email_template, can't reuse single template UUID)
+- [04-02]: Urgency level derived from step_number position (1-2 = normal, 3 = high, 4+ = urgent)
+- [04-02]: ON CONFLICT DO UPDATE for override deduplication during migration
 
 ### Known Risks
 
-- MIGR data loss: JSONB-to-table migration must preserve all template UUIDs to avoid orphaning overrides
 - Placeholder corruption: TipTap atomic nodes must prevent editor from splitting {{variable}} syntax
 - Email rendering: Rich text HTML must convert to email-safe inline-style HTML for Outlook/Gmail
 - Queue disruption: Existing cron must continue functioning during entire v1.1 development
@@ -57,10 +60,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-02-08T03:53:06Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
-Next step: Execute 04-02-PLAN.md (migrate v1.0 data to normalized structure)
+Next step: Phase 5 planning (Rich Text Editor with TipTap)
 
 ---
-*Phase 4 plan 1/2 complete -- v1.1 normalized tables created*
+*Phase 4 complete -- v1.1 normalized tables created and data migration ready to apply*
