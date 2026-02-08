@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 
 ## Current Position
 
-Phase: 4 of 9 (Data Migration)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-08 -- Completed 04-02-PLAN.md
+Phase: 5 of 9 (Rich Text Editor & Templates)
+Plan: 1 of ~4 in current phase
+Status: In progress
+Last activity: 2026-02-08 -- Completed 05-01-PLAN.md
 
-Progress: [##........] ~10% (2/~19 v1.1 plans estimated)
+Progress: [##........] ~16% (3/~19 v1.1 plans estimated)
 
 ## Performance Metrics
 
@@ -24,10 +24,11 @@ Progress: [##........] ~10% (2/~19 v1.1 plans estimated)
 - Timeline: 1 day (2026-02-06 -> 2026-02-07)
 
 **v1.1:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Phases: 6 (Phase 4-9)
 - Plan 04-01: 2 min
 - Plan 04-02: 3 min
+- Plan 05-01: 3.5 min
 
 ## Accumulated Context
 
@@ -45,12 +46,16 @@ Recent decisions affecting current work:
 - [04-02]: New UUIDs for all migrated rows (each step becomes its own email_template, can't reuse single template UUID)
 - [04-02]: Urgency level derived from step_number position (1-2 = normal, 3 = high, 4+ = urgent)
 - [04-02]: ON CONFLICT DO UPDATE for override deduplication during migration
+- [05-01]: PlaceholderNode configured as atomic inline (atom: true) prevents corruption
+- [05-01]: Paste always strips formatting to plain text, no Ctrl+Shift+V alternative
+- [05-01]: Pills display as {{variable}} with primary color styling for visual distinction
 
 ### Known Risks
 
-- Placeholder corruption: TipTap atomic nodes must prevent editor from splitting {{variable}} syntax
+- ~~Placeholder corruption: TipTap atomic nodes must prevent editor from splitting {{variable}} syntax~~ ✅ Resolved in 05-01 (atom: true configuration)
 - Email rendering: Rich text HTML must convert to email-safe inline-style HTML for Outlook/Gmail
 - Queue disruption: Existing cron must continue functioning during entire v1.1 development
+- List nesting prevention: Configuration for flat lists only needs testing in Plan 02
 
 ### Tech Debt (from v1.0)
 
@@ -60,10 +65,10 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-02-08T03:53:06Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-02-08T12:14:16Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
-Next step: Phase 5 planning (Rich Text Editor with TipTap)
+Next step: Continue Phase 5 with template editor UI component (Plan 02/03)
 
 ---
-*Phase 4 complete -- v1.1 normalized tables created and data migration ready to apply*
+*Phase 5 in progress -- TipTap extensions foundation complete*
