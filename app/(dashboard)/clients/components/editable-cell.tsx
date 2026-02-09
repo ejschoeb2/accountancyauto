@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckButton } from "@/components/ui/check-button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -147,7 +147,7 @@ export function EditableCell({
           handleStartEdit();
         }}
         className={cn(
-          "cursor-pointer rounded px-2 py-1 -mx-2 -my-1 transition-colors font-semibold",
+          "cursor-pointer rounded px-2 py-1 -mx-2 -my-1 transition-colors",
           !disabled && "hover:bg-muted/50",
           disabled && "cursor-default"
         )}
@@ -226,7 +226,7 @@ export function EditableCell({
 
       {type === "boolean" && (
         <div className="flex items-center gap-2">
-          <Checkbox
+          <CheckButton
             checked={Boolean(editValue)}
             onCheckedChange={(checked) => {
               const newValue = checked === true;
@@ -242,6 +242,7 @@ export function EditableCell({
               }, 100);
             }}
             disabled={isSaving}
+            aria-label="Boolean value"
           />
           <span className="text-sm text-muted-foreground">
             {editValue ? "Yes" : "No"}

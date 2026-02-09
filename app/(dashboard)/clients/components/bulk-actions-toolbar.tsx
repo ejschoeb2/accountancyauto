@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, X, Mail } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
 import { cn } from "@/lib/utils";
 
 interface BulkActionsToolbarProps {
@@ -34,34 +34,32 @@ export function BulkActionsToolbar({
         </span>
 
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
+          <ButtonBase
+            variant="blue"
+            buttonType="icon-text"
             onClick={onBulkEdit}
-            className="gap-2 active:scale-[0.97]"
           >
             <Pencil className="size-4" />
             Bulk Edit
-          </Button>
+          </ButtonBase>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <ButtonBase
+            variant="violet"
+            buttonType="icon-text"
             onClick={onSendEmail}
-            className="gap-2 active:scale-[0.97]"
           >
             <Mail className="size-4" />
             Send Email
-          </Button>
+          </ButtonBase>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <ButtonBase
+            variant="destructive"
+            buttonType="icon-text"
             onClick={onClearSelection}
-            className="gap-2"
           >
             <X className="size-4" />
-            Clear
-          </Button>
+            Close
+          </ButtonBase>
         </div>
       </div>
     </div>

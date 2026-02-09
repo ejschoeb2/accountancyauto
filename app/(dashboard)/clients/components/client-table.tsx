@@ -27,11 +27,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckButton } from "@/components/ui/check-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { ButtonWithText } from "@/components/ui/button-with-text";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 import { Section } from "@/components/ui/section";
 import {
   DropdownMenu,
@@ -296,7 +302,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       {
         id: "select",
         header: ({ table }) => (
-          <Checkbox
+          <CheckButton
             checked={
               table.getIsAllPageRowsSelected()
                 ? true
@@ -311,7 +317,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           />
         ),
         cell: ({ row }) => (
-          <Checkbox
+          <CheckButton
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(!!value)}
             aria-label="Select row"
@@ -332,7 +338,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           return (
             <div>
               <span
-                className="text-muted-foreground font-semibold group-hover:text-foreground transition-colors"
+                className="text-muted-foreground group-hover:text-foreground transition-colors"
               >
                 {client.display_name || client.company_name}
               </span>
@@ -399,9 +405,9 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           const info = statusMap[row.original.id];
           if (!info?.next_deadline) return <span className="text-muted-foreground">—</span>;
           return (
-            <button className="size-9 rounded-lg bg-status-neutral/10 hover:bg-status-neutral/20 flex items-center justify-center transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]">
-              <Calendar className="size-5 text-status-neutral" />
-            </button>
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              {format(new Date(info.next_deadline), "dd MMM yyyy")}
+            </span>
           );
         },
         sortingFn: (rowA, rowB) => {
@@ -579,17 +585,12 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           </IconButtonWithText>
           <IconButtonWithText
             type="button"
-            variant="violet"
+            variant={showFilters ? "amber" : "violet"}
             onClick={() => setShowFilters((v) => !v)}
             title={showFilters ? "Close filters" : "Open filters"}
           >
             <SlidersHorizontal className="h-5 w-5" />
-            Filter
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs rounded-full">
-                {activeFilterCount}
-              </Badge>
-            )}
+            {showFilters ? "Close Filters" : "Filter"}
           </IconButtonWithText>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -617,74 +618,80 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
 
       {/* Collapsible filter panel */}
       {showFilters && (
-        <Section padding="sm" className="space-y-4">
-          {/* Status */}
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
-            <div className="flex flex-wrap gap-2">
-              {(["red", "amber", "green", "grey"] as const).map((status) => {
-                return (
+        <Card>
+          <CardContent className="space-y-4">
+            {/* Status and Clear Filters */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-2 flex-1">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
+                <div className="flex flex-wrap gap-2">
+                  {(["red", "amber", "green", "grey"] as const).map((status) => {
+                    return (
+                      <ButtonWithText
+                        key={status}
+                        onClick={() => toggleStatusFilter(status)}
+                        isSelected={activeStatusFilters.has(status)}
+                        variant="muted"
+                      >
+                        {STATUS_LABELS[status]}
+                      </ButtonWithText>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide invisible">Clear</span>
+                <IconButtonWithText
+                  type="button"
+                  variant="destructive"
+                  onClick={clearAllFilters}
+                  title="Clear all filters"
+                >
+                  <X className="h-5 w-5" />
+                  Clear all filters
+                </IconButtonWithText>
+              </div>
+            </div>
+
+            {/* Client Type */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client Type</span>
+              <div className="flex flex-wrap gap-2">
+                {CLIENT_TYPE_OPTIONS.map((opt) => (
                   <ButtonWithText
-                    key={status}
-                    onClick={() => toggleStatusFilter(status)}
-                    isSelected={activeStatusFilters.has(status)}
+                    key={opt.value}
+                    onClick={() => toggleTypeFilter(opt.value)}
+                    isSelected={activeTypeFilters.has(opt.value)}
                     variant="muted"
                   >
-                    {STATUS_LABELS[status]}
+                    {opt.label}
                   </ButtonWithText>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Client Type */}
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client Type</span>
-            <div className="flex flex-wrap gap-2">
-              {CLIENT_TYPE_OPTIONS.map((opt) => (
+            {/* VAT Status */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">VAT Status</span>
+              <div className="flex flex-wrap gap-2">
                 <ButtonWithText
-                  key={opt.value}
-                  onClick={() => toggleTypeFilter(opt.value)}
-                  isSelected={activeTypeFilters.has(opt.value)}
+                  onClick={() => toggleVatFilter("vat")}
+                  isSelected={activeVatFilter === "vat"}
                   variant="muted"
                 >
-                  {opt.label}
+                  VAT Registered
                 </ButtonWithText>
-              ))}
+                <ButtonWithText
+                  onClick={() => toggleVatFilter("no-vat")}
+                  isSelected={activeVatFilter === "no-vat"}
+                  variant="muted"
+                >
+                  Not VAT Registered
+                </ButtonWithText>
+              </div>
             </div>
-          </div>
-
-          {/* VAT Status */}
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">VAT Status</span>
-            <div className="flex flex-wrap gap-2">
-              <ButtonWithText
-                onClick={() => toggleVatFilter("vat")}
-                isSelected={activeVatFilter === "vat"}
-                variant="muted"
-              >
-                VAT Registered
-              </ButtonWithText>
-              <ButtonWithText
-                onClick={() => toggleVatFilter("no-vat")}
-                isSelected={activeVatFilter === "no-vat"}
-                variant="muted"
-              >
-                Not VAT Registered
-              </ButtonWithText>
-            </div>
-          </div>
-
-          {/* Clear all */}
-          {activeFilterCount > 0 && (
-            <ButtonWithText
-              onClick={clearAllFilters}
-              variant="muted"
-            >
-              Clear all filters
-            </ButtonWithText>
-          )}
-        </Section>
+          </CardContent>
+        </Card>
       )}
 
       {/* Results count */}
@@ -719,10 +726,10 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
                   data-state={row.getIsSelected() && "selected"}
                   className="group cursor-pointer"
                   onClick={(e) => {
-                    // Don't navigate if clicking on checkbox, input, select, or button elements
+                    // Don't navigate if clicking on checkbox/button, input, select, or button elements
                     const target = e.target as HTMLElement;
                     if (
-                      target.closest('[data-slot="checkbox"]') ||
+                      target.closest('[role="checkbox"]') ||
                       target.closest('input') ||
                       target.closest('select') ||
                       target.closest('button') ||

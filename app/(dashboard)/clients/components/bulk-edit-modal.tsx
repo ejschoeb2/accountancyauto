@@ -11,8 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { ButtonBase } from "@/components/ui/button-base";
+import { CheckButton } from "@/components/ui/check-button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -150,8 +150,7 @@ export function BulkEditModal({
           <div className="space-y-4 py-4">
             {/* Year End Date */}
             <div className="flex items-start gap-4">
-              <Checkbox
-                id="year-end-date"
+              <CheckButton
                 checked={yearEndDate.enabled}
                 onCheckedChange={(checked) =>
                   setYearEndDate((prev) => ({
@@ -159,6 +158,7 @@ export function BulkEditModal({
                     enabled: checked === true,
                   }))
                 }
+                aria-label="Enable Year End Date"
               />
               <div className="flex-1 space-y-2">
                 <Label htmlFor="year-end-date">Year End Date</Label>
@@ -178,8 +178,7 @@ export function BulkEditModal({
 
             {/* VAT Registered */}
             <div className="flex items-start gap-4">
-              <Checkbox
-                id="vat-registered"
+              <CheckButton
                 checked={vatRegistered.enabled}
                 onCheckedChange={(checked) =>
                   setVatRegistered((prev) => ({
@@ -187,11 +186,12 @@ export function BulkEditModal({
                     enabled: checked === true,
                   }))
                 }
+                aria-label="Enable VAT Registered"
               />
               <div className="flex-1 space-y-2">
                 <Label htmlFor="vat-registered">VAT Registered</Label>
                 <div className="flex items-center gap-2">
-                  <Checkbox
+                  <CheckButton
                     disabled={!vatRegistered.enabled}
                     checked={vatRegistered.value as boolean}
                     onCheckedChange={(checked) =>
@@ -200,6 +200,7 @@ export function BulkEditModal({
                         value: checked === true,
                       }))
                     }
+                    aria-label="VAT Registered value"
                   />
                   <span className="text-sm text-muted-foreground">
                     {vatRegistered.value ? "Yes" : "No"}
@@ -210,8 +211,7 @@ export function BulkEditModal({
 
             {/* VAT Stagger Group */}
             <div className="flex items-start gap-4">
-              <Checkbox
-                id="vat-stagger-group"
+              <CheckButton
                 checked={vatStaggerGroup.enabled}
                 onCheckedChange={(checked) =>
                   setVatStaggerGroup((prev) => ({
@@ -219,6 +219,7 @@ export function BulkEditModal({
                     enabled: checked === true,
                   }))
                 }
+                aria-label="Enable VAT Stagger Group"
               />
               <div className="flex-1 space-y-2">
                 <Label htmlFor="vat-stagger-group">VAT Stagger Group</Label>
@@ -268,25 +269,41 @@ export function BulkEditModal({
         <DialogFooter>
           {showConfirmation ? (
             <>
-              <Button
-                variant="outline"
+              <ButtonBase
+                variant="neutral"
+                buttonType="text-only"
                 onClick={() => setShowConfirmation(false)}
                 disabled={isSaving}
               >
                 Back
-              </Button>
-              <Button onClick={handleSubmit} disabled={isSaving}>
+              </ButtonBase>
+              <ButtonBase
+                variant="blue"
+                buttonType="text-only"
+                onClick={handleSubmit}
+                disabled={isSaving}
+              >
                 {isSaving ? "Applying..." : "Apply Changes"}
-              </Button>
+              </ButtonBase>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={handleClose} disabled={isSaving}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit} disabled={!hasChanges || isSaving}>
+              <ButtonBase
+                variant="neutral"
+                buttonType="text-only"
+                onClick={handleClose}
+                disabled={isSaving}
+              >
+                Close
+              </ButtonBase>
+              <ButtonBase
+                variant="blue"
+                buttonType="text-only"
+                onClick={handleSubmit}
+                disabled={!hasChanges || isSaving}
+              >
                 Continue
-              </Button>
+              </ButtonBase>
             </>
           )}
         </DialogFooter>

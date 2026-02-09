@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -72,60 +72,57 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
     <div className="grid gap-6 md:grid-cols-2">
       {filingTypes.map((ft) => {
         const schedule = scheduleMap[ft.id] ?? null
+        const href = schedule
+          ? `/schedules/${schedule.id}/edit`
+          : `/schedules/new/edit?filing_type_id=${ft.id}`
 
         return (
-          <Card key={ft.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1 min-w-0">
-                  <CardTitle className="truncate">{ft.name}</CardTitle>
-                  {ft.description && (
-                    <CardDescription>{ft.description}</CardDescription>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {schedule && (
-                    <div className={`px-3 py-2 rounded-md inline-flex items-center ${
-                      schedule.is_active
-                        ? 'bg-status-success/10'
-                        : 'bg-status-neutral/10'
-                    }`}>
-                      <span className={`text-sm font-medium ${
+          <Link key={ft.id} href={href}>
+            <Card className="cursor-pointer h-full flex flex-col">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <CardTitle className="truncate">{ft.name}</CardTitle>
+                    {ft.description && (
+                      <CardDescription>{ft.description}</CardDescription>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {schedule && (
+                      <div className={`px-3 py-2 rounded-md inline-flex items-center ${
                         schedule.is_active
-                          ? 'text-status-success'
-                          : 'text-status-neutral'
+                          ? 'bg-status-success/10'
+                          : 'bg-status-neutral/10'
                       }`}>
-                        {schedule.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  )}
-                  {schedule && (
-                    <>
-                      <Link href={`/schedules/${schedule.id}/edit`}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-10 w-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97]"
-                        >
-                          <Pencil className="h-5 w-5" />
-                        </Button>
-                      </Link>
+                        <span className={`text-sm font-medium ${
+                          schedule.is_active
+                            ? 'text-status-success'
+                            : 'text-status-neutral'
+                        }`}>
+                          {schedule.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    )}
+                    {schedule && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(schedule.id, schedule.name)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleDelete(schedule.id, schedule.name)
+                        }}
                         disabled={deletingId === schedule.id}
                         className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
                       >
                         <Trash2 className="h-5 w-5" />
                       </Button>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
+              </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 flex-1 flex flex-col">
               {/* Client types & deadline rule */}
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -146,7 +143,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
 
               {/* Schedule section */}
               {schedule ? (
-                <div className="space-y-3">
+                <div className="space-y-3 flex-1 flex flex-col">
                   <p className="text-sm font-medium">
                     {schedule.name}{' '}
                     <span className="text-muted-foreground font-normal">
@@ -170,7 +167,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
                   )}
                 </div>
               ) : (
-                <div className="text-center py-4 space-y-1">
+                <div className="text-center flex-1 flex items-center justify-center space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">No schedule configured</p>
                   <p className="text-xs text-muted-foreground">
                     Create a schedule to send reminders for this filing type
@@ -181,15 +178,14 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
 
             {!schedule && (
               <CardFooter>
-                <Link href={`/schedules/new/edit?filing_type_id=${ft.id}`}>
-                  <Button variant="outline" size="sm" className="active:scale-[0.97]">
-                    <Icon name="add" size="sm" className="mr-1.5" />
-                    Create Schedule
-                  </Button>
-                </Link>
+                <Button variant="outline" size="sm" className="active:scale-[0.97]" onClick={(e) => e.stopPropagation()}>
+                  <Icon name="add" size="sm" className="mr-1.5" />
+                  Create Schedule
+                </Button>
               </CardFooter>
             )}
-          </Card>
+            </Card>
+          </Link>
         )
       })}
     </div>
