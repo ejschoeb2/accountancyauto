@@ -29,6 +29,18 @@ export const bulkUpdateSchema = z.array(
   })
 );
 
+// Schema for creating a new client (demo client creation dialog)
+export const createClientSchema = z.object({
+  company_name: z.string().trim().min(1, "Company name is required").max(200, "Company name must be 200 characters or fewer"),
+  primary_email: z.string().trim().email("Invalid email address"),
+  client_type: clientTypeSchema,
+  year_end_date: isoDateSchema.optional().nullable(),
+  vat_registered: z.boolean().default(false),
+  display_name: z.string().trim().max(200, "Display name must be 200 characters or fewer").optional().nullable(),
+});
+
+export type CreateClientInput = z.infer<typeof createClientSchema>;
+
 export type ClientType = z.infer<typeof clientTypeSchema>;
 export type UpdateClientMetadataInput = z.infer<typeof updateClientMetadataSchema>;
 export type BulkUpdateInput = z.infer<typeof bulkUpdateSchema>;
