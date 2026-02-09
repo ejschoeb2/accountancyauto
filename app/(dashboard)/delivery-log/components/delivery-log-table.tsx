@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { LoadingIndicator } from '@/components/loading-indicator';
 import {
   Select,
   SelectContent,
@@ -228,7 +229,7 @@ export function DeliveryLogTable() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border shadow-sm hover:shadow-lg transition-shadow duration-300">
+      <div className="rounded-xl border shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
         <Table>
           <TableHeader>
             <TableRow>
@@ -275,8 +276,8 @@ export function DeliveryLogTable() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                  Loading...
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <LoadingIndicator size={32} />
                 </TableCell>
               </TableRow>
             ) : sortedData.length === 0 ? (

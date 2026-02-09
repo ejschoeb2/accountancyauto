@@ -19,7 +19,7 @@ export default async function DashboardPage() {
     <div className="space-y-10">
       {/* Page header */}
       <div className="space-y-1">
-        <h1 className="text-foreground">Dashboard</h1>
+        <h1>Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Monitor client reminder status and email activity
         </p>

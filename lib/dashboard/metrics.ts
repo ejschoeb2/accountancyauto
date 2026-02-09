@@ -1,5 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { format } from 'date-fns';
 import { calculateClientStatus, TrafficLightStatus } from './traffic-light';
+import { calculateDeadline } from '@/lib/deadlines/calculators';
 
 export interface DashboardMetrics {
   overdueCount: number;
@@ -29,7 +31,9 @@ export async function getDashboardMetrics(
     .select(`
       id,
       reminders_paused,
-      records_received_for
+      records_received_for,
+      year_end_date,
+      vat_stagger_group
     `);
 
   if (clientsError) throw clientsError;
@@ -46,18 +50,22 @@ export async function getDashboardMetrics(
 
   if (assignmentsError) throw assignmentsError;
 
-  // Fetch reminder queue to determine deadlines and sent status
+  // Fetch reminder queue to determine sent status only
   const { data: reminders, error: remindersError } = await supabase
     .from('reminder_queue')
     .select(`
       client_id,
       filing_type_id,
-      deadline_date,
       status
     `)
-    .in('status', ['scheduled', 'pending', 'sent']);
+    .eq('status', 'sent');
 
   if (remindersError) throw remindersError;
+
+  // Build sent-status lookup: "clientId_filingTypeId" -> true
+  const sentSet = new Set(
+    (reminders || []).map((r) => `${r.client_id}_${r.filing_type_id}`)
+  );
 
   // Calculate traffic-light status for each client
   let overdueCount = 0;
@@ -69,31 +77,23 @@ export async function getDashboardMetrics(
       (a) => a.client_id === client.id
     );
 
-    // Build filings array for this client
-    const filings = clientAssignments.map((assignment) => {
-      // Find reminders for this filing type
-      const clientReminders = (reminders || []).filter(
-        (r) => r.client_id === client.id && r.filing_type_id === assignment.filing_type_id
-      );
+    // Build filings array using deadline calculators
+    const filings = clientAssignments
+      .map((assignment) => {
+        const deadline = calculateDeadline(assignment.filing_type_id, {
+          year_end_date: client.year_end_date || undefined,
+          vat_stagger_group: client.vat_stagger_group || undefined,
+        });
 
-      // Get earliest deadline
-      const earliestDeadline = clientReminders.length > 0
-        ? clientReminders.reduce((earliest, r) => {
-            return !earliest || r.deadline_date < earliest
-              ? r.deadline_date
-              : earliest;
-          }, clientReminders[0].deadline_date)
-        : null;
+        if (!deadline) return null;
 
-      // Check if any reminder has been sent
-      const has_been_sent = clientReminders.some((r) => r.status === 'sent');
-
-      return {
-        filing_type_id: assignment.filing_type_id,
-        deadline_date: earliestDeadline || '9999-12-31', // far future if no deadline
-        has_been_sent,
-      };
-    });
+        return {
+          filing_type_id: assignment.filing_type_id,
+          deadline_date: format(deadline, 'yyyy-MM-dd'),
+          has_been_sent: sentSet.has(`${client.id}_${assignment.filing_type_id}`),
+        };
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null);
 
     const status = calculateClientStatus({
       reminders_paused: client.reminders_paused || false,
@@ -159,7 +159,9 @@ export async function getClientStatusList(
       id,
       company_name,
       reminders_paused,
-      records_received_for
+      records_received_for,
+      year_end_date,
+      vat_stagger_group
     `);
 
   if (clientsError) throw clientsError;
@@ -176,18 +178,22 @@ export async function getClientStatusList(
 
   if (assignmentsError) throw assignmentsError;
 
-  // Fetch reminder queue to determine deadlines and sent status
+  // Fetch reminder queue to determine sent status only
   const { data: reminders, error: remindersError } = await supabase
     .from('reminder_queue')
     .select(`
       client_id,
       filing_type_id,
-      deadline_date,
       status
     `)
-    .in('status', ['scheduled', 'pending', 'sent']);
+    .eq('status', 'sent');
 
   if (remindersError) throw remindersError;
+
+  // Build sent-status lookup: "clientId_filingTypeId" -> true
+  const sentSet = new Set(
+    (reminders || []).map((r) => `${r.client_id}_${r.filing_type_id}`)
+  );
 
   // Build client status rows
   const statusRows: ClientStatusRow[] = (clients || []).map((client) => {
@@ -196,31 +202,23 @@ export async function getClientStatusList(
       (a) => a.client_id === client.id
     );
 
-    // Build filings array for this client
-    const filings = clientAssignments.map((assignment) => {
-      // Find reminders for this filing type
-      const clientReminders = (reminders || []).filter(
-        (r) => r.client_id === client.id && r.filing_type_id === assignment.filing_type_id
-      );
+    // Build filings array using deadline calculators
+    const filings = clientAssignments
+      .map((assignment) => {
+        const deadline = calculateDeadline(assignment.filing_type_id, {
+          year_end_date: client.year_end_date || undefined,
+          vat_stagger_group: client.vat_stagger_group || undefined,
+        });
 
-      // Get earliest deadline
-      const earliestDeadline = clientReminders.length > 0
-        ? clientReminders.reduce((earliest, r) => {
-            return !earliest || r.deadline_date < earliest
-              ? r.deadline_date
-              : earliest;
-          }, clientReminders[0].deadline_date)
-        : null;
+        if (!deadline) return null;
 
-      // Check if any reminder has been sent
-      const has_been_sent = clientReminders.some((r) => r.status === 'sent');
-
-      return {
-        filing_type_id: assignment.filing_type_id,
-        deadline_date: earliestDeadline || '9999-12-31', // far future if no deadline
-        has_been_sent,
-      };
-    });
+        return {
+          filing_type_id: assignment.filing_type_id,
+          deadline_date: format(deadline, 'yyyy-MM-dd'),
+          has_been_sent: sentSet.has(`${client.id}_${assignment.filing_type_id}`),
+        };
+      })
+      .filter((f): f is NonNullable<typeof f> => f !== null);
 
     const status = calculateClientStatus({
       reminders_paused: client.reminders_paused || false,
@@ -231,12 +229,8 @@ export async function getClientStatusList(
     });
 
     // Find next deadline across all filings
-    const deadlines = filings
-      .filter((f) => f.deadline_date !== '9999-12-31')
-      .map((f) => f.deadline_date);
-
-    const next_deadline = deadlines.length > 0
-      ? deadlines.reduce((earliest, d) => (d < earliest ? d : earliest))
+    const next_deadline = filings.length > 0
+      ? filings.reduce((earliest, f) => (f.deadline_date < earliest ? f.deadline_date : earliest), filings[0].deadline_date)
       : null;
 
     // Calculate days until deadline

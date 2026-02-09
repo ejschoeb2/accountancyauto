@@ -4,6 +4,12 @@ import { ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card';
 import { FilingAssignments } from './components/filing-assignments';
 import { RecordsReceived } from './components/records-received';
 import { ClientAuditLog } from './components/client-audit-log';
@@ -81,8 +87,11 @@ export default async function ClientPage({ params }: ClientPageProps) {
       </div>
 
       {/* Client metadata */}
-      <div className="rounded-lg border py-8 px-8">
-        <h2 className="text-lg font-semibold mb-4">Client Details</h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Client Details</CardTitle>
+        </CardHeader>
+        <CardContent>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-sm font-medium text-muted-foreground">Year-End Date</dt>
@@ -123,7 +132,8 @@ export default async function ClientPage({ params }: ClientPageProps) {
             </>
           )}
         </dl>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Filing assignments */}
       <FilingAssignments clientId={id} />
@@ -132,10 +142,14 @@ export default async function ClientPage({ params }: ClientPageProps) {
       <RecordsReceived clientId={id} />
 
       {/* Reminder history / Audit log */}
-      <div className="rounded-lg border py-8 px-8">
-        <h2 className="text-lg font-semibold mb-4">Reminder History</h2>
-        <ClientAuditLog clientId={id} />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Reminder History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ClientAuditLog clientId={id} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

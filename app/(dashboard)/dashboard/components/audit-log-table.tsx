@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { LoadingIndicator } from '@/components/loading-indicator';
 import {
   Table,
   TableBody,
@@ -146,7 +147,7 @@ export function AuditLogTable() {
           </div>
 
           {/* Table */}
-          <div className="border rounded-lg -mx-5">
+          <div className="border rounded-lg -mx-5 bg-white">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -160,8 +161,8 @@ export function AuditLogTable() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      Loading...
+                    <TableCell colSpan={5} className="text-center">
+                      <LoadingIndicator size={32} />
                     </TableCell>
                   </TableRow>
                 ) : data.length === 0 ? (

@@ -10,7 +10,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header / Navigation */}
-      <header className="bg-white">
+      <header className="bg-background">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           {/* Branding */}
           <div className="flex items-center gap-4">

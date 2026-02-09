@@ -52,7 +52,7 @@ export function ClientStatusTable({ clients }: ClientStatusTableProps) {
         </Button>
       </div>
 
-      <div className="border rounded-lg overflow-hidden shadow-sm">
+      <div className="border rounded-lg overflow-hidden shadow-sm bg-white">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">

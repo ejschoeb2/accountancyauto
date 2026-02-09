@@ -67,7 +67,7 @@ export default async function SchedulesPage() {
     <div className="space-y-8">
       {/* Page header */}
       <div className="space-y-1">
-        <h1 className="text-foreground">Schedules</h1>
+        <h1>Schedules</h1>
         <p className="text-muted-foreground mt-1">
           Manage reminder schedules for each filing type
         </p>

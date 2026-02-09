@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Mail } from 'lucide-react';
+import { LoadingIndicator } from '@/components/loading-indicator';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { getAuditLog } from '@/app/actions/audit-log';
@@ -41,9 +42,9 @@ export function AuditLogCard() {
         </div>
         <div className="-mx-5">
           {loading ? (
-            <p className="text-sm text-muted-foreground text-center py-8 px-5">
-              Loading...
-            </p>
+            <div className="py-8 px-5">
+              <LoadingIndicator size={32} />
+            </div>
           ) : entries.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8 px-5">
               No emails sent yet

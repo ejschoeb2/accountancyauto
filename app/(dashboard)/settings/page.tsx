@@ -1,13 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getConnectionStatus } from "@/app/actions/quickbooks";
+import { getSendHour, getEmailSettings } from "@/app/actions/settings";
 import { Check, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
+import { SendHourPicker } from "./components/send-hour-picker";
+import { EmailSettingsCard } from "./components/email-settings-card";
 
 export default async function SettingsPage() {
-  const connectionStatus = await getConnectionStatus();
+  const [connectionStatus, sendHour, emailSettings] = await Promise.all([
+    getConnectionStatus(),
+    getSendHour(),
+    getEmailSettings(),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -75,6 +82,12 @@ export default async function SettingsPage() {
           </Link>
         </div>
       </Card>
+
+      {/* Reminder Schedule Card */}
+      <SendHourPicker defaultHour={sendHour} />
+
+      {/* Email Settings Card */}
+      <EmailSettingsCard defaultSettings={emailSettings} />
     </div>
   );
 }

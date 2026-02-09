@@ -46,7 +46,11 @@
       "Bash(git remote add:*)",
       "Bash(git branch:*)",
       "Bash(npx supabase db execute:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npx vitest:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(npx ts-node:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

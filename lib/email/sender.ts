@@ -7,6 +7,23 @@
 import { render } from '@react-email/render';
 import { postmarkClient } from './client';
 import ReminderEmail from './templates/reminder';
+import { getEmailSettings, type EmailSettings } from '@/app/actions/settings';
+
+// Module-level cache for email settings (avoids repeated DB queries in batch sends)
+let cachedSettings: { data: EmailSettings; fetchedAt: number } | null = null;
+const CACHE_TTL_MS = 60_000; // 1 minute
+
+async function getEmailFrom(): Promise<{ from: string; replyTo: string }> {
+  const now = Date.now();
+  if (!cachedSettings || now - cachedSettings.fetchedAt > CACHE_TTL_MS) {
+    cachedSettings = { data: await getEmailSettings(), fetchedAt: now };
+  }
+  const s = cachedSettings.data;
+  return {
+    from: `${s.senderName} <${s.senderAddress}>`,
+    replyTo: s.replyTo,
+  };
+}
 
 interface SendReminderEmailParams {
   to: string;
@@ -43,6 +60,8 @@ export async function sendReminderEmail(
   params: SendReminderEmailParams
 ): Promise<SendReminderEmailResult> {
   try {
+    const emailFrom = await getEmailFrom();
+
     // Render React Email template to HTML string
     const htmlBody = await render(
       ReminderEmail({
@@ -55,9 +74,9 @@ export async function sendReminderEmail(
 
     // Send via Postmark
     const result = await postmarkClient.sendEmail({
-      From: 'Peninsula Accounting <reminders@peninsulaaccounting.co.uk>',
+      From: emailFrom.from,
       To: params.to,
-      ReplyTo: process.env.ACCOUNTANT_EMAIL || 'info@peninsulaaccounting.co.uk',
+      ReplyTo: emailFrom.replyTo,
       Subject: params.subject,
       HtmlBody: htmlBody,
       TextBody: params.body, // Plain text fallback
@@ -95,11 +114,13 @@ export async function sendRichEmail(
   params: SendRichEmailParams
 ): Promise<SendReminderEmailResult> {
   try {
+    const emailFrom = await getEmailFrom();
+
     // Send via Postmark (no React Email rendering needed - already done)
     const result = await postmarkClient.sendEmail({
-      From: 'Peninsula Accounting <reminders@peninsulaaccounting.co.uk>',
+      From: emailFrom.from,
       To: params.to,
-      ReplyTo: process.env.ACCOUNTANT_EMAIL || 'info@peninsulaaccounting.co.uk',
+      ReplyTo: emailFrom.replyTo,
       Subject: params.subject,
       HtmlBody: params.html,
       TextBody: params.text,

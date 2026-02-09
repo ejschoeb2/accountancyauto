@@ -62,11 +62,18 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
   }
 
   try {
-    // Step 2: Check if it's 9am UK time
+    // Step 2: Check if it's the configured send hour (UK time)
     const ukTime = toZonedTime(new Date(), 'Europe/London');
     const ukHour = ukTime.getHours();
 
-    if (ukHour !== 9) {
+    const { data: sendHourRow } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'reminder_send_hour')
+      .single();
+    const sendHour = sendHourRow ? parseInt(sendHourRow.value, 10) : 9;
+
+    if (ukHour !== sendHour) {
       result.skipped_wrong_hour = true;
       return result;
     }

@@ -2,146 +2,309 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle,
+  XCircle,
+  ArrowRight,
+  Settings,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { WizardStepper } from "@/components/wizard-stepper";
+import { OnboardingClientTable } from "./components/onboarding-client-table";
+import { EmailConfigForm } from "./components/email-config-form";
 import {
   initiateQuickBooksOAuth,
-  syncClientsAction,
 } from "@/app/actions/quickbooks";
+import { getClients, type Client } from "@/app/actions/clients";
+import {
+  getEmailSettings,
+  type EmailSettings,
+} from "@/app/actions/settings";
 
-type Step = "welcome" | "connecting" | "syncing" | "complete" | "error";
+type WizardStep = "connect" | "metadata" | "email" | "complete";
+type ConnectSubState = "idle" | "connecting";
+
+const WIZARD_STEPS = [
+  { label: "Connect" },
+  { label: "Clients" },
+  { label: "Email" },
+  { label: "Complete" },
+];
+
+function stepToIndex(step: WizardStep): number {
+  switch (step) {
+    case "connect":
+      return 0;
+    case "metadata":
+      return 1;
+    case "email":
+      return 2;
+    case "complete":
+      return 3;
+  }
+}
+
+function getErrorMessage(errorCode: string): string {
+  switch (errorCode) {
+    case "oauth_failed":
+      return "Failed to authenticate with QuickBooks. Please try again.";
+    case "sync_failed":
+      return "Failed to sync clients from QuickBooks. Please try again.";
+    default:
+      return "An unexpected error occurred. Please try again.";
+  }
+}
 
 function OnboardingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [step, setStep] = useState<Step>("welcome");
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const [syncedCount, setSyncedCount] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState(false);
 
+  const [wizardStep, setWizardStep] = useState<WizardStep>("connect");
+  const [connectSubState, setConnectSubState] =
+    useState<ConnectSubState>("idle");
+  const [error, setError] = useState<{
+    visible: boolean;
+    message: string;
+  }>({ visible: false, message: "" });
+  const [syncedCount, setSyncedCount] = useState<number>(0);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [emailSettings, setEmailSettings] = useState<EmailSettings | null>(
+    null
+  );
+  const [isLoadingClients, setIsLoadingClients] = useState(false);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(false);
+
+  // Handle OAuth callback params
   useEffect(() => {
     const syncing = searchParams.get("syncing");
     const count = searchParams.get("count");
-    const error = searchParams.get("error");
+    const errorParam = searchParams.get("error");
 
-    if (error) {
-      setStep("error");
-      setErrorMessage(getErrorMessage(error));
+    if (errorParam) {
+      setError({ visible: true, message: getErrorMessage(errorParam) });
+      setWizardStep("connect");
     } else if (syncing === "true" && count) {
-      setStep("complete");
       setSyncedCount(parseInt(count, 10));
+      setWizardStep("metadata");
     }
   }, [searchParams]);
 
-  const getErrorMessage = (errorCode: string): string => {
-    switch (errorCode) {
-      case "oauth_failed":
-        return "Failed to authenticate with QuickBooks. Please try again.";
-      case "sync_failed":
-        return "Failed to sync clients from QuickBooks. Please try again.";
-      default:
-        return "An unexpected error occurred. Please try again.";
+  // Fetch clients when entering metadata step
+  useEffect(() => {
+    if (wizardStep === "metadata" && clients.length === 0 && !isLoadingClients) {
+      setIsLoadingClients(true);
+      getClients()
+        .then((data) => {
+          setClients(data);
+        })
+        .catch(() => {
+          // Clients will show empty table
+        })
+        .finally(() => setIsLoadingClients(false));
     }
-  };
+  }, [wizardStep, clients.length, isLoadingClients]);
+
+  // Fetch email settings when entering email step
+  useEffect(() => {
+    if (wizardStep === "email" && !emailSettings && !isLoadingEmail) {
+      setIsLoadingEmail(true);
+      getEmailSettings()
+        .then((data) => setEmailSettings(data))
+        .catch(() => {
+          // Will show defaults
+          setEmailSettings({
+            senderName: "Peninsula Accounting",
+            senderAddress: "reminders@peninsulaaccounting.co.uk",
+            replyTo: "info@peninsulaaccounting.co.uk",
+          });
+        })
+        .finally(() => setIsLoadingEmail(false));
+    }
+  }, [wizardStep, emailSettings, isLoadingEmail]);
 
   const handleConnect = async () => {
-    setIsLoading(true);
-    setStep("connecting");
+    setConnectSubState("connecting");
+    setError({ visible: false, message: "" });
 
     try {
       const authUrl = await initiateQuickBooksOAuth();
       window.location.href = authUrl;
-    } catch (error) {
-      setStep("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to initiate OAuth"
-      );
-      setIsLoading(false);
+    } catch (err) {
+      setError({
+        visible: true,
+        message:
+          err instanceof Error ? err.message : "Failed to initiate OAuth",
+      });
+      setConnectSubState("idle");
     }
   };
 
-  const handleTryAgain = () => {
-    // Clear query params and reset to welcome step
+  const handleDismissError = () => {
     router.replace("/onboarding");
-    setStep("welcome");
-    setErrorMessage("");
-  };
-
-  const handleGoToClients = () => {
-    router.push("/clients");
+    setError({ visible: false, message: "" });
+    setConnectSubState("idle");
   };
 
   return (
-    <div className="text-center space-y-6">
-      {step === "welcome" && (
-        <>
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Welcome to Peninsula Accounting
+    <div className="space-y-8">
+      {/* Stepper */}
+      <WizardStepper steps={WIZARD_STEPS} currentStep={stepToIndex(wizardStep)} />
+
+      {/* Error overlay */}
+      {error.visible && (
+        <div className="rounded-xl border border-status-danger/30 bg-status-danger/5 p-6 text-center space-y-4">
+          <div className="mx-auto w-14 h-14 bg-status-danger/10 rounded-full flex items-center justify-center">
+            <XCircle className="size-7 text-status-danger" />
+          </div>
+          <h2 className="text-xl font-bold">Something went wrong</h2>
+          <p className="text-muted-foreground">{error.message}</p>
+          <Button
+            onClick={handleDismissError}
+            variant="outline"
+            className="mt-2"
+          >
+            Try Again
+          </Button>
+        </div>
+      )}
+
+      {/* Step 1: Connect QuickBooks */}
+      {wizardStep === "connect" && !error.visible && (
+        <div className="text-center space-y-6">
+          {connectSubState === "idle" && (
+            <>
+              <div className="space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Welcome to Peninsula Accounting
+                </h1>
+                <p className="text-muted-foreground">
+                  Connect your QuickBooks Online account to get started.
+                </p>
+              </div>
+              <Button
+                onClick={handleConnect}
+                className="w-full sm:w-auto px-8 py-6 text-lg active:scale-[0.97]"
+                style={{ backgroundColor: "#0077C5" }}
+              >
+                Connect QuickBooks Online
+              </Button>
+            </>
+          )}
+
+          {connectSubState === "connecting" && (
+            <div className="space-y-4">
+              <Loader2 className="size-8 mx-auto animate-spin text-muted-foreground" />
+              <h2 className="text-xl font-semibold">
+                Connecting to QuickBooks...
+              </h2>
+              <p className="text-muted-foreground">
+                Please complete the authorization in the QuickBooks window.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 2: Configure Clients */}
+      {wizardStep === "metadata" && (
+        <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">
+              Configure Your Clients
             </h1>
             <p className="text-muted-foreground">
-              Connect your QuickBooks Online account to get started.
+              {syncedCount > 0 &&
+                `${syncedCount} ${syncedCount === 1 ? "client" : "clients"} synced. `}
+              Set client types, year end dates, and VAT details. You can also
+              import this data from a CSV file.
             </p>
           </div>
-          <Button
-            onClick={handleConnect}
-            disabled={isLoading}
-            className="w-full sm:w-auto px-8 py-6 text-lg active:scale-[0.97]"
-            style={{ backgroundColor: "#0077C5" }} /* QuickBooks brand color - intentional override */
-          >
-            {isLoading ? (
-              <Loader2 className="size-5 mr-2 animate-spin" />
-            ) : null}
-            Connect QuickBooks Online
-          </Button>
-        </>
-      )}
 
-      {step === "connecting" && (
-        <div className="space-y-4">
-          <Loader2 className="size-8 mx-auto animate-spin text-muted-foreground" />
-          <h2 className="text-xl font-semibold">Connecting to QuickBooks...</h2>
-          <p className="text-muted-foreground">
-            Please complete the authorization in the QuickBooks window.
-          </p>
+          {isLoadingClients ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <OnboardingClientTable initialClients={clients} onClientsChange={setClients} />
+          )}
+
+          <div className="flex justify-between pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setWizardStep("email")}
+            >
+              Skip
+            </Button>
+            <Button
+              onClick={() => setWizardStep("email")}
+              className="active:scale-[0.97]"
+            >
+              Continue
+              <ArrowRight className="size-4 ml-2" />
+            </Button>
+          </div>
         </div>
       )}
 
-      {step === "syncing" && (
-        <div className="space-y-4">
-          <Loader2 className="size-8 mx-auto animate-spin text-muted-foreground" />
-          <h2 className="text-xl font-semibold">Syncing your clients...</h2>
-          <p className="text-muted-foreground">
-            This may take a moment depending on the number of clients.
-          </p>
+      {/* Step 3: Configure Email */}
+      {wizardStep === "email" && (
+        <div className="space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">
+              Configure Email Settings
+            </h1>
+            <p className="text-muted-foreground">
+              Set the sender details for your reminder emails. The sender email
+              must be verified in Postmark.
+            </p>
+          </div>
+
+          {isLoadingEmail || !emailSettings ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <EmailConfigForm
+              initialSettings={emailSettings}
+              onSaved={() => setWizardStep("complete")}
+              onSkip={() => setWizardStep("complete")}
+            />
+          )}
         </div>
       )}
 
-      {step === "complete" && (
-        <div className="space-y-4">
+      {/* Step 4: Complete */}
+      {wizardStep === "complete" && (
+        <div className="text-center space-y-6">
           <div className="mx-auto w-16 h-16 bg-status-success/10 rounded-full flex items-center justify-center">
             <CheckCircle className="size-8 text-status-success" />
           </div>
-          <h2 className="text-2xl font-bold">All set!</h2>
-          <p className="text-muted-foreground">
-            {syncedCount} {syncedCount === 1 ? "client" : "clients"} synced.
-          </p>
-          <Button onClick={handleGoToClients} className="mt-4 active:scale-[0.97]">
-            Go to Clients
-          </Button>
-        </div>
-      )}
-
-      {step === "error" && (
-        <div className="space-y-4">
-          <div className="mx-auto w-16 h-16 bg-status-danger/10 rounded-full flex items-center justify-center">
-            <XCircle className="size-8 text-status-danger" />
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">All set!</h2>
+            <p className="text-muted-foreground">
+              Your system is configured and ready to send reminders.
+              {syncedCount > 0 &&
+                ` ${syncedCount} ${syncedCount === 1 ? "client" : "clients"} synced.`}
+            </p>
           </div>
-          <h2 className="text-2xl font-bold">Something went wrong</h2>
-          <p className="text-muted-foreground">{errorMessage}</p>
-          <Button onClick={handleTryAgain} variant="outline" className="mt-4">
-            Try Again
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={() => router.push("/clients")}
+              className="active:scale-[0.97]"
+            >
+              <Users className="size-4 mr-2" />
+              Go to Clients
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/settings")}
+            >
+              <Settings className="size-4 mr-2" />
+              Settings
+            </Button>
+          </div>
         </div>
       )}
     </div>
