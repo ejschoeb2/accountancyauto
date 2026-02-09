@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ScheduleStepEditor } from '../../components/schedule-step-editor'
+import { ScheduleStepEditor, ScheduleStepAddButton } from '../../components/schedule-step-editor'
+import { ClientExclusions } from '../../components/client-exclusions'
 import { Button } from '@/components/ui/button'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
-import { LoadingScreen } from '@/components/loading-screen'
+import { PageLoadingProvider, usePageLoading } from '@/components/page-loading'
 import {
   Card,
   CardHeader,
   CardTitle,
+  CardAction,
   CardContent,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -59,6 +61,8 @@ export default function EditSchedulePage() {
 
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
+
+  usePageLoading('schedule-edit', loading)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [scheduleType, setScheduleType] = useState<'filing' | 'custom'>(initialScheduleType)
@@ -106,6 +110,8 @@ export default function EditSchedulePage() {
           recurrence_anchor: null,
         },
   })
+
+  const stepsFieldArray = useFieldArray({ control: form.control, name: "steps" })
 
   // Load reference data and existing schedule
   useEffect(() => {
@@ -251,11 +257,9 @@ export default function EditSchedulePage() {
     router.push('/schedules')
   }
 
-  if (loading) {
-    return <LoadingScreen />
-  }
-
   return (
+    <PageLoadingProvider>
+    {loading ? null : (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
       {/* Page header */}
       <div className="flex items-center justify-between">
@@ -301,9 +305,9 @@ export default function EditSchedulePage() {
       <input type="hidden" {...form.register('schedule_type')} />
 
       {/* Basic Information */}
-      <Card>
+      <Card className="gap-3">
         <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
+          <CardTitle className="text-xl">Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Schedule Type indicator (read-only for existing schedules) */}
@@ -474,11 +478,29 @@ export default function EditSchedulePage() {
       </Card>
 
       {/* Schedule Steps */}
-      <Card>
+      <Card className="gap-3">
+        <CardHeader>
+          <CardTitle className="text-xl">Schedule Steps</CardTitle>
+          <CardAction>
+            <ScheduleStepAddButton onAdd={() => stepsFieldArray.append({ email_template_id: "", delay_days: 7 })} />
+          </CardAction>
+        </CardHeader>
         <CardContent>
-          <ScheduleStepEditor form={form} templates={emailTemplates} />
+          <ScheduleStepEditor form={form} fieldArray={stepsFieldArray} templates={emailTemplates} />
         </CardContent>
       </Card>
+
+      {/* Client Exclusions - only for existing schedules */}
+      {!isNew && (
+        <Card className="gap-3">
+          <CardHeader>
+            <CardTitle className="text-xl">Applies To</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ClientExclusions scheduleId={scheduleId} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -508,5 +530,7 @@ export default function EditSchedulePage() {
         </DialogContent>
       </Dialog>
     </form>
+    )}
+    </PageLoadingProvider>
   )
 }

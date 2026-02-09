@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useFieldArray, UseFormReturn } from "react-hook-form";
+import { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
 import { ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { Input } from "@/components/ui/input";
@@ -20,22 +19,27 @@ import type { ScheduleInput } from "@/lib/validations/schedule";
 
 interface ScheduleStepEditorProps {
   form: UseFormReturn<ScheduleInput>;
+  fieldArray: UseFieldArrayReturn<ScheduleInput, "steps">;
   templates: Array<{ id: string; name: string }>;
 }
 
-export function ScheduleStepEditor({ form, templates }: ScheduleStepEditorProps) {
-  const { fields, append, remove, move } = useFieldArray({
-    control: form.control,
-    name: "steps",
-  });
-  const [customDelayDays, setCustomDelayDays] = useState<Record<number, boolean>>({});
+export function ScheduleStepAddButton({ onAdd }: { onAdd: () => void }) {
+  return (
+    <IconButtonWithText
+      type="button"
+      variant="blue"
+      onClick={onAdd}
+      title="Add step"
+    >
+      <Plus className="h-5 w-5" />
+      Add Step
+    </IconButtonWithText>
+  );
+}
 
-  const addStep = () => {
-    append({
-      email_template_id: "",
-      delay_days: 7,
-    });
-  };
+export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStepEditorProps) {
+  const { fields, remove, move } = fieldArray;
+  const [customDelayDays, setCustomDelayDays] = useState<Record<number, boolean>>({});
 
   const moveUp = (index: number) => {
     if (index > 0) {
@@ -56,19 +60,6 @@ export function ScheduleStepEditor({ form, templates }: ScheduleStepEditorProps)
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-base font-semibold">Schedule Steps</Label>
-        <IconButtonWithText
-          type="button"
-          variant="blue"
-          onClick={addStep}
-          title="Add step"
-        >
-          <Plus className="h-5 w-5" />
-          Add Step
-        </IconButtonWithText>
-      </div>
-
       {hasDuplicates && (
         <div className="rounded-lg border border-yellow-600/50 bg-yellow-600/10 p-4">
           <p className="text-sm text-foreground">
