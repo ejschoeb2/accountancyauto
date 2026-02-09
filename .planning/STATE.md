@@ -50,6 +50,12 @@ All v1.0 and v1.1 risks resolved. No open risks.
 5. Phase 1 plans 02-04 missing formal SUMMARY.md files
 6. Phase 1 & 3 missing formal VERIFICATION.md
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Custom schedules with user-defined dates | 2026-02-09 | 272d79b | [001-custom-schedules](./quick/001-custom-schedules/) |
+
 ### Deferred Features
 
 - RNDR-01/02/03: Live preview pane (descoped from v1.1)
