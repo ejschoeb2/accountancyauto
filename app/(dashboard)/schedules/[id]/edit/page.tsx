@@ -6,6 +6,7 @@ import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ScheduleStepEditor, ScheduleStepAddButton } from '../../components/schedule-step-editor'
 import { ClientExclusions } from '../../components/client-exclusions'
+import { ClientSelector } from '../../components/client-selector'
 import { Button } from '@/components/ui/button'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading'
@@ -67,6 +68,7 @@ export default function EditSchedulePage() {
   const [deleting, setDeleting] = useState(false)
   const [scheduleType, setScheduleType] = useState<'filing' | 'custom'>(initialScheduleType)
   const [dateMode, setDateMode] = useState<DateMode>('one-off')
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set())
 
   const VALID_FILING_TYPE_IDS: FilingTypeId[] = [
     'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return', 'self_assessment',
@@ -218,9 +220,31 @@ export default function EditSchedulePage() {
         body: JSON.stringify(data),
       })
 
+      const result = await response.json()
+
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || `Failed to ${isNew ? 'create' : 'update'} schedule`)
+        throw new Error(result.error || `Failed to ${isNew ? 'create' : 'update'} schedule`)
+      }
+
+      // For new custom schedules, save client exclusions (all clients NOT selected = excluded)
+      if (isNew && scheduleType === 'custom') {
+        const created = result
+        const clientsRes = await fetch('/api/clients')
+        if (clientsRes.ok) {
+          const clientsData = await clientsRes.json()
+          const allClients: { id: string }[] = clientsData.clients || clientsData || []
+          const excludedIds = allClients
+            .map(c => c.id)
+            .filter(id => !selectedClientIds.has(id))
+
+          if (excludedIds.length > 0) {
+            await fetch(`/api/schedules/${created.id}/exclusions`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ excluded_client_ids: excludedIds }),
+            })
+          }
+        }
       }
 
       toast.success(isNew ? 'Schedule created!' : 'Schedule updated!')
@@ -490,7 +514,32 @@ export default function EditSchedulePage() {
         </CardContent>
       </Card>
 
-      {/* Client Exclusions - only for existing schedules */}
+      {/* Client selector for new custom schedules (opt-in, none selected by default) */}
+      {isNew && scheduleType === 'custom' && (
+        <Card className="gap-3">
+          <CardHeader>
+            <CardTitle className="text-xl">Applies To</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ClientSelector
+              selectedIds={selectedClientIds}
+              onToggle={(clientId) => {
+                setSelectedClientIds(prev => {
+                  const next = new Set(prev)
+                  if (next.has(clientId)) {
+                    next.delete(clientId)
+                  } else {
+                    next.add(clientId)
+                  }
+                  return next
+                })
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Client Exclusions - for existing schedules */}
       {!isNew && (
         <Card className="gap-3">
           <CardHeader>
