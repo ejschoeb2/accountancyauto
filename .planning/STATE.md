@@ -12,9 +12,9 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 Phase: 9 of 9 (all complete)
 Plan: All plans complete
 Status: Ready for next milestone
-Last activity: 2026-02-09 — Completed quick/001-custom-schedules
+Last activity: 2026-02-09 — Completed quick/002-demo-client-creation
 
-Progress: [##########] 100% (30/30 total plans across v1.0 + v1.1) + 1 quick task
+Progress: [##########] 100% (30/30 total plans across v1.0 + v1.1) + 2 quick tasks
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ All v1.0 and v1.1 risks resolved. No open risks.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 001 | Custom schedules with user-defined dates | 2026-02-09 | 272d79b | [001-custom-schedules](./quick/001-custom-schedules/) |
+| 002 | Demo client creation dialog and POST API | 2026-02-09 | 074aa4c | [002-demo-client-creation](./quick/002-demo-client-creation/) |
 
 ### Deferred Features
 
@@ -69,7 +70,7 @@ All v1.0 and v1.1 risks resolved. No open risks.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed quick/001-custom-schedules
+Stopped at: Completed quick/002-demo-client-creation
 Resume file: None
 Next step: /gsd:new-milestone or additional quick tasks
 
