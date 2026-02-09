@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { Upload } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -56,6 +56,7 @@ import { SendEmailModal } from "./send-email-modal";
 
 // Lazy load the CSV import dialog to avoid hydration issues
 const CsvImportDialog = dynamic(() => import("./csv-import-dialog").then(m => ({ default: m.CsvImportDialog })), { ssr: false });
+const CreateClientDialog = dynamic(() => import("./create-client-dialog").then(m => ({ default: m.CreateClientDialog })), { ssr: false });
 import {
   type Client,
   type BulkUpdateFields,
@@ -133,10 +134,17 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const handleImportComplete = () => {
     window.location.reload();
+  };
+
+  const handleClientCreated = (newClient: Client) => {
+    setData((prev) => [...prev, newClient]);
+    router.refresh();
   };
 
   function toggleStatusFilter(status: TrafficLightStatus) {
@@ -342,18 +350,13 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
               >
                 {client.display_name || client.company_name}
               </span>
-              <div className="mt-1 flex gap-1">
-                {client.has_overrides && (
-                  <Badge variant="outline" className="text-xs border-accent text-accent">
-                    Overrides
-                  </Badge>
-                )}
-                {client.reminders_paused && (
+              {client.reminders_paused && (
+                <div className="mt-1">
                   <Badge variant="outline" className="text-xs border-status-warning text-status-warning">
                     Paused
                   </Badge>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           );
         },
@@ -433,6 +436,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
               value={client.client_type}
               type="select"
               options={CLIENT_TYPE_OPTIONS}
+              isEditMode={isEditMode}
               onSave={async (value) => {
                 startTransition(async () => {
                   await handleCellEdit(client.id, "client_type", value);
@@ -455,6 +459,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
             <EditableCell
               value={client.year_end_date}
               type="date"
+              isEditMode={isEditMode}
               onSave={async (value) => {
                 startTransition(async () => {
                   await handleCellEdit(client.id, "year_end_date", value);
@@ -477,6 +482,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
             <EditableCell
               value={client.vat_registered}
               type="boolean"
+              isEditMode={isEditMode}
               onSave={async (value) => {
                 startTransition(async () => {
                   await handleCellEdit(client.id, "vat_registered", value);
@@ -504,6 +510,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
               value={client.vat_stagger_group?.toString() ?? null}
               type="select"
               options={VAT_STAGGER_GROUP_OPTIONS}
+              isEditMode={isEditMode}
               onSave={async (value) => {
                 startTransition(async () => {
                   await handleCellEdit(client.id, "vat_stagger_group", value ? parseInt(value as string) : null);
@@ -514,7 +521,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
         },
       },
     ],
-    [handleCellEdit, statusMap]
+    [handleCellEdit, statusMap, isEditMode]
   );
 
   const table = useReactTable({
@@ -572,8 +579,26 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           )}
         </div>
 
-        {/* Controls toolbar - Import CSV, Filter, Sort */}
+        {/* Controls toolbar - Add Client, Edit, Import CSV, Filter, Sort */}
         <div className="flex gap-2 sm:ml-auto items-center">
+          <IconButtonWithText
+            type="button"
+            variant="green"
+            onClick={() => setIsCreateDialogOpen(true)}
+            title="Add a new client"
+          >
+            <Plus className="h-5 w-5" />
+            Add Client
+          </IconButtonWithText>
+          <IconButtonWithText
+            type="button"
+            variant={isEditMode ? "amber" : "violet"}
+            onClick={() => setIsEditMode(!isEditMode)}
+            title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
+          >
+            {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+            {isEditMode ? "Done" : "Edit"}
+          </IconButtonWithText>
           <IconButtonWithText
             type="button"
             variant="sky"
@@ -792,6 +817,13 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
         open={isCsvDialogOpen}
         onOpenChange={setIsCsvDialogOpen}
         onImportComplete={handleImportComplete}
+      />
+
+      {/* Create Client Dialog */}
+      <CreateClientDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        onCreated={handleClientCreated}
       />
     </div>
   );
