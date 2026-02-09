@@ -107,14 +107,49 @@ export async function PUT(
     );
   }
 
+  const data = validation.data;
+
+  // Fetch existing schedule to prevent schedule_type changes
+  const { data: existing, error: existingError } = await supabase
+    .from("schedules")
+    .select("schedule_type")
+    .eq("id", id)
+    .single();
+
+  if (existingError) {
+    if (existingError.code === "PGRST116") {
+      return NextResponse.json(
+        { error: "Schedule not found" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Failed to fetch schedule" },
+      { status: 500 }
+    );
+  }
+
+  // Prevent schedule_type change
+  const existingType = existing.schedule_type || 'filing'; // default for pre-migration rows
+  if (data.schedule_type !== existingType) {
+    return NextResponse.json(
+      { error: "Cannot change schedule type after creation" },
+      { status: 400 }
+    );
+  }
+
   // Update schedule
   const { data: schedule, error: scheduleError } = await supabase
     .from("schedules")
     .update({
-      filing_type_id: validation.data.filing_type_id,
-      name: validation.data.name,
-      description: validation.data.description || null,
-      is_active: validation.data.is_active,
+      schedule_type: data.schedule_type,
+      filing_type_id: data.schedule_type === 'filing' ? data.filing_type_id : null,
+      name: data.name,
+      description: data.description || null,
+      is_active: data.is_active,
+      custom_date: data.schedule_type === 'custom' ? (data.custom_date || null) : null,
+      recurrence_rule: data.schedule_type === 'custom' ? (data.recurrence_rule || null) : null,
+      recurrence_anchor: data.schedule_type === 'custom' ? (data.recurrence_anchor || null) : null,
     })
     .eq("id", id)
     .select()
@@ -130,7 +165,7 @@ export async function PUT(
     }
     if (scheduleError.code === "23505") {
       return NextResponse.json(
-        { error: "A schedule with this name already exists" },
+        { error: "A schedule already exists for this filing type" },
         { status: 409 }
       );
     }
@@ -155,8 +190,8 @@ export async function PUT(
   }
 
   // Insert new steps if provided
-  if (validation.data.steps && validation.data.steps.length > 0) {
-    const stepsToInsert = validation.data.steps.map((step, index) => ({
+  if (data.steps && data.steps.length > 0) {
+    const stepsToInsert = data.steps.map((step, index) => ({
       schedule_id: id,
       email_template_id: step.email_template_id,
       step_number: index + 1, // 1-based indexing

@@ -53,7 +53,7 @@ export async function GET() {
 
 /**
  * POST /api/schedules
- * Create a new schedule
+ * Create a new schedule (filing or custom)
  */
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -77,14 +77,20 @@ export async function POST(request: Request) {
     );
   }
 
+  const data = validation.data;
+
   // Insert schedule
   const { data: schedule, error: scheduleError } = await supabase
     .from("schedules")
     .insert({
-      filing_type_id: validation.data.filing_type_id,
-      name: validation.data.name,
-      description: validation.data.description || null,
-      is_active: validation.data.is_active,
+      schedule_type: data.schedule_type,
+      filing_type_id: data.schedule_type === 'filing' ? data.filing_type_id : null,
+      name: data.name,
+      description: data.description || null,
+      is_active: data.is_active,
+      custom_date: data.schedule_type === 'custom' ? (data.custom_date || null) : null,
+      recurrence_rule: data.schedule_type === 'custom' ? (data.recurrence_rule || null) : null,
+      recurrence_anchor: data.schedule_type === 'custom' ? (data.recurrence_anchor || null) : null,
     })
     .select()
     .single();
@@ -95,7 +101,7 @@ export async function POST(request: Request) {
     // Check for unique constraint violation
     if (scheduleError.code === "23505") {
       return NextResponse.json(
-        { error: "A schedule with this name already exists" },
+        { error: "A schedule already exists for this filing type" },
         { status: 409 }
       );
     }
@@ -107,8 +113,8 @@ export async function POST(request: Request) {
   }
 
   // Insert steps if provided
-  if (validation.data.steps && validation.data.steps.length > 0) {
-    const stepsToInsert = validation.data.steps.map((step, index) => ({
+  if (data.steps && data.steps.length > 0) {
+    const stepsToInsert = data.steps.map((step, index) => ({
       schedule_id: schedule.id,
       email_template_id: step.email_template_id,
       step_number: index + 1, // 1-based indexing

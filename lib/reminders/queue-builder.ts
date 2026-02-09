@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { UTCDate } from '@date-fns/utc';
-import { subDays, format } from 'date-fns';
+import { subDays, format, addMonths, addYears } from 'date-fns';
 import { FilingTypeId, ClientFilingAssignment, ClientDeadlineOverride, Schedule, ScheduleStep, EmailTemplate } from '@/lib/types/database';
 import { calculateDeadline } from '@/lib/deadlines/calculators';
 import { getNextWorkingDay } from '@/lib/deadlines/working-days';
@@ -15,7 +15,7 @@ interface Client {
   records_received_for: string[];
 }
 
-interface BuildResult {
+export interface BuildResult {
   created: number;
   skipped: number;
 }
@@ -36,6 +36,34 @@ async function logQueueWarning(supabase: SupabaseClient, entry: {
     subject: 'Queue Builder Warning',
     sent_at: new Date().toISOString(),
   });
+}
+
+/**
+ * Calculate the next occurrence date for a custom schedule
+ */
+function getNextCustomDate(schedule: {
+  custom_date: string | null;
+  recurrence_rule: string | null;
+  recurrence_anchor: string | null;
+}): Date | null {
+  if (schedule.custom_date) {
+    return new UTCDate(schedule.custom_date);
+  }
+  if (!schedule.recurrence_rule || !schedule.recurrence_anchor) return null;
+
+  const anchor = new UTCDate(schedule.recurrence_anchor);
+  const today = new UTCDate();
+
+  // Find the next occurrence of the anchor date based on recurrence rule
+  let next = anchor;
+  while (next <= today) {
+    switch (schedule.recurrence_rule) {
+      case 'monthly': next = addMonths(next, 1); break;
+      case 'quarterly': next = addMonths(next, 3); break;
+      case 'annually': next = addYears(next, 1); break;
+    }
+  }
+  return next;
 }
 
 /**
@@ -64,7 +92,8 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
   const { data: schedules, error: schedulesError } = await supabase
     .from('schedules')
     .select('*')
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .eq('schedule_type', 'filing');
 
   if (schedulesError) {
     throw new Error(`Failed to fetch schedules: ${schedulesError.message}`);
@@ -95,7 +124,9 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
   // Build application-level lookup maps
   const scheduleByFilingType = new Map<string, Schedule>();
   schedules.forEach((schedule) => {
-    scheduleByFilingType.set(schedule.filing_type_id, schedule);
+    if (schedule.filing_type_id) {
+      scheduleByFilingType.set(schedule.filing_type_id, schedule as Schedule);
+    }
   });
 
   const stepsBySchedule = new Map<string, ScheduleStep[]>();
@@ -260,6 +291,140 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
 }
 
 /**
+ * Build reminder queue entries for custom schedules (v1.1+)
+ * Custom schedules apply to ALL active, non-paused clients
+ */
+export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promise<BuildResult> {
+  let created = 0;
+  let skipped = 0;
+
+  // 1. Fetch all active custom schedules
+  const { data: customSchedules, error: schedulesError } = await supabase
+    .from('schedules')
+    .select('*')
+    .eq('is_active', true)
+    .eq('schedule_type', 'custom');
+
+  if (schedulesError) {
+    throw new Error(`Failed to fetch custom schedules: ${schedulesError.message}`);
+  }
+
+  if (!customSchedules || customSchedules.length === 0) {
+    return { created: 0, skipped: 0 };
+  }
+
+  // 2. Fetch all active, non-paused clients
+  const { data: clients, error: clientsError } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('reminders_paused', false);
+
+  if (clientsError) {
+    throw new Error(`Failed to fetch clients: ${clientsError.message}`);
+  }
+
+  if (!clients || clients.length === 0) {
+    return { created: 0, skipped: 0 };
+  }
+
+  // 3. Fetch schedule steps
+  const scheduleIds = customSchedules.map(s => s.id);
+  const { data: scheduleSteps, error: stepsError } = await supabase
+    .from('schedule_steps')
+    .select('*')
+    .in('schedule_id', scheduleIds)
+    .order('step_number', { ascending: true });
+
+  if (stepsError) {
+    throw new Error(`Failed to fetch custom schedule steps: ${stepsError.message}`);
+  }
+
+  const stepsBySchedule = new Map<string, ScheduleStep[]>();
+  (scheduleSteps || []).forEach((step) => {
+    if (!stepsBySchedule.has(step.schedule_id)) {
+      stepsBySchedule.set(step.schedule_id, []);
+    }
+    stepsBySchedule.get(step.schedule_id)!.push(step);
+  });
+
+  const holidays = await getUKBankHolidaySet();
+
+  // 4. Process each custom schedule x client
+  for (const schedule of customSchedules) {
+    const targetDate = getNextCustomDate({
+      custom_date: schedule.custom_date,
+      recurrence_rule: schedule.recurrence_rule,
+      recurrence_anchor: schedule.recurrence_anchor,
+    });
+
+    if (!targetDate) {
+      await logQueueWarning(supabase, {
+        message: `Custom schedule ${schedule.id} (${schedule.name}) has no valid target date`,
+      });
+      skipped++;
+      continue;
+    }
+
+    const steps = stepsBySchedule.get(schedule.id) || [];
+    if (steps.length === 0) {
+      await logQueueWarning(supabase, {
+        message: `Custom schedule ${schedule.id} (${schedule.name}) has no steps`,
+      });
+      skipped++;
+      continue;
+    }
+
+    const deadlineDateStr = format(targetDate, 'yyyy-MM-dd');
+
+    for (const client of clients) {
+      for (const step of steps) {
+        let sendDate = subDays(new UTCDate(targetDate), step.delay_days);
+        sendDate = new UTCDate(getNextWorkingDay(sendDate, holidays));
+        const sendDateStr = format(sendDate, 'yyyy-MM-dd');
+
+        // Idempotency check for custom schedules: client_id + template_id + step_index + deadline_date
+        // (template_id stores schedule.id for custom schedules, filing_type_id is NULL)
+        const { data: existing } = await supabase
+          .from('reminder_queue')
+          .select('id')
+          .eq('client_id', client.id)
+          .is('filing_type_id', null)
+          .eq('template_id', schedule.id)
+          .eq('step_index', step.step_number)
+          .eq('deadline_date', deadlineDateStr)
+          .single();
+
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
+        const { error: insertError } = await supabase
+          .from('reminder_queue')
+          .insert({
+            client_id: client.id,
+            filing_type_id: null,
+            template_id: schedule.id,
+            step_index: step.step_number,
+            deadline_date: deadlineDateStr,
+            send_date: sendDateStr,
+            status: 'scheduled',
+          });
+
+        if (insertError) {
+          console.error(`Failed to insert custom reminder for client ${client.id}, schedule ${schedule.id}, step ${step.step_number}:`, insertError);
+          skipped++;
+        } else {
+          created++;
+        }
+      }
+    }
+  }
+
+  return { created, skipped };
+}
+
+/**
  * Rebuild queue entries for a specific client (v1.1)
  * Used when client metadata, assignments, or overrides change
  */
@@ -336,15 +501,17 @@ export async function rebuildQueueForClient(
   // Build lookup maps
   const scheduleByFilingType = new Map<string, Schedule>();
   (schedules || []).forEach((schedule) => {
-    scheduleByFilingType.set(schedule.filing_type_id, schedule);
+    if (schedule.filing_type_id) {
+      scheduleByFilingType.set(schedule.filing_type_id, schedule as Schedule);
+    }
   });
 
-  const stepsBySchedule = new Map<string, ScheduleStep[]>();
+  const stepsByScheduleMap = new Map<string, ScheduleStep[]>();
   (scheduleSteps || []).forEach((step) => {
-    if (!stepsBySchedule.has(step.schedule_id)) {
-      stepsBySchedule.set(step.schedule_id, []);
+    if (!stepsByScheduleMap.has(step.schedule_id)) {
+      stepsByScheduleMap.set(step.schedule_id, []);
     }
-    stepsBySchedule.get(step.schedule_id)!.push(step);
+    stepsByScheduleMap.get(step.schedule_id)!.push(step);
   });
 
   const templateMap = new Map<string, EmailTemplate>();
@@ -369,7 +536,7 @@ export async function rebuildQueueForClient(
     deadlineOverrideMap.set(override.filing_type_id, override);
   });
 
-  // Process each assignment
+  // Process each assignment (filing schedules)
   for (const assignment of assignments) {
     const filingTypeId = assignment.filing_type_id;
 
@@ -411,7 +578,7 @@ export async function rebuildQueueForClient(
       continue;
     }
 
-    const steps = stepsBySchedule.get(schedule.id) || [];
+    const steps = stepsByScheduleMap.get(schedule.id) || [];
     if (steps.length === 0) {
       await logQueueWarning(supabase, {
         message: `Schedule ${schedule.id} has no steps`,
@@ -448,6 +615,44 @@ export async function rebuildQueueForClient(
         send_date: sendDateStr,
         status: 'scheduled',
       });
+    }
+  }
+
+  // Also rebuild custom schedule entries for this client
+  if (!client.reminders_paused) {
+    const customSchedules = (schedules || []).filter(
+      (s) => s.schedule_type === 'custom'
+    );
+
+    for (const schedule of customSchedules) {
+      const targetDate = getNextCustomDate({
+        custom_date: schedule.custom_date,
+        recurrence_rule: schedule.recurrence_rule,
+        recurrence_anchor: schedule.recurrence_anchor,
+      });
+
+      if (!targetDate) continue;
+
+      const steps = stepsByScheduleMap.get(schedule.id) || [];
+      if (steps.length === 0) continue;
+
+      const deadlineDateStr = format(targetDate, 'yyyy-MM-dd');
+
+      for (const step of steps) {
+        let sendDate = subDays(new UTCDate(targetDate), step.delay_days);
+        sendDate = new UTCDate(getNextWorkingDay(sendDate, holidays));
+        const sendDateStr = format(sendDate, 'yyyy-MM-dd');
+
+        await supabase.from('reminder_queue').insert({
+          client_id: client.id,
+          filing_type_id: null,
+          template_id: schedule.id,
+          step_index: step.step_number,
+          deadline_date: deadlineDateStr,
+          send_date: sendDateStr,
+          status: 'scheduled',
+        });
+      }
     }
   }
 }

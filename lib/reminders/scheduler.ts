@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { UTCDate } from '@date-fns/utc';
 import { toZonedTime } from 'date-fns-tz';
 import { format, addMinutes } from 'date-fns';
-import { buildReminderQueue } from './queue-builder';
+import { buildReminderQueue, buildCustomScheduleQueue } from './queue-builder';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { rolloverDeadline } from '@/lib/deadlines/rollover';
 
@@ -78,14 +78,16 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
       return result;
     }
 
-    // Step 3: Build/update queue for any new reminders
+    // Step 3: Build/update queue for any new reminders (filing + custom)
     const buildResult = await buildReminderQueue(supabase);
+    const customBuildResult = await buildCustomScheduleQueue(supabase);
 
     // Step 4: Find all reminder_queue entries where send_date = today and status = 'scheduled'
+    // Use left join for filing_types (custom schedules have NULL filing_type_id)
     const today = format(new UTCDate(), 'yyyy-MM-dd');
     const { data: dueReminders, error: fetchError } = await supabase
       .from('reminder_queue')
-      .select('*, clients!inner(*), filing_types!inner(*)')
+      .select('*, clients!inner(*), filing_types(*)')
       .eq('send_date', today)
       .eq('status', 'scheduled');
 
@@ -119,19 +121,38 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
     for (const reminder of dueReminders) {
       try {
         const client = reminder.clients as Client;
-        const filingType = reminder.filing_types as FilingType;
+        const filingType = reminder.filing_types as FilingType | null;
 
-        // Fetch the schedule for this filing type
-        const { data: schedule, error: scheduleError } = await supabase
-          .from('schedules')
-          .select('*')
-          .eq('filing_type_id', reminder.filing_type_id)
-          .eq('is_active', true)
-          .single();
+        // Fetch the schedule for this reminder
+        let schedule;
+        if (reminder.filing_type_id) {
+          // Filing schedule - lookup by filing_type_id
+          const { data, error: scheduleError } = await supabase
+            .from('schedules')
+            .select('*')
+            .eq('filing_type_id', reminder.filing_type_id)
+            .eq('is_active', true)
+            .single();
 
-        if (scheduleError || !schedule) {
-          result.errors.push(`Failed to fetch schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
-          continue;
+          if (scheduleError || !data) {
+            result.errors.push(`Failed to fetch schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
+            continue;
+          }
+          schedule = data;
+        } else {
+          // Custom schedule - lookup by template_id (which stores schedule.id)
+          const { data, error: scheduleError } = await supabase
+            .from('schedules')
+            .select('*')
+            .eq('id', reminder.template_id)
+            .eq('is_active', true)
+            .single();
+
+          if (scheduleError || !data) {
+            result.errors.push(`Failed to fetch custom schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
+            continue;
+          }
+          schedule = data;
         }
 
         // Fetch schedule_steps for that schedule
@@ -166,6 +187,9 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
         }
 
         // Render email using v1.1 TipTap pipeline
+        // For custom schedules, use the schedule name as the filing_type placeholder
+        const filingTypeName = filingType?.name ?? schedule.name;
+
         try {
           const rendered = await renderTipTapEmail({
             bodyJson: template.body_json,
@@ -173,7 +197,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
             context: {
               client_name: client.company_name,
               deadline: new UTCDate(reminder.deadline_date),
-              filing_type: filingType.name,
+              filing_type: filingTypeName,
               accountant_name: 'Peninsula Accounting',
             },
           });
@@ -212,11 +236,13 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
     }
 
     // Step 7: Check for rollover - find deadlines that have passed
+    // Only for filing type reminders (not custom schedules)
     const { data: pastDeadlines, error: pastError } = await supabase
       .from('reminder_queue')
       .select('*, clients!inner(*)')
       .lt('deadline_date', today)
       .eq('status', 'sent')
+      .not('filing_type_id', 'is', null)
       .order('deadline_date', { ascending: false });
 
     if (pastError) {
