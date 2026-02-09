@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Mail } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
 import {
   updateEmailSettings,
   type EmailSettings,
@@ -125,14 +125,13 @@ export function EmailSettingsCard({ defaultSettings }: EmailSettingsCardProps) {
 
           <div className="flex items-center gap-3">
             {isDirty && (
-              <Button
+              <ButtonBase
                 onClick={handleSave}
                 disabled={isPending}
-                size="sm"
-                className="active:scale-[0.97]"
+                buttonType="text-only"
               >
                 Save Changes
-              </Button>
+              </ButtonBase>
             )}
             {saved && (
               <span className="text-sm text-status-success font-medium">

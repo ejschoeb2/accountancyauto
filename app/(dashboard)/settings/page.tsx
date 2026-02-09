@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { getConnectionStatus } from "@/app/actions/quickbooks";
 import { getSendHour, getEmailSettings } from "@/app/actions/settings";
-import { Check, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
+import { ButtonBase } from "@/components/ui/button-base";
 import { Card } from "@/components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { SendHourPicker } from "./components/send-hour-picker";
@@ -18,9 +18,9 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-2">Manage your integrations and preferences</p>
+      <div className="space-y-2">
+        <h1>Settings</h1>
+        <p className="text-muted-foreground">Manage your integrations and preferences</p>
       </div>
 
       {/* QuickBooks Integration Card */}
@@ -36,17 +36,11 @@ export default async function SettingsPage() {
                 className="object-contain"
               />
               {/* Status Indicator */}
-              <div className="absolute -bottom-1 -right-1">
-                {connectionStatus.connected ? (
-                  <div className="flex items-center gap-1">
-                    <Check className="size-5 text-status-success" />
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <AlertTriangle className="size-5 text-status-danger" />
-                  </div>
-                )}
-              </div>
+              {!connectionStatus.connected && (
+                <div className="absolute -bottom-1 -right-1">
+                  <AlertTriangle className="size-5 text-status-danger" />
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -76,9 +70,9 @@ export default async function SettingsPage() {
           </div>
 
           <Link href="/onboarding">
-            <Button variant={connectionStatus.connected ? "outline" : "default"}>
+            <ButtonBase buttonType="text-only">
               {connectionStatus.connected ? "Reconnect" : "Connect"}
-            </Button>
+            </ButtonBase>
           </Link>
         </div>
       </Card>

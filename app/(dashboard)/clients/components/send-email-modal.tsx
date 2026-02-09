@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
@@ -190,7 +190,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
       <DialogContent
         onInteractOutside={(e) => preventClose && e.preventDefault()}
         onEscapeKeyDown={(e) => preventClose && e.preventDefault()}
-        className="max-w-2xl"
+        className="max-w-4xl"
       >
         {step === 'select-template' && (
           <>
@@ -241,12 +241,12 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={handleClose}>
+              <ButtonBase onClick={handleClose} buttonType="text-only">
                 Cancel
-              </Button>
-              <Button onClick={handleNext} disabled={isNextDisabled}>
+              </ButtonBase>
+              <ButtonBase onClick={handleNext} disabled={isNextDisabled} buttonType="text-only">
                 Next
-              </Button>
+              </ButtonBase>
             </DialogFooter>
           </>
         )}
@@ -278,7 +278,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                     <div className="border rounded-lg overflow-hidden">
                       <iframe
                         srcDoc={previewHtml}
-                        className="w-full h-[400px]"
+                        className="w-full h-[600px]"
                         title="Email Preview"
                         sandbox="allow-same-origin"
                       />
@@ -289,10 +289,10 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={handleBack}>
+              <ButtonBase onClick={handleBack} buttonType="text-only">
                 Back
-              </Button>
-              <Button onClick={handleNext}>Next</Button>
+              </ButtonBase>
+              <ButtonBase onClick={handleNext} buttonType="text-only">Next</ButtonBase>
             </DialogFooter>
           </>
         )}
@@ -316,10 +316,10 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={handleBack}>
+              <ButtonBase onClick={handleBack} buttonType="text-only">
                 Back
-              </Button>
-              <Button onClick={handleSend}>Send</Button>
+              </ButtonBase>
+              <ButtonBase onClick={handleSend} buttonType="text-only">Send</ButtonBase>
             </DialogFooter>
           </>
         )}
@@ -382,7 +382,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
             </div>
 
             <DialogFooter>
-              <Button onClick={handleClose}>Close</Button>
+              <ButtonBase onClick={handleClose} buttonType="text-only">Close</ButtonBase>
             </DialogFooter>
           </>
         )}
