@@ -1,8 +1,4 @@
--- Add INSERT policy on app_settings (needed for upsert from anon role)
-CREATE POLICY "Anon users can insert app_settings" ON app_settings
-  FOR INSERT TO anon WITH CHECK (true);
-
--- Seed email configuration defaults
+-- Seed email configuration defaults (INSERT policy already in 20260209230000)
 INSERT INTO app_settings (key, value) VALUES
   ('email_sender_name', 'Peninsula Accounting'),
   ('email_sender_address', 'reminders@peninsulaaccounting.co.uk'),
