@@ -86,6 +86,13 @@ export interface ReminderQueueItem {
 }
 
 // ============================================================================
+// Schedule Types
+// ============================================================================
+
+export type ScheduleType = 'filing' | 'custom';
+export type RecurrenceRule = 'monthly' | 'quarterly' | 'annually';
+
+// ============================================================================
 // v1.1 Normalized Tables
 // ============================================================================
 
@@ -115,10 +122,14 @@ export interface EmailTemplate {
 
 export interface Schedule {
   id: string;
-  filing_type_id: FilingTypeId;
+  schedule_type: ScheduleType;
+  filing_type_id: FilingTypeId | null;
   name: string;
   description: string | null;
   is_active: boolean;
+  custom_date: string | null;
+  recurrence_rule: RecurrenceRule | null;
+  recurrence_anchor: string | null;
   created_at: string;
   updated_at: string;
 }
