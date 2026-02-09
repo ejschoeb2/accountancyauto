@@ -14,7 +14,7 @@ import { AVAILABLE_PLACEHOLDERS } from '@/lib/templates/variables'
 interface PlaceholderDropdownProps {
   onSelect?: (id: string, label: string) => void
   // For unified mode - support both subject input and editor
-  subjectInputRef?: React.RefObject<HTMLInputElement>
+  subjectInputRef?: React.RefObject<HTMLInputElement | null>
   onEditorInsert?: (id: string, label: string) => void
 }
 
@@ -44,6 +44,8 @@ export function PlaceholderDropdown({
     if (subjectInputRef?.current === document.activeElement) {
       // Subject input has focus
       const input = subjectInputRef.current
+      if (!input) return
+
       const cursorPosition = input.selectionStart ?? input.value.length
       const textBefore = input.value.slice(0, cursorPosition)
       const textAfter = input.value.slice(cursorPosition)

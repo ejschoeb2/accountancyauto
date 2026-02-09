@@ -18,7 +18,7 @@ export default async function TemplatesPage() {
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <h1 className="text-foreground">Templates</h1>
+          <h1>Templates</h1>
           <p className="text-muted-foreground mt-1">
             Manage your email templates
           </p>
@@ -33,7 +33,7 @@ export default async function TemplatesPage() {
 
       {/* Template list */}
       {templates && templates.length > 0 ? (
-        <div className="space-y-4">
+        <div className="grid gap-6 md:grid-cols-2">
           {(templates as EmailTemplate[]).map((template) => (
             <TemplateCard key={template.id} template={template} />
           ))}

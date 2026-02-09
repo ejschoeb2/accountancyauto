@@ -6,11 +6,19 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ScheduleStepEditor } from '../../components/schedule-step-editor'
 import { Button } from '@/components/ui/button'
+import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
+import { LoadingScreen } from '@/components/loading-screen'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
-import { CheckCircle, Trash2 } from 'lucide-react'
+import { CheckButton } from '@/components/ui/check-button'
+import { CheckCircle, Trash2, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -177,11 +185,7 @@ export default function EditSchedulePage() {
   }
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-foreground">Loading...</h1>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   return (
@@ -190,35 +194,44 @@ export default function EditSchedulePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-foreground">{isNew ? 'Create Schedule' : 'Edit Schedule'}</h1>
         <div className="flex items-center gap-2">
+          <IconButtonWithText
+            type="button"
+            variant="amber"
+            onClick={handleCancel}
+            title="Cancel"
+          >
+            <X className="h-5 w-5" />
+            Cancel
+          </IconButtonWithText>
           {!isNew && (
-            <Button
+            <IconButtonWithText
               type="button"
-              variant="ghost"
-              size="icon"
+              variant="destructive"
               onClick={() => setShowDeleteDialog(true)}
-              className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
               title="Delete schedule"
             >
               <Trash2 className="h-5 w-5" />
-            </Button>
+              Delete
+            </IconButtonWithText>
           )}
-          <Button
+          <IconButtonWithText
             type="submit"
-            variant="ghost"
-            size="icon"
+            variant="blue"
             disabled={saving}
-            className="h-10 w-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97]"
             title={saving ? 'Saving...' : isNew ? 'Create schedule' : 'Save changes'}
           >
             <CheckCircle className="h-5 w-5" />
-          </Button>
+            {saving ? 'Saving...' : isNew ? 'Create' : 'Save'}
+          </IconButtonWithText>
         </div>
       </div>
 
       {/* Basic Information */}
-      <div className="rounded-lg border p-8 space-y-6">
-        <h2 className="text-lg font-semibold">Basic Information</h2>
-
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
         <div className="space-y-2">
           <Label htmlFor="filing_type_id">Filing Type</Label>
           <Select
@@ -275,40 +288,24 @@ export default function EditSchedulePage() {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Checkbox
-            id="is_active"
+          <CheckButton
             checked={form.watch('is_active')}
             onCheckedChange={(checked) => form.setValue('is_active', checked as boolean)}
+            aria-label="Active schedule"
           />
-          <Label htmlFor="is_active" className="cursor-pointer">
+          <Label className="cursor-pointer" onClick={() => form.setValue('is_active', !form.watch('is_active'))}>
             Active (will be used for generating reminders)
           </Label>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Schedule Steps */}
-      <div className="rounded-lg border p-8 space-y-6">
-        <h2 className="text-lg font-semibold">Schedule Steps</h2>
-        <ScheduleStepEditor form={form} templates={emailTemplates} filingTypes={filingTypes.map(ft => ({ id: ft.id, name: ft.name }))} />
-      </div>
-
-      {/* Bottom action bar */}
-      <div className="flex items-center justify-between pb-8">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleCancel}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={saving}
-          className="active:scale-[0.97]"
-        >
-          {saving ? 'Saving...' : isNew ? 'Create Schedule' : 'Save Changes'}
-        </Button>
-      </div>
+      <Card>
+        <CardContent>
+          <ScheduleStepEditor form={form} templates={emailTemplates} />
+        </CardContent>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

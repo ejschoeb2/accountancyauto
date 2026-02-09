@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { LoadingIndicator } from '@/components/loading-indicator';
 import {
   Table,
   TableBody,
@@ -115,7 +116,7 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg">
+      <div className="border rounded-lg bg-white">
         <Table>
           <TableHeader>
             <TableRow>
@@ -127,8 +128,8 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-muted-foreground">
-                  Loading...
+                <TableCell colSpan={3} className="text-center">
+                  <LoadingIndicator size={32} />
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (

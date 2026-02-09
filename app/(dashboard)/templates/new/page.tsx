@@ -7,7 +7,7 @@ import { SubjectLineEditor } from '../components/subject-line-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
+import { CheckButton } from '@/components/ui/check-button'
 import { toast } from 'sonner'
 import type { TipTapDocument } from '@/lib/types/database'
 
@@ -100,12 +100,12 @@ export default function NewTemplatePage() {
         </div>
 
         <div className="flex items-center space-x-2">
-          <Checkbox
-            id="is_active"
+          <CheckButton
             checked={isActive}
             onCheckedChange={(checked) => setIsActive(checked as boolean)}
+            aria-label="Active template"
           />
-          <Label htmlFor="is_active" className="cursor-pointer">
+          <Label className="cursor-pointer" onClick={() => setIsActive(!isActive)}>
             Active (available for use in schedules)
           </Label>
         </div>

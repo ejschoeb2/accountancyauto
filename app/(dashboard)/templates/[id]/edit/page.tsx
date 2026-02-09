@@ -6,9 +6,14 @@ import { TemplateEditor } from '../../components/template-editor'
 import { SubjectLineEditor } from '../../components/subject-line-editor'
 import { PlaceholderDropdown } from '../../components/placeholder-dropdown'
 import { Button } from '@/components/ui/button'
+import { LoadingScreen } from '@/components/loading-screen'
+import {
+  Card,
+  CardContent,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
+import { CheckButton } from '@/components/ui/check-button'
 import { CheckCircle, Trash2 } from 'lucide-react'
 import {
   Dialog,
@@ -139,11 +144,7 @@ export default function EditTemplatePage() {
   }
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-foreground">Loading...</h1>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   return (
@@ -187,18 +188,18 @@ export default function EditTemplatePage() {
 
       {/* Active Checkbox */}
       <div className="flex items-center space-x-2">
-        <Checkbox
-          id="is_active"
+        <CheckButton
           checked={isActive}
           onCheckedChange={(checked) => setIsActive(checked as boolean)}
+          aria-label="Active template"
         />
-        <Label htmlFor="is_active" className="cursor-pointer">
+        <Label className="cursor-pointer" onClick={() => setIsActive(!isActive)}>
           Active (available for use in schedules)
         </Label>
       </div>
 
       {/* Email Composer */}
-      <div className="rounded-lg border overflow-hidden flex flex-col">
+      <Card className="overflow-hidden flex flex-col p-0">
         <SubjectLineEditor ref={subjectInputRef} value={subject} onChange={setSubject} />
         <div className="flex-1">
           <TemplateEditor
@@ -215,7 +216,7 @@ export default function EditTemplatePage() {
             }
           />
         </div>
-      </div>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

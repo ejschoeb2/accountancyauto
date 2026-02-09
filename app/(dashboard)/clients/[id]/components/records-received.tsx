@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { Check, Play, Pause } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckButton } from "@/components/ui/check-button";
 import { Button } from "@/components/ui/button";
+import { LoadingIndicator } from "@/components/loading-indicator";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 import { toast } from "sonner";
 
 interface FilingAssignment {
@@ -128,10 +135,14 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border py-8 px-8">
-        <h2 className="text-lg font-semibold mb-4">Records & Reminders</h2>
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Records & Reminders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LoadingIndicator size={32} />
+        </CardContent>
+      </Card>
     );
   }
 
@@ -140,30 +151,33 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
   }
 
   return (
-    <div className="rounded-lg border py-8 px-8">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">Records & Reminders</h2>
-        <Button
-          variant={paused ? "default" : "outline"}
-          size="sm"
-          onClick={handlePauseToggle}
-          disabled={isUpdating}
-          className="active:scale-[0.97]"
-        >
-          {paused ? (
-            <>
-              <Play className="size-4 mr-2" />
-              Resume Reminders
-            </>
-          ) : (
-            <>
-              <Pause className="size-4 mr-2" />
-              Pause Reminders
-            </>
-          )}
-        </Button>
-      </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle>Records & Reminders</CardTitle>
+          <Button
+            variant={paused ? "default" : "outline"}
+            size="sm"
+            onClick={handlePauseToggle}
+            disabled={isUpdating}
+            className="active:scale-[0.97]"
+          >
+            {paused ? (
+              <>
+                <Play className="size-4 mr-2" />
+                Resume Reminders
+              </>
+            ) : (
+              <>
+                <Pause className="size-4 mr-2" />
+                Pause Reminders
+              </>
+            )}
+          </Button>
+        </div>
+      </CardHeader>
 
+      <CardContent>
       <div className="space-y-3">
         <p className="text-sm text-muted-foreground mb-4">
           Mark filing types as received to automatically cancel upcoming reminders.
@@ -175,8 +189,7 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
               key={assignment.id}
               className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/5 transition-colors"
             >
-              <Checkbox
-                id={`records-${assignment.filing_type_id}`}
+              <CheckButton
                 checked={isReceived}
                 onCheckedChange={(checked) =>
                   handleRecordsReceivedToggle(
@@ -185,12 +198,13 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
                   )
                 }
                 disabled={isUpdating}
+                aria-label={`Mark ${assignment.filing_types.name} as received`}
               />
               <label
-                htmlFor={`records-${assignment.filing_type_id}`}
                 className={`flex-1 text-sm font-medium cursor-pointer ${
                   isReceived ? "line-through text-muted-foreground" : ""
                 }`}
+                onClick={() => !isUpdating && handleRecordsReceivedToggle(assignment.filing_type_id, !isReceived)}
               >
                 {assignment.filing_types.name}
               </label>
@@ -201,6 +215,7 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
           );
         })}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

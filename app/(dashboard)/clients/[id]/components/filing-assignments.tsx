@@ -6,9 +6,16 @@ import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LoadingIndicator } from '@/components/loading-indicator';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { CheckButton } from '@/components/ui/check-button';
 import type { FilingType } from '@/lib/types/database';
 
 interface FilingAssignment {
@@ -158,27 +165,38 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border py-8 px-8">
-        <h2 className="text-lg font-semibold mb-4">Filing Types & Deadlines</h2>
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Filing Types & Deadlines</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LoadingIndicator size={32} />
+        </CardContent>
+      </Card>
     );
   }
 
   if (filings.length === 0) {
     return (
-      <div className="rounded-lg border py-8 px-8">
-        <h2 className="text-lg font-semibold mb-4">Filing Types & Deadlines</h2>
-        <p className="text-sm text-muted-foreground">
-          No applicable filing types for this client. Set client type to auto-assign filing types.
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Filing Types & Deadlines</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No applicable filing types for this client. Set client type to auto-assign filing types.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-lg border p-6">
-      <h2 className="text-lg font-semibold mb-4">Filing Types & Deadlines</h2>
+    <Card>
+      <CardHeader>
+        <CardTitle>Filing Types & Deadlines</CardTitle>
+      </CardHeader>
+      <CardContent>
       <div className="space-y-4">
         {filings.map((filing) => {
           const hasOverride = !!filing.override_deadline;
@@ -192,11 +210,12 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
               {/* Filing type header with toggle */}
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3">
-                  <Checkbox
+                  <CheckButton
                     checked={filing.is_active}
                     onCheckedChange={() =>
                       handleToggle(filing.filing_type.id, filing.is_active)
                     }
+                    aria-label={`Toggle ${filing.filing_type.name}`}
                     className="mt-1"
                   />
                   <div>
@@ -348,6 +367,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
           );
         })}
       </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
