@@ -178,8 +178,8 @@ export async function importClientMetadata(
           metadata.vat_registered = row.vat_registered;
         }
 
-        if (row.vat_quarter !== undefined) {
-          metadata.vat_quarter = row.vat_quarter;
+        if (row.vat_stagger_group !== undefined) {
+          metadata.vat_stagger_group = row.vat_stagger_group;
         }
 
         if (row.vat_scheme !== undefined) {
@@ -204,28 +204,10 @@ export async function importClientMetadata(
 
     // 7. Apply updates using bulk_update_client_metadata RPC
     if (matchedUpdates.length > 0) {
-      // Convert vat_quarter to Q1-Q4 format for storage
-      const quarterMap: Record<string, string> = {
-        "Jan-Mar": "Q1",
-        "Apr-Jun": "Q2",
-        "Jul-Sep": "Q3",
-        "Oct-Dec": "Q4",
-      };
-
-      const updatesForRpc = matchedUpdates.map((update) => ({
-        id: update.id,
-        metadata: {
-          ...update.metadata,
-          vat_quarter: update.metadata.vat_quarter
-            ? quarterMap[update.metadata.vat_quarter as string]
-            : undefined,
-        },
-      }));
-
       const { error: updateError } = await supabase.rpc(
         "bulk_update_client_metadata",
         {
-          updates: updatesForRpc,
+          updates: matchedUpdates,
         }
       );
 

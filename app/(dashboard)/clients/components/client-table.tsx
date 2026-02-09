@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback, useTransition } from "react";
+import dynamic from "next/dynamic";
+import { Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -13,7 +15,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { Search, X, SlidersHorizontal, Calendar } from "lucide-react";
+import { Search, X, SlidersHorizontal, Calendar, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -28,13 +30,16 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
+import { ButtonWithText } from "@/components/ui/button-with-text";
+import { Section } from "@/components/ui/section";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu";
 
 import { TrafficLightBadge } from "@/app/(dashboard)/dashboard/components/traffic-light-badge";
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
@@ -42,6 +47,9 @@ import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { BulkEditModal } from "./bulk-edit-modal";
 import { SendEmailModal } from "./send-email-modal";
+
+// Lazy load the CSV import dialog to avoid hydration issues
+const CsvImportDialog = dynamic(() => import("./csv-import-dialog").then(m => ({ default: m.CsvImportDialog })), { ssr: false });
 import {
   type Client,
   type BulkUpdateFields,
@@ -68,12 +76,11 @@ const CLIENT_TYPE_OPTIONS = [
   { value: "LLP", label: "LLP" },
 ];
 
-// VAT quarter options
-const VAT_QUARTER_OPTIONS = [
-  { value: "Jan-Mar", label: "Jan-Mar" },
-  { value: "Apr-Jun", label: "Apr-Jun" },
-  { value: "Jul-Sep", label: "Jul-Sep" },
-  { value: "Oct-Dec", label: "Oct-Dec" },
+// VAT stagger group options
+const VAT_STAGGER_GROUP_OPTIONS = [
+  { value: "1", label: "Stagger 1 (Mar/Jun/Sep/Dec)" },
+  { value: "2", label: "Stagger 2 (Jan/Apr/Jul/Oct)" },
+  { value: "3", label: "Stagger 3 (Feb/May/Aug/Nov)" },
 ];
 
 // Status filter config
@@ -84,11 +91,17 @@ const STATUS_LABELS: Record<TrafficLightStatus, string> = {
   grey: "Inactive",
 };
 
-const STATUS_BUTTON_ACTIVE_CLASS: Record<TrafficLightStatus, string> = {
-  red: "bg-status-danger hover:bg-status-danger text-white",
-  amber: "bg-status-warning hover:bg-status-warning text-white",
-  green: "bg-status-success hover:bg-status-success text-white",
-  grey: "bg-status-neutral hover:bg-status-neutral text-white",
+// Sort option labels
+const SORT_LABELS: Record<string, string> = {
+  "name-asc": "Name (A-Z)",
+  "name-desc": "Name (Z-A)",
+  "deadline-asc": "Deadline (Earliest)",
+  "deadline-desc": "Deadline (Latest)",
+  "status-green": "Status (On Track)",
+  "status-amber": "Status (Chasing)",
+  "status-red": "Status (Overdue)",
+  "type-asc": "Type (A-Z)",
+  "vat-registered": "VAT Registered",
 };
 
 export function ClientTable({ initialData, statusMap, initialFilter }: ClientTableProps) {
@@ -113,7 +126,12 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
   const [showFilters, setShowFilters] = useState(initialFilter ? true : false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
+  const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const handleImportComplete = () => {
+    window.location.reload();
+  };
 
   function toggleStatusFilter(status: TrafficLightStatus) {
     setActiveStatusFilters((prev) => {
@@ -381,9 +399,9 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           const info = statusMap[row.original.id];
           if (!info?.next_deadline) return <span className="text-muted-foreground">—</span>;
           return (
-            <div className="size-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <Calendar className="size-5 text-blue-600" />
-            </div>
+            <button className="size-9 rounded-lg bg-status-neutral/10 hover:bg-status-neutral/20 flex items-center justify-center transition-all duration-200 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]">
+              <Calendar className="size-5 text-status-neutral" />
+            </button>
           );
         },
         sortingFn: (rowA, rowB) => {
@@ -463,10 +481,10 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
         },
       },
       {
-        accessorKey: "vat_quarter",
+        accessorKey: "vat_stagger_group",
         header: () => (
           <span className="text-sm font-semibold text-foreground/70 uppercase tracking-wide">
-            VAT Quarter
+            VAT Stagger
           </span>
         ),
         cell: ({ row }) => {
@@ -477,12 +495,12 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           }
           return (
             <EditableCell
-              value={client.vat_quarter}
+              value={client.vat_stagger_group?.toString() ?? null}
               type="select"
-              options={VAT_QUARTER_OPTIONS}
+              options={VAT_STAGGER_GROUP_OPTIONS}
               onSave={async (value) => {
                 startTransition(async () => {
-                  await handleCellEdit(client.id, "vat_quarter", value);
+                  await handleCellEdit(client.id, "vat_stagger_group", value ? parseInt(value as string) : null);
                 });
               }}
             />
@@ -548,64 +566,74 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           )}
         </div>
 
-        {/* Controls toolbar - Filter, Sort */}
+        {/* Controls toolbar - Import CSV, Filter, Sort */}
         <div className="flex gap-2 sm:ml-auto items-center">
-          <Button
-            variant={showFilters ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowFilters((v) => !v)}
-            className="gap-1.5 h-8"
+          <IconButtonWithText
+            type="button"
+            variant="sky"
+            onClick={() => setIsCsvDialogOpen(true)}
+            title="Import clients from CSV"
           >
-            <SlidersHorizontal className="size-4" />
+            <Upload className="h-5 w-5" />
+            Import CSV
+          </IconButtonWithText>
+          <IconButtonWithText
+            type="button"
+            variant="violet"
+            onClick={() => setShowFilters((v) => !v)}
+            title={showFilters ? "Close filters" : "Open filters"}
+          >
+            <SlidersHorizontal className="h-5 w-5" />
             Filter
             {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 text-xs rounded-full">
+              <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs rounded-full">
                 {activeFilterCount}
               </Badge>
             )}
-          </Button>
-          <span className="text-sm font-display font-bold text-foreground">Sort by:</span>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[180px] h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-              <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-              <SelectItem value="deadline-asc">Deadline (Earliest)</SelectItem>
-              <SelectItem value="deadline-desc">Deadline (Latest)</SelectItem>
-              <SelectItem value="status-green">Status (On Track)</SelectItem>
-              <SelectItem value="status-amber">Status (Chasing)</SelectItem>
-              <SelectItem value="status-red">Status (Overdue)</SelectItem>
-              <SelectItem value="type-asc">Type (A-Z)</SelectItem>
-              <SelectItem value="vat-registered">VAT Registered</SelectItem>
-            </SelectContent>
-          </Select>
+          </IconButtonWithText>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none shrink-0 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 hover:text-amber-700">
+                {SORT_LABELS[sortBy]}
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
+                <DropdownMenuRadioItem value="name-asc">Name (A-Z)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="name-desc">Name (Z-A)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="deadline-asc">Deadline (Earliest)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="deadline-desc">Deadline (Latest)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="status-green">Status (On Track)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="status-amber">Status (Chasing)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="status-red">Status (Overdue)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="type-asc">Type (A-Z)</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="vat-registered">VAT Registered</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* Collapsible filter panel */}
       {showFilters && (
-        <div className="rounded-lg border bg-card p-4 space-y-4">
+        <Section padding="sm" className="space-y-4">
           {/* Status */}
           <div className="space-y-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
             <div className="flex flex-wrap gap-2">
-              {(["red", "amber", "green", "grey"] as const).map((status) => (
-                <Button
-                  key={status}
-                  variant={activeStatusFilters.has(status) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleStatusFilter(status)}
-                  className={
-                    activeStatusFilters.has(status)
-                      ? STATUS_BUTTON_ACTIVE_CLASS[status]
-                      : ""
-                  }
-                >
-                  {STATUS_LABELS[status]}
-                </Button>
-              ))}
+              {(["red", "amber", "green", "grey"] as const).map((status) => {
+                return (
+                  <ButtonWithText
+                    key={status}
+                    onClick={() => toggleStatusFilter(status)}
+                    isSelected={activeStatusFilters.has(status)}
+                    variant="muted"
+                  >
+                    {STATUS_LABELS[status]}
+                  </ButtonWithText>
+                );
+              })}
             </div>
           </div>
 
@@ -614,14 +642,14 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client Type</span>
             <div className="flex flex-wrap gap-2">
               {CLIENT_TYPE_OPTIONS.map((opt) => (
-                <Button
+                <ButtonWithText
                   key={opt.value}
-                  variant={activeTypeFilters.has(opt.value) ? "default" : "outline"}
-                  size="sm"
                   onClick={() => toggleTypeFilter(opt.value)}
+                  isSelected={activeTypeFilters.has(opt.value)}
+                  variant="muted"
                 >
                   {opt.label}
-                </Button>
+                </ButtonWithText>
               ))}
             </div>
           </div>
@@ -630,35 +658,33 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           <div className="space-y-2">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">VAT Status</span>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant={activeVatFilter === "vat" ? "default" : "outline"}
-                size="sm"
+              <ButtonWithText
                 onClick={() => toggleVatFilter("vat")}
+                isSelected={activeVatFilter === "vat"}
+                variant="muted"
               >
                 VAT Registered
-              </Button>
-              <Button
-                variant={activeVatFilter === "no-vat" ? "default" : "outline"}
-                size="sm"
+              </ButtonWithText>
+              <ButtonWithText
                 onClick={() => toggleVatFilter("no-vat")}
+                isSelected={activeVatFilter === "no-vat"}
+                variant="muted"
               >
                 Not VAT Registered
-              </Button>
+              </ButtonWithText>
             </div>
           </div>
 
           {/* Clear all */}
           {activeFilterCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
+            <ButtonWithText
               onClick={clearAllFilters}
-              className="text-muted-foreground"
+              variant="muted"
             >
               Clear all filters
-            </Button>
+            </ButtonWithText>
           )}
-        </div>
+        </Section>
       )}
 
       {/* Results count */}
@@ -667,7 +693,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border shadow-sm hover:shadow-lg transition-shadow duration-300">
+      <div className="rounded-xl border shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -752,6 +778,13 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
         open={isSendEmailModalOpen}
         onClose={() => setIsSendEmailModalOpen(false)}
         selectedClients={selectedClients}
+      />
+
+      {/* CSV Import Dialog */}
+      <CsvImportDialog
+        open={isCsvDialogOpen}
+        onOpenChange={setIsCsvDialogOpen}
+        onImportComplete={handleImportComplete}
       />
     </div>
   );

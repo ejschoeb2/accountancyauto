@@ -17,7 +17,7 @@ interface Client {
   id: string;
   company_name: string;
   year_end_date: string | null;
-  vat_quarter: string | null;
+  vat_stagger_group: number | null;
 }
 
 interface FilingType {
@@ -232,7 +232,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
           const nextDeadline = rolloverDeadline(
             deadline.filing_type_id,
             client.year_end_date ? new Date(client.year_end_date) : null,
-            client.vat_quarter,
+            client.vat_stagger_group,
             new Date(deadline.deadline_date)
           );
 

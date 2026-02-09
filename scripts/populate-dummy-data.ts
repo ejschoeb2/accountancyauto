@@ -17,7 +17,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Dummy data generators
 const clientTypes = ['Limited Company', 'Sole Trader', 'Partnership', 'LLP'] as const;
-const vatQuarters = ['Jan-Mar', 'Apr-Jun', 'Jul-Sep', 'Oct-Dec'] as const;
+const vatStaggerGroups = [1, 2, 3] as const;
 const vatSchemes = ['Standard', 'Flat Rate', 'Cash Accounting', 'Annual Accounting'] as const;
 
 const generateYearEndDate = (index: number): string => {
@@ -100,10 +100,10 @@ async function populateDummyData() {
       updateData.year_end_date = generateYearEndDate(i);
     }
 
-    // Check and populate vat_quarter (only if vat_registered is true)
-    if (client.vat_registered && !client.vat_quarter) {
-      missingFields.push('vat_quarter');
-      updateData.vat_quarter = vatQuarters[i % vatQuarters.length];
+    // Check and populate vat_stagger_group (only if vat_registered is true)
+    if (client.vat_registered && !client.vat_stagger_group) {
+      missingFields.push('vat_stagger_group');
+      updateData.vat_stagger_group = vatStaggerGroups[i % vatStaggerGroups.length];
     }
 
     // Check and populate vat_scheme (only if vat_registered is true)

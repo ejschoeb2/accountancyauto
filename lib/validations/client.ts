@@ -16,7 +16,7 @@ export const updateClientMetadataSchema = z.object({
   client_type: clientTypeSchema.optional(),
   year_end_date: isoDateSchema.optional().nullable(),
   vat_registered: z.boolean().optional(),
-  vat_quarter: z.enum(["Jan-Mar", "Apr-Jun", "Jul-Sep", "Oct-Dec"]).optional().nullable(),
+  vat_stagger_group: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().nullable(),
   vat_scheme: z.enum(["Standard", "Flat Rate", "Cash Accounting", "Annual Accounting"]).optional().nullable(),
   reminders_paused: z.boolean().optional(),
   records_received_for: z.array(z.string()).optional(),

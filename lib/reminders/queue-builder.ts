@@ -10,7 +10,7 @@ interface Client {
   id: string;
   company_name: string;
   year_end_date: string | null;
-  vat_quarter: string | null;
+  vat_stagger_group: number | null;
   reminders_paused: boolean;
   records_received_for: string[];
 }
@@ -157,7 +157,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
       // Calculate deadline
       deadlineDate = calculateDeadline(filingTypeId, {
         year_end_date: client.year_end_date ?? undefined,
-        vat_quarter: client.vat_quarter ?? undefined,
+        vat_stagger_group: client.vat_stagger_group ?? undefined,
       });
     }
 
@@ -392,7 +392,7 @@ export async function rebuildQueueForClient(
     } else {
       deadlineDate = calculateDeadline(filingTypeId, {
         year_end_date: client.year_end_date ?? undefined,
-        vat_quarter: client.vat_quarter ?? undefined,
+        vat_stagger_group: client.vat_stagger_group ?? undefined,
       });
     }
 

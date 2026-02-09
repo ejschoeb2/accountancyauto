@@ -36,6 +36,12 @@ interface FieldState {
   value: unknown;
 }
 
+const STAGGER_LABELS: Record<number, string> = {
+  1: "Stagger 1 (Mar/Jun/Sep/Dec)",
+  2: "Stagger 2 (Jan/Apr/Jul/Oct)",
+  3: "Stagger 3 (Feb/May/Aug/Nov)",
+};
+
 export function BulkEditModal({
   open,
   onClose,
@@ -54,7 +60,7 @@ export function BulkEditModal({
     enabled: false,
     value: false,
   });
-  const [vatQuarter, setVatQuarter] = useState<FieldState>({
+  const [vatStaggerGroup, setVatStaggerGroup] = useState<FieldState>({
     enabled: false,
     value: null,
   });
@@ -65,7 +71,7 @@ export function BulkEditModal({
     // Reset fields
     setYearEndDate({ enabled: false, value: null });
     setVatRegistered({ enabled: false, value: false });
-    setVatQuarter({ enabled: false, value: null });
+    setVatStaggerGroup({ enabled: false, value: null });
     onClose();
   }, [isSaving, onClose]);
 
@@ -78,13 +84,8 @@ export function BulkEditModal({
     if (vatRegistered.enabled) {
       updates.vat_registered = vatRegistered.value as boolean;
     }
-    if (vatQuarter.enabled) {
-      updates.vat_quarter = vatQuarter.value as
-        | "Jan-Mar"
-        | "Apr-Jun"
-        | "Jul-Sep"
-        | "Oct-Dec"
-        | null;
+    if (vatStaggerGroup.enabled) {
+      updates.vat_stagger_group = vatStaggerGroup.value as 1 | 2 | 3 | null;
     }
 
     // Show confirmation if not already shown
@@ -102,7 +103,7 @@ export function BulkEditModal({
     } finally {
       setIsSaving(false);
     }
-  }, [yearEndDate, vatRegistered, vatQuarter, showConfirmation, onSave, handleClose]);
+  }, [yearEndDate, vatRegistered, vatStaggerGroup, showConfirmation, onSave, handleClose]);
 
   // Build preview text for confirmation
   const getPreviewText = useCallback(() => {
@@ -119,18 +120,18 @@ export function BulkEditModal({
     if (vatRegistered.enabled) {
       changes.push(`VAT Registered → ${vatRegistered.value ? "Yes" : "No"}`);
     }
-    if (vatQuarter.enabled && vatQuarter.value) {
-      changes.push(`VAT Quarter → ${vatQuarter.value}`);
+    if (vatStaggerGroup.enabled && vatStaggerGroup.value) {
+      changes.push(`VAT Stagger Group → ${STAGGER_LABELS[vatStaggerGroup.value as number]}`);
     }
 
     return changes;
-  }, [yearEndDate, vatRegistered, vatQuarter]);
+  }, [yearEndDate, vatRegistered, vatStaggerGroup]);
 
   const previewChanges = getPreviewText();
   const hasChanges =
     (yearEndDate.enabled && yearEndDate.value) ||
     vatRegistered.enabled ||
-    (vatQuarter.enabled && vatQuarter.value);
+    (vatStaggerGroup.enabled && vatStaggerGroup.value);
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
@@ -207,38 +208,37 @@ export function BulkEditModal({
               </div>
             </div>
 
-            {/* VAT Quarter */}
+            {/* VAT Stagger Group */}
             <div className="flex items-start gap-4">
               <Checkbox
-                id="vat-quarter"
-                checked={vatQuarter.enabled}
+                id="vat-stagger-group"
+                checked={vatStaggerGroup.enabled}
                 onCheckedChange={(checked) =>
-                  setVatQuarter((prev) => ({
+                  setVatStaggerGroup((prev) => ({
                     ...prev,
                     enabled: checked === true,
                   }))
                 }
               />
               <div className="flex-1 space-y-2">
-                <Label htmlFor="vat-quarter">VAT Quarter</Label>
+                <Label htmlFor="vat-stagger-group">VAT Stagger Group</Label>
                 <Select
-                  disabled={!vatQuarter.enabled}
-                  value={(vatQuarter.value as string) || ""}
+                  disabled={!vatStaggerGroup.enabled}
+                  value={vatStaggerGroup.value?.toString() || ""}
                   onValueChange={(value) =>
-                    setVatQuarter((prev) => ({
+                    setVatStaggerGroup((prev) => ({
                       ...prev,
-                      value: value || null,
+                      value: value ? parseInt(value) : null,
                     }))
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select quarter" />
+                    <SelectValue placeholder="Select stagger group" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Jan-Mar">Jan-Mar</SelectItem>
-                    <SelectItem value="Apr-Jun">Apr-Jun</SelectItem>
-                    <SelectItem value="Jul-Sep">Jul-Sep</SelectItem>
-                    <SelectItem value="Oct-Dec">Oct-Dec</SelectItem>
+                    <SelectItem value="1">Stagger 1 (Mar/Jun/Sep/Dec)</SelectItem>
+                    <SelectItem value="2">Stagger 2 (Jan/Apr/Jul/Oct)</SelectItem>
+                    <SelectItem value="3">Stagger 3 (Feb/May/Aug/Nov)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

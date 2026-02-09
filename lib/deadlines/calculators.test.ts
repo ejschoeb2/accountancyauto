@@ -5,7 +5,8 @@ import {
   calculateCompaniesHouseAccounts,
   calculateVATDeadline,
   calculateSelfAssessmentDeadline,
-  getVATQuarterEnds,
+  getStaggerQuarterEnds,
+  getNextQuarterEnd,
 } from './calculators';
 
 describe('UK Filing Deadline Calculators', () => {
@@ -75,6 +76,27 @@ describe('UK Filing Deadline Calculators', () => {
       const deadline = calculateVATDeadline(quarterEnd);
       expect(deadline.toISOString().split('T')[0]).toBe('2026-02-07');
     });
+
+    it('should handle Stagger 2 quarter-end (2025-01-31)', () => {
+      const quarterEnd = new Date('2025-01-31');
+      const deadline = calculateVATDeadline(quarterEnd);
+      // Jan 31 -> end of Feb (28) + 7 = Mar 7
+      expect(deadline.toISOString().split('T')[0]).toBe('2025-03-07');
+    });
+
+    it('should handle Stagger 3 quarter-end (2025-02-28)', () => {
+      const quarterEnd = new Date('2025-02-28');
+      const deadline = calculateVATDeadline(quarterEnd);
+      // Feb 28 (end of month) -> end of Mar (31) + 7 = Apr 7
+      expect(deadline.toISOString().split('T')[0]).toBe('2025-04-07');
+    });
+
+    it('should handle Stagger 3 leap year quarter-end (2024-02-29)', () => {
+      const quarterEnd = new Date('2024-02-29');
+      const deadline = calculateVATDeadline(quarterEnd);
+      // Feb 29 (end of month) -> end of Mar (31) + 7 = Apr 7
+      expect(deadline.toISOString().split('T')[0]).toBe('2024-04-07');
+    });
   });
 
   describe('calculateSelfAssessmentDeadline', () => {
@@ -89,29 +111,71 @@ describe('UK Filing Deadline Calculators', () => {
     });
   });
 
-  describe('getVATQuarterEnds', () => {
-    it('should return correct date for Jan-Mar 2025', () => {
-      const quarterEnds = getVATQuarterEnds('Jan-Mar', 2025);
-      expect(quarterEnds).toHaveLength(1);
+  describe('getStaggerQuarterEnds', () => {
+    it('should return correct dates for Stagger 1 (Mar/Jun/Sep/Dec)', () => {
+      const quarterEnds = getStaggerQuarterEnds(1, 2025);
+      expect(quarterEnds).toHaveLength(4);
       expect(quarterEnds[0].toISOString().split('T')[0]).toBe('2025-03-31');
+      expect(quarterEnds[1].toISOString().split('T')[0]).toBe('2025-06-30');
+      expect(quarterEnds[2].toISOString().split('T')[0]).toBe('2025-09-30');
+      expect(quarterEnds[3].toISOString().split('T')[0]).toBe('2025-12-31');
     });
 
-    it('should return correct date for Apr-Jun 2025', () => {
-      const quarterEnds = getVATQuarterEnds('Apr-Jun', 2025);
-      expect(quarterEnds).toHaveLength(1);
-      expect(quarterEnds[0].toISOString().split('T')[0]).toBe('2025-06-30');
+    it('should return correct dates for Stagger 2 (Jan/Apr/Jul/Oct)', () => {
+      const quarterEnds = getStaggerQuarterEnds(2, 2025);
+      expect(quarterEnds).toHaveLength(4);
+      expect(quarterEnds[0].toISOString().split('T')[0]).toBe('2025-01-31');
+      expect(quarterEnds[1].toISOString().split('T')[0]).toBe('2025-04-30');
+      expect(quarterEnds[2].toISOString().split('T')[0]).toBe('2025-07-31');
+      expect(quarterEnds[3].toISOString().split('T')[0]).toBe('2025-10-31');
     });
 
-    it('should return correct date for Jul-Sep 2025', () => {
-      const quarterEnds = getVATQuarterEnds('Jul-Sep', 2025);
-      expect(quarterEnds).toHaveLength(1);
-      expect(quarterEnds[0].toISOString().split('T')[0]).toBe('2025-09-30');
+    it('should return correct dates for Stagger 3 (Feb/May/Aug/Nov)', () => {
+      const quarterEnds = getStaggerQuarterEnds(3, 2025);
+      expect(quarterEnds).toHaveLength(4);
+      expect(quarterEnds[0].toISOString().split('T')[0]).toBe('2025-02-28');
+      expect(quarterEnds[1].toISOString().split('T')[0]).toBe('2025-05-31');
+      expect(quarterEnds[2].toISOString().split('T')[0]).toBe('2025-08-31');
+      expect(quarterEnds[3].toISOString().split('T')[0]).toBe('2025-11-30');
     });
 
-    it('should return correct date for Oct-Dec 2025', () => {
-      const quarterEnds = getVATQuarterEnds('Oct-Dec', 2025);
-      expect(quarterEnds).toHaveLength(1);
-      expect(quarterEnds[0].toISOString().split('T')[0]).toBe('2025-12-31');
+    it('should handle leap year for Stagger 3', () => {
+      const quarterEnds = getStaggerQuarterEnds(3, 2024);
+      expect(quarterEnds[0].toISOString().split('T')[0]).toBe('2024-02-29');
+    });
+  });
+
+  describe('getNextQuarterEnd', () => {
+    it('should find next Stagger 1 quarter-end after Jan 15', () => {
+      const next = getNextQuarterEnd(1, new Date('2025-01-15'));
+      expect(next.toISOString().split('T')[0]).toBe('2025-03-31');
+    });
+
+    it('should find next Stagger 1 quarter-end after Apr 1', () => {
+      const next = getNextQuarterEnd(1, new Date('2025-04-01'));
+      expect(next.toISOString().split('T')[0]).toBe('2025-06-30');
+    });
+
+    it('should wrap to next year when all quarters passed', () => {
+      // Jan 1 2026 is after all 2025 Stagger 1 quarter-ends
+      const next = getNextQuarterEnd(1, new Date('2026-01-01'));
+      expect(next.toISOString().split('T')[0]).toBe('2026-03-31');
+    });
+
+    it('should find next Stagger 2 quarter-end after Feb 1', () => {
+      const next = getNextQuarterEnd(2, new Date('2025-02-01'));
+      expect(next.toISOString().split('T')[0]).toBe('2025-04-30');
+    });
+
+    it('should find next Stagger 3 quarter-end after Mar 1', () => {
+      const next = getNextQuarterEnd(3, new Date('2025-03-01'));
+      expect(next.toISOString().split('T')[0]).toBe('2025-05-31');
+    });
+
+    it('should return exact boundary date when fromDate is before it', () => {
+      // From exactly Jan 30 (Stagger 2), next should be Jan 31
+      const next = getNextQuarterEnd(2, new Date('2025-01-30'));
+      expect(next.toISOString().split('T')[0]).toBe('2025-01-31');
     });
   });
 });

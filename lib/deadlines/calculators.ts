@@ -1,7 +1,19 @@
 import { addMonths, addDays, addYears, endOfMonth, isSameDay } from 'date-fns';
 import { UTCDate } from '@date-fns/utc';
 
-export type VatQuarterEnum = 'Jan-Mar' | 'Apr-Jun' | 'Jul-Sep' | 'Oct-Dec';
+export type VatStaggerGroup = 1 | 2 | 3;
+
+/**
+ * Quarter-end months for each HMRC VAT stagger group (0-indexed)
+ * Stagger 1: Mar(2), Jun(5), Sep(8), Dec(11)
+ * Stagger 2: Jan(0), Apr(3), Jul(6), Oct(9)
+ * Stagger 3: Feb(1), May(4), Aug(7), Nov(10)
+ */
+const STAGGER_MONTHS: Record<VatStaggerGroup, number[]> = {
+  1: [2, 5, 8, 11],   // Mar, Jun, Sep, Dec
+  2: [0, 3, 6, 9],    // Jan, Apr, Jul, Oct
+  3: [1, 4, 7, 10],   // Feb, May, Aug, Nov
+};
 
 /**
  * Calculate Corporation Tax payment deadline (year-end + 9 months + 1 day)
@@ -54,17 +66,31 @@ export function calculateSelfAssessmentDeadline(taxYearEndYear: number): Date {
 }
 
 /**
- * Get the quarter-end date for a specific VAT quarter and year
+ * Get all 4 quarter-end dates for a stagger group in a given year
  */
-export function getVATQuarterEnds(quarter: VatQuarterEnum, year: number): Date[] {
-  const quarterEndMap: Record<VatQuarterEnum, Date> = {
-    'Jan-Mar': new Date(`${year}-03-31`), // March 31
-    'Apr-Jun': new Date(`${year}-06-30`), // June 30
-    'Jul-Sep': new Date(`${year}-09-30`), // September 30
-    'Oct-Dec': new Date(`${year}-12-31`), // December 31
-  };
+export function getStaggerQuarterEnds(staggerGroup: VatStaggerGroup, year: number): Date[] {
+  const months = STAGGER_MONTHS[staggerGroup];
+  return months.map((month) => endOfMonth(new UTCDate(year, month, 1)));
+}
 
-  return [quarterEndMap[quarter]];
+/**
+ * Find the next quarter-end date after a given date for a stagger group
+ */
+export function getNextQuarterEnd(staggerGroup: VatStaggerGroup, fromDate: Date): Date {
+  const utcFrom = new UTCDate(fromDate);
+  const year = utcFrom.getUTCFullYear();
+  const months = STAGGER_MONTHS[staggerGroup];
+
+  // Check quarter-ends in current year
+  for (const month of months) {
+    const quarterEnd = endOfMonth(new UTCDate(year, month, 1));
+    if (quarterEnd > utcFrom) {
+      return quarterEnd;
+    }
+  }
+
+  // All quarter-ends in current year have passed, use first quarter-end of next year
+  return endOfMonth(new UTCDate(year + 1, months[0], 1));
 }
 
 /**
@@ -72,9 +98,9 @@ export function getVATQuarterEnds(quarter: VatQuarterEnum, year: number): Date[]
  */
 export function calculateDeadline(
   filingTypeId: string,
-  clientMetadata: { year_end_date?: string; vat_quarter?: string }
+  clientMetadata: { year_end_date?: string; vat_stagger_group?: number }
 ): Date | null {
-  const { year_end_date, vat_quarter } = clientMetadata;
+  const { year_end_date, vat_stagger_group } = clientMetadata;
 
   switch (filingTypeId) {
     case 'corporation_tax_payment':
@@ -90,10 +116,9 @@ export function calculateDeadline(
       return calculateCompaniesHouseAccounts(new Date(year_end_date));
 
     case 'vat_return':
-      if (!vat_quarter) return null;
-      const year = new Date().getFullYear();
-      const quarterEnds = getVATQuarterEnds(vat_quarter as VatQuarterEnum, year);
-      return calculateVATDeadline(quarterEnds[0]);
+      if (!vat_stagger_group) return null;
+      const nextQuarterEnd = getNextQuarterEnd(vat_stagger_group as VatStaggerGroup, new Date());
+      return calculateVATDeadline(nextQuarterEnd);
 
     case 'self_assessment':
       const currentYear = new Date().getFullYear();

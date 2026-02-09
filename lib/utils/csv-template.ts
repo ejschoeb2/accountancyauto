@@ -23,9 +23,9 @@ export const CSV_COLUMNS = [
     description: "Yes/No or true/false",
   },
   {
-    name: "vat_quarter",
+    name: "vat_stagger_group",
     required: false,
-    description: "Jan-Mar, Apr-Jun, Jul-Sep, or Oct-Dec",
+    description: "1 (Mar/Jun/Sep/Dec), 2 (Jan/Apr/Jul/Oct), or 3 (Feb/May/Aug/Nov)",
   },
   {
     name: "vat_scheme",
@@ -47,7 +47,7 @@ export function generateCsvTemplate(): string {
     '"Limited Company"',
     '"2026-03-31"',
     '"Yes"',
-    '"Jan-Mar"',
+    '"1"',
     '"Standard"',
   ].join(",");
 
@@ -67,7 +67,7 @@ export function generateCsvTemplate(): string {
     '"Partnership"',
     '"2026-06-30"',
     '"Yes"',
-    '"Apr-Jun"',
+    '"2"',
     '""',
   ].join(",");
 
@@ -85,14 +85,14 @@ export function generateCsvTemplateWithComments(): string {
     "#",
     "# Instructions:",
     "# 1. Required column: company_name (must match exactly as in QuickBooks)",
-    "# 2. Optional columns: client_type, year_end_date, vat_registered, vat_quarter, vat_scheme",
+    "# 2. Optional columns: client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme",
     "# 3. Dates must be in YYYY-MM-DD format",
     "# 4. Boolean values can be: Yes/No, yes/no, TRUE/FALSE, true/false",
     "# 5. Empty optional fields will not overwrite existing data",
     "#",
     "# Valid values:",
     "# - client_type: Limited Company, Sole Trader, Partnership, LLP",
-    "# - vat_quarter: Jan-Mar, Apr-Jun, Jul-Sep, Oct-Dec",
+    "# - vat_stagger_group: 1 (Mar/Jun/Sep/Dec), 2 (Jan/Apr/Jul/Oct), 3 (Feb/May/Aug/Nov)",
     "# - vat_scheme: Standard, Flat Rate, Cash Accounting, Annual Accounting",
     "#",
   ].join("\n");

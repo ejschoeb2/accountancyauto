@@ -38,7 +38,7 @@ export async function GET(
     // Fetch client record for metadata
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('client_type, year_end_date, vat_quarter, vat_registered')
+      .select('client_type, year_end_date, vat_stagger_group, vat_registered')
       .eq('id', clientId)
       .single();
 
@@ -149,7 +149,7 @@ export async function GET(
       // Calculate deadline using calculator functions
       const calculatedDate = calculateDeadline(filingType.id, {
         year_end_date: client.year_end_date || undefined,
-        vat_quarter: client.vat_quarter || undefined,
+        vat_stagger_group: client.vat_stagger_group || undefined,
       });
 
       // Check for override

@@ -101,9 +101,13 @@ export default async function ClientPage({ params }: ClientPageProps) {
           {client.vat_registered && (
             <>
               <div>
-                <dt className="text-sm font-medium text-muted-foreground">VAT Quarter</dt>
+                <dt className="text-sm font-medium text-muted-foreground">VAT Stagger Group</dt>
                 <dd className="mt-1 text-sm">
-                  {client.vat_quarter || (
+                  {client.vat_stagger_group
+                    ? `Stagger ${client.vat_stagger_group} (${
+                        ({ 1: 'Mar/Jun/Sep/Dec', 2: 'Jan/Apr/Jul/Oct', 3: 'Feb/May/Aug/Nov' } as Record<number, string>)[client.vat_stagger_group]
+                      })`
+                    : (
                     <span className="text-muted-foreground">Not set</span>
                   )}
                 </dd>

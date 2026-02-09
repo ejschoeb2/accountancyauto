@@ -16,7 +16,7 @@ export interface Client {
   client_type: "Limited Company" | "Sole Trader" | "Partnership" | "LLP" | null;
   year_end_date: string | null; // ISO date string (YYYY-MM-DD)
   vat_registered: boolean;
-  vat_quarter: "Jan-Mar" | "Apr-Jun" | "Jul-Sep" | "Oct-Dec" | null;
+  vat_stagger_group: 1 | 2 | 3 | null;
   vat_frequency: string | null;
   vat_scheme: "Standard" | "Flat Rate" | "Cash Accounting" | "Annual Accounting" | null;
   has_overrides: boolean;
@@ -29,14 +29,14 @@ export interface Client {
 // Partial type for metadata updates
 export type ClientMetadata = Pick<
   Client,
-  "client_type" | "year_end_date" | "vat_registered" | "vat_quarter" | "vat_scheme"
+  "client_type" | "year_end_date" | "vat_registered" | "vat_stagger_group" | "vat_scheme"
 >;
 
 // Bulk update fields (only fields that can be bulk-edited)
 export interface BulkUpdateFields {
   year_end_date?: string | null;
   vat_registered?: boolean;
-  vat_quarter?: "Jan-Mar" | "Apr-Jun" | "Jul-Sep" | "Oct-Dec" | null;
+  vat_stagger_group?: 1 | 2 | 3 | null;
 }
 
 /**
@@ -97,12 +97,12 @@ export async function updateClientMetadata(
 const bulkUpdateFieldsSchema = z.object({
   year_end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   vat_registered: z.boolean().optional(),
-  vat_quarter: z.enum(["Jan-Mar", "Apr-Jun", "Jul-Sep", "Oct-Dec"]).optional().nullable(),
+  vat_stagger_group: z.number().int().min(1).max(3).optional().nullable(),
 });
 
 /**
  * Bulk update multiple clients
- * Only allows updating: year_end_date, vat_registered, vat_quarter
+ * Only allows updating: year_end_date, vat_registered, vat_stagger_group
  * Client type must be set individually
  */
 export async function bulkUpdateClients(

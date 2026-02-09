@@ -8,7 +8,7 @@ const bulkUpdateRequestSchema = z.object({
   updates: z.object({
     year_end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
     vat_registered: z.boolean().optional(),
-    vat_quarter: z.enum(["Jan-Mar", "Apr-Jun", "Jul-Sep", "Oct-Dec"]).optional().nullable(),
+    vat_stagger_group: z.number().int().min(1).max(3).optional().nullable(),
   }),
 });
 

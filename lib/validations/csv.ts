@@ -20,10 +20,10 @@ export const csvRowSchema = z.object({
     .transform((val) =>
       val ? ["Yes", "yes", "TRUE", "true"].includes(val) : undefined
     ),
-  vat_quarter: z
-    .enum(["Jan-Mar", "Apr-Jun", "Jul-Sep", "Oct-Dec", ""])
+  vat_stagger_group: z
+    .enum(["1", "2", "3", ""])
     .optional()
-    .transform((val) => (val === "" ? undefined : val)),
+    .transform((val) => (val === "" || val === undefined ? undefined : parseInt(val))),
   vat_scheme: z
     .enum([
       "Standard",

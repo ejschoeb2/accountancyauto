@@ -6,8 +6,8 @@ import {
   calculateCompaniesHouseAccounts,
   calculateVATDeadline,
   calculateSelfAssessmentDeadline,
-  getVATQuarterEnds,
-  type VatQuarterEnum,
+  getNextQuarterEnd,
+  type VatStaggerGroup,
 } from "@/lib/deadlines/calculators";
 import type { FilingTypeId } from "@/lib/types/database";
 
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
           id,
           company_name,
           year_end_date,
-          vat_quarter
+          vat_stagger_group
         ),
         filing_types!inner (
           id,
@@ -141,12 +141,12 @@ export async function GET(request: Request) {
               break;
 
             case "vat_return":
-              if (client.vat_quarter) {
-                const quarterEnds = getVATQuarterEnds(
-                  client.vat_quarter as VatQuarterEnum,
-                  year
+              if (client.vat_stagger_group) {
+                const nextQuarterEnd = getNextQuarterEnd(
+                  client.vat_stagger_group as VatStaggerGroup,
+                  new Date(year, month - 2, 1) // Start searching from beginning of range
                 );
-                deadlineDate = calculateVATDeadline(quarterEnds[0]);
+                deadlineDate = calculateVATDeadline(nextQuarterEnd);
               }
               break;
 
