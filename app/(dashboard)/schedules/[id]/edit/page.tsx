@@ -35,8 +35,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { scheduleSchema, type ScheduleInput } from '@/lib/validations/schedule'
+import {
+  filingScheduleSchema,
+  customScheduleSchema,
+  type ScheduleInput,
+  type FilingScheduleInput,
+  type CustomScheduleInput,
+} from '@/lib/validations/schedule'
 import type { FilingType, FilingTypeId, EmailTemplate, Schedule, ScheduleStep } from '@/lib/types/database'
+
+type DateMode = 'one-off' | 'recurring'
 
 export default function EditSchedulePage() {
   const router = useRouter()
@@ -45,10 +53,16 @@ export default function EditSchedulePage() {
   const scheduleId = params.id as string
   const isNew = scheduleId === 'new'
 
+  // Determine schedule type from URL param (new schedules) or loaded data (existing)
+  const typeParam = searchParams.get('type')
+  const initialScheduleType = typeParam === 'custom' ? 'custom' : 'filing'
+
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [scheduleType, setScheduleType] = useState<'filing' | 'custom'>(initialScheduleType)
+  const [dateMode, setDateMode] = useState<DateMode>('one-off')
 
   const VALID_FILING_TYPE_IDS: FilingTypeId[] = [
     'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return', 'self_assessment',
@@ -63,15 +77,34 @@ export default function EditSchedulePage() {
   const [filingTypes, setFilingTypes] = useState<FilingType[]>([])
   const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string }>>([])
 
+  // Use separate schemas based on schedule type
+  const currentSchema = scheduleType === 'custom' ? customScheduleSchema : filingScheduleSchema
+
   const form = useForm<ScheduleInput>({
-    resolver: zodResolver(scheduleSchema),
-    defaultValues: {
-      filing_type_id: defaultFilingTypeId,
-      name: '',
-      description: '',
-      steps: [],
-      is_active: true,
-    },
+    resolver: zodResolver(currentSchema),
+    defaultValues: scheduleType === 'custom'
+      ? {
+          schedule_type: 'custom' as const,
+          name: '',
+          description: '',
+          steps: [],
+          is_active: true,
+          filing_type_id: null,
+          custom_date: null,
+          recurrence_rule: null,
+          recurrence_anchor: null,
+        }
+      : {
+          schedule_type: 'filing' as const,
+          filing_type_id: defaultFilingTypeId,
+          name: '',
+          description: '',
+          steps: [],
+          is_active: true,
+          custom_date: null,
+          recurrence_rule: null,
+          recurrence_anchor: null,
+        },
   })
 
   // Load reference data and existing schedule
@@ -110,17 +143,51 @@ export default function EditSchedulePage() {
 
           const scheduleData: Schedule & { steps: ScheduleStep[] } = await scheduleResponse.json()
 
+          // Determine schedule type from loaded data
+          const loadedType = scheduleData.schedule_type || 'filing'
+          setScheduleType(loadedType)
+
+          // Determine date mode for custom schedules
+          if (loadedType === 'custom') {
+            if (scheduleData.recurrence_rule) {
+              setDateMode('recurring')
+            } else {
+              setDateMode('one-off')
+            }
+          }
+
           // Map schedule data to form format
-          form.reset({
-            filing_type_id: scheduleData.filing_type_id,
-            name: scheduleData.name,
-            description: scheduleData.description || '',
-            is_active: scheduleData.is_active,
-            steps: scheduleData.steps.map(step => ({
-              email_template_id: step.email_template_id,
-              delay_days: step.delay_days,
-            })),
-          })
+          if (loadedType === 'custom') {
+            form.reset({
+              schedule_type: 'custom' as const,
+              filing_type_id: null,
+              name: scheduleData.name,
+              description: scheduleData.description || '',
+              is_active: scheduleData.is_active,
+              custom_date: scheduleData.custom_date || null,
+              recurrence_rule: scheduleData.recurrence_rule || null,
+              recurrence_anchor: scheduleData.recurrence_anchor || null,
+              steps: scheduleData.steps.map(step => ({
+                email_template_id: step.email_template_id,
+                delay_days: step.delay_days,
+              })),
+            } as CustomScheduleInput)
+          } else {
+            form.reset({
+              schedule_type: 'filing' as const,
+              filing_type_id: scheduleData.filing_type_id!,
+              name: scheduleData.name,
+              description: scheduleData.description || '',
+              is_active: scheduleData.is_active,
+              custom_date: null,
+              recurrence_rule: null,
+              recurrence_anchor: null,
+              steps: scheduleData.steps.map(step => ({
+                email_template_id: step.email_template_id,
+                delay_days: step.delay_days,
+              })),
+            } as FilingScheduleInput)
+          }
         }
 
         setLoading(false)
@@ -192,7 +259,11 @@ export default function EditSchedulePage() {
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
       {/* Page header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-foreground">{isNew ? 'Create Schedule' : 'Edit Schedule'}</h1>
+        <h1 className="text-foreground">
+          {isNew
+            ? (scheduleType === 'custom' ? 'Create Custom Schedule' : 'Create Schedule')
+            : 'Edit Schedule'}
+        </h1>
         <div className="flex items-center gap-2">
           <IconButtonWithText
             type="button"
@@ -226,41 +297,143 @@ export default function EditSchedulePage() {
         </div>
       </div>
 
+      {/* Hidden schedule_type field */}
+      <input type="hidden" {...form.register('schedule_type')} />
+
       {/* Basic Information */}
       <Card>
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="filing_type_id">Filing Type</Label>
-          <Select
-            value={form.watch('filing_type_id')}
-            onValueChange={(value) => form.setValue('filing_type_id', value as ScheduleInput['filing_type_id'])}
-          >
-            <SelectTrigger id="filing_type_id">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {filingTypes.map((filingType) => (
-                <SelectItem key={filingType.id} value={filingType.id}>
-                  {filingType.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {form.formState.errors.filing_type_id && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.filing_type_id.message}
-            </p>
+          {/* Schedule Type indicator (read-only for existing schedules) */}
+          {!isNew && (
+            <div className="space-y-2">
+              <Label>Schedule Type</Label>
+              <p className="text-sm text-muted-foreground">
+                {scheduleType === 'custom' ? 'Custom Schedule' : 'Filing Schedule'}
+                {' '}&mdash; type cannot be changed after creation.
+              </p>
+            </div>
           )}
-        </div>
+
+          {/* Filing Type dropdown - only for filing schedules */}
+          {scheduleType === 'filing' && (
+            <div className="space-y-2">
+              <Label htmlFor="filing_type_id">Filing Type</Label>
+              <Select
+                value={form.watch('filing_type_id') as string ?? ''}
+                onValueChange={(value) => form.setValue('filing_type_id', value as FilingTypeId)}
+                disabled={!isNew}
+              >
+                <SelectTrigger id="filing_type_id">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {filingTypes.map((filingType) => (
+                    <SelectItem key={filingType.id} value={filingType.id}>
+                      {filingType.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!isNew && (
+                <p className="text-sm text-muted-foreground">
+                  Filing type cannot be changed after creation.
+                </p>
+              )}
+              {form.formState.errors.filing_type_id && (
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.filing_type_id.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Custom schedule date configuration */}
+          {scheduleType === 'custom' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Date Configuration</Label>
+                <Select
+                  value={dateMode}
+                  onValueChange={(value: DateMode) => {
+                    setDateMode(value)
+                    if (value === 'one-off') {
+                      form.setValue('recurrence_rule', null)
+                      form.setValue('recurrence_anchor', null)
+                    } else {
+                      form.setValue('custom_date', null)
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="one-off">One-off date</SelectItem>
+                    <SelectItem value="recurring">Recurring</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {dateMode === 'one-off' ? (
+                <div className="space-y-2">
+                  <Label htmlFor="custom_date">Target Date</Label>
+                  <Input
+                    id="custom_date"
+                    type="date"
+                    className="hover:border-foreground/20"
+                    value={form.watch('custom_date') || ''}
+                    onChange={(e) => form.setValue('custom_date', e.target.value || null)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Reminders will be scheduled relative to this date.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="recurrence_rule">Recurrence</Label>
+                    <Select
+                      value={form.watch('recurrence_rule') || ''}
+                      onValueChange={(value) => form.setValue('recurrence_rule', value as 'monthly' | 'quarterly' | 'annually')}
+                    >
+                      <SelectTrigger id="recurrence_rule">
+                        <SelectValue placeholder="Select frequency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                        <SelectItem value="quarterly">Quarterly</SelectItem>
+                        <SelectItem value="annually">Annually</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="recurrence_anchor">Anchor Date</Label>
+                    <Input
+                      id="recurrence_anchor"
+                      type="date"
+                      className="hover:border-foreground/20"
+                      value={form.watch('recurrence_anchor') || ''}
+                      onChange={(e) => form.setValue('recurrence_anchor', e.target.value || null)}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      The base date from which recurrence is calculated.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
         <div className="space-y-2">
           <Label htmlFor="name">Schedule Name</Label>
           <Input
             id="name"
-            placeholder="e.g., Standard Corporation Tax Reminders"
+            placeholder={scheduleType === 'custom'
+              ? "e.g., Monthly Payroll Reminder"
+              : "e.g., Standard Corporation Tax Reminders"}
             className="hover:border-foreground/20"
             {...form.register('name')}
           />

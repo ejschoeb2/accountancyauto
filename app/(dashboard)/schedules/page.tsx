@@ -1,6 +1,10 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { FilingTypeList, type ScheduleWithSteps, type StepDisplay } from './components/filing-type-list'
+import { CustomScheduleList, type CustomScheduleDisplay } from './components/custom-schedule-list'
 import { DEADLINE_DESCRIPTIONS } from '@/lib/deadlines/descriptions'
+import { Button } from '@/components/ui/button'
+import { Icon } from '@/components/ui/icon'
 import type { EmailTemplate, FilingType, Schedule, ScheduleStep } from '@/lib/types/database'
 
 export default async function SchedulesPage() {
@@ -48,20 +52,39 @@ export default async function SchedulesPage() {
     {}
   ) ?? {}
 
-  // Build scheduleMap: filing_type_id -> ScheduleWithSteps | null
+  // Separate filing and custom schedules
+  const allSchedules = (schedules as Schedule[] | null) ?? []
+  const filingSchedules = allSchedules.filter(s => s.schedule_type !== 'custom')
+  const customSchedules = allSchedules.filter(s => s.schedule_type === 'custom')
+
+  // Build scheduleMap: filing_type_id -> ScheduleWithSteps | null (only filing schedules)
   const scheduleMap: Record<string, ScheduleWithSteps | null> = {}
   for (const ft of (filingTypes as FilingType[] | null) ?? []) {
     scheduleMap[ft.id] = null
   }
-  for (const s of (schedules as Schedule[] | null) ?? []) {
-    scheduleMap[s.filing_type_id] = {
-      id: s.id,
-      name: s.name,
-      description: s.description,
-      is_active: s.is_active,
-      steps: stepsBySchedule[s.id] ?? [],
+  for (const s of filingSchedules) {
+    if (s.filing_type_id) {
+      scheduleMap[s.filing_type_id] = {
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        is_active: s.is_active,
+        steps: stepsBySchedule[s.id] ?? [],
+      }
     }
   }
+
+  // Build custom schedule display data
+  const customScheduleDisplays: CustomScheduleDisplay[] = customSchedules.map(s => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    is_active: s.is_active,
+    custom_date: s.custom_date,
+    recurrence_rule: s.recurrence_rule,
+    recurrence_anchor: s.recurrence_anchor,
+    steps: stepsBySchedule[s.id] ?? [],
+  }))
 
   return (
     <div className="space-y-8">
@@ -78,6 +101,25 @@ export default async function SchedulesPage() {
         scheduleMap={scheduleMap}
         deadlineDescriptions={DEADLINE_DESCRIPTIONS}
       />
+
+      {/* Custom Schedules section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2>Custom Schedules</h2>
+            <p className="text-muted-foreground text-sm">
+              Reminders for anything beyond HMRC filing types
+            </p>
+          </div>
+          <Link href="/schedules/new/edit?type=custom">
+            <Button variant="outline">
+              <Icon name="add" size="sm" className="mr-1.5" />
+              Create Custom Schedule
+            </Button>
+          </Link>
+        </div>
+        <CustomScheduleList schedules={customScheduleDisplays} />
+      </div>
     </div>
   )
 }
