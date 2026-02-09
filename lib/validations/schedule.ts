@@ -4,7 +4,10 @@ import { z } from "zod";
  * Schema for a single schedule step
  */
 export const scheduleStepSchema = z.object({
-  email_template_id: z.string().uuid("Invalid email template ID"),
+  email_template_id: z.string().refine(
+    (val) => val === "" || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val),
+    "Email template is required and must be a valid ID"
+  ),
   delay_days: z.number().int().min(1).max(365),
 });
 
