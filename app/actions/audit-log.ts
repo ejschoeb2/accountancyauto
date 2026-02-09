@@ -107,3 +107,130 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     totalCount: count || 0,
   };
 }
+
+// Queued reminder types
+export interface QueuedReminder {
+  id: string;
+  client_id: string;
+  client_name: string;
+  filing_type_id: string | null;
+  filing_type_name: string | null;
+  template_id: string | null;
+  template_name: string | null;
+  send_date: string;
+  deadline_date: string;
+  status: 'scheduled' | 'pending' | 'sent' | 'cancelled' | 'failed';
+  subject: string | null;
+  step_index: number;
+  created_at: string;
+}
+
+export interface QueuedRemindersParams {
+  clientSearch?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  clientId?: string;
+  statusFilter?: string;
+  offset: number;
+  limit: number;
+}
+
+export interface QueuedRemindersResult {
+  data: QueuedReminder[];
+  totalCount: number;
+}
+
+export async function getQueuedReminders(params: QueuedRemindersParams): Promise<QueuedRemindersResult> {
+  const supabase = await createClient();
+  const { clientSearch, dateFrom, dateTo, clientId, statusFilter, offset, limit } = params;
+
+  // Fetch filing types lookup (small reference table)
+  const { data: filingTypes } = await supabase
+    .from('filing_types')
+    .select('id, name');
+  const filingTypeMap = new Map(
+    (filingTypes || []).map((ft: { id: string; name: string }) => [ft.id, ft.name])
+  );
+
+  // Fetch schedules lookup (small reference table) - schedules replaced reminder_templates
+  const { data: schedules } = await supabase
+    .from('schedules')
+    .select('id, filing_type_id, name');
+  const scheduleMap = new Map(
+    (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
+  );
+
+  // Build the query
+  let query = supabase
+    .from('reminder_queue')
+    .select(`
+      id,
+      client_id,
+      filing_type_id,
+      template_id,
+      send_date,
+      deadline_date,
+      status,
+      resolved_subject,
+      step_index,
+      created_at,
+      clients!inner(company_name)
+    `, { count: 'exact' });
+
+  // Apply filters
+  if (clientId) {
+    query = query.eq('client_id', clientId);
+  }
+
+  if (clientSearch) {
+    query = query.ilike('clients.company_name', `%${clientSearch}%`);
+  }
+
+  if (dateFrom) {
+    query = query.gte('send_date', dateFrom);
+  }
+
+  if (dateTo) {
+    query = query.lte('send_date', dateTo);
+  }
+
+  if (statusFilter && statusFilter !== 'all') {
+    query = query.eq('status', statusFilter);
+  }
+
+  // Sort by send_date ASC (next emails to send first)
+  query = query.order('send_date', { ascending: true });
+
+  // Apply pagination
+  query = query.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error('Error fetching queued reminders:', error);
+    throw error;
+  }
+
+  // Transform the data
+  const reminders: QueuedReminder[] = (data || []).map((row: any) => ({
+    id: row.id,
+    client_id: row.client_id,
+    client_name: row.clients?.company_name || 'Unknown',
+    filing_type_id: row.filing_type_id,
+    filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
+    template_id: row.template_id,
+    // Use schedule name based on filing_type_id (schedules replaced reminder_templates)
+    template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
+    send_date: row.send_date,
+    deadline_date: row.deadline_date,
+    status: row.status,
+    subject: row.resolved_subject,
+    step_index: row.step_index,
+    created_at: row.created_at,
+  }));
+
+  return {
+    data: reminders,
+    totalCount: count || 0,
+  };
+}

@@ -10,6 +10,7 @@ import {
   CardTitle,
   CardContent,
 } from '@/components/ui/card';
+import { PageLoadingProvider } from '@/components/page-loading';
 import { FilingAssignments } from './components/filing-assignments';
 import { RecordsReceived } from './components/records-received';
 import { ClientAuditLog } from './components/client-audit-log';
@@ -35,6 +36,7 @@ export default async function ClientPage({ params }: ClientPageProps) {
 
 
   return (
+    <PageLoadingProvider>
     <div className="space-y-6">
       {/* Back link */}
       <div>
@@ -60,11 +62,6 @@ export default async function ClientPage({ params }: ClientPageProps) {
               {client.reminders_paused && (
                 <Badge variant="outline" className="border-status-warning text-status-warning">
                   Reminders Paused
-                </Badge>
-              )}
-              {client.has_overrides && (
-                <Badge variant="outline" className="border-accent text-accent">
-                  Has Overrides
                 </Badge>
               )}
             </div>
@@ -151,5 +148,6 @@ export default async function ClientPage({ params }: ClientPageProps) {
         </CardContent>
       </Card>
     </div>
+    </PageLoadingProvider>
   );
 }

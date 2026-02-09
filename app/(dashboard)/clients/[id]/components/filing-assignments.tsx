@@ -6,7 +6,7 @@ import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LoadingIndicator } from '@/components/loading-indicator';
+import { usePageLoading } from '@/components/page-loading';
 import {
   Card,
   CardHeader,
@@ -33,6 +33,8 @@ interface FilingAssignmentsProps {
 export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
   const [filings, setFilings] = useState<FilingAssignment[]>([]);
   const [loading, setLoading] = useState(true);
+
+  usePageLoading('filing-assignments', loading);
   const [overrideForms, setOverrideForms] = useState<Record<string, boolean>>({});
   const [overrideData, setOverrideData] = useState<Record<string, { date: string; reason: string }>>({});
 
@@ -170,7 +172,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
           <CardTitle>Filing Types & Deadlines</CardTitle>
         </CardHeader>
         <CardContent>
-          <LoadingIndicator size={32} />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </CardContent>
       </Card>
     );

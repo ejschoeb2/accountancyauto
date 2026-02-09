@@ -32,13 +32,36 @@ export interface ScheduleWithSteps {
   steps: StepDisplay[]
 }
 
+export interface CustomScheduleDisplay {
+  id: string
+  name: string
+  description: string | null
+  is_active: boolean
+  custom_date: string | null
+  recurrence_rule: string | null
+  recurrence_anchor: string | null
+  steps: StepDisplay[]
+}
+
+function formatDateInfo(schedule: CustomScheduleDisplay): string {
+  if (schedule.custom_date) {
+    return `Target: ${schedule.custom_date}`
+  }
+  if (schedule.recurrence_rule && schedule.recurrence_anchor) {
+    const ruleLabel = schedule.recurrence_rule.charAt(0).toUpperCase() + schedule.recurrence_rule.slice(1)
+    return `Recurs: ${ruleLabel} from ${schedule.recurrence_anchor}`
+  }
+  return 'No date configured'
+}
+
 interface FilingTypeListProps {
   filingTypes: FilingType[]
   scheduleMap: Record<string, ScheduleWithSteps | null>
   deadlineDescriptions: Record<FilingTypeId, string>
+  customSchedules: CustomScheduleDisplay[]
 }
 
-export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions }: FilingTypeListProps) {
+export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions, customSchedules }: FilingTypeListProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -82,7 +105,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1 min-w-0">
-                    <CardTitle className="truncate">{ft.name}</CardTitle>
+                    <CardTitle className="truncate text-lg">{ft.name}</CardTitle>
                     {ft.description && (
                       <CardDescription>{ft.description}</CardDescription>
                     )}
@@ -126,9 +149,9 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
               {/* Client types & deadline rule */}
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-muted-foreground">Applies to:</span>
+                  <span className="text-foreground">Applies to:</span>
                   {ft.applicable_client_types.map((type) => (
-                    <Badge key={type} variant="secondary" className="font-normal">
+                    <Badge key={type} variant="secondary" className="font-normal bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-md px-3 py-1.5 text-sm">
                       {type}
                     </Badge>
                   ))}
@@ -144,11 +167,8 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
               {/* Schedule section */}
               {schedule ? (
                 <div className="space-y-3 flex-1 flex flex-col">
-                  <p className="text-sm font-medium">
-                    {schedule.name}{' '}
-                    <span className="text-muted-foreground font-normal">
-                      ({schedule.steps.length} {schedule.steps.length === 1 ? 'step' : 'steps'})
-                    </span>
+                  <p className="text-base font-bold">
+                    Schedule:
                   </p>
                   {schedule.steps.length > 0 && (
                     <ol className="space-y-1.5 text-sm">
@@ -188,6 +208,88 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions 
           </Link>
         )
       })}
+
+      {/* Custom schedule cards */}
+      {customSchedules.map((schedule) => (
+        <Link key={schedule.id} href={`/schedules/${schedule.id}/edit`}>
+          <Card className="cursor-pointer h-full flex flex-col">
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1 min-w-0">
+                  <CardTitle className="truncate text-lg">{schedule.name}</CardTitle>
+                  {schedule.description && (
+                    <CardDescription>{schedule.description}</CardDescription>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="px-3 py-2 rounded-md inline-flex items-center bg-violet-500/10">
+                    <span className="text-sm font-medium text-violet-500">Custom</span>
+                  </div>
+                  <div className={`px-3 py-2 rounded-md inline-flex items-center ${
+                    schedule.is_active
+                      ? 'bg-status-success/10'
+                      : 'bg-status-neutral/10'
+                  }`}>
+                    <span className={`text-sm font-medium ${
+                      schedule.is_active
+                        ? 'text-status-success'
+                        : 'text-status-neutral'
+                    }`}>
+                      {schedule.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleDelete(schedule.id, schedule.name)
+                    }}
+                    disabled={deletingId === schedule.id}
+                    className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4 flex-1 flex flex-col">
+              {/* Date info */}
+              <div className="text-sm text-muted-foreground">
+                {formatDateInfo(schedule)}
+              </div>
+
+              <hr />
+
+              {/* Steps section */}
+              {schedule.steps.length > 0 ? (
+                <div className="space-y-3 flex-1 flex flex-col">
+                  <p className="text-base font-bold">Schedule:</p>
+                  <ol className="space-y-1.5 text-sm">
+                    {schedule.steps.map((step) => (
+                      <li key={step.step_number} className="flex items-center gap-2">
+                        <span className="text-muted-foreground w-5 text-right shrink-0">
+                          {step.step_number}.
+                        </span>
+                        <span className="truncate">{step.template_name}</span>
+                        <span className="text-muted-foreground shrink-0">
+                          &mdash; {step.delay_days}d before
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : (
+                <div className="text-center flex-1 flex items-center justify-center">
+                  <p className="text-sm text-muted-foreground">No steps configured</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+      ))}
     </div>
   )
 }

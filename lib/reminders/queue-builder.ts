@@ -161,6 +161,15 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
     deadlineOverrideMap.get(override.client_id)!.set(override.filing_type_id, override);
   });
 
+  // Fetch schedule-level client exclusions
+  const { data: exclusionsData } = await supabase
+    .from('schedule_client_exclusions')
+    .select('schedule_id, client_id');
+
+  const exclusionSet = new Set(
+    (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
+  );
+
   // Process each client + filing type pair
   for (const assignment of assignments) {
     const client = assignment.clients as Client;
@@ -207,6 +216,12 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
         client_id: client.id,
         filing_type_id: filingTypeId,
       });
+      skipped++;
+      continue;
+    }
+
+    // Skip if client is excluded from this schedule
+    if (exclusionSet.has(`${schedule.id}:${client.id}`)) {
       skipped++;
       continue;
     }
@@ -349,7 +364,16 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
 
   const holidays = await getUKBankHolidaySet();
 
-  // 4. Process each custom schedule x client
+  // 4. Fetch schedule-level client exclusions
+  const { data: exclusionsData } = await supabase
+    .from('schedule_client_exclusions')
+    .select('schedule_id, client_id');
+
+  const exclusionSet = new Set(
+    (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
+  );
+
+  // 5. Process each custom schedule x client
   for (const schedule of customSchedules) {
     const targetDate = getNextCustomDate({
       custom_date: schedule.custom_date,
@@ -377,6 +401,12 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
     const deadlineDateStr = format(targetDate, 'yyyy-MM-dd');
 
     for (const client of clients) {
+      // Skip if client is excluded from this schedule
+      if (exclusionSet.has(`${schedule.id}:${client.id}`)) {
+        skipped++;
+        continue;
+      }
+
       for (const step of steps) {
         let sendDate = subDays(new UTCDate(targetDate), step.delay_days);
         sendDate = new UTCDate(getNextWorkingDay(sendDate, holidays));
@@ -536,6 +566,16 @@ export async function rebuildQueueForClient(
     deadlineOverrideMap.set(override.filing_type_id, override);
   });
 
+  // Fetch exclusions for this client
+  const { data: clientExclusions } = await supabase
+    .from('schedule_client_exclusions')
+    .select('schedule_id')
+    .eq('client_id', clientId);
+
+  const excludedScheduleIds = new Set(
+    (clientExclusions || []).map(e => e.schedule_id)
+  );
+
   // Process each assignment (filing schedules)
   for (const assignment of assignments) {
     const filingTypeId = assignment.filing_type_id;
@@ -575,6 +615,11 @@ export async function rebuildQueueForClient(
         client_id: clientId,
         filing_type_id: filingTypeId,
       });
+      continue;
+    }
+
+    // Skip if client is excluded from this schedule
+    if (excludedScheduleIds.has(schedule.id)) {
       continue;
     }
 
@@ -625,6 +670,9 @@ export async function rebuildQueueForClient(
     );
 
     for (const schedule of customSchedules) {
+      // Skip if client is excluded from this schedule
+      if (excludedScheduleIds.has(schedule.id)) continue;
+
       const targetDate = getNextCustomDate({
         custom_date: schedule.custom_date,
         recurrence_rule: schedule.recurrence_rule,

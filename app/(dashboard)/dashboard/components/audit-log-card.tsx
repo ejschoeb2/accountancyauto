@@ -2,24 +2,41 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Mail } from 'lucide-react';
-import { LoadingIndicator } from '@/components/loading-indicator';
+import { usePageLoading } from '@/components/page-loading';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { getAuditLog } from '@/app/actions/audit-log';
 import type { AuditEntry } from '@/app/actions/audit-log';
 
-const statusVariant = {
-  delivered: 'default',
-  sent: 'secondary',
-  bounced: 'outline',
-  failed: 'destructive',
+const statusConfig = {
+  delivered: {
+    label: 'Delivered',
+    bg: 'bg-status-success/10',
+    text: 'text-status-success',
+  },
+  sent: {
+    label: 'Sent',
+    bg: 'bg-blue-500/10',
+    text: 'text-blue-500',
+  },
+  bounced: {
+    label: 'Bounced',
+    bg: 'bg-status-warning/10',
+    text: 'text-status-warning',
+  },
+  failed: {
+    label: 'Failed',
+    bg: 'bg-status-danger/10',
+    text: 'text-status-danger',
+  },
 } as const;
 
 export function AuditLogCard() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  usePageLoading('audit-log-card', loading);
 
   useEffect(() => {
     getAuditLog({ offset: 0, limit: 8 })
@@ -42,8 +59,8 @@ export function AuditLogCard() {
         </div>
         <div className="-mx-5">
           {loading ? (
-            <div className="py-8 px-5">
-              <LoadingIndicator size={32} />
+            <div className="py-8 px-5 text-center text-muted-foreground text-sm">
+              Loading...
             </div>
           ) : entries.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8 px-5">
@@ -54,20 +71,22 @@ export function AuditLogCard() {
               {entries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center justify-between px-5 py-3 border-t first:border-t-0"
+                  className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {format(new Date(entry.sent_at), 'dd MMM')}
-                    </span>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status].bg} inline-flex items-center shrink-0`}>
+                      <span className={`text-sm font-medium ${statusConfig[entry.delivery_status].text}`}>
+                        {statusConfig[entry.delivery_status].label}
+                      </span>
+                    </div>
                     <span className="font-medium text-sm truncate">
                       {entry.client_name}
                     </span>
                   </div>
-                  <div className="shrink-0">
-                    <Badge variant={statusVariant[entry.delivery_status]}>
-                      {entry.delivery_status}
-                    </Badge>
+                  <div className="flex items-center gap-2 shrink-0 text-sm text-muted-foreground">
+                    <span>
+                      {format(new Date(entry.sent_at), 'dd MMM')}
+                    </span>
                   </div>
                 </div>
               ))}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ButtonBase } from '@/components/ui/button-base';
 import { usePageLoading } from '@/components/page-loading';
 import {
   Select,
@@ -160,23 +161,42 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'delivered':
-        return 'default';
-      case 'sent':
-        return 'secondary';
-      case 'bounced':
-        return 'outline';
-      case 'failed':
-      case 'cancelled':
-        return 'destructive';
-      case 'scheduled':
-      case 'pending':
-        return 'secondary';
-      default:
-        return 'secondary';
-    }
+  const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+    delivered: {
+      label: 'Delivered',
+      bg: 'bg-status-success/10',
+      text: 'text-status-success',
+    },
+    sent: {
+      label: 'Sent',
+      bg: 'bg-blue-500/10',
+      text: 'text-blue-500',
+    },
+    bounced: {
+      label: 'Bounced',
+      bg: 'bg-status-warning/10',
+      text: 'text-status-warning',
+    },
+    failed: {
+      label: 'Failed',
+      bg: 'bg-status-danger/10',
+      text: 'text-status-danger',
+    },
+    cancelled: {
+      label: 'Cancelled',
+      bg: 'bg-status-danger/10',
+      text: 'text-status-danger',
+    },
+    scheduled: {
+      label: 'Scheduled',
+      bg: 'bg-blue-500/10',
+      text: 'text-blue-500',
+    },
+    pending: {
+      label: 'Pending',
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-600',
+    },
   };
 
   // Step badge styling - button-base text-only style for all steps
@@ -399,20 +419,28 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                   <TableCell>{formatDate(entry.sent_at)}</TableCell>
                   <TableCell>
                     {entry.send_type === 'ad-hoc' ? (
-                      <Badge variant="outline" className="border-accent text-accent">
-                        ad-hoc
-                      </Badge>
+                      <div className="px-3 py-2 rounded-md bg-violet-500/10 inline-flex items-center">
+                        <span className="text-sm font-medium text-violet-500">
+                          Ad-hoc
+                        </span>
+                      </div>
                     ) : (
-                      <span className="text-muted-foreground">scheduled</span>
+                      <div className="px-3 py-2 rounded-md bg-blue-500/10 inline-flex items-center">
+                        <span className="text-sm font-medium text-blue-500">
+                          Scheduled
+                        </span>
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{entry.client_name}</TableCell>
                   <TableCell>{entry.filing_type_name || '-'}</TableCell>
                   <TableCell className="max-w-[200px] truncate">{entry.subject || '-'}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(entry.delivery_status)}>
-                      {entry.delivery_status}
-                    </Badge>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
+                      <span className={`text-sm font-medium ${statusConfig[entry.delivery_status]?.text || 'text-gray-500'}`}>
+                        {statusConfig[entry.delivery_status]?.label || entry.delivery_status}
+                      </span>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -442,22 +470,22 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
           Page {currentPage} of {totalPages || 1}
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+          <ButtonBase
+            variant="muted"
+            buttonType="text-only"
             onClick={() => setCurrentPage((p) => p - 1)}
             disabled={!hasPrevPage || loading}
           >
             Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </ButtonBase>
+          <ButtonBase
+            variant="muted"
+            buttonType="text-only"
             onClick={() => setCurrentPage((p) => p + 1)}
             disabled={!hasNextPage || loading}
           >
             Next
-          </Button>
+          </ButtonBase>
         </div>
       </div>
     </div>

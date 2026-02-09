@@ -1,6 +1,5 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
 
 interface TrafficLightBadgeProps {
@@ -9,23 +8,27 @@ interface TrafficLightBadgeProps {
 
 const STATUS_CONFIG: Record<
   TrafficLightStatus,
-  { label: string; className: string }
+  { label: string; bg: string; text: string }
 > = {
   green: {
     label: 'On Track',
-    className: 'bg-status-success text-white hover:bg-status-success font-sans',
+    bg: 'bg-status-success/10',
+    text: 'text-status-success',
   },
   amber: {
     label: 'Chasing',
-    className: 'bg-status-warning text-white hover:bg-status-warning font-sans',
+    bg: 'bg-status-warning/10',
+    text: 'text-status-warning',
   },
   red: {
     label: 'Overdue',
-    className: 'bg-status-danger text-white hover:bg-status-danger font-sans',
+    bg: 'bg-status-danger/10',
+    text: 'text-status-danger',
   },
   grey: {
     label: 'Inactive',
-    className: 'bg-status-neutral/20 text-status-neutral hover:bg-status-neutral/20 font-sans',
+    bg: 'bg-status-neutral/10',
+    text: 'text-status-neutral',
   },
 };
 
@@ -33,11 +36,10 @@ export function TrafficLightBadge({ status }: TrafficLightBadgeProps) {
   const config = STATUS_CONFIG[status];
 
   return (
-    <Badge
-      className={config.className}
-      aria-label={`Status: ${config.label}`}
-    >
-      {config.label}
-    </Badge>
+    <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center`}>
+      <span className={`text-sm font-medium ${config.text}`}>
+        {config.label}
+      </span>
+    </div>
   );
 }

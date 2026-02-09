@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { Loader2, Check, X } from "lucide-react";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { CheckButton } from "@/components/ui/check-button";
 import { Badge } from "@/components/ui/badge";
+import { ButtonBase } from "@/components/ui/button-base";
 import { cn } from "@/lib/utils";
 
 interface EditableCellProps {
@@ -23,6 +24,7 @@ interface EditableCellProps {
   type: "text" | "date" | "select" | "boolean";
   options?: { value: string; label: string }[];
   disabled?: boolean;
+  isEditMode?: boolean;
 }
 
 export function EditableCell({
@@ -31,11 +33,16 @@ export function EditableCell({
   type,
   options = [],
   disabled = false,
+  isEditMode = false,
 }: EditableCellProps) {
-  const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState<unknown>(value);
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync editValue with value when entering/exiting edit mode
+  useEffect(() => {
+    setEditValue(value);
+  }, [value, isEditMode]);
 
   // Format date for display (UK format: DD MMM YYYY)
   const formatDateDisplay = (dateValue: unknown): string => {
@@ -57,24 +64,15 @@ export function EditableCell({
     }
   };
 
-  // Start editing
-  const handleStartEdit = useCallback(() => {
-    if (disabled) return;
-    setIsEditing(true);
-    setEditValue(value);
-  }, [disabled, value]);
-
   // Save the value
   const handleSave = useCallback(async () => {
     if (editValue === value) {
-      setIsEditing(false);
       return;
     }
 
     setIsSaving(true);
     try {
       await onSave(editValue);
-      setIsEditing(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to save";
       toast.error(message);
@@ -84,36 +82,9 @@ export function EditableCell({
     }
   }, [editValue, value, onSave]);
 
-  // Cancel editing
-  const handleCancel = useCallback(() => {
-    setEditValue(value);
-    setIsEditing(false);
-  }, [value]);
 
-  // Handle key press
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        handleSave();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        handleCancel();
-      }
-    },
-    [handleSave, handleCancel]
-  );
-
-  // Handle blur for text/date inputs
-  const handleBlur = useCallback(() => {
-    // Small delay to allow click events on selects to fire first
-    setTimeout(() => {
-      handleSave();
-    }, 150);
-  }, [handleSave]);
-
-  // Display mode
-  if (!isEditing) {
+  // Display mode (when not in edit mode)
+  if (!isEditMode) {
     const displayValue = (() => {
       if (value === null || value === undefined || value === "") {
         return <span className="text-muted-foreground">—</span>;
@@ -124,13 +95,25 @@ export function EditableCell({
           return formatDateDisplay(value);
         case "boolean":
           return value ? (
-            <div className="size-8 rounded-lg bg-status-success/10 flex items-center justify-center">
-              <Check className="size-5 text-status-success" />
-            </div>
+            <ButtonBase
+              type="button"
+              buttonType="icon-text"
+              className="pointer-events-none bg-status-success/10 text-status-success hover:text-status-success"
+            >
+              <Check className="h-4 w-4" />
+              Yes
+            </ButtonBase>
           ) : (
-            <div className="size-8 rounded-lg bg-status-neutral/10 flex items-center justify-center">
-              <X className="size-5 text-status-neutral" />
-            </div>
+            <ButtonBase
+              type="button"
+              variant="red"
+              buttonType="icon-text"
+              isSelected={true}
+              className="pointer-events-none opacity-100"
+            >
+              <X className="h-4 w-4" />
+              No
+            </ButtonBase>
           );
         case "select":
           const option = options.find((opt) => opt.value === value);
@@ -140,21 +123,7 @@ export function EditableCell({
       }
     })();
 
-    return (
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          handleStartEdit();
-        }}
-        className={cn(
-          "cursor-pointer rounded px-2 py-1 -mx-2 -my-1 transition-colors",
-          !disabled && "hover:bg-muted/50",
-          disabled && "cursor-default"
-        )}
-      >
-        {displayValue}
-      </div>
-    );
+    return <div>{displayValue}</div>;
   }
 
   // Edit mode
@@ -171,9 +140,10 @@ export function EditableCell({
           ref={inputRef}
           type="text"
           value={String(editValue || "")}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
+          onChange={(e) => {
+            setEditValue(e.target.value);
+          }}
+          onBlur={() => handleSave()}
           disabled={isSaving}
           className="h-8 min-w-[120px]"
           autoFocus
@@ -186,8 +156,7 @@ export function EditableCell({
           type="date"
           value={formatDateInput(editValue)}
           onChange={(e) => setEditValue(e.target.value || null)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
+          onBlur={() => handleSave()}
           disabled={isSaving}
           className="h-8 min-w-[140px]"
           autoFocus
@@ -206,7 +175,6 @@ export function EditableCell({
                 toast.error(message);
                 setEditValue(value);
               });
-              setIsEditing(false);
             }, 100);
           }}
           disabled={isSaving}
@@ -225,29 +193,48 @@ export function EditableCell({
       )}
 
       {type === "boolean" && (
-        <div className="flex items-center gap-2">
-          <CheckButton
-            checked={Boolean(editValue)}
-            onCheckedChange={(checked) => {
-              const newValue = checked === true;
-              setEditValue(newValue);
-              // Auto-save for checkbox
+        Boolean(editValue) ? (
+          <ButtonBase
+            type="button"
+            buttonType="icon-text"
+            onClick={() => {
+              setEditValue(false);
               setTimeout(() => {
-                onSave(newValue).catch((error) => {
+                onSave(false).catch((error) => {
                   const message = error instanceof Error ? error.message : "Failed to save";
                   toast.error(message);
                   setEditValue(value);
                 });
-                setIsEditing(false);
               }, 100);
             }}
             disabled={isSaving}
-            aria-label="Boolean value"
-          />
-          <span className="text-sm text-muted-foreground">
-            {editValue ? "Yes" : "No"}
-          </span>
-        </div>
+            className="bg-status-success/10 hover:bg-status-success/20 text-status-success hover:text-status-success"
+          >
+            <Check className="h-4 w-4" />
+            Yes
+          </ButtonBase>
+        ) : (
+          <ButtonBase
+            type="button"
+            variant="red"
+            buttonType="icon-text"
+            isSelected={true}
+            onClick={() => {
+              setEditValue(true);
+              setTimeout(() => {
+                onSave(true).catch((error) => {
+                  const message = error instanceof Error ? error.message : "Failed to save";
+                  toast.error(message);
+                  setEditValue(value);
+                });
+              }, 100);
+            }}
+            disabled={isSaving}
+          >
+            <X className="h-4 w-4" />
+            No
+          </ButtonBase>
+        )
       )}
     </div>
   );

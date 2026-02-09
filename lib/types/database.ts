@@ -130,6 +130,7 @@ export interface Schedule {
   custom_date: string | null;
   recurrence_rule: RecurrenceRule | null;
   recurrence_anchor: string | null;
+  send_hour: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -161,6 +162,16 @@ export interface ClientScheduleOverride {
   is_skipped: boolean;
   created_at: string;
   updated_at: string;
+}
+
+// ============================================================================
+// Schedule Client Exclusions
+// ============================================================================
+
+export interface ScheduleClientExclusion {
+  schedule_id: string;
+  client_id: string;
+  created_at: string;
 }
 
 // ============================================================================

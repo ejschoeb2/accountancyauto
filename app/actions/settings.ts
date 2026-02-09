@@ -31,6 +31,32 @@ export async function updateSendHour(hour: number): Promise<{ error?: string }> 
   return {};
 }
 
+// --- Setup Mode ---
+
+export type SetupMode = "demo" | "real";
+
+export async function getSetupMode(): Promise<SetupMode | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "setup_mode")
+    .single();
+
+  if (!data) return null;
+  return data.value as SetupMode;
+}
+
+export async function updateSetupMode(mode: SetupMode): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert({ key: "setup_mode", value: mode }, { onConflict: "key" });
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 // --- Email Settings ---
 
 export interface EmailSettings {

@@ -17,9 +17,7 @@ export interface Client {
   year_end_date: string | null; // ISO date string (YYYY-MM-DD)
   vat_registered: boolean;
   vat_stagger_group: 1 | 2 | 3 | null;
-  vat_frequency: string | null;
   vat_scheme: "Standard" | "Flat Rate" | "Cash Accounting" | "Annual Accounting" | null;
-  has_overrides: boolean;
   reminders_paused: boolean;
   synced_at: string | null;
   created_at: string;

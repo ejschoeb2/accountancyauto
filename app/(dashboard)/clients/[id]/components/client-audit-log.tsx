@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LoadingIndicator } from '@/components/loading-indicator';
+import { usePageLoading } from '@/components/page-loading';
 import {
   Table,
   TableBody,
@@ -26,6 +26,8 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
   const [data, setData] = useState<AuditEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  usePageLoading('client-audit-log', loading);
 
   // Filter state
   const [dateFrom, setDateFrom] = useState('');
@@ -128,8 +130,8 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center">
-                  <LoadingIndicator size={32} />
+                <TableCell colSpan={3} className="text-center text-muted-foreground">
+                  Loading...
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (

@@ -150,6 +150,7 @@ export async function PUT(
       custom_date: data.schedule_type === 'custom' ? (data.custom_date || null) : null,
       recurrence_rule: data.schedule_type === 'custom' ? (data.recurrence_rule || null) : null,
       recurrence_anchor: data.schedule_type === 'custom' ? (data.recurrence_anchor || null) : null,
+      send_hour: data.schedule_type === 'custom' ? (data.send_hour ?? null) : null,
     })
     .eq("id", id)
     .select()

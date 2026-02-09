@@ -99,6 +99,7 @@ export default function EditSchedulePage() {
           custom_date: null,
           recurrence_rule: null,
           recurrence_anchor: null,
+          send_hour: null,
         }
       : {
           schedule_type: 'filing' as const,
@@ -175,6 +176,7 @@ export default function EditSchedulePage() {
               custom_date: scheduleData.custom_date || null,
               recurrence_rule: scheduleData.recurrence_rule || null,
               recurrence_anchor: scheduleData.recurrence_anchor || null,
+              send_hour: scheduleData.send_hour ?? null,
               steps: scheduleData.steps.map(step => ({
                 email_template_id: step.email_template_id,
                 delay_days: step.delay_days,
@@ -375,6 +377,34 @@ export default function EditSchedulePage() {
                   {form.formState.errors.filing_type_id.message}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Custom schedule send hour */}
+          {scheduleType === 'custom' && (
+            <div className="space-y-2">
+              <Label htmlFor="send_hour">Send Hour (UK time)</Label>
+              <Select
+                value={form.watch('send_hour') != null ? String(form.watch('send_hour')) : 'default'}
+                onValueChange={(value) =>
+                  form.setValue('send_hour', value === 'default' ? null : parseInt(value, 10))
+                }
+              >
+                <SelectTrigger id="send_hour">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Use global default</SelectItem>
+                  {Array.from({ length: 16 }, (_, i) => i + 6).map((h) => (
+                    <SelectItem key={h} value={String(h)}>
+                      {h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h - 12}:00 PM`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Override when this schedule&apos;s reminders are sent. &ldquo;Use global default&rdquo; follows the setting on the Settings page.
+              </p>
             </div>
           )}
 

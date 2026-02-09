@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Check, Play, Pause } from "lucide-react";
 import { CheckButton } from "@/components/ui/check-button";
 import { Button } from "@/components/ui/button";
-import { LoadingIndicator } from "@/components/loading-indicator";
+import { usePageLoading } from "@/components/page-loading";
 import {
   Card,
   CardHeader,
@@ -31,6 +31,8 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
   const [recordsReceived, setRecordsReceived] = useState<string[]>([]);
   const [paused, setPaused] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  usePageLoading('records-received', loading);
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Fetch assignments and client data client-side
@@ -140,7 +142,7 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
           <CardTitle>Records & Reminders</CardTitle>
         </CardHeader>
         <CardContent>
-          <LoadingIndicator size={32} />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </CardContent>
       </Card>
     );

@@ -62,7 +62,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
   }
 
   try {
-    // Step 2: Check if it's the configured send hour (UK time)
+    // Step 2: Get current UK hour and global send hour
     const ukTime = toZonedTime(new Date(), 'Europe/London');
     const ukHour = ukTime.getHours();
 
@@ -71,21 +71,34 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
       .select('value')
       .eq('key', 'reminder_send_hour')
       .single();
-    const sendHour = sendHourRow ? parseInt(sendHourRow.value, 10) : 9;
+    const globalSendHour = sendHourRow ? parseInt(sendHourRow.value, 10) : 9;
 
-    if (ukHour !== sendHour) {
+    // Check if any custom schedules have a send_hour matching the current hour
+    const { data: customHourSchedules } = await supabase
+      .from('schedules')
+      .select('id')
+      .eq('schedule_type', 'custom')
+      .eq('is_active', true)
+      .eq('send_hour', ukHour);
+
+    const hasCustomHourMatch = customHourSchedules && customHourSchedules.length > 0;
+    const isGlobalHour = ukHour === globalSendHour;
+
+    // Skip early only if neither the global hour matches nor any custom schedules match
+    if (!isGlobalHour && !hasCustomHourMatch) {
       result.skipped_wrong_hour = true;
       return result;
     }
 
-    // Step 3: Build/update queue for any new reminders (filing + custom)
+    // Step 3: Build/update queue for any new reminders (filing + custom) — idempotent
     const buildResult = await buildReminderQueue(supabase);
     const customBuildResult = await buildCustomScheduleQueue(supabase);
 
-    // Step 4: Find all reminder_queue entries where send_date = today and status = 'scheduled'
-    // Use left join for filing_types (custom schedules have NULL filing_type_id)
+    // Step 4: Find due reminders, split by hour matching
     const today = format(new UTCDate(), 'yyyy-MM-dd');
-    const { data: dueReminders, error: fetchError } = await supabase
+
+    // Fetch all due reminders for today
+    const { data: allDueReminders, error: fetchError } = await supabase
       .from('reminder_queue')
       .select('*, clients!inner(*), filing_types(*)')
       .eq('send_date', today)
@@ -96,7 +109,33 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
       return result;
     }
 
-    if (!dueReminders || dueReminders.length === 0) {
+    if (!allDueReminders || allDueReminders.length === 0) {
+      return result;
+    }
+
+    // Build set of custom schedule IDs that match the current hour
+    const customHourScheduleIds = new Set(
+      (customHourSchedules || []).map(s => s.id)
+    );
+
+    // Filter reminders based on hour matching:
+    // - Filing reminders (filing_type_id IS NOT NULL): only at global hour
+    // - Custom reminders with specific send_hour: only at their schedule's hour
+    // - Custom reminders with NULL send_hour: only at global hour
+    const dueReminders = allDueReminders.filter((reminder) => {
+      if (reminder.filing_type_id) {
+        // Filing reminder — uses global hour
+        return isGlobalHour;
+      } else if (reminder.template_id && customHourScheduleIds.has(reminder.template_id)) {
+        // Custom reminder with a specific send_hour matching current hour
+        return true;
+      } else {
+        // Custom reminder with NULL send_hour — uses global hour
+        return isGlobalHour;
+      }
+    });
+
+    if (dueReminders.length === 0) {
       return result;
     }
 

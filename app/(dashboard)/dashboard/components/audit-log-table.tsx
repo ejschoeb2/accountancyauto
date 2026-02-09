@@ -4,26 +4,42 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { LoadingIndicator } from '@/components/loading-indicator';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { usePageLoading } from '@/components/page-loading';
 import { getAuditLog, type AuditEntry } from '@/app/actions/audit-log';
 import { format } from 'date-fns';
 import { Mail } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
 
+const statusConfig = {
+  delivered: {
+    label: 'Delivered',
+    bg: 'bg-status-success/10',
+    text: 'text-status-success',
+  },
+  sent: {
+    label: 'Sent',
+    bg: 'bg-blue-500/10',
+    text: 'text-blue-500',
+  },
+  bounced: {
+    label: 'Bounced',
+    bg: 'bg-status-warning/10',
+    text: 'text-status-warning',
+  },
+  failed: {
+    label: 'Failed',
+    bg: 'bg-status-danger/10',
+    text: 'text-status-danger',
+  },
+} as const;
+
 export function AuditLogTable() {
   const [data, setData] = useState<AuditEntry[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  usePageLoading('audit-log-table', loading);
 
   // Filter state
   const [clientSearch, setClientSearch] = useState('');
@@ -84,21 +100,6 @@ export function AuditLogTable() {
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'delivered':
-        return 'default';
-      case 'sent':
-        return 'secondary';
-      case 'bounced':
-        return 'outline';
-      case 'failed':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
-
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
       <CardContent className="px-5 py-0">
@@ -146,48 +147,42 @@ export function AuditLogTable() {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="border rounded-lg -mx-5 bg-white">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date Sent</TableHead>
-                  <TableHead>Client Name</TableHead>
-                  <TableHead>Filing Type</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Delivery Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      <LoadingIndicator size={32} />
-                    </TableCell>
-                  </TableRow>
-                ) : data.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      No email logs found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  data.map((entry) => (
-                    <TableRow key={entry.id} className="hover:bg-accent/5">
-                      <TableCell>{formatDate(entry.sent_at)}</TableCell>
-                      <TableCell className="font-medium">{entry.client_name}</TableCell>
-                      <TableCell>{entry.filing_type_name || '-'}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{entry.subject || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(entry.delivery_status)}>
-                          {entry.delivery_status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          {/* Email List */}
+          <div className="-mx-5">
+            {loading ? (
+              <p className="text-sm text-muted-foreground text-center py-8 px-5">
+                Loading...
+              </p>
+            ) : data.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8 px-5">
+                No email logs found
+              </p>
+            ) : (
+              <div className="space-y-0">
+                {data.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status].bg} inline-flex items-center shrink-0`}>
+                        <span className={`text-sm font-medium ${statusConfig[entry.delivery_status].text}`}>
+                          {statusConfig[entry.delivery_status].label}
+                        </span>
+                      </div>
+                      <span className="font-medium text-sm truncate">
+                        {entry.client_name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 text-sm text-muted-foreground">
+                      <span>
+                        {formatDate(entry.sent_at)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Pagination */}

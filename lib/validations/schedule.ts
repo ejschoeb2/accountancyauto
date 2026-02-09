@@ -8,7 +8,7 @@ export const scheduleStepSchema = z.object({
     (val) => val === "" || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val),
     "Email template is required and must be a valid ID"
   ),
-  delay_days: z.number().int().min(1).max(365),
+  delay_days: z.number().int().min(0).max(365),
 });
 
 /**
@@ -49,6 +49,7 @@ export const customScheduleSchema = z.object({
   custom_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD format").nullable().optional(),
   recurrence_rule: z.enum(['monthly', 'quarterly', 'annually']).nullable().optional(),
   recurrence_anchor: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD format").nullable().optional(),
+  send_hour: z.number().int().min(0).max(23).nullable().optional(),
 }).refine(
   (data) => data.custom_date || (data.recurrence_rule && data.recurrence_anchor),
   { message: "Custom schedules require either a target date or a recurrence rule with anchor date" }

@@ -9,6 +9,8 @@ import {
   ArrowRight,
   Settings,
   Users,
+  Play,
+  Plug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WizardStepper } from "@/components/wizard-stepper";
@@ -20,29 +22,50 @@ import {
 import { getClients, type Client } from "@/app/actions/clients";
 import {
   getEmailSettings,
+  updateSetupMode,
   type EmailSettings,
+  type SetupMode,
 } from "@/app/actions/settings";
 
-type WizardStep = "connect" | "metadata" | "email" | "complete";
+type WizardStep = "mode" | "connect" | "metadata" | "email" | "complete";
 type ConnectSubState = "idle" | "connecting";
 
-const WIZARD_STEPS = [
+const DEMO_STEPS = [
+  { label: "Mode" },
+  { label: "Clients" },
+  { label: "Email" },
+  { label: "Complete" },
+];
+
+const REAL_STEPS = [
+  { label: "Mode" },
   { label: "Connect" },
   { label: "Clients" },
   { label: "Email" },
   { label: "Complete" },
 ];
 
-function stepToIndex(step: WizardStep): number {
+function getWizardSteps(mode: SetupMode | null) {
+  return mode === "real" ? REAL_STEPS : DEMO_STEPS;
+}
+
+function stepToIndex(step: WizardStep, mode: SetupMode | null): number {
+  if (mode === "real") {
+    switch (step) {
+      case "mode": return 0;
+      case "connect": return 1;
+      case "metadata": return 2;
+      case "email": return 3;
+      case "complete": return 4;
+    }
+  }
+  // demo or null (before mode is chosen)
   switch (step) {
-    case "connect":
-      return 0;
-    case "metadata":
-      return 1;
-    case "email":
-      return 2;
-    case "complete":
-      return 3;
+    case "mode": return 0;
+    case "connect": return 0; // shouldn't happen in demo
+    case "metadata": return 1;
+    case "email": return 2;
+    case "complete": return 3;
   }
 }
 
@@ -61,7 +84,8 @@ function OnboardingContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const [wizardStep, setWizardStep] = useState<WizardStep>("connect");
+  const [wizardStep, setWizardStep] = useState<WizardStep>("mode");
+  const [setupMode, setSetupMode] = useState<SetupMode | null>(null);
   const [connectSubState, setConnectSubState] =
     useState<ConnectSubState>("idle");
   const [error, setError] = useState<{
@@ -84,9 +108,11 @@ function OnboardingContent() {
 
     if (errorParam) {
       setError({ visible: true, message: getErrorMessage(errorParam) });
+      setSetupMode("real");
       setWizardStep("connect");
     } else if (syncing === "true" && count) {
       setSyncedCount(parseInt(count, 10));
+      setSetupMode("real");
       setWizardStep("metadata");
     }
   }, [searchParams]);
@@ -145,12 +171,23 @@ function OnboardingContent() {
     router.replace("/onboarding");
     setError({ visible: false, message: "" });
     setConnectSubState("idle");
+    setWizardStep("connect");
+  };
+
+  const handleModeSelect = async (mode: SetupMode) => {
+    setSetupMode(mode);
+    await updateSetupMode(mode);
+    if (mode === "demo") {
+      setWizardStep("metadata");
+    } else {
+      setWizardStep("connect");
+    }
   };
 
   return (
     <div className="space-y-8">
       {/* Stepper */}
-      <WizardStepper steps={WIZARD_STEPS} currentStep={stepToIndex(wizardStep)} />
+      <WizardStepper steps={getWizardSteps(setupMode)} currentStep={stepToIndex(wizardStep, setupMode)} />
 
       {/* Error overlay */}
       {error.visible && (
@@ -170,17 +207,59 @@ function OnboardingContent() {
         </div>
       )}
 
-      {/* Step 1: Connect QuickBooks */}
+      {/* Step 1: Choose Mode */}
+      {wizardStep === "mode" && !error.visible && (
+        <div className="text-center space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">
+              Welcome to Peninsula Accounting
+            </h1>
+            <p className="text-muted-foreground">
+              How would you like to get started?
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 max-w-lg mx-auto">
+            <button
+              onClick={() => handleModeSelect("demo")}
+              className="group rounded-xl border-2 border-muted-foreground/20 p-6 text-left transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.97]"
+            >
+              <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Play className="size-5" />
+              </div>
+              <h3 className="font-semibold">Demo Mode</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Explore with sample data. No accounts needed.
+              </p>
+            </button>
+
+            <button
+              onClick={() => handleModeSelect("real")}
+              className="group rounded-xl border-2 border-muted-foreground/20 p-6 text-left transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.97]"
+            >
+              <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Plug className="size-5" />
+              </div>
+              <h3 className="font-semibold">Connect Your Data</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Sync clients from QuickBooks Online.
+              </p>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Connect QuickBooks (real mode only) */}
       {wizardStep === "connect" && !error.visible && (
         <div className="text-center space-y-6">
           {connectSubState === "idle" && (
             <>
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight">
-                  Welcome to Peninsula Accounting
+                <h1 className="text-2xl font-bold tracking-tight">
+                  Connect QuickBooks Online
                 </h1>
                 <p className="text-muted-foreground">
-                  Connect your QuickBooks Online account to get started.
+                  Link your QuickBooks account to sync your client list.
                 </p>
               </div>
               <Button

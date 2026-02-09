@@ -46,10 +46,10 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
                       {client.company_name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs text-muted-foreground">
-                      {client.days_until_deadline !== null && (
-                        <>
+                  <div className="flex items-center gap-2 shrink-0 text-sm text-muted-foreground">
+                    {client.days_until_deadline !== null && (
+                      <>
+                        <span>
                           {client.days_until_deadline === 0
                             ? 'Today'
                             : client.days_until_deadline === 1
@@ -57,10 +57,11 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
                             : client.days_until_deadline < 0
                             ? `${Math.abs(client.days_until_deadline)} days overdue`
                             : `${client.days_until_deadline} days`}
-                        </>
-                      )}
-                    </span>
-                    <span className="text-sm font-mono text-foreground">
+                        </span>
+                        <span>•</span>
+                      </>
+                    )}
+                    <span>
                       {client.next_deadline &&
                         new Date(client.next_deadline).toLocaleDateString('en-GB', {
                           day: '2-digit',

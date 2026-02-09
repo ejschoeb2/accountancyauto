@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { FilingTypeList, type ScheduleWithSteps, type StepDisplay } from './components/filing-type-list'
-import { CustomScheduleList, type CustomScheduleDisplay } from './components/custom-schedule-list'
+import { FilingTypeList, type ScheduleWithSteps, type StepDisplay, type CustomScheduleDisplay } from './components/filing-type-list'
 import { DEADLINE_DESCRIPTIONS } from '@/lib/deadlines/descriptions'
-import { Button } from '@/components/ui/button'
-import { Icon } from '@/components/ui/icon'
+import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
+import { Plus } from 'lucide-react'
 import type { EmailTemplate, FilingType, Schedule, ScheduleStep } from '@/lib/types/database'
 
 export default async function SchedulesPage() {
@@ -89,37 +88,27 @@ export default async function SchedulesPage() {
   return (
     <div className="space-y-8">
       {/* Page header */}
-      <div className="space-y-1">
-        <h1>Schedules</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage reminder schedules for each filing type
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h1>Schedules</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage reminder schedules for each filing type
+          </p>
+        </div>
+        <Link href="/schedules/new/edit?type=custom">
+          <IconButtonWithText variant="violet">
+            <Plus className="h-5 w-5" />
+            Create Custom Schedule
+          </IconButtonWithText>
+        </Link>
       </div>
 
       <FilingTypeList
         filingTypes={(filingTypes as FilingType[]) ?? []}
         scheduleMap={scheduleMap}
         deadlineDescriptions={DEADLINE_DESCRIPTIONS}
+        customSchedules={customScheduleDisplays}
       />
-
-      {/* Custom Schedules section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2>Custom Schedules</h2>
-            <p className="text-muted-foreground text-sm">
-              Reminders for anything beyond HMRC filing types
-            </p>
-          </div>
-          <Link href="/schedules/new/edit?type=custom">
-            <Button variant="outline">
-              <Icon name="add" size="sm" className="mr-1.5" />
-              Create Custom Schedule
-            </Button>
-          </Link>
-        </div>
-        <CustomScheduleList schedules={customScheduleDisplays} />
-      </div>
     </div>
   )
 }
