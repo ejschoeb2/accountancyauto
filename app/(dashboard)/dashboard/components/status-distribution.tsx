@@ -71,7 +71,7 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
             <div className="space-y-6">
               {/* Simple pie chart using conic gradient */}
               <div className="flex items-center justify-center py-4">
-                <div className="relative size-48">
+                <div className="relative size-56">
                   <div
                     className="size-full rounded-full"
                     style={{
@@ -87,9 +87,9 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
                     }}
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="size-32 rounded-full bg-card flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold">{total}</span>
-                      <span className="text-xs text-muted-foreground">Clients</span>
+                    <div className="size-40 rounded-full bg-card flex flex-col items-center justify-center">
+                      <span className="text-4xl font-bold">{total}</span>
+                      <span className="text-sm text-muted-foreground">Clients</span>
                     </div>
                   </div>
                 </div>

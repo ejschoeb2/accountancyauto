@@ -168,7 +168,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
               {schedule ? (
                 <div className="space-y-3 flex-1 flex flex-col">
                   <p className="text-base font-bold">
-                    Schedule:
+                    Reminder Schedule:
                   </p>
                   {schedule.steps.length > 0 && (
                     <ol className="space-y-1.5 text-sm">
@@ -188,9 +188,9 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                 </div>
               ) : (
                 <div className="text-center flex-1 flex items-center justify-center space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">No schedule configured</p>
+                  <p className="text-sm font-medium text-muted-foreground">No reminder schedule configured</p>
                   <p className="text-xs text-muted-foreground">
-                    Create a schedule to send reminders for this filing type
+                    Create a reminder schedule to automatically notify clients about this deadline
                   </p>
                 </div>
               )}
@@ -200,7 +200,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
               <CardFooter>
                 <Button variant="outline" size="sm" className="active:scale-[0.97]" onClick={(e) => e.stopPropagation()}>
                   <Icon name="add" size="sm" className="mr-1.5" />
-                  Create Schedule
+                  Create Reminder Schedule
                 </Button>
               </CardFooter>
             )}

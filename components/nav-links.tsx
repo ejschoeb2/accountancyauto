@@ -9,7 +9,7 @@ const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/clients", icon: Users, label: "Clients" },
   { href: "/schedules", icon: Zap, label: "Reminder Schedules" },
-  { href: "/templates", icon: Mail, label: "Templates" },
+  { href: "/templates", icon: Mail, label: "Email Templates" },
 ];
 
 export function NavLinks() {

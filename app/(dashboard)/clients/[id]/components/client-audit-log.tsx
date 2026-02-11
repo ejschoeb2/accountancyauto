@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Badge } from '@/components/ui/badge';
 import { usePageLoading } from '@/components/page-loading';
 import {
@@ -164,22 +165,22 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
           {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} entries
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+          <IconButtonWithText
+            variant="ghost"
             onClick={() => setCurrentPage((p) => p - 1)}
             disabled={!hasPrevPage || loading}
           >
+            <ChevronLeft className="h-4 w-4" />
             Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </IconButtonWithText>
+          <IconButtonWithText
+            variant="ghost"
             onClick={() => setCurrentPage((p) => p + 1)}
             disabled={!hasNextPage || loading}
           >
             Next
-          </Button>
+            <ChevronRight className="h-4 w-4" />
+          </IconButtonWithText>
         </div>
       </div>
     </div>

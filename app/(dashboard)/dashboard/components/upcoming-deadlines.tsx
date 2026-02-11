@@ -11,10 +11,10 @@ interface UpcomingDeadlinesProps {
 }
 
 export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
-  // Filter to clients with deadlines and take top 8
+  // Filter to clients with deadlines and take top 5
   const upcomingClients = clients
     .filter((c) => c.next_deadline !== null)
-    .slice(0, 8);
+    .slice(0, 5);
 
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">

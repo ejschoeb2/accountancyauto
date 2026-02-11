@@ -27,11 +27,12 @@ export interface Client {
 // Partial type for metadata updates
 export type ClientMetadata = Pick<
   Client,
-  "client_type" | "year_end_date" | "vat_registered" | "vat_stagger_group" | "vat_scheme"
+  "primary_email" | "phone" | "client_type" | "year_end_date" | "vat_registered" | "vat_stagger_group" | "vat_scheme"
 >;
 
 // Bulk update fields (only fields that can be bulk-edited)
 export interface BulkUpdateFields {
+  client_type?: "Limited Company" | "Sole Trader" | "Partnership" | "LLP" | null;
   year_end_date?: string | null;
   vat_registered?: boolean;
   vat_stagger_group?: 1 | 2 | 3 | null;
@@ -93,6 +94,7 @@ export async function updateClientMetadata(
 
 // Bulk update validation schema
 const bulkUpdateFieldsSchema = z.object({
+  client_type: z.enum(["Limited Company", "Sole Trader", "Partnership", "LLP"]).optional().nullable(),
   year_end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   vat_registered: z.boolean().optional(),
   vat_stagger_group: z.number().int().min(1).max(3).optional().nullable(),

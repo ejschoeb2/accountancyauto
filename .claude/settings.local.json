@@ -50,7 +50,14 @@
       "Bash(npx vitest:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Skill(gsd:quick)",
+      "Bash(npm run rebuild:queue:*)",
+      "Bash(supabase:*)",
+      "Bash(npm run check:migrations:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(Select-String -Pattern \"dashboard/page.tsx\" -Context 0,2)",
+      "Bash(Select-Object -Last 30)"
     ]
   },
   "enableAllProjectMcpServers": true,

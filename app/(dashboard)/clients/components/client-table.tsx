@@ -67,7 +67,16 @@ import {
 export interface ClientStatusInfo {
   status: string;
   next_deadline: string | null;
+  next_deadline_type: string | null;
 }
+
+const FILING_TYPE_LABELS: Record<string, string> = {
+  corporation_tax_payment: "Corp Tax",
+  ct600_filing: "CT600",
+  companies_house: "Companies House",
+  vat_return: "VAT Return",
+  self_assessment: "Self Assessment",
+};
 
 interface ClientTableProps {
   initialData: Client[];
@@ -310,26 +319,36 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       {
         id: "select",
         header: ({ table }) => (
-          <CheckButton
-            checked={
-              table.getIsAllPageRowsSelected()
-                ? true
-                : table.getIsSomePageRowsSelected()
-                ? "indeterminate"
-                : false
-            }
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-            aria-label="Select all"
-          />
+          <div className="flex items-center justify-center">
+            <CheckButton
+              checked={
+                table.getIsAllPageRowsSelected()
+                  ? true
+                  : table.getIsSomePageRowsSelected()
+                  ? "indeterminate"
+                  : false
+              }
+              onCheckedChange={(value) =>
+                table.toggleAllPageRowsSelected(!!value)
+              }
+              aria-label="Select all"
+            />
+          </div>
         ),
         cell: ({ row }) => (
-          <CheckButton
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-          />
+          <div
+            className="flex items-center justify-center cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              row.toggleSelected(!row.getIsSelected());
+            }}
+          >
+            <CheckButton
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label="Select row"
+            />
+          </div>
         ),
         enableSorting: false,
         enableHiding: false,
@@ -362,67 +381,6 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
         },
       },
       {
-        id: "status",
-        header: () => (
-          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Status
-          </span>
-        ),
-        cell: ({ row }) => {
-          const info = statusMap[row.original.id];
-          if (!info) return <span className="text-muted-foreground">—</span>;
-
-          const statusColors: Record<string, { bg: string; text: string }> = {
-            red: { bg: 'bg-status-danger/10', text: 'text-status-danger' },
-            amber: { bg: 'bg-status-warning/10', text: 'text-status-warning' },
-            green: { bg: 'bg-status-success/10', text: 'text-status-success' },
-            grey: { bg: 'bg-status-neutral/10', text: 'text-status-neutral' },
-          };
-
-          const colors = statusColors[info.status] || statusColors.grey;
-          const labels: Record<string, string> = {
-            red: 'Overdue',
-            amber: 'Chasing',
-            green: 'On Track',
-            grey: 'Inactive',
-          };
-
-          return (
-            <div className={`px-3 py-2 rounded-md ${colors.bg} inline-flex items-center`}>
-              <span className={`text-sm font-medium ${colors.text}`}>
-                {labels[info.status] || '—'}
-              </span>
-            </div>
-          );
-        },
-        enableSorting: false,
-      },
-      {
-        id: "next_deadline",
-        header: () => (
-          <span className="text-sm font-semibold text-foreground/70 uppercase tracking-wide">
-            Next Deadline
-          </span>
-        ),
-        cell: ({ row }) => {
-          const info = statusMap[row.original.id];
-          if (!info?.next_deadline) return <span className="text-muted-foreground">—</span>;
-          return (
-            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-              {format(new Date(info.next_deadline), "dd MMM yyyy")}
-            </span>
-          );
-        },
-        sortingFn: (rowA, rowB) => {
-          const a = statusMap[rowA.original.id]?.next_deadline;
-          const b = statusMap[rowB.original.id]?.next_deadline;
-          if (!a && !b) return 0;
-          if (!a) return 1;
-          if (!b) return -1;
-          return a.localeCompare(b);
-        },
-      },
-      {
         accessorKey: "client_type",
         header: () => (
           <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -440,29 +398,6 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
               onSave={async (value) => {
                 startTransition(async () => {
                   await handleCellEdit(client.id, "client_type", value);
-                });
-              }}
-            />
-          );
-        },
-      },
-      {
-        accessorKey: "year_end_date",
-        header: () => (
-          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Year End
-          </span>
-        ),
-        cell: ({ row }) => {
-          const client = row.original;
-          return (
-            <EditableCell
-              value={client.year_end_date}
-              type="date"
-              isEditMode={isEditMode}
-              onSave={async (value) => {
-                startTransition(async () => {
-                  await handleCellEdit(client.id, "year_end_date", value);
                 });
               }}
             />
@@ -520,6 +455,109 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           );
         },
       },
+      {
+        accessorKey: "year_end_date",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Year End
+          </span>
+        ),
+        cell: ({ row }) => {
+          const client = row.original;
+          return (
+            <EditableCell
+              value={client.year_end_date}
+              type="date"
+              isEditMode={isEditMode}
+              onSave={async (value) => {
+                startTransition(async () => {
+                  await handleCellEdit(client.id, "year_end_date", value);
+                });
+              }}
+            />
+          );
+        },
+      },
+      {
+        id: "next_deadline",
+        header: () => (
+          <span className="text-sm font-semibold text-foreground/70 uppercase tracking-wide">
+            Next Deadline
+          </span>
+        ),
+        cell: ({ row }) => {
+          const info = statusMap[row.original.id];
+          if (!info?.next_deadline) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              {format(new Date(info.next_deadline), "dd MMM yyyy")}
+            </span>
+          );
+        },
+        sortingFn: (rowA, rowB) => {
+          const a = statusMap[rowA.original.id]?.next_deadline;
+          const b = statusMap[rowB.original.id]?.next_deadline;
+          if (!a && !b) return 0;
+          if (!a) return 1;
+          if (!b) return -1;
+          return a.localeCompare(b);
+        },
+      },
+      {
+        id: "deadline_type",
+        header: () => (
+          <span className="text-sm font-semibold text-foreground/70 uppercase tracking-wide">
+            Deadline Type
+          </span>
+        ),
+        cell: ({ row }) => {
+          const info = statusMap[row.original.id];
+          const typeId = info?.next_deadline_type;
+          if (!typeId) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              {FILING_TYPE_LABELS[typeId] || typeId}
+            </span>
+          );
+        },
+        enableSorting: false,
+      },
+      {
+        id: "status",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Status
+          </span>
+        ),
+        cell: ({ row }) => {
+          const info = statusMap[row.original.id];
+          if (!info) return <span className="text-muted-foreground">—</span>;
+
+          const statusColors: Record<string, { bg: string; text: string }> = {
+            red: { bg: 'bg-status-danger/10', text: 'text-status-danger' },
+            amber: { bg: 'bg-status-warning/10', text: 'text-status-warning' },
+            green: { bg: 'bg-status-success/10', text: 'text-status-success' },
+            grey: { bg: 'bg-status-neutral/10', text: 'text-status-neutral' },
+          };
+
+          const colors = statusColors[info.status] || statusColors.grey;
+          const labels: Record<string, string> = {
+            red: 'Overdue',
+            amber: 'Chasing',
+            green: 'On Track',
+            grey: 'Inactive',
+          };
+
+          return (
+            <div className={`px-3 py-2 rounded-md ${colors.bg} inline-flex items-center`}>
+              <span className={`text-sm font-medium ${colors.text}`}>
+                {labels[info.status] || '—'}
+              </span>
+            </div>
+          );
+        },
+        enableSorting: false,
+      },
     ],
     [handleCellEdit, statusMap, isEditMode]
   );
@@ -555,7 +593,38 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Page Header with Add Client / Import CSV */}
+      <div className="max-w-7xl mx-auto space-y-4">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <h1>Clients</h1>
+          <p className="text-muted-foreground">
+            Manage your client records and reminder settings
+          </p>
+        </div>
+        <div className="flex gap-2 items-center">
+          <IconButtonWithText
+            type="button"
+            variant="green"
+            onClick={() => setIsCreateDialogOpen(true)}
+            title="Add a new client"
+          >
+            <Plus className="h-5 w-5" />
+            Add Client
+          </IconButtonWithText>
+          <IconButtonWithText
+            type="button"
+            variant="sky"
+            onClick={() => setIsCsvDialogOpen(true)}
+            title="Import clients from CSV"
+          >
+            <Upload className="h-5 w-5" />
+            Import CSV
+          </IconButtonWithText>
+        </div>
+      </div>
+
       {/* Search Input and Controls */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         {/* Search Input */}
@@ -579,34 +648,16 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           )}
         </div>
 
-        {/* Controls toolbar - Add Client, Edit, Import CSV, Filter, Sort */}
+        {/* Controls toolbar - Edit, Filter, Sort */}
         <div className="flex gap-2 sm:ml-auto items-center">
           <IconButtonWithText
             type="button"
-            variant="green"
-            onClick={() => setIsCreateDialogOpen(true)}
-            title="Add a new client"
-          >
-            <Plus className="h-5 w-5" />
-            Add Client
-          </IconButtonWithText>
-          <IconButtonWithText
-            type="button"
-            variant={isEditMode ? "amber" : "violet"}
+            variant={isEditMode ? "amber" : "sky"}
             onClick={() => setIsEditMode(!isEditMode)}
             title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
           >
             {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
             {isEditMode ? "Done" : "Edit"}
-          </IconButtonWithText>
-          <IconButtonWithText
-            type="button"
-            variant="sky"
-            onClick={() => setIsCsvDialogOpen(true)}
-            title="Import clients from CSV"
-          >
-            <Upload className="h-5 w-5" />
-            Import CSV
           </IconButtonWithText>
           <IconButtonWithText
             type="button"
@@ -723,9 +774,10 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       <div className="text-sm font-medium text-foreground/70">
         Showing <span className="font-semibold text-foreground">{table.getRowModel().rows.length}</span> of <span className="font-semibold text-foreground">{data.length}</span> clients
       </div>
+      </div>
 
       {/* Table */}
-      <div className="rounded-xl border shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
+      <div className="-mx-8 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -751,6 +803,10 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
                   data-state={row.getIsSelected() && "selected"}
                   className="group cursor-pointer"
                   onClick={(e) => {
+                    // Don't navigate if in edit mode
+                    if (isEditMode) {
+                      return;
+                    }
                     // Don't navigate if clicking on checkbox/button, input, select, or button elements
                     const target = e.target as HTMLElement;
                     if (
@@ -790,12 +846,14 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       </div>
 
       {/* Bulk Actions Toolbar */}
+      <div className="max-w-7xl mx-auto">
       <BulkActionsToolbar
         selectedCount={selectedClients.length}
         onBulkEdit={() => setIsBulkModalOpen(true)}
         onSendEmail={() => setIsSendEmailModalOpen(true)}
         onClearSelection={() => setRowSelection({})}
       />
+      </div>
 
       {/* Bulk Edit Modal */}
       <BulkEditModal

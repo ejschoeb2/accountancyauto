@@ -16,6 +16,7 @@ export interface ClientStatusRow {
   company_name: string;
   status: TrafficLightStatus;
   next_deadline: string | null;
+  next_deadline_type: string | null;
   days_until_deadline: number | null;
 }
 
@@ -228,10 +229,12 @@ export async function getClientStatusList(
       filings,
     });
 
-    // Find next deadline across all filings
-    const next_deadline = filings.length > 0
-      ? filings.reduce((earliest, f) => (f.deadline_date < earliest ? f.deadline_date : earliest), filings[0].deadline_date)
+    // Find next deadline across all filings (track both date and filing type)
+    const earliestFiling = filings.length > 0
+      ? filings.reduce((earliest, f) => (f.deadline_date < earliest.deadline_date ? f : earliest), filings[0])
       : null;
+    const next_deadline = earliestFiling?.deadline_date ?? null;
+    const next_deadline_type = earliestFiling?.filing_type_id ?? null;
 
     // Calculate days until deadline
     let days_until_deadline: number | null = null;
@@ -250,6 +253,7 @@ export async function getClientStatusList(
       company_name: client.company_name,
       status,
       next_deadline,
+      next_deadline_type,
       days_until_deadline,
     };
   });

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Check, Play, Pause } from "lucide-react";
 import { CheckButton } from "@/components/ui/check-button";
-import { Button } from "@/components/ui/button";
+import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { usePageLoading } from "@/components/page-loading";
 import {
   Card,
@@ -157,25 +157,23 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Records & Reminders</CardTitle>
-          <Button
-            variant={paused ? "default" : "outline"}
-            size="sm"
+          <IconButtonWithText
+            variant={paused ? "blue" : "amber"}
             onClick={handlePauseToggle}
             disabled={isUpdating}
-            className="active:scale-[0.97]"
           >
             {paused ? (
               <>
-                <Play className="size-4 mr-2" />
+                <Play className="size-4" />
                 Resume Reminders
               </>
             ) : (
               <>
-                <Pause className="size-4 mr-2" />
+                <Pause className="size-4" />
                 Pause Reminders
               </>
             )}
-          </Button>
+          </IconButtonWithText>
         </div>
       </CardHeader>
 

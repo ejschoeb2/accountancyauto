@@ -70,11 +70,11 @@ export async function sendAdhocEmail(
       },
     });
 
-    // Send via Postmark
+    // Send via Postmark (plain text only)
     const sendResult = await sendRichEmail({
       to: validated.clientEmail,
       subject: rendered.subject,
-      html: rendered.html,
+      html: '', // Empty - send plain text only
       text: rendered.text,
     });
 
@@ -121,7 +121,7 @@ export async function sendAdhocEmail(
 export async function previewAdhocEmail(params: {
   templateId: string;
   clientName: string;
-}): Promise<{ html: string; subject: string } | { error: string }> {
+}): Promise<{ text: string; subject: string } | { error: string }> {
   try {
     const supabase = await createClient();
 
@@ -138,7 +138,7 @@ export async function previewAdhocEmail(params: {
       };
     }
 
-    // Render the template with sample data
+    // Render the template with sample data (plain text only)
     const rendered = await renderTipTapEmail({
       bodyJson: template.body_json,
       subject: template.subject,
@@ -151,7 +151,7 @@ export async function previewAdhocEmail(params: {
     });
 
     return {
-      html: rendered.html,
+      text: rendered.text,
       subject: rendered.subject,
     };
   } catch (error) {

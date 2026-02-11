@@ -6,6 +6,7 @@ import { TemplateEditor } from '../../components/template-editor'
 import { SubjectLineEditor } from '../../components/subject-line-editor'
 import { PlaceholderDropdown } from '../../components/placeholder-dropdown'
 import { Button } from '@/components/ui/button'
+import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { LoadingScreen } from '@/components/loading-screen'
 import {
   Card,
@@ -148,29 +149,28 @@ export default function EditTemplatePage() {
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 max-w-7xl mx-auto">
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="text-foreground">Edit Template</h1>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
+          <IconButtonWithText
+            variant="destructive"
             onClick={() => setShowDeleteDialog(true)}
-            className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
             title="Delete template"
           >
             <Trash2 className="h-5 w-5" />
-          </Button>
-          <Button
+            Delete
+          </IconButtonWithText>
+          <IconButtonWithText
+            variant="blue"
             onClick={handleSave}
             disabled={saving}
-            size="icon"
-            className="h-10 w-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97]"
             title={saving ? 'Saving...' : 'Save template'}
           >
             <CheckCircle className="h-5 w-5" />
-          </Button>
+            {saving ? 'Saving...' : 'Save'}
+          </IconButtonWithText>
         </div>
       </div>
 

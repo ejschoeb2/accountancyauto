@@ -50,7 +50,7 @@ function DashboardContent() {
   }, []);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 max-w-7xl mx-auto">
       {/* Page header */}
       <div className="space-y-1">
         <h1>Dashboard</h1>
@@ -63,9 +63,11 @@ function DashboardContent() {
       <SummaryCards metrics={metrics} />
 
       {/* Upcoming Deadlines & Client Status Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <UpcomingDeadlines clients={clientStatusList} />
-        <StatusDistribution clients={clientStatusList} />
+        <div className="lg:col-span-2">
+          <StatusDistribution clients={clientStatusList} />
+        </div>
       </div>
 
       {/* Delivery Log Section */}

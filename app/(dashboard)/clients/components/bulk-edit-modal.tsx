@@ -52,6 +52,10 @@ export function BulkEditModal({
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   // Field states
+  const [clientType, setClientType] = useState<FieldState>({
+    enabled: false,
+    value: null,
+  });
   const [yearEndDate, setYearEndDate] = useState<FieldState>({
     enabled: false,
     value: null,
@@ -69,6 +73,7 @@ export function BulkEditModal({
     if (isSaving) return;
     setShowConfirmation(false);
     // Reset fields
+    setClientType({ enabled: false, value: null });
     setYearEndDate({ enabled: false, value: null });
     setVatRegistered({ enabled: false, value: false });
     setVatStaggerGroup({ enabled: false, value: null });
@@ -78,6 +83,9 @@ export function BulkEditModal({
   const handleSubmit = useCallback(async () => {
     const updates: BulkUpdateFields = {};
 
+    if (clientType.enabled) {
+      updates.client_type = clientType.value as BulkUpdateFields["client_type"];
+    }
     if (yearEndDate.enabled) {
       updates.year_end_date = yearEndDate.value as string | null;
     }
@@ -103,12 +111,15 @@ export function BulkEditModal({
     } finally {
       setIsSaving(false);
     }
-  }, [yearEndDate, vatRegistered, vatStaggerGroup, showConfirmation, onSave, handleClose]);
+  }, [clientType, yearEndDate, vatRegistered, vatStaggerGroup, showConfirmation, onSave, handleClose]);
 
   // Build preview text for confirmation
   const getPreviewText = useCallback(() => {
     const changes: string[] = [];
 
+    if (clientType.enabled && clientType.value) {
+      changes.push(`Client Type → ${clientType.value}`);
+    }
     if (yearEndDate.enabled && yearEndDate.value) {
       const formatted = format(
         parseISO(yearEndDate.value as string),
@@ -125,10 +136,11 @@ export function BulkEditModal({
     }
 
     return changes;
-  }, [yearEndDate, vatRegistered, vatStaggerGroup]);
+  }, [clientType, yearEndDate, vatRegistered, vatStaggerGroup]);
 
   const previewChanges = getPreviewText();
   const hasChanges =
+    (clientType.enabled && clientType.value) ||
     (yearEndDate.enabled && yearEndDate.value) ||
     vatRegistered.enabled ||
     (vatStaggerGroup.enabled && vatStaggerGroup.value);
@@ -148,6 +160,43 @@ export function BulkEditModal({
 
         {!showConfirmation ? (
           <div className="space-y-4 py-4">
+            {/* Client Type */}
+            <div className="flex items-start gap-4">
+              <CheckButton
+                checked={clientType.enabled}
+                onCheckedChange={(checked) =>
+                  setClientType((prev) => ({
+                    ...prev,
+                    enabled: checked === true,
+                  }))
+                }
+                aria-label="Enable Client Type"
+              />
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="client-type">Client Type</Label>
+                <Select
+                  disabled={!clientType.enabled}
+                  value={(clientType.value as string) || ""}
+                  onValueChange={(value) =>
+                    setClientType((prev) => ({
+                      ...prev,
+                      value: value || null,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Limited Company">Limited Company</SelectItem>
+                    <SelectItem value="Sole Trader">Sole Trader</SelectItem>
+                    <SelectItem value="Partnership">Partnership</SelectItem>
+                    <SelectItem value="LLP">LLP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {/* Year End Date */}
             <div className="flex items-start gap-4">
               <CheckButton

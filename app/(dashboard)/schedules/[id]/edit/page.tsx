@@ -249,10 +249,10 @@ export default function EditSchedulePage() {
         }
       }
 
-      toast.success(isNew ? 'Schedule created!' : 'Schedule updated!')
+      toast.success(isNew ? 'Reminder schedule created!' : 'Reminder schedule updated!')
       router.push('/schedules')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Failed to ${isNew ? 'create' : 'update'} schedule`)
+      toast.error(error instanceof Error ? error.message : `Failed to ${isNew ? 'create' : 'update'} reminder schedule`)
     } finally {
       setSaving(false)
     }
@@ -270,10 +270,10 @@ export default function EditSchedulePage() {
         throw new Error(error.error || 'Failed to delete schedule')
       }
 
-      toast.success('Schedule deleted!')
+      toast.success('Reminder schedule deleted!')
       router.push('/schedules')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete schedule')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete reminder schedule')
       setDeleting(false)
       setShowDeleteDialog(false)
     }
@@ -286,13 +286,13 @@ export default function EditSchedulePage() {
   return (
     <PageLoadingProvider>
     {loading ? null : (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10 max-w-7xl mx-auto">
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="text-foreground">
           {isNew
-            ? (scheduleType === 'custom' ? 'Create Custom Schedule' : 'Create Schedule')
-            : 'Edit Schedule'}
+            ? (scheduleType === 'custom' ? 'Create Custom Reminder Schedule' : 'Create Reminder Schedule')
+            : 'Edit Reminder Schedule'}
         </h1>
         <div className="flex items-center gap-2">
           <IconButtonWithText
@@ -339,9 +339,9 @@ export default function EditSchedulePage() {
           {/* Schedule Type indicator (read-only for existing schedules) */}
           {!isNew && (
             <div className="space-y-2">
-              <Label>Schedule Type</Label>
+              <Label>Reminder Type</Label>
               <p className="text-sm text-muted-foreground">
-                {scheduleType === 'custom' ? 'Custom Schedule' : 'Filing Schedule'}
+                {scheduleType === 'custom' ? 'Custom Reminder' : 'Filing Deadline Reminder'}
                 {' '}&mdash; type cannot be changed after creation.
               </p>
             </div>
@@ -403,7 +403,7 @@ export default function EditSchedulePage() {
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">
-                Override when this schedule&apos;s reminders are sent. &ldquo;Use global default&rdquo; follows the setting on the Settings page.
+                Override when these reminders are sent. &ldquo;Use global default&rdquo; follows the setting on the Settings page.
               </p>
             </div>
           )}
@@ -486,7 +486,7 @@ export default function EditSchedulePage() {
           )}
 
         <div className="space-y-2">
-          <Label htmlFor="name">Schedule Name</Label>
+          <Label htmlFor="name">Reminder Name</Label>
           <Input
             id="name"
             placeholder={scheduleType === 'custom'
@@ -525,16 +525,16 @@ export default function EditSchedulePage() {
             aria-label="Active schedule"
           />
           <Label className="cursor-pointer" onClick={() => form.setValue('is_active', !form.watch('is_active'))}>
-            Active (will be used for generating reminders)
+            Active (reminders will be sent automatically)
           </Label>
         </div>
         </CardContent>
       </Card>
 
-      {/* Schedule Steps */}
+      {/* Reminder Steps */}
       <Card className="gap-3">
         <CardHeader>
-          <CardTitle className="text-xl">Schedule Steps</CardTitle>
+          <CardTitle className="text-xl">Reminder Steps</CardTitle>
           <CardAction>
             <ScheduleStepAddButton onAdd={() => stepsFieldArray.append({ email_template_id: "", delay_days: 7 })} />
           </CardAction>
@@ -585,9 +585,9 @@ export default function EditSchedulePage() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Schedule</DialogTitle>
+            <DialogTitle>Delete Reminder Schedule</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this schedule? All steps will be removed. This action cannot be undone.
+              Are you sure you want to delete this reminder schedule? All reminder steps will be removed. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

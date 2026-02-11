@@ -28,7 +28,7 @@ export default async function DashboardLayout({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 px-8 py-10 max-w-7xl mx-auto w-full">
+      <main className="flex-1 px-8 py-10 w-full">
         {children}
       </main>
     </div>

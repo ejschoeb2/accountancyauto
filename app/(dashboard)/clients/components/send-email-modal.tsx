@@ -51,7 +51,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
-  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewText, setPreviewText] = useState<string>("");
   const [previewSubject, setPreviewSubject] = useState<string>("");
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -88,7 +88,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
       setTimeout(() => {
         setStep('select-template');
         setSelectedTemplateId("");
-        setPreviewHtml("");
+        setPreviewText("");
         setPreviewSubject("");
         setProgress(0);
         setSentCount(0);
@@ -117,7 +117,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         return;
       }
 
-      setPreviewHtml(result.html);
+      setPreviewText(result.text);
       setPreviewSubject(result.subject);
     } else if (step === 'preview') {
       setStep('confirm');
@@ -190,7 +190,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
       <DialogContent
         onInteractOutside={(e) => preventClose && e.preventDefault()}
         onEscapeKeyDown={(e) => preventClose && e.preventDefault()}
-        className="max-w-4xl"
+        className="max-w-6xl max-h-[90vh] overflow-y-auto"
       >
         {step === 'select-template' && (
           <>
@@ -254,7 +254,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         {step === 'preview' && (
           <>
             <DialogHeader>
-              <DialogTitle>Preview Email</DialogTitle>
+              <DialogTitle>Preview Email (Plain Text)</DialogTitle>
               <DialogDescription>
                 Preview shown for {eligibleClients[0].display_name || eligibleClients[0].company_name}.
                 Placeholders like client_name will be personalized for each recipient.
@@ -275,13 +275,10 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
 
                   <div>
                     <p className="text-sm font-medium mb-2">Body:</p>
-                    <div className="border rounded-lg overflow-hidden">
-                      <iframe
-                        srcDoc={previewHtml}
-                        className="w-full h-[600px]"
-                        title="Email Preview"
-                        sandbox="allow-same-origin"
-                      />
+                    <div className="border rounded-lg bg-muted/30 p-4 overflow-auto max-h-[400px]">
+                      <pre className="text-sm whitespace-pre-wrap font-mono">
+                        {previewText}
+                      </pre>
                     </div>
                   </div>
                 </>

@@ -5,6 +5,12 @@ import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { Plus } from 'lucide-react'
 import { TemplateCard } from './components/template-card'
 import type { EmailTemplate } from '@/lib/types/database'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Email Templates',
+  description: 'Create and manage email templates for client communications',
+}
 
 export default async function TemplatesPage() {
   const supabase = await createClient()
@@ -16,13 +22,13 @@ export default async function TemplatesPage() {
     .order('created_at', { ascending: false })
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <h1>Templates</h1>
+          <h1>Email Templates</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your email templates
+            Create and manage reusable templates for client communications.
           </p>
         </div>
 

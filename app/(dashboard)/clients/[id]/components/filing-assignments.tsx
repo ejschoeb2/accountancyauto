@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { Calendar, CheckCircle, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { usePageLoading } from '@/components/page-loading';
 import {
   Card,
@@ -13,6 +14,14 @@ import {
   CardTitle,
   CardContent,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CheckButton } from '@/components/ui/check-button';
@@ -35,8 +44,10 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
   const [loading, setLoading] = useState(true);
 
   usePageLoading('filing-assignments', loading);
-  const [overrideForms, setOverrideForms] = useState<Record<string, boolean>>({});
-  const [overrideData, setOverrideData] = useState<Record<string, { date: string; reason: string }>>({});
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [currentFilingType, setCurrentFilingType] = useState<string | null>(null);
+  const [overrideDate, setOverrideDate] = useState('');
+  const [overrideReason, setOverrideReason] = useState('');
 
   // Fetch filing assignments
   useEffect(() => {
@@ -95,10 +106,19 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
     }
   };
 
+  // Open override dialog
+  const handleOpenOverrideDialog = (filingTypeId: string) => {
+    setCurrentFilingType(filingTypeId);
+    setOverrideDate('');
+    setOverrideReason('');
+    setShowOverrideDialog(true);
+  };
+
   // Save deadline override
-  const handleSaveOverride = async (filingTypeId: string) => {
-    const override = overrideData[filingTypeId];
-    if (!override?.date) {
+  const handleSaveOverride = async () => {
+    if (!currentFilingType) return;
+
+    if (!overrideDate) {
       toast.error('Please select a date');
       return;
     }
@@ -108,9 +128,9 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filing_type_id: filingTypeId,
-          override_date: override.date,
-          reason: override.reason || undefined,
+          filing_type_id: currentFilingType,
+          override_date: overrideDate,
+          reason: overrideReason || undefined,
         }),
       });
 
@@ -123,8 +143,10 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
       const filingsData = await filingsResponse.json();
       setFilings(filingsData.filings || []);
 
-      setOverrideForms((prev) => ({ ...prev, [filingTypeId]: false }));
-      setOverrideData((prev) => ({ ...prev, [filingTypeId]: { date: '', reason: '' } }));
+      setShowOverrideDialog(false);
+      setCurrentFilingType(null);
+      setOverrideDate('');
+      setOverrideReason('');
       toast.success('Deadline override saved');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -202,7 +224,6 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
       <div className="space-y-4">
         {filings.map((filing) => {
           const hasOverride = !!filing.override_deadline;
-          const showForm = overrideForms[filing.filing_type.id];
 
           return (
             <div
@@ -229,11 +250,22 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
                     )}
                   </div>
                 </div>
-                {!filing.is_active && (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    Inactive
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {!filing.is_active && (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      Inactive
+                    </Badge>
+                  )}
+                  {filing.is_active && filing.calculated_deadline && !hasOverride && (
+                    <IconButtonWithText
+                      variant="amber"
+                      onClick={() => handleOpenOverrideDialog(filing.filing_type.id)}
+                    >
+                      <Calendar className="h-4 w-4" />
+                      Override Deadline
+                    </IconButtonWithText>
+                  )}
+                </div>
               </div>
 
               {/* Deadline display */}
@@ -258,14 +290,13 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
                       <div className="text-sm text-muted-foreground">
                         Calculated: {formatDeadline(filing.calculated_deadline) || 'Unable to calculate'}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <IconButtonWithText
+                        variant="destructive"
                         onClick={() => handleRemoveOverride(filing.filing_type.id)}
-                        className="h-8 text-destructive hover:text-destructive/80"
                       >
+                        <X className="h-4 w-4" />
                         Remove Override
-                      </Button>
+                      </IconButtonWithText>
                     </div>
                   ) : (
                     <div className="space-y-1">
@@ -279,88 +310,6 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
                           </span>
                         )}
                       </div>
-                      {filing.calculated_deadline && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setOverrideForms((prev) => ({
-                              ...prev,
-                              [filing.filing_type.id]: true,
-                            }))
-                          }
-                          className="h-8"
-                        >
-                          Override Deadline
-                        </Button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Override form */}
-                  {showForm && !hasOverride && (
-                    <div className="space-y-3 rounded-md border p-3 bg-muted/50">
-                      <div className="space-y-2">
-                        <Label htmlFor={`override-date-${filing.filing_type.id}`}>
-                          Override Date
-                        </Label>
-                        <Input
-                          id={`override-date-${filing.filing_type.id}`}
-                          type="date"
-                          className="hover:border-foreground/20"
-                          value={overrideData[filing.filing_type.id]?.date || ''}
-                          onChange={(e) =>
-                            setOverrideData((prev) => ({
-                              ...prev,
-                              [filing.filing_type.id]: {
-                                ...prev[filing.filing_type.id],
-                                date: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`override-reason-${filing.filing_type.id}`}>
-                          Reason (optional)
-                        </Label>
-                        <Input
-                          id={`override-reason-${filing.filing_type.id}`}
-                          type="text"
-                          className="hover:border-foreground/20"
-                          placeholder="e.g., Extension granted by HMRC"
-                          value={overrideData[filing.filing_type.id]?.reason || ''}
-                          onChange={(e) =>
-                            setOverrideData((prev) => ({
-                              ...prev,
-                              [filing.filing_type.id]: {
-                                ...prev[filing.filing_type.id],
-                                reason: e.target.value,
-                              },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveOverride(filing.filing_type.id)}
-                        >
-                          Save Override
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() =>
-                            setOverrideForms((prev) => ({
-                              ...prev,
-                              [filing.filing_type.id]: false,
-                            }))
-                          }
-                        >
-                          Cancel
-                        </Button>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -370,6 +319,57 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
         })}
       </div>
       </CardContent>
+
+      {/* Override Deadline Dialog */}
+      <Dialog open={showOverrideDialog} onOpenChange={setShowOverrideDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Override Deadline</DialogTitle>
+            <DialogDescription>
+              Set a custom deadline for this filing type. This will override the automatically calculated deadline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="override-date">Override Date</Label>
+              <Input
+                id="override-date"
+                type="date"
+                className="hover:border-foreground/20"
+                value={overrideDate}
+                onChange={(e) => setOverrideDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="override-reason">Reason (optional)</Label>
+              <Input
+                id="override-reason"
+                type="text"
+                className="hover:border-foreground/20"
+                placeholder="e.g., Extension granted by HMRC"
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <IconButtonWithText
+              variant="amber"
+              onClick={() => setShowOverrideDialog(false)}
+            >
+              <X className="h-5 w-5" />
+              Cancel
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="blue"
+              onClick={handleSaveOverride}
+            >
+              <CheckCircle className="h-5 w-5" />
+              Save Override
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

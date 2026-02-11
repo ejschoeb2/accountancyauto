@@ -17,7 +17,7 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto">
       <div className="space-y-2">
         <h1>Settings</h1>
         <p className="text-muted-foreground">Manage your integrations and preferences</p>

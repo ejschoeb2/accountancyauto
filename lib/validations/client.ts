@@ -13,6 +13,8 @@ const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
 });
 
 export const updateClientMetadataSchema = z.object({
+  primary_email: z.string().trim().email("Invalid email address").optional().nullable(),
+  phone: z.string().trim().optional().nullable(),
   client_type: clientTypeSchema.optional(),
   year_end_date: isoDateSchema.optional().nullable(),
   vat_registered: z.boolean().optional(),

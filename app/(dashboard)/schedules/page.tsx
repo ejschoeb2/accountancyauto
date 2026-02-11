@@ -86,19 +86,19 @@ export default async function SchedulesPage() {
   }))
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl mx-auto">
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1>Schedules</h1>
+          <h1>Reminder Schedules</h1>
           <p className="text-muted-foreground mt-1">
-            Manage reminder schedules for each filing type
+            Configure when and how clients are reminded about upcoming deadlines
           </p>
         </div>
         <Link href="/schedules/new/edit?type=custom">
           <IconButtonWithText variant="violet">
             <Plus className="h-5 w-5" />
-            Create Custom Schedule
+            Create Custom Reminder
           </IconButtonWithText>
         </Link>
       </div>

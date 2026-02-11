@@ -88,7 +88,7 @@ export default async function CalendarPage() {
   }, {});
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="space-y-1">
         <h1 className="text-foreground">Deadline Calendar</h1>
