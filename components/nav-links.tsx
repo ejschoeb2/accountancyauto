@@ -7,9 +7,8 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/delivery-log", icon: Send, label: "Delivery Log" },
   { href: "/clients", icon: Users, label: "Clients" },
-  { href: "/schedules", icon: Zap, label: "Schedules" },
+  { href: "/schedules", icon: Zap, label: "Reminder Schedules" },
   { href: "/templates", icon: Mail, label: "Templates" },
 ];
 
