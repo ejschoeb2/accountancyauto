@@ -223,6 +223,25 @@ None. System ready for multi-practice deployment.
 3. **Pre-existing build error in email sender** - Unrelated to this task, should be fixed separately
 4. **Migration must be applied carefully** - Once anon policies drop, unauthenticated access fails
 
+## Post-Implementation Refinement
+
+### Onboarding Simplification (2026-02-12)
+
+**User feedback:** Onboarding wizard is redundant now that auth happens at login.
+
+**Changes made (commit b146dbd):**
+- All authenticated users now go directly to `/dashboard`
+- Removed `setup_mode` check from root redirect logic
+- Demo login redirects to `/dashboard` (not `/onboarding`)
+- QuickBooks OAuth callback redirects to `/dashboard` (not `/onboarding`)
+- Configuration available via Settings page (already has all needed UI)
+
+**Onboarding steps removed:**
+- Step 1: Mode selection (now happens at login - QuickBooks vs Demo)
+- Step 2: QuickBooks connect (now happens during OAuth at login)
+
+**Result:** Simpler user flow: Login → Dashboard → Configure via Settings as needed
+
 ## Lessons Learned
 
 ### What Worked Well
@@ -231,6 +250,7 @@ None. System ready for multi-practice deployment.
 2. **Auto-creating Supabase users:** Seamless experience, no manual account creation
 3. **Demo mode addition:** Addresses real need for prospect evaluation
 4. **Deployment script as checklist:** Clear, actionable steps for new instances
+5. **Removing onboarding wizard:** Based on user feedback, simplified to direct dashboard access
 
 ### What Could Be Better
 
