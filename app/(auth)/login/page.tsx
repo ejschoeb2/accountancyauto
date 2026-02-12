@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { initiateQuickBooksOAuth } from "@/app/actions/quickbooks";
+import { signInAsDemo } from "./actions";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleQuickBooksLogin() {
@@ -24,6 +28,21 @@ export default function LoginPage() {
           : "Failed to initiate QuickBooks login"
       );
       setIsLoading(false);
+    }
+  }
+
+  async function handleDemoLogin() {
+    setIsDemoLoading(true);
+    setError(null);
+
+    const result = await signInAsDemo();
+
+    if (result?.error) {
+      setError(result.error);
+      setIsDemoLoading(false);
+    } else {
+      // Success - server action redirects
+      router.refresh();
     }
   }
 
@@ -69,7 +88,7 @@ export default function LoginPage() {
 
           <Button
             onClick={handleQuickBooksLogin}
-            disabled={isLoading}
+            disabled={isLoading || isDemoLoading}
             className="w-full h-12 text-base"
             style={{ backgroundColor: "#0077C5" }}
           >
@@ -92,10 +111,42 @@ export default function LoginPage() {
             )}
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or
+              </span>
+            </div>
+          </div>
+
+          <Button
+            onClick={handleDemoLogin}
+            disabled={isLoading || isDemoLoading}
+            variant="outline"
+            className="w-full h-12 text-base"
+          >
+            {isDemoLoading ? (
+              <>
+                <Loader2 className="size-5 mr-2 animate-spin" />
+                Signing in to demo...
+              </>
+            ) : (
+              <>
+                <Play className="size-5 mr-2" />
+                Try Demo
+              </>
+            )}
+          </Button>
+
+          <div className="text-center text-sm text-muted-foreground space-y-1">
+            <p className="font-medium">
+              QuickBooks: Connect your live data
+            </p>
             <p>
-              Your QuickBooks credentials are used to authenticate and sync
-              client data.
+              Demo: Explore with sample data (no account needed)
             </p>
           </div>
         </div>
