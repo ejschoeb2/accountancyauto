@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * Sign in as demo user with shared demo account
+ * Redirects directly to dashboard (skips onboarding)
  */
 export async function signInAsDemo() {
   const supabase = await createClient();
@@ -21,5 +22,5 @@ export async function signInAsDemo() {
   }
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/dashboard");
 }

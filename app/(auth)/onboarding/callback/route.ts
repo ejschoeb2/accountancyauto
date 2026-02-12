@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
     if (!syncResult.success) {
       console.error("Client sync failed after OAuth:", syncResult.error);
       return NextResponse.redirect(
-        new URL("/onboarding?error=sync_failed", request.url)
+        new URL("/login?error=sync_failed", request.url)
       );
     }
 
@@ -128,12 +128,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Redirect to onboarding page with success state
+    // Redirect to dashboard after successful auth and sync
+    // User can configure clients and email settings via Settings page
     const finalResponse = NextResponse.redirect(
-      new URL(
-        `/onboarding?syncing=true&count=${syncResult.count}`,
-        request.url
-      )
+      new URL("/dashboard", request.url)
     );
 
     // Copy cookies from the supabase client to the response

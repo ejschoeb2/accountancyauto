@@ -13,16 +13,7 @@ export default async function Home() {
     redirect("/login");
   }
 
-  // Check setup mode
-  const { data } = await supabase
-    .from("app_settings")
-    .select("value")
-    .eq("key", "setup_mode")
-    .single();
-
-  if (!data) {
-    redirect("/onboarding");
-  }
-
+  // All authenticated users go straight to dashboard
+  // Configuration (clients, email settings) available via Settings page
   redirect("/dashboard");
 }
