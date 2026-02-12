@@ -128,3 +128,26 @@ export async function updateEmailSettings(
 
   return {};
 }
+
+// --- Onboarding Completion ---
+
+export async function getOnboardingComplete(): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "onboarding_complete")
+    .single();
+
+  return data ? data.value === "true" : false;
+}
+
+export async function markOnboardingComplete(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert({ key: "onboarding_complete", value: "true" }, { onConflict: "key" });
+
+  if (error) return { error: error.message };
+  return {};
+}

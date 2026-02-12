@@ -128,10 +128,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Redirect to dashboard after successful auth and sync
-    // User can configure clients and email settings via Settings page
+    // Redirect to root after successful auth and sync
+    // Root page will check onboarding status and route appropriately
     const finalResponse = NextResponse.redirect(
-      new URL("/dashboard", request.url)
+      new URL("/", request.url)
     );
 
     // Copy cookies from the supabase client to the response

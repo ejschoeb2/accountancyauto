@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getOnboardingComplete } from "@/app/actions/settings";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -13,7 +14,17 @@ export default async function Home() {
     redirect("/login");
   }
 
-  // All authenticated users go straight to dashboard
-  // Configuration (clients, email settings) available via Settings page
+  // Demo users skip onboarding entirely
+  if (user.email === "demo@peninsula-internal.local") {
+    redirect("/dashboard");
+  }
+
+  // For non-demo users, check if onboarding is complete
+  const onboardingComplete = await getOnboardingComplete();
+
+  if (!onboardingComplete) {
+    redirect("/onboarding");
+  }
+
   redirect("/dashboard");
 }
