@@ -30,7 +30,25 @@ export async function updateSession(request: NextRequest) {
   );
 
   // refreshing the auth token
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  // Public routes that don't require authentication
+  const publicRoutes = ["/login", "/onboarding/callback"];
+  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+
+  // If user is authenticated and trying to access login, redirect to home
+  if (user && pathname === "/login") {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  // If no user and route is not public, redirect to login
+  if (!user && !isPublicRoute) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   return supabaseResponse;
 }
