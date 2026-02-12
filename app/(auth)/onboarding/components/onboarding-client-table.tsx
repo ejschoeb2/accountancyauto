@@ -85,8 +85,7 @@ export function OnboardingClientTable({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          {clients.length} {clients.length === 1 ? "client" : "clients"} synced
-          from QuickBooks
+          {clients.length} {clients.length === 1 ? "client" : "clients"}
         </p>
         <Button
           variant="outline"
