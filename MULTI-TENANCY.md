@@ -90,6 +90,19 @@ Single Supabase with separate Postgres schemas per practice.
 
 ---
 
+## Authentication
+
+**Status:** Implemented (2026-02-12)
+
+The application now requires authentication for all routes:
+- Supabase Auth with email/password
+- Login and signup pages
+- Auth-aware middleware protecting all dashboard routes
+- RLS policies switched from `anon` to `authenticated` role
+- Sign-out functionality in dashboard header
+
+Users must create an account and log in to access the application. Each practice's Supabase project manages its own users.
+
 ## Current Codebase State
 
 The application is **NOT multi-tenant ready**. Converting to Option 2 would require:
@@ -162,24 +175,28 @@ For each new accounting practice client:
    POSTMARK_SERVER_TOKEN=<shared-or-client-specific>
    ```
 
-### Future: Automated Deployment Script
+### Deployment Script
 
-Could create `scripts/deploy-new-client.sh`:
+**Status:** Implemented (2026-02-12)
 
+A guided deployment script is available at `scripts/setup-new-practice.sh`.
+
+Usage:
 ```bash
-#!/bin/bash
-# Creates new Supabase project and deploys for a new client
-# Usage: ./deploy-new-client.sh "Client Name"
-
-CLIENT_NAME=$1
-
-# 1. Create Supabase project (requires Supabase CLI with API access)
-# 2. Run migrations
-# 3. Seed default data
-# 4. Create Vercel deployment
-# 5. Set environment variables
-# 6. Output setup instructions
+./scripts/setup-new-practice.sh "Practice Name"
 ```
+
+The script provides a step-by-step checklist for:
+1. Creating Supabase project
+2. Running migrations
+3. Creating first user
+4. Deploying to Vercel
+5. Setting environment variables
+6. Configuring Postmark and QuickBooks
+7. Setting up Vercel Cron jobs
+8. Verifying the deployment
+
+The script generates a random `CRON_SECRET` and provides an environment variables template for easy setup.
 
 ---
 
@@ -268,9 +285,10 @@ For **accounting/financial data**, separate projects provide better security pos
 **Stick with separate Supabase projects** for the foreseeable future (1-5 clients).
 
 ### Action Items
-- [ ] Document the manual setup process
-- [ ] Create setup checklist for new clients
-- [ ] Consider creating deployment automation if beyond 3 clients
+- [x] Document the manual setup process (DONE - see scripts/setup-new-practice.sh)
+- [x] Create setup checklist for new clients (DONE - see scripts/setup-new-practice.sh)
+- [x] Implement authentication (DONE - Supabase Auth with email/password)
+- [ ] Consider creating full deployment automation (API-based) if beyond 3 clients
 - [ ] Revisit this decision if client count exceeds 10
 
 ### Future Optimization
