@@ -343,17 +343,6 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     },
   };
 
-  // Step badge styling - button-base text-only style for all steps
-  const getStepBadgeClass = (stepIndex: number) => {
-    const stepColors = [
-      'bg-blue-500/10 hover:bg-blue-500/20 text-blue-500', // Step 1
-      'bg-violet-500/10 hover:bg-violet-500/20 text-violet-500', // Step 2
-      'bg-orange-500/10 hover:bg-orange-500/20 text-orange-600', // Step 3
-      'bg-teal-500/10 hover:bg-teal-500/20 text-teal-600', // Step 4
-      'bg-pink-500/10 hover:bg-pink-500/20 text-pink-600', // Step 5+
-    ];
-    return stepColors[Math.min(stepIndex, stepColors.length - 1)];
-  };
 
   // Filter toggle handlers
   function toggleClientTypeFilter(type: string) {
@@ -868,14 +857,8 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                     {formatDate(entry.sent_at)}
                   </TableCell>
                   {/* Reminder Step */}
-                  <TableCell>
-                    {entry.step_index !== null ? (
-                      <span className={`inline-flex items-center justify-center rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 ${getStepBadgeClass(entry.step_index)}`}>
-                        Step {entry.step_index + 1}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.step_index !== null ? entry.step_index + 1 : '—'}
                   </TableCell>
                   {/* Template Name */}
                   <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
@@ -931,10 +914,8 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                     {formatDate(reminder.send_date)}
                   </TableCell>
                   {/* Reminder Step */}
-                  <TableCell>
-                    <span className={`inline-flex items-center justify-center rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 ${getStepBadgeClass(reminder.step_index)}`}>
-                      Step {reminder.step_index + 1}
-                    </span>
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {reminder.step_index + 1}
                   </TableCell>
                   {/* Template Name */}
                   <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
@@ -976,7 +957,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
       </div>
 
       {/* Pagination */}
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto mt-6">
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-foreground/70">
             Page <span className="font-semibold text-foreground">{currentPage}</span> of <span className="font-semibold text-foreground">{totalPages || 1}</span>

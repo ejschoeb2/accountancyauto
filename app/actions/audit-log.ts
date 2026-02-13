@@ -53,7 +53,8 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
   );
 
-  // Build the query - include reminder_queue join for deadline_date and step_index
+  // Build the query - include reminder_queue left join for deadline_date and step_index
+  // Note: Using left join because ad-hoc emails may not have a reminder_queue_id
   let query = supabase
     .from('email_log')
     .select(`
@@ -67,7 +68,7 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
       send_type,
       reminder_queue_id,
       clients!inner(company_name, client_type),
-      reminder_queue(deadline_date, step_index)
+      reminder_queue!left(deadline_date, step_index)
     `, { count: 'exact' });
 
   // Apply filters
