@@ -66,7 +66,13 @@ Accountants spend hours every month manually chasing clients for records and doc
 
 ### Active
 
-(No active requirements — next milestone not yet defined)
+- [ ] Postmark inbound webhook receives and stores client reply emails
+- [ ] AI classification of reply intent (paperwork sent, question, extension request, out of office, etc.)
+- [ ] High-confidence classifications auto-update client filing status (e.g. mark records received)
+- [ ] Ambiguous or low-confidence replies flagged for accountant review
+- [ ] Reply log with full email content visible in the dashboard
+- [ ] Accountant can reply back to clients from within the dashboard
+- [ ] Reply-To addressing scheme that encodes client/filing context for deterministic matching
 
 ### Out of Scope
 
@@ -78,6 +84,7 @@ Accountants spend hours every month manually chasing clients for records and doc
 - SMS reminders — email only
 - Billing / payments integration
 - Document upload from clients — just reminders, not a file exchange platform
+- Attachment processing from inbound emails — text classification only for v3.0
 - Drag-and-drop email builder — rich text editor sufficient
 - HTML source code editing — non-technical user, would bypass sanitization
 - Real-time collaborative editing — solo practitioner
@@ -92,10 +99,10 @@ Accountants spend hours every month manually chasing clients for records and doc
 - **QuickBooks API:** Uses QBO query API with SQL-like syntax, webhooks for real-time updates, OAuth 2.0 with 1-hour access tokens and 100-day refresh tokens
 - **Email requirements:** Must appear to come from Peninsula Accounting's domain, requires Postmark domain verification with DKIM + return-path CNAME
 - **Filing deadlines are mostly formulaic:** Corporation Tax = year-end + 9 months 1 day, Companies House = year-end + 9 months (private), VAT = quarter-end + 1 month 7 days, Self Assessment = 31 January following tax year — all overridable per client
-- **Current state:** v1.1 shipped 2026-02-08 — 14,567 LOC TypeScript, Next.js + Supabase + Postmark + TipTap 3.x
+- **Current state:** v2.0 tagged 2026-02-12 — Next.js + Supabase + Postmark + TipTap 3.x, auth + onboarding added
 - **Architecture:** Normalized relational tables (email_templates, schedules, schedule_steps), TipTap JSON for template bodies, React Email for rendering, two-stage cron (queue + send)
 - **v1.1 audit:** 40/40 requirements satisfied, 10/10 cross-phase integrations, 3/3 E2E flows, UAT 17/17 after fixes
-- **Milestones shipped:** v1.0 MVP (2026-02-07), v1.1 Template & Scheduling Redesign (2026-02-08)
+- **Milestones shipped:** v1.0 MVP (2026-02-07), v1.1 Template & Scheduling Redesign (2026-02-08), v2.0 stable release (2026-02-12)
 
 ## Constraints
 
@@ -133,5 +140,17 @@ Accountants spend hours every month manually chasing clients for records and doc
 | Three urgency levels only | normal/high/urgent — 'low' removed for simplicity | Good |
 | Paste always strips formatting | Plain text only, no Ctrl+Shift+V — predictable paste behavior | Good |
 
+## Current Milestone: v3.0 Inbound Email Intelligence
+
+**Goal:** Close the feedback loop — when clients reply to reminders, the system reads, classifies, and acts on their responses automatically.
+
+**Target features:**
+- Postmark inbound email webhook processing
+- AI-powered reply classification (Claude API)
+- Automatic status updates for high-confidence replies
+- Accountant review queue for ambiguous replies
+- Reply log with full email content in dashboard
+- Reply-from-dashboard capability
+
 ---
-*Last updated: 2026-02-08 after v1.1 milestone completion*
+*Last updated: 2026-02-12 after v3.0 milestone start*
