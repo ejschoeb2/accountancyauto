@@ -6,14 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ButtonBase } from '@/components/ui/button-base';
 import { CheckButton } from '@/components/ui/check-button';
+import { ButtonWithText } from '@/components/ui/button-with-text';
+import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { usePageLoading } from '@/components/page-loading';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Card,
+  CardContent,
+} from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -24,7 +30,7 @@ import {
 } from '@/components/ui/table';
 import { getAuditLog, getQueuedReminders, type AuditEntry, type QueuedReminder } from '@/app/actions/audit-log';
 import { format } from 'date-fns';
-import { Search, X, ArrowUpDown } from 'lucide-react';
+import { Search, X, ArrowUpDown, SlidersHorizontal, ChevronDown } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -36,9 +42,53 @@ const FILING_TYPE_LABELS: Record<string, string> = {
   self_assessment: "Self Assessment",
 };
 
+// Client type options
+const CLIENT_TYPE_OPTIONS = [
+  { value: "Limited Company", label: "Limited Company" },
+  { value: "Sole Trader", label: "Sole Trader" },
+  { value: "Partnership", label: "Partnership" },
+  { value: "LLP", label: "LLP" },
+];
+
+// Deadline type options (filing types)
+const DEADLINE_TYPE_OPTIONS = [
+  { value: "corporation_tax_payment", label: "Corp Tax" },
+  { value: "ct600_filing", label: "CT600" },
+  { value: "companies_house", label: "Companies House" },
+  { value: "vat_return", label: "VAT Return" },
+  { value: "self_assessment", label: "Self Assessment" },
+];
+
+// Status labels for both queued and sent
+const STATUS_LABELS_QUEUED: Record<string, string> = {
+  scheduled: "Scheduled",
+  pending: "Pending",
+  sent: "Sent",
+  cancelled: "Cancelled",
+  failed: "Failed",
+};
+
+const STATUS_LABELS_SENT: Record<string, string> = {
+  sent: "Sent",
+  delivered: "Delivered",
+  bounced: "Bounced",
+  failed: "Failed",
+};
+
+// Sort option labels
+const SORT_LABELS: Record<string, string> = {
+  "client-name-asc": "Client Name (A-Z)",
+  "client-name-desc": "Client Name (Z-A)",
+  "send-date-asc": "Send Date (Earliest)",
+  "send-date-desc": "Send Date (Latest)",
+  "deadline-date-asc": "Deadline Date (Earliest)",
+  "deadline-date-desc": "Deadline Date (Latest)",
+};
+
 type SortField = 'sent_at' | 'client_name' | 'send_date';
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'sent' | 'queued';
+type DateFilterType = 'send_date' | 'deadline_date';
 
 interface DeliveryLogTableProps {
   viewMode: ViewMode;
@@ -57,11 +107,14 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
   const [debouncedClientSearch, setDebouncedClientSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFilterType, setDateFilterType] = useState<DateFilterType>('send_date');
+  const [activeClientTypeFilters, setActiveClientTypeFilters] = useState<Set<string>>(new Set());
+  const [activeDeadlineTypeFilters, setActiveDeadlineTypeFilters] = useState<Set<string>>(new Set());
+  const [activeStatusFilters, setActiveStatusFilters] = useState<Set<string>>(new Set());
+  const [showFilters, setShowFilters] = useState(false);
 
   // Sort state
-  const [sortField, setSortField] = useState<SortField | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortBy, setSortBy] = useState<string>("send-date-asc");
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -85,11 +138,15 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     try {
       const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
+      // Only pass date filters to server if filtering by send_date (server supports this)
+      // If filtering by deadline_date, we'll filter client-side
+      const shouldPassDateToServer = dateFilterType === 'send_date';
+
       if (viewMode === 'sent') {
         const result = await getAuditLog({
           clientSearch: debouncedClientSearch || undefined,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
+          dateFrom: shouldPassDateToServer && dateFrom ? dateFrom : undefined,
+          dateTo: shouldPassDateToServer && dateTo ? dateTo : undefined,
           offset,
           limit: ITEMS_PER_PAGE,
         });
@@ -98,9 +155,9 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
       } else {
         const result = await getQueuedReminders({
           clientSearch: debouncedClientSearch || undefined,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
-          statusFilter: statusFilter !== 'all' ? statusFilter : undefined,
+          dateFrom: shouldPassDateToServer && dateFrom ? dateFrom : undefined,
+          dateTo: shouldPassDateToServer && dateTo ? dateTo : undefined,
+          statusFilter: undefined, // Now handled client-side
           offset,
           limit: ITEMS_PER_PAGE,
         });
@@ -112,7 +169,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     } finally {
       setLoading(false);
     }
-  }, [debouncedClientSearch, dateFrom, dateTo, statusFilter, currentPage, viewMode]);
+  }, [debouncedClientSearch, dateFrom, dateTo, dateFilterType, currentPage, viewMode]);
 
   useEffect(() => {
     fetchData();
@@ -121,6 +178,10 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
   // Reset to page 1 when switching views
   useEffect(() => {
     setCurrentPage(1);
+    // Clear filters when switching views
+    setActiveClientTypeFilters(new Set());
+    setActiveDeadlineTypeFilters(new Set());
+    setActiveStatusFilters(new Set());
   }, [viewMode]);
 
   // Calculate pagination
@@ -128,41 +189,98 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
   const hasNextPage = currentPage < totalPages;
   const hasPrevPage = currentPage > 1;
 
-  // Sort toggle handler
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  // Client-side sort (filtering now done server-side for queued view)
+  // Client-side filtering and sorting
   const sortedData = useMemo(() => {
     const data = viewMode === 'sent' ? sentData : queuedData;
 
-    // For sent view, apply status filter client-side
-    let filtered = viewMode === 'sent' && statusFilter !== 'all'
-      ? sentData.filter((entry) => entry.delivery_status === statusFilter)
-      : data;
+    // Apply filters
+    let filtered = data.filter((item) => {
+      // Client type filter
+      if (activeClientTypeFilters.size > 0 && (!item.client_type || !activeClientTypeFilters.has(item.client_type))) {
+        return false;
+      }
 
-    if (sortField) {
-      filtered = ([...filtered] as typeof filtered).sort((a, b) => {
-        let comparison = 0;
-        if (sortField === 'sent_at' && 'sent_at' in a && 'sent_at' in b) {
-          comparison = a.sent_at.localeCompare(b.sent_at);
-        } else if (sortField === 'send_date' && 'send_date' in a && 'send_date' in b) {
-          comparison = a.send_date.localeCompare(b.send_date);
-        } else if (sortField === 'client_name') {
-          comparison = a.client_name.localeCompare(b.client_name);
+      // Deadline type filter (filing type)
+      if (activeDeadlineTypeFilters.size > 0 && (!item.filing_type_id || !activeDeadlineTypeFilters.has(item.filing_type_id))) {
+        return false;
+      }
+
+      // Status filter
+      if (activeStatusFilters.size > 0) {
+        const itemStatus = viewMode === 'sent'
+          ? (item as AuditEntry).delivery_status
+          : (item as QueuedReminder).status;
+        if (!activeStatusFilters.has(itemStatus)) {
+          return false;
         }
-        return sortDirection === 'asc' ? comparison : -comparison;
-      });
-    }
+      }
 
-    return filtered;
-  }, [sentData, queuedData, viewMode, statusFilter, sortField, sortDirection]);
+      // Date range filter (client-side)
+      if (dateFrom || dateTo) {
+        let dateToFilter: string | null = null;
+
+        if (dateFilterType === 'send_date') {
+          dateToFilter = viewMode === 'sent' ? (item as AuditEntry).sent_at : (item as QueuedReminder).send_date;
+        } else if (dateFilterType === 'deadline_date') {
+          dateToFilter = item.deadline_date;
+        }
+
+        if (!dateToFilter) return false;
+
+        const itemDate = dateToFilter.split('T')[0]; // Get just the date part
+
+        if (dateFrom && itemDate < dateFrom) {
+          return false;
+        }
+
+        if (dateTo && itemDate > dateTo) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "client-name-asc":
+          return a.client_name.localeCompare(b.client_name);
+        case "client-name-desc":
+          return b.client_name.localeCompare(a.client_name);
+        case "send-date-asc": {
+          const dateA = viewMode === 'sent' ? (a as AuditEntry).sent_at : (a as QueuedReminder).send_date;
+          const dateB = viewMode === 'sent' ? (b as AuditEntry).sent_at : (b as QueuedReminder).send_date;
+          return dateA.localeCompare(dateB);
+        }
+        case "send-date-desc": {
+          const dateA = viewMode === 'sent' ? (a as AuditEntry).sent_at : (a as QueuedReminder).send_date;
+          const dateB = viewMode === 'sent' ? (b as AuditEntry).sent_at : (b as QueuedReminder).send_date;
+          return dateB.localeCompare(dateA);
+        }
+        case "deadline-date-asc": {
+          const deadlineA = viewMode === 'sent' ? (a as AuditEntry).deadline_date : (a as QueuedReminder).deadline_date;
+          const deadlineB = viewMode === 'sent' ? (b as AuditEntry).deadline_date : (b as QueuedReminder).deadline_date;
+          if (!deadlineA && !deadlineB) return 0;
+          if (!deadlineA) return 1;
+          if (!deadlineB) return -1;
+          return deadlineA.localeCompare(deadlineB);
+        }
+        case "deadline-date-desc": {
+          const deadlineA = viewMode === 'sent' ? (a as AuditEntry).deadline_date : (a as QueuedReminder).deadline_date;
+          const deadlineB = viewMode === 'sent' ? (b as AuditEntry).deadline_date : (b as QueuedReminder).deadline_date;
+          if (!deadlineA && !deadlineB) return 0;
+          if (!deadlineA) return -1;
+          if (!deadlineB) return 1;
+          return deadlineB.localeCompare(deadlineA);
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [sentData, queuedData, viewMode, activeClientTypeFilters, activeDeadlineTypeFilters, activeStatusFilters, sortBy]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -223,17 +341,75 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     return stepColors[Math.min(stepIndex, stepColors.length - 1)];
   };
 
+  // Filter toggle handlers
+  function toggleClientTypeFilter(type: string) {
+    setActiveClientTypeFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  }
+
+  function toggleDeadlineTypeFilter(type: string) {
+    setActiveDeadlineTypeFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
+  }
+
+  function toggleStatusFilter(status: string) {
+    setActiveStatusFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) {
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+      return next;
+    });
+  }
+
+  // Get unique templates for filter options
+  const uniqueTemplates = useMemo(() => {
+    const data = viewMode === 'sent' ? sentData : queuedData;
+    const templates = new Set<string>();
+    data.forEach((item) => {
+      if (item.template_name) {
+        templates.add(item.template_name);
+      }
+    });
+    return Array.from(templates).sort();
+  }, [sentData, queuedData, viewMode]);
+
+  const activeFilterCount =
+    activeClientTypeFilters.size +
+    activeDeadlineTypeFilters.size +
+    activeStatusFilters.size;
+
   const hasActiveFilters =
     clientSearch !== '' ||
     dateFrom !== '' ||
     dateTo !== '' ||
-    statusFilter !== 'all';
+    activeClientTypeFilters.size > 0 ||
+    activeDeadlineTypeFilters.size > 0 ||
+    activeStatusFilters.size > 0;
 
   function clearAllFilters() {
     setClientSearch('');
     setDateFrom('');
     setDateTo('');
-    setStatusFilter('all');
+    setActiveClientTypeFilters(new Set());
+    setActiveDeadlineTypeFilters(new Set());
+    setActiveStatusFilters(new Set());
     setCurrentPage(1);
   }
 
@@ -261,89 +437,210 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
 
   return (
     <div className="space-y-6 pb-0">
-      {/* Filters and Results */}
+      {/* Search and Controls */}
       <div className="max-w-7xl mx-auto space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by client name..."
-            value={clientSearch}
-            onChange={(e) => setClientSearch(e.target.value)}
-            className="pl-9 hover:border-foreground/20"
-          />
-          {clientSearch && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-              onClick={() => setClientSearch('')}
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Search Input */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by client name..."
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              className="pl-9 hover:border-foreground/20"
+            />
+            {clientSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                onClick={() => setClientSearch('')}
+              >
+                <X className="size-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Controls toolbar - Filter & Sort */}
+          <div className="flex gap-2 sm:ml-auto items-center">
+            <IconButtonWithText
+              type="button"
+              variant={showFilters ? "amber" : "violet"}
+              onClick={() => setShowFilters((v) => !v)}
+              title={showFilters ? "Close filters" : "Open filters"}
             >
-              <X className="size-4" />
-            </Button>
-          )}
+              <SlidersHorizontal className="h-5 w-5" />
+              {showFilters ? "Close Filters" : "Filter"}
+              {activeFilterCount > 0 && !showFilters && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-xs font-semibold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </IconButtonWithText>
+            <div className="w-px h-6 bg-border mx-1" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center justify-between gap-2 rounded-md border border-input bg-white px-3 py-2 h-9 text-sm whitespace-nowrap shadow-xs outline-none disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-md hover:border-primary/20 transition-all duration-200 focus-visible:border-2 focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-md">
+                    {SORT_LABELS[sortBy]}
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
+                    <DropdownMenuRadioItem value="client-name-asc">Client Name (A-Z)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="client-name-desc">Client Name (Z-A)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="send-date-asc">Send Date (Earliest)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="send-date-desc">Send Date (Latest)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="deadline-date-asc">Deadline Date (Earliest)</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="deadline-date-desc">Deadline Date (Latest)</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         </div>
 
-        <Input
-          type="date"
-          placeholder="From date"
-          value={dateFrom}
-          onChange={(e) => {
-            setDateFrom(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="w-40 hover:border-foreground/20"
-        />
-        <Input
-          type="date"
-          placeholder="To date"
-          value={dateTo}
-          onChange={(e) => {
-            setDateTo(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="w-40 hover:border-foreground/20"
-        />
+        {/* Collapsible filter panel */}
+        {showFilters && (
+          <Card>
+            <CardContent className="space-y-4">
+              {/* Status and Clear Filters */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
+                  <div className="flex flex-wrap gap-2">
+                    {viewMode === 'sent'
+                      ? Object.entries(STATUS_LABELS_SENT).map(([value, label]) => (
+                          <ButtonWithText
+                            key={value}
+                            onClick={() => toggleStatusFilter(value)}
+                            isSelected={activeStatusFilters.has(value)}
+                            variant="muted"
+                          >
+                            {label}
+                          </ButtonWithText>
+                        ))
+                      : Object.entries(STATUS_LABELS_QUEUED).map(([value, label]) => (
+                          <ButtonWithText
+                            key={value}
+                            onClick={() => toggleStatusFilter(value)}
+                            isSelected={activeStatusFilters.has(value)}
+                            variant="muted"
+                          >
+                            {label}
+                          </ButtonWithText>
+                        ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide invisible">Clear</span>
+                  <IconButtonWithText
+                    type="button"
+                    variant="destructive"
+                    onClick={clearAllFilters}
+                    title="Clear all filters"
+                  >
+                    <X className="h-5 w-5" />
+                    Clear all filters
+                  </IconButtonWithText>
+                </div>
+              </div>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            {viewMode === 'sent' ? (
-              <>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="bounced">Bounced</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </>
-            ) : (
-              <>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="sent">Sent</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </>
-            )}
-          </SelectContent>
-        </Select>
+              {/* Client Type */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client Type</span>
+                <div className="flex flex-wrap gap-2">
+                  {CLIENT_TYPE_OPTIONS.map((opt) => (
+                    <ButtonWithText
+                      key={opt.value}
+                      onClick={() => toggleClientTypeFilter(opt.value)}
+                      isSelected={activeClientTypeFilters.has(opt.value)}
+                      variant="muted"
+                    >
+                      {opt.label}
+                    </ButtonWithText>
+                  ))}
+                </div>
+              </div>
 
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearAllFilters}>
-            Clear filters
-          </Button>
+              {/* Deadline Type */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deadline Type</span>
+                <div className="flex flex-wrap gap-2">
+                  {DEADLINE_TYPE_OPTIONS.map((opt) => (
+                    <ButtonWithText
+                      key={opt.value}
+                      onClick={() => toggleDeadlineTypeFilter(opt.value)}
+                      isSelected={activeDeadlineTypeFilters.has(opt.value)}
+                      variant="muted"
+                    >
+                      {opt.label}
+                    </ButtonWithText>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Range Filter */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date Range</span>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Filter by:</label>
+                    <div className="flex gap-2">
+                      <ButtonWithText
+                        onClick={() => setDateFilterType('send_date')}
+                        isSelected={dateFilterType === 'send_date'}
+                        variant="muted"
+                      >
+                        {viewMode === 'sent' ? 'Date Sent' : 'Send Date'}
+                      </ButtonWithText>
+                      <ButtonWithText
+                        onClick={() => setDateFilterType('deadline_date')}
+                        isSelected={dateFilterType === 'deadline_date'}
+                        variant="muted"
+                      >
+                        Deadline Date
+                      </ButtonWithText>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">From:</label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => {
+                        setDateFrom(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-40 hover:border-foreground/20"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">To:</label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => {
+                        setDateTo(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="w-40 hover:border-foreground/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
-      </div>
 
-      {/* Results count */}
-      <div className="text-sm font-medium text-foreground/70">
-        Showing <span className="font-semibold text-foreground">{sortedData.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
-        <span className="font-semibold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}</span> of <span className="font-semibold text-foreground">{totalCount}</span>{' '}
-        {viewMode === 'sent' ? 'sent emails' : 'queued emails'}
-      </div>
+        {/* Results count */}
+        <div className="text-sm font-medium text-foreground/70">
+          Showing <span className="font-semibold text-foreground">{sortedData.length}</span> of <span className="font-semibold text-foreground">{totalCount}</span>{' '}
+          {viewMode === 'sent' ? 'sent emails' : 'queued emails'}
+          {hasActiveFilters && <span className="text-muted-foreground ml-1">(filtered)</span>}
+        </div>
       </div>
 
       {/* Table - Full page width like client table */}
@@ -372,13 +669,9 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                   </TableHead>
                   {/* Client Name */}
                   <TableHead>
-                    <button
-                      className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
-                      onClick={() => handleSort('client_name')}
-                    >
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                       Client Name
-                      <ArrowUpDown className="size-3.5" />
-                    </button>
+                    </span>
                   </TableHead>
                   {/* Client Type */}
                   <TableHead>
@@ -400,13 +693,9 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                   </TableHead>
                   {/* Date Sent */}
                   <TableHead>
-                    <button
-                      className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
-                      onClick={() => handleSort('sent_at')}
-                    >
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                       Date Sent
-                      <ArrowUpDown className="size-3.5" />
-                    </button>
+                    </span>
                   </TableHead>
                   {/* Reminder Step */}
                   <TableHead>
@@ -431,13 +720,9 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                 <>
                   {/* Client Name */}
                   <TableHead>
-                    <button
-                      className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
-                      onClick={() => handleSort('client_name')}
-                    >
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                       Client Name
-                      <ArrowUpDown className="size-3.5" />
-                    </button>
+                    </span>
                   </TableHead>
                   {/* Client Type */}
                   <TableHead>
@@ -459,13 +744,9 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                   </TableHead>
                   {/* Send Date */}
                   <TableHead>
-                    <button
-                      className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
-                      onClick={() => handleSort('send_date')}
-                    >
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                       Send Date
-                      <ArrowUpDown className="size-3.5" />
-                    </button>
+                    </span>
                   </TableHead>
                   {/* Reminder Step */}
                   <TableHead>
