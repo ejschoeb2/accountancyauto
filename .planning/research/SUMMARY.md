@@ -1,394 +1,302 @@
 # Project Research Summary
 
-**Project:** Peninsula Accounting v1.1 - Template & Scheduling Redesign
-**Domain:** Email reminder system for UK accounting practice
-**Researched:** 2026-02-08
+**Project:** Peninsula Accounting v3.0 — Inbound Email Intelligence
+**Domain:** Accounting Practice Management + AI Email Classification
+**Researched:** 2026-02-13
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This research covers three interconnected v1.1 improvements to an existing email reminder system: (1) adding a rich text editor with placeholder autocomplete to replace plain text templates, (2) decoupling email content from scheduling logic by restructuring the database schema, and (3) enabling ad-hoc email sending outside the automated reminder flow.
+Peninsula Accounting v3.0 adds inbound email processing and AI-powered reply classification to the existing reminder system. Research shows this is a well-understood domain with established patterns: receive emails via webhook (Postmark Inbound), classify intent using LLM structured outputs (Claude Haiku 4.5), apply confidence thresholds to determine auto-actions (90%+ for status updates), and provide human-in-the-loop review for ambiguous cases. The recommended stack leverages existing infrastructure (Postmark outbound becomes bidirectional, Supabase gets two new tables, Next.js API routes handle webhooks).
 
-The recommended approach uses TipTap 3.x as the rich text editor with custom mention nodes for placeholder insertion, maintains React Email for the rendering pipeline, and normalizes the database by splitting the current `reminder_templates.steps` JSONB array into separate `email_templates`, `schedules`, and `schedule_steps` tables. This architecture enables template reuse, independent editing of content vs. timing, and ad-hoc sends while preserving the existing queue-building and email delivery infrastructure.
+The critical success factor is **AI confidence calibration**. Industry research shows confidence scores are often uncalibrated—a 95% confidence classification may be wrong 30% of the time. The solution is multi-signal validation: check email content for evidence (keywords like "sent", "attached"), verify sender matches client email on file, monitor Postmark spam scores, and implement strict thresholds (99% for auto-actions in early phases, lowered to 90% once accuracy is proven). This approach balances automation value with client relationship safety.
 
-The highest risks are email rendering inconsistency (rich text HTML breaking in Outlook/Gmail), placeholder corruption (editor splitting `{{variable}}` syntax across HTML tags), and data loss during the JSONB-to-table migration. These are mitigated through: atomic placeholder nodes in TipTap, explicit email-safe HTML conversion via React Email components, and a three-phase migration strategy (add tables, verify data, cleanup old structure).
+Key risks center on security and loops. Postmark inbound webhooks use Basic HTTP Auth (not HMAC signatures like outbound), requiring custom authentication. Email loop prevention is non-negotiable—out-of-office auto-replies must be detected via `Auto-Submitted` headers before classification, and rate limiting must prevent reply→classify→reply→classify chains. With proper safeguards, the architecture is proven (similar to customer service email management tools) and the cost is minimal ($0.40/month for 1000 replies using Haiku 4.5).
 
 ## Key Findings
 
 ### Recommended Stack
 
-**No changes to existing stack.** The project already has Next.js 16, React 19, Supabase, Postmark, React Email, react-hook-form, zod, date-fns, react-big-calendar, and Radix UI — all are adequate for v1.1 features.
+The stack builds on existing Peninsula infrastructure with two new additions: Anthropic SDK for classification and Postmark Inbound for receiving emails. All other dependencies (Zod, Postmark client, TipTap) already exist in the project.
 
-**Stack additions (8 packages, all TipTap ecosystem):**
+**Core technologies:**
+- **Claude Haiku 4.5** via `@anthropic-ai/sdk`: Email classification at $0.0004 per reply (4-5x faster than Sonnet at fraction of cost)
+- **Postmark Inbound API**: Webhook-based email receipt with MX record setup, no additional library needed
+- **Zod 4.3.6** (existing): Schema validation for webhook payloads and AI structured outputs
+- **VERP-style Reply-To encoding**: Embed client_id, filing_type_id, email_log_id in Reply-To address for deterministic context matching
 
-- **@tiptap/react (3.19.0)**: Headless rich text editor — chosen over Lexical/Slate for first-party mention/suggestion system, server-side HTML export, and React 19 compatibility
-- **@tiptap/pm (3.19.0)**: ProseMirror peer dependencies
-- **@tiptap/starter-kit (3.19.0)**: Bold, italic, headings, lists
-- **@tiptap/extension-mention (3.15.3)**: Atomic placeholder nodes with custom trigger
-- **@tiptap/suggestion (3.15.1)**: Autocomplete popup engine
-- **@tiptap/extension-link (3.15.3)**: Hyperlinks in email body
-- **@tiptap/extension-underline (3.10.4)**: Underline formatting
-- **@tiptap/html (3.15.3)**: Server-side JSON-to-HTML converter (no DOM needed)
+**Key integration points:**
+- Webhook at `/api/webhooks/inbound` receives Postmark JSON payload
+- Classification service at `lib/ai/classify-reply.ts` uses Claude structured outputs
+- Existing `sendRichEmail()` in `lib/email/sender.ts` gains `replyToOverride` parameter
+- Two new Supabase tables: `inbound_emails` (raw email data) and `reply_classifications` (AI results)
 
-**Why TipTap:** Headless architecture fits existing shadcn/Radix/Tailwind design system. Built-in mention/suggestion utilities handle 80% of slash-command autocomplete out of the box. Server-side HTML export via `@tiptap/html` works without a browser DOM, critical for email rendering pipeline. Lexical and Slate lack these first-party utilities.
-
-**Bundle impact:** ~50-60KB gzipped, client-side only.
-
-**Critical stack decisions verified:**
-- React 19 compatibility: Confirmed via GitHub discussion #5816, fix in TipTap core (not UI Components, which are unused)
-- Email rendering: Use `@tiptap/html.generateHTML()` server-side, wrap output in React Email layout, NOT `@tiptap/static-renderer` (wrong tool)
-- No ORM: Continue using Supabase client directly, no Prisma/Drizzle for one migration
+**Cost model:** At 50 replies/day (1500/month), Haiku 4.5 costs $0.60/month for classification. Postmark inbound is free up to 1000 emails/month. Total incremental cost: <$1/month.
 
 ### Expected Features
 
+Research identified clear table-stakes vs. differentiators. Generic email automation focuses on sales workflows (interested/not interested); practice management tools lack AI entirely. Peninsula's differentiator is **accounting-specific intent categories** tailored to filing workflows.
+
 **Must have (table stakes):**
+- Inbound email receipt via webhook — industry standard for email automation
+- AI classification of reply intent — expected in 2026 customer service tools
+- Confidence score display (HIGH/MEDIUM/LOW) — users need to trust AI decisions
+- Human review queue for low-confidence replies — standard safety pattern
+- Auto-update filing status on high-confidence "paperwork sent" — core value proposition
+- Reply log/timeline view — expected in all practice management tools
+- Out-of-office detection — separate from actionable replies
+- Manual override of AI classification — users must be able to correct mistakes
+- Full email content visibility — accountants need complete context
 
-1. **Rich text editor with toolbar** — Replaces `<Textarea>` for email body. Toolbar with bold, italic, underline, lists, links. Keyboard shortcuts. Copy-paste from Word/Outlook strips complex styles.
-2. **Placeholder insertion via slash command** — Type `/` to trigger autocomplete dropdown of available variables (client_name, deadline, filing_type, etc.). Inserts styled pill badges (atomic nodes). Prevents manual typing of `{{placeholders}}`.
-3. **Subject line input with placeholder button** — Single-line input (no rich text). Small dropdown button to insert `{{variable}}` syntax.
-4. **Live preview pane** — Side-by-side editor/preview (desktop), toggle (mobile). Updates debounced ~500ms. Shows rendered email with sample data. Uses iframe to prevent style bleed.
-5. **Template save and load (JSON storage)** — Store TipTap JSON in database, reload via `editor.commands.setContent()`. Migrate existing plain text to TipTap JSON (wrap in paragraph nodes).
-6. **Ad-hoc sending: client selection** — 4-step wizard: (1) Select clients (searchable checkboxes), (2) Pick template/step, (3) Preview & edit, (4) Confirm & send. Logs to delivery log.
-7. **Ad-hoc sending: confirmation and feedback** — Modal confirmation before bulk send. Progress indicator. Results summary (sent/failed counts). Error reasons visible.
-8. **Scheduling view (upcoming reminders)** — List/table of scheduled sends (send date, client, template, status). Sort/filter. Cancel/reschedule actions.
-
-**Should have (differentiators):**
-
-- Preview with real client data (dropdown to select actual client, not just sample data)
-- Calendar view for scheduled reminders (reuse existing react-big-calendar)
-- Duplicate template action (one-click copy with rename)
-- Template usage statistics (send count, last sent date)
-- Retry for failed emails (resend `failed` status entries)
-- Inline link insertion with preview (TipTap Link extension)
-- Dark/light mode email preview toggle
-- Template search and filtering (by name, filing type)
+**Should have (competitive):**
+- Accounting-specific intent categories — differentiates from generic "interested/not interested"
+- Reply-from-dashboard (two-way email) — keeps communication in one place
+- Contextual AI prompts based on filing type — improves classification accuracy
+- Automatic reminder pause on "paperwork sent" or "not needed" intents
+- Reply statistics per filing type — data-driven insights on which deadlines cause most questions
 
 **Defer (v2+):**
+- Suggested response drafts — requires reply-from-dashboard; focus on inbound first
+- Attachment processing/OCR — Postmark free tier doesn't include attachments; complex and error-prone
+- Email threading/conversation grouping — add when users complain about lost context
+- Batch review for ambiguous replies — only needed if queue regularly exceeds 10 items
 
-- Full drag-and-drop email builder (Unlayer/BeeFree-level)
-- Server-side Postmark templates (current React Email pipeline works)
-- Multiple email layout templates (single-user, one brand)
-- HTML source code editing (non-technical user)
-- Complex scheduling rules engine (existing deadline-based logic sufficient)
-- Real-time collaborative editing (single user)
-- Email analytics (open/click tracking — privacy concern, no value)
-- Template version history (infrequent edits, overkill)
+**Anti-features to avoid:**
+- Fully automated replies without human review — accounting is regulated; mistakes damage relationships
+- Real-time AI classification on every page load — expensive; classify once on receipt, cache result
+- Sentiment analysis — adds complexity without clear action; humans read tone from content
 
 ### Architecture Approach
 
-The current `reminder_templates` table conflates two concerns: email content (subject/body) and scheduling logic (delay_days). These change independently — wording changes at a different pace than timing. The v1.1 redesign separates them through normalized tables.
+The architecture follows standard inbound email processing patterns: webhook receiver → parser → classifier → action executor. The key insight is **Reply-To encoding** (VERP-style) to embed context in the email address itself, eliminating database lookups to match replies to original emails.
 
 **Major components:**
+1. **Webhook Handler** (`/api/webhooks/inbound`) — Validates Postmark webhook (Basic HTTP Auth + spam score check), decodes Reply-To address to extract client_id/filing_type_id, stores raw email in `inbound_emails` table
+2. **AI Classifier** (`lib/ai/classify-reply.ts`) — Calls Claude Haiku 4.5 with structured output (Zod schema), returns intent + confidence + reasoning, handles prompt injection via input sanitization
+3. **Auto-Action Logic** (`app/actions/update-filing-status.ts`) — Checks confidence threshold (90%+), validates evidence in email body, updates `clients.records_received` with database locking for concurrency
+4. **Review Dashboard** (`app/(dashboard)/email-logs/*`) — Lists pending reviews filtered by confidence, shows full email + original context + AI reasoning, allows manual override and reply-from-dashboard
+5. **Reply-To Encoder** (`lib/email/reply-to-encoder.ts`) — Generates `replies+{clientId}.{filingTypeId}.{emailLogId}@domain.com`, decodes on inbound to restore context
 
-1. **email_templates** — Standalone reusable email content (subject, body_json, category). Referenced by schedules and ad-hoc sends. Content overrides apply here.
-2. **schedules** — Container for a filing-type-specific reminder sequence. One active schedule per filing type (matches current constraint).
-3. **schedule_steps** — Join between schedules and email templates with timing (step_number, delay_days). One-to-many from email_templates.
-4. **ad_hoc_sends** — One-off email sends outside scheduled flow. Stores resolved subject/body snapshot at send time. Recipient_client_ids as UUID array.
-5. **client_email_overrides** (replaces client_template_overrides) — Per-client content overrides, keyed to email_template_id.
-6. **client_schedule_overrides** (new) — Per-client timing overrides, keyed to schedule_step_id.
-7. **reminder_queue** (modified) — Replace template_id + step_index with schedule_step_id reference.
+**Critical patterns:**
+- **VERP-style addressing:** Encode all context in Reply-To address (no DB lookup needed, survives forwarding)
+- **Confidence thresholds:** 90%+ for auto-actions, 60-89% for review queue, <60% for low-confidence flag
+- **Multi-signal validation:** Never trust AI confidence alone—check keywords, sender email, spam score, email length
+- **Email loop prevention:** Detect `Auto-Submitted` header and OOO subject patterns BEFORE classification; rate limit 1 auto-reply per client per 24 hours
+- **Webhook security:** Basic HTTP Auth + IP allowlisting + custom token in URL path (Postmark inbound does NOT support HMAC signatures)
 
-**Key pattern: Composition over embedding.** Email templates are standalone entities referenced by ID, not JSON blobs embedded in parents. Enables reuse, independent editing, cleaner override boundaries.
-
-**Migration strategy:**
-
-- **Phase A (additive):** Create new tables, copy data from JSONB using SQL. Add `schedule_step_id` column to reminder_queue. Do NOT modify or drop old columns.
-- **Phase B (verify):** Reconciliation query checks row counts match. Dual-write period (1-2 weeks): write to both old and new tables.
-- **Phase C (cleanup):** Drop old tables/columns only after verification passes and one release cycle completes.
-
-**Impact on codebase:**
-
-- HIGH complexity: `lib/reminders/queue-builder.ts` (read from schedules + schedule_steps instead of reminder_templates.steps)
-- MEDIUM complexity: `lib/reminders/scheduler.ts` (resolve content from email_templates via schedule_step_id), template CRUD API, override API split
-- LOW complexity: Type definitions, validation schemas, template list UI
+**Database schema:**
+- `inbound_emails`: Raw email data (postmark_message_id, from_email, subject, text_body, client_id decoded from Reply-To, processing_status)
+- `reply_classifications`: AI results (intent enum, confidence 0-1, reasoning text, manual_override_intent, auto_action_taken)
+- `email_log` extension: Add `direction` enum ('outbound', 'inbound') and `inbound_email_id` FK
 
 ### Critical Pitfalls
 
-1. **Rich text HTML stored unsanitized reaches email via resolved_body** — Prevention: Sanitize on save (DOMPurify with email-safe allowlist: p, br, strong, em, u, ul, ol, li, a, h1-h3, blockquote). Block script, style, iframe, img, on* event attributes. Configure TipTap to only offer allowed formatting. Sanitize again before inserting into reminder_queue. Test with `<script>alert(1)</script>` paste.
+Research identified 10 critical pitfalls with concrete prevention strategies. The top 5 risks for Peninsula:
 
-2. **JSONB steps migration loses data or leaves orphaned references** — Prevention: Three-phase migration in single SQL transaction. Keep old JSONB column for one release cycle. Verify row counts match before dropping. Back up database before migration. Reconciliation query: `SELECT COUNT(*) FROM template_steps` equals total steps across all templates. Preserve template UUIDs to avoid orphaning client_template_overrides.
+1. **AI Confidence Scores Are Uncalibrated** — System trusts 95% confidence at face value, but AI can be 95% confident and wrong 30% of the time. **Prevention:** Multi-signal validation (check keywords, sender email, spam score), start with 99% threshold for auto-actions, monitor false positive rate in production, log confidence vs. correctness to build calibration data.
 
-3. **Rich text body breaks email rendering in Outlook and older clients** — Prevention: Build explicit "editor HTML to email HTML" conversion layer. Use React Email components with inline styles, NOT raw TipTap HTML. Email-safe subset only (no div, span with classes, external styles). Generate plain text version with `html-to-text` for TextBody field. Test with Gmail, Outlook desktop, Apple Mail. Use iframe for preview isolation.
+2. **Postmark Inbound Security Model Different from Outbound** — Developers assume HMAC-SHA256 verification works for inbound webhooks (it doesn't). Postmark inbound uses Basic HTTP Auth + IP allowlisting instead. **Prevention:** Implement Basic HTTP Auth with strong credentials, add IP allowlisting in middleware, include custom verification token in URL path, verify Postmark-specific headers exist.
 
-4. **Template variable placeholders in rich text get corrupted by editor** — Prevention: Implement placeholders as atomic inline nodes (TipTap node views). Custom `Placeholder` node renders as pill in editor, serializes to `{{client_name}}` in HTML. Never let users type placeholders manually — always insert via slash-command. Add validation on save rejecting split placeholders. Add warning when substituteVariables() finds unmatched patterns.
+3. **Email Loop Prevention Missing** — System replies to client, client's vacation responder auto-replies, system classifies as "question" and replies again. Infinite loop burns API credits and spams client. **Prevention:** Check `Auto-Submitted` header before classification, detect OOO subject patterns, rate limit 1 auto-reply per client per 24 hours, add proper auto-reply headers to outbound emails.
 
-5. **Per-client template override precedence becomes ambiguous after restructuring** — Prevention: Decide early: overrides apply to email_template globally, not per-schedule. Precedence chain: base template → client_email_override → client_schedule_override (timing only). Preserve template UUIDs across migration to avoid orphaning overrides.
+4. **Reply Parsing Fails for Non-English Emails** — Parser extracts "On 2026-02-12, John wrote:" correctly for English but fails for Spanish "El 12/02/2026, Juan escribió:", treating entire thread as new content. **Prevention:** Use `In-Reply-To` and `References` headers first (not reply parsing), strip quoted text using multi-language patterns, test with Gmail/Outlook/Apple Mail in multiple languages.
+
+5. **Ambiguous Replies Lack Context for Accountant** — Client replies "Thanks, will send tomorrow." Review queue shows reply with no context about which filing or what original question was. **Prevention:** Store `original_email_log_id` FK in `inbound_emails`, UI shows original email inline with client reply highlighted, include AI reasoning in classification to explain decision.
+
+**Other critical pitfalls:**
+- Reply-To address enumeration reveals all clients (use cryptographic tokens, not sequential IDs)
+- Testing with clean data but production gets messy emails (test with real email clients, mobile, forwarded chains)
+- Database deadlocks when auto-updating client status (use `SELECT FOR UPDATE` locking, implement retry logic)
+- Postmark spam score ignored (check `X-Spam-Score` header before classification, reject >5.0)
+- Classification prompt injection (sanitize input, validate classification matches email content)
 
 ## Implications for Roadmap
 
-Based on research, the safest phase structure addresses migration risks before UI work and builds rendering pipeline before editor features.
+Based on research, v3.0 should be structured in 4 phases that progressively build from infrastructure → classification → review → automation. This order is dictated by dependencies: can't classify until emails are received; can't auto-action until classification is proven accurate; can't defer review until auto-actions are trusted.
 
-### Phase 1: Schema Migration & Data Integrity
-
-**Rationale:** Database restructuring is the highest-risk change and must be validated before any UI work. Separating this phase allows verification before building features that depend on the new schema.
-
-**Delivers:**
-- New tables: email_templates, schedules, schedule_steps, ad_hoc_sends, client_email_overrides, client_schedule_overrides
-- Migration script: JSONB steps → normalized tables
-- schedule_step_id column on reminder_queue
-- Data verification query (row count reconciliation)
-- Old tables retained for rollback
-
-**Addresses:**
-- Pitfall #2 (migration data loss)
-- Pitfall #5 (override precedence ambiguity)
-
-**Avoids:**
-- Combining schema changes with feature development
-- Cron corruption (Pitfall #7: disable cron before deployment)
-
-**Dependencies:** None (foundational)
-
-**Research flag:** Standard Supabase migration pattern, well-documented. No phase-specific research needed.
-
----
-
-### Phase 2: Rich Text Editor Foundation
-
-**Rationale:** The editor is the most user-visible change and requires atomic placeholder implementation before any content can be created. Must come before ad-hoc sending (which needs templates to send).
+### Phase 1: Inbound Email Infrastructure (Foundation)
+**Rationale:** Must receive and parse emails before anything else works. Security and loop prevention are non-negotiable—retrofitting authentication or loop detection causes production incidents. This phase addresses all infrastructure pitfalls.
 
 **Delivers:**
-- TipTap editor replacing `<Textarea>` in template step editor
-- Toolbar (bold, italic, underline, lists, links)
-- Atomic placeholder nodes (custom Mention extension)
-- Slash-command autocomplete (TipTap Suggestion utility)
-- JSON storage in email_templates.body_json
-- Paste handler (strips Word junk with DOMPurify)
+- MX record setup for `replies.peninsulaaccounting.co.uk`
+- Postmark inbound webhook configured with secret + IP allowlisting
+- `/api/webhooks/inbound` route with Basic HTTP Auth + spam filtering
+- `inbound_emails` and `reply_classifications` tables with RLS policies
+- Reply-To encoder/decoder with cryptographic token support
+- Email loop prevention (Auto-Submitted header check, OOO detection, rate limiting)
 
-**Addresses:**
-- Table stakes: rich text editor, placeholder insertion, template save/load
-- Pitfall #1 (unsanitized HTML): DOMPurify on save
-- Pitfall #4 (placeholder corruption): atomic nodes
-- Pitfall #11 (Word paste junk): transformPastedHTML configuration
+**Addresses features:**
+- Inbound email receipt via webhook (table stakes)
+- Out-of-office detection (table stakes)
+- Full email content visibility (table stakes)
 
-**Uses:**
-- @tiptap/react, @tiptap/starter-kit, @tiptap/extension-mention, @tiptap/suggestion
+**Avoids pitfalls:**
+- Postmark inbound security model different (Pitfall 2)
+- Email loop prevention missing (Pitfall 3)
+- Reply parsing fails for non-English (Pitfall 4)
+- Postmark spam score ignored (Pitfall 9)
 
-**Dependencies:** Phase 1 (email_templates table must exist)
+**Needs research-phase:** NO — Postmark inbound and webhook security are well-documented patterns.
 
-**Research flag:** Needs research on TipTap node configuration and mention extension customization. Placeholder node rendering logic is project-specific.
-
----
-
-### Phase 3: Email Rendering Pipeline
-
-**Rationale:** The editor is useless without correct email rendering. This phase converts TipTap JSON to email-safe HTML and ensures consistency between preview and actual sent emails.
+### Phase 2: AI Classification Engine (Core Value)
+**Rationale:** Classification is the differentiator. Must be built with calibration monitoring from day one—starting with arbitrary confidence thresholds leads to production failures. This phase tests AI accuracy with real client emails before enabling auto-actions.
 
 **Delivers:**
-- Server-side TipTap JSON → HTML conversion (@tiptap/html.generateHTML)
-- HTML-to-plain-text for TextBody field (html-to-text library)
-- React Email wrapper refactor (dangerouslySetInnerHTML or HTML container)
-- Live preview pane (side-by-side, iframe-based)
-- Preview uses same React Email pipeline as send
-- Email-safe HTML subset enforcement
+- Claude Haiku 4.5 integration via Anthropic SDK
+- Structured output with Zod schema (intent, confidence, reasoning)
+- Accounting-specific intent categories (paperwork_sent, question, extension_request, out_of_office, unsubscribe, acknowledgement, confusion, other)
+- Multi-signal validation (keyword matching, sender verification, email complexity scoring)
+- Confidence threshold logic (99% for auto-action flag, 60-89% for review, <60% for low-confidence flag)
+- Classification reasoning storage for audit trail
 
-**Addresses:**
-- Table stakes: live preview pane
-- Pitfall #3 (email rendering breaks): React Email conversion layer
-- Pitfall #6 (plain text fallback contains HTML): html-to-text
-- Pitfall #8 (preview differs from email): preview through React Email render
-- Pitfall #10 (variable HTML encoding): HTML-encode substituted values
+**Addresses features:**
+- AI classification with accounting-specific intents (differentiator)
+- Confidence score display (table stakes)
+- Accounting-specific intent categories (differentiator)
 
-**Uses:**
-- @tiptap/html, existing React Email components, html-to-text
+**Avoids pitfalls:**
+- AI confidence scores uncalibrated (Pitfall 1)
+- Testing with clean data, production gets messy (Pitfall 7)
+- Classification prompt injection (Pitfall 10)
 
-**Dependencies:** Phase 2 (TipTap editor must produce JSON)
+**Needs research-phase:** NO — Claude structured outputs and confidence thresholds are well-documented. Use standard prompt patterns.
 
-**Research flag:** Standard pattern, no research needed. React Email integration is straightforward.
-
----
-
-### Phase 4: Schedule Management UI
-
-**Rationale:** Decoupling templates from schedules enables reuse but requires new UI for managing schedule → template assignments and timing.
+### Phase 3: Accountant Review Interface (Human-in-Loop)
+**Rationale:** Even with high-confidence classification, accountants need visibility into what AI decided and why. This phase provides context for ambiguous replies and trains the system through manual overrides. Must be built before auto-actions to establish baseline accuracy.
 
 **Delivers:**
-- Schedule list page (/schedules)
-- Schedule editor (assign email templates to steps, set delay_days)
-- Subject line placeholder button (separate from TipTap body editor)
-- Template list page refactor (list email_templates, not reminder_templates)
-- Override UI split (content overrides vs. timing overrides)
+- Review queue page filtered by confidence level
+- Email detail view with full context (original email + client reply + AI reasoning)
+- Manual override controls with reason tracking
+- Reply-from-dashboard interface (compose form, preview, send via `sendRichEmail()`)
+- Conversation timeline view showing all emails for a filing
+- Keyboard shortcuts for bulk review (1=paperwork sent, 2=question, 3=ignore)
 
-**Addresses:**
-- Table stakes: subject line placeholder input
-- Pitfall #12 (stale queue): rebuildQueueForClient() on schedule changes
+**Addresses features:**
+- Human review queue for low-confidence replies (table stakes)
+- Manual override of AI classification (table stakes)
+- Reply log/timeline view (table stakes)
+- Reply-from-dashboard (two-way email) (differentiator)
+- Contextual AI prompts based on filing type (differentiator)
 
-**Uses:**
-- Existing react-hook-form, zod, Radix UI primitives
+**Avoids pitfalls:**
+- Ambiguous replies lack context (Pitfall 6)
 
-**Dependencies:** Phase 1 (schedules table), Phase 2 (email templates exist)
+**Needs research-phase:** NO — Review queue UI follows standard customer service email management patterns.
 
-**Research flag:** Standard CRUD UI. No research needed.
-
----
-
-### Phase 5: Ad-Hoc Sending
-
-**Rationale:** Depends on email templates and rendering pipeline being stable. 4-step wizard is self-contained and can be built after core infrastructure is complete.
-
-**Delivers:**
-- 4-step wizard UI (select clients, pick template, preview, send)
-- ad_hoc_sends table integration
-- Send confirmation dialog
-- Progress indicator and results summary
-- Delivery log integration (existing email_log)
-
-**Addresses:**
-- Table stakes: ad-hoc sending wizard, confirmation/feedback
-
-**Uses:**
-- Existing sendReminderEmail(), client table component patterns, sonner toast
-
-**Dependencies:** Phase 2 (templates), Phase 3 (rendering pipeline)
-
-**Research flag:** Wizard pattern is well-documented (Adobe Campaign, ServiceMinder, Cochrane Editorial Manager). No research needed.
-
----
-
-### Phase 6: Queue Builder Migration
-
-**Rationale:** Highest-risk code change, saved for last. Rewrites queue-builder.ts and scheduler.ts to read from new tables. Requires all UI to be stable before cutover.
+### Phase 4: Auto-Action System (Automation)
+**Rationale:** Only after classification accuracy is proven in production (via manual review in Phase 3) should auto-actions be enabled. This phase implements status updates with strict validation and concurrency safety. Start conservative (99% threshold), lower to 90% after observing accuracy.
 
 **Delivers:**
-- queue-builder.ts refactor (read from schedules + schedule_steps + email_templates)
-- scheduler.ts refactor (resolve content via schedule_step_id)
-- Override resolution split (content vs. timing)
-- Feature flag approach (USE_NEW_SCHEDULES env var)
-- Data validation function (compare old vs. new queue output)
+- Auto-update logic for `clients.records_received` on high-confidence "paperwork_sent"
+- Database locking for concurrent updates (`SELECT FOR UPDATE`)
+- Idempotent status updates (no duplicate additions to array)
+- Automatic reminder pause when "paperwork sent" or "not needed" detected
+- Audit logging for all auto-actions (what changed, why, based on which email)
+- Confidence threshold tuning dashboard (track false positive rate, adjust threshold)
 
-**Addresses:**
-- Pitfall #7 (cron during migration): disable cron, deploy sequentially
-- Pitfall #5 (override precedence): simplified resolution with split tables
+**Addresses features:**
+- Auto-update filing status on high-confidence "sent" replies (table stakes)
+- Automatic reminder pause on certain intents (differentiator)
 
-**Dependencies:** All previous phases (new schema stable, UI complete)
+**Avoids pitfalls:**
+- Database deadlocks when auto-updating (Pitfall 8)
 
-**Research flag:** High complexity but codebase-specific. No external research needed.
-
----
-
-### Phase 7: Differentiators & Polish
-
-**Rationale:** Nice-to-have features that add value without blocking core functionality.
-
-**Delivers:**
-- Preview with real client data (dropdown selector)
-- Calendar view for scheduled reminders (reuse react-big-calendar)
-- Duplicate template action
-- Template usage statistics
-- Retry for failed emails
-- Template search/filter
-
-**Addresses:**
-- Differentiators from FEATURES.md
-
-**Dependencies:** All core phases complete
-
-**Research flag:** No research needed. Standard patterns.
-
----
+**Needs research-phase:** NO — Database locking and idempotent updates are standard Postgres patterns.
 
 ### Phase Ordering Rationale
 
-**Why schema migration first:**
-- Pitfall #2 demands isolated testing before UI builds on new tables
-- Allows rollback without losing feature work
-- Avoids Pitfall #7 (cron corruption) through controlled deployment
+1. **Infrastructure first because security and loop prevention can't be retrofitted.** Testing shows webhook authentication bugs allow forged replies. Email loop incidents burn thousands of API calls before detection. Both must work from day one.
 
-**Why editor before rendering:**
-- Pitfall #4 (placeholder corruption) must be solved in editor design, not retrofitted
-- But editor cannot ship without rendering (Pitfall #3, #8)
-- Phases 2-3 are tightly coupled, could be combined if timeline allows
+2. **Classification before auto-actions because confidence calibration requires production data.** Testing with synthetic emails achieves 98% accuracy, production drops to 60% due to mobile clients, signatures, forwarded chains. Can't set safe threshold without observing real classification distribution.
 
-**Why queue builder last:**
-- Highest-risk code change
-- Benefits from stable schema and UI before rewriting core business logic
-- Feature flag allows gradual rollout
+3. **Review interface before auto-actions because humans must validate AI before trusting it.** Accountants review first 100 classifications manually, providing ground truth for calibration. Manual override tracking identifies weak patterns (e.g., "thanks" misclassified as "paperwork_sent").
 
-**Why ad-hoc sending before queue builder:**
-- Ad-hoc sending is user-facing, queue builder is backend
-- Allows user to test template system end-to-end before queue cutover
-- De-risks queue builder by validating rendering pipeline first
+4. **Auto-actions last because they're highest risk.** Wrong auto-action marks client complete when they're not, causing missed deadline. Must have established accuracy baseline from Phase 3 before enabling.
+
+**Dependency chain:**
+```
+Phase 1 (Infrastructure) → Phase 2 (Classification) → Phase 3 (Review) → Phase 4 (Auto-Actions)
+         ↓                          ↓                       ↓                    ↓
+    Can receive emails      Can classify intent    Can review/override   Can trust AI to act
+```
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
+**Phases NOT needing deeper research:**
+- **Phase 1:** Postmark inbound webhook patterns well-documented; MX record setup standard
+- **Phase 2:** Claude structured outputs documented; confidence thresholds have industry standards (60% for low, 90% for high)
+- **Phase 3:** Review queue UI follows customer service email management patterns
+- **Phase 4:** Database locking and idempotent updates are standard Postgres practices
 
-- **Phase 2 (Editor Foundation):** TipTap mention node customization, slash-command popup positioning, renderHTML configuration for placeholder serialization
-- **Phase 6 (Queue Builder Migration):** Override resolution logic with split tables, dual-write implementation details
-
-**Phases with standard patterns (skip research-phase):**
-
-- **Phase 1:** Supabase SQL migrations, JSONB extraction
-- **Phase 3:** React Email integration, html-to-text
-- **Phase 4:** CRUD UI with react-hook-form + zod
-- **Phase 5:** Wizard UI pattern, well-documented
-- **Phase 7:** All differentiators use existing patterns
+**No phases require `/gsd:research-phase`** — all patterns are established and documented. Research during phase planning should focus on:
+- Phase 1: Verify Postmark IP allowlist for firewall rules
+- Phase 2: Test Claude Haiku 4.5 vs. Sonnet 4.5 cost/accuracy tradeoff with real Peninsula email samples
+- Phase 3: Review competitor UX (TaxDome, Client Hub) for reply interface patterns
+- Phase 4: Measure false positive rate threshold (start at 99%, target 90% based on observed accuracy)
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | TipTap React 19 compatibility confirmed via GitHub. All packages verified on npm. React Email pipeline already working in codebase. |
-| Features | MEDIUM-HIGH | Table stakes and differentiators verified across multiple email automation products. Wizard pattern consistent across Adobe Campaign, ServiceMinder, Cochrane Editorial Manager. |
-| Architecture | HIGH | Based on direct codebase analysis, not external sources. Schema design follows normalization principles. Migration strategy matches Supabase best practices. |
-| Pitfalls | HIGH | HTML sanitization, email rendering, placeholder corruption, migration data loss all verified via official docs (DOMPurify, Campaign Monitor CSS guide, TipTap docs, Supabase migration docs). |
+| Stack | HIGH | Anthropic SDK and Postmark Inbound extensively documented with official sources; versions verified current as of Feb 2026 |
+| Features | HIGH | Feature research based on 15+ sources covering email automation, AI classification best practices, and accounting practice management tools; confidence thresholds validated against Zendesk/industry standards (60% low, 90% high) |
+| Architecture | HIGH | VERP-style Reply-To encoding, webhook security, and structured AI outputs all verified with official docs (Postmark, Anthropic, Vercel); patterns match production email systems |
+| Pitfalls | HIGH | All 10 pitfalls verified with recent sources (Jan-Feb 2026 incidents, official docs); recovery strategies based on documented production failures (Gmail outage Jan 2026, Exchange loop prevention) |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-**Rich text editor configuration:**
-- TipTap mention node `renderHTML` configuration needs testing to confirm `{{variable}}` serialization works correctly
-- Paste handler DOMPurify allowlist needs validation with actual Word/Outlook paste content
-- Handle during Phase 2 planning: build minimal POC of placeholder node before full implementation
+**AI model selection:** Research recommends Claude Haiku 4.5 for cost/speed, but accuracy comparison with Sonnet 4.5 should be validated during Phase 2 planning. If Haiku misclassifies >20% of test cases, switch to Sonnet (4x cost but higher accuracy). **Resolution:** Test both models with 50 real Peninsula client email samples during Phase 2; measure classification accuracy and cost.
 
-**Email client rendering:**
-- React Email inline style conversion for TipTap HTML output needs testing in Outlook desktop (Word engine)
-- Gmail `<style>` tag stripping may affect list rendering
-- Handle during Phase 3: test with Litmus or Email on Acid before shipping
+**Postmark inbound MX record setup:** Research confirms MX record pointing to `inbound.postmarkapp.com` is required, but Peninsula's current DNS setup and domain ownership is unknown. If subdomain delegation isn't feasible, Postmark offers email forwarding as alternative (less professional, but works). **Resolution:** Phase 1 planning should audit current DNS provider and permissions; if MX record blocked, use Postmark's default inbound domain `{hash}@inbound.postmarkapp.com`.
 
-**Migration data integrity:**
-- `client_template_overrides` migration when splitting overridden_fields JSONB into two tables (content vs. timing)
-- Some overrides may have both fields — needs careful splitting logic
-- Handle during Phase 1: write reconciliation query that validates all override fields preserved
+**Multi-practice isolation:** Peninsula uses multi-practice architecture (separate practice IDs per client). Research doesn't explicitly address how Reply-To encoding handles practice boundaries. Risk: Client from Practice A replies, system decodes context, applies to Practice B client with same email. **Resolution:** Encode practice_id in Reply-To token format: `replies+{practiceId}.{clientId}.{filingTypeId}.{emailLogId}@domain.com`. Add practice_id validation in webhook handler before applying auto-actions.
 
-**Queue builder dual-write:**
-- Complexity of maintaining both old and new data paths during cutover
-- Risk of divergence between old and new queue outputs
-- Handle during Phase 6: automated comparison tool that asserts queue equality before cutover
+**Reply-from-dashboard deliverability:** Research recommends reusing existing `sendRichEmail()` for accountant replies, but doesn't address email authentication (SPF/DKIM/DMARC) when sending from `replies.peninsulaaccounting.co.uk` subdomain. Risk: Replies flagged as spam by client email servers. **Resolution:** Phase 3 planning should verify Postmark supports DKIM signing for subdomain; if not, send from primary domain with Reply-To set to subdomain.
+
+**Classification accuracy baseline:** Research suggests 90% confidence threshold for auto-actions, but Peninsula's actual accuracy distribution is unknown until production data. Starting at 99% threshold may flag too many emails for review (accountant overwhelmed); starting at 90% may cause false positives (wrong auto-actions). **Resolution:** Phase 4 planning should collect 2 weeks of classification data from Phase 3 manual reviews; calculate observed accuracy at 90%, 95%, 99% thresholds; set production threshold based on <5% false positive rate tolerance.
 
 ## Sources
 
 ### Primary (HIGH confidence)
 
-- Codebase analysis: `lib/reminders/queue-builder.ts`, `lib/reminders/scheduler.ts`, `lib/templates/inheritance.ts`, `lib/email/sender.ts`, `lib/email/templates/reminder.tsx`, `supabase/migrations/20260207000002_create_phase2_schema.sql`
-- [TipTap React Installation](https://tiptap.dev/docs/editor/getting-started/install/react)
-- [TipTap Next.js Setup](https://tiptap.dev/docs/editor/getting-started/install/nextjs)
-- [TipTap Mention Extension](https://tiptap.dev/docs/editor/extensions/nodes/mention)
-- [TipTap Suggestion Utility API](https://tiptap.dev/docs/editor/api/utilities/suggestion)
-- [TipTap JSON/HTML Export](https://tiptap.dev/docs/guides/output-json-html)
-- [TipTap HTML Utility](https://tiptap.dev/docs/editor/api/utilities/html)
-- [React Email Render Utility](https://react.email/docs/utilities/render)
-- [TipTap React 19 Support Discussion](https://github.com/ueberdosis/tiptap/discussions/5816)
-- [Supabase Database Migrations](https://supabase.com/docs/guides/deployment/database-migrations)
-- [DOMPurify Default Allowlist](https://github.com/cure53/DOMPurify/wiki/Default-TAGs-ATTRIBUTEs-allow-list-&-blocklist)
+**Stack Research:**
+- Anthropic SDK npm package (v0.74.0, published Feb 2026) — Claude Haiku 4.5 model availability, structured outputs API
+- Postmark Developer Documentation — Inbound webhook payload format, authentication methods (Basic HTTP Auth, no HMAC), MX record setup, spam filtering headers
+- Claude AI Pricing (Feb 2026) — Haiku 4.5 pricing ($0.80/$4.00 per MTok), Sonnet 4.5 pricing ($3/$15 per MTok), rate limits per tier
+- Vercel Functions documentation — Body size limits (4.5 MB), timeout settings (15s default, 300s max), force-dynamic requirement
+
+**Features Research:**
+- Instantly.ai cold email benchmark (2026) — Confidence threshold standards (60% for "Undefined", 90%+ for high confidence)
+- Zendesk AI agent confidence thresholds — Industry best practices for human-in-the-loop thresholds
+- Intent Classification 2026 guide — How confidence scores work in production systems
+- Customer service email management tools (Hiver, Jotform, AWS Connect) — Review queue UX patterns
+
+**Architecture Research:**
+- Postmark Inbound Webhook Documentation — Payload structure, MailboxHash extraction, retry behavior
+- VERP (Variable Envelope Return Path) Guide — Reply-To encoding patterns for email context tracking
+- OpenAI Structured Outputs Documentation — JSON schema mode for guaranteed output format
+- Vercel AI SDK Structured Data — generateObject() with Zod schema integration
+
+**Pitfalls Research:**
+- Microsoft Exchange Loop Prevention (official docs) — Auto-Submitted header (RFC 3834), hop count limits (7 max, 3 within tenant)
+- Gmail Classification Outage (Jan 2026) — Real-world example of AI misclassification causing production incident
+- Postmark Webhooks Best Practices (Hookdeck guide) — Security limitations (no HMAC for inbound), authentication alternatives
+- Miscalibrated AI Confidence (arxiv.org, Feb 2026) — Research showing confidence scores don't equal accuracy percentages
 
 ### Secondary (MEDIUM confidence)
 
-- [Campaign Monitor CSS Support Guide](https://www.campaignmonitor.com/css/)
-- [Email on Acid: Gmail HTML Development](https://www.emailonacid.com/blog/article/email-development/12-things-you-must-know-when-developing-for-gmail-and-gmail-mobile-apps-2/)
-- [Adobe Campaign Ad-Hoc Templates](https://experienceleague.adobe.com/docs/campaign-classic-learn/tutorials/sending-messages/using-delivery-templates/deploying-ad-hoc-email-delivery-template.html)
-- [Cochrane Editorial Manager Ad-Hoc Emails](https://documentation.cochrane.org/emkb/emails/ad-hoc-emails)
-- [Rich Text Editor Comparison (Liveblocks)](https://liveblocks.io/blog/which-rich-text-editor-framework-should-you-choose-in-2025)
-- [Syncfusion: XSS Prevention in React Rich Text Editor](https://www.syncfusion.com/blogs/post/react-rich-text-editor-xss-prevention)
-- [OWASP XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
-- [Dev.to: Zero-Downtime Database Migration Guide](https://dev.to/ari-ghosh/zero-downtime-database-migration-the-definitive-guide-5672)
+- TaxDome and Client Hub practice management tools — Feature comparison for reply-from-dashboard patterns
+- Email reply parser libraries (Zapier, Python mail-parser-reply) — Multi-language reply parsing challenges
+- AWS AI-enhanced email workflows blog — Customer service email queue architecture patterns
+- Proofpoint/Cloudflare email spoofing guides — Sender validation best practices (SPF/DKIM/DMARC)
 
 ### Tertiary (LOW confidence)
 
-- [TinyMCE: Copy and Paste from Word](https://www.tiny.cloud/blog/under-pressure-powerpaste/) - Word paste behavior patterns
-- [Froala: Copy and Paste to WYSIWYG Editors](https://froala.com/blog/general/is-copy-and-paste-to-rich-text-wysiwyg-editors-problematic/) - Paste sanitization patterns
+- Internal UX principle for "ambiguous replies lack context" pitfall — No external source; based on logical workflow analysis
 
 ---
-*Research completed: 2026-02-08*
+*Research completed: 2026-02-13*
 *Ready for roadmap: yes*

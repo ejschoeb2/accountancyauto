@@ -1,600 +1,656 @@
-# Architecture: Template & Schedule Separation
+# Architecture Research
 
-**Domain:** Email reminder automation (decoupling templates from scheduling)
-**Researched:** 2026-02-08
-**Confidence:** HIGH -- based on direct analysis of existing codebase, not external sources
+**Domain:** Inbound Email Processing + AI Classification for Existing Email Reminder System
+**Researched:** 2026-02-13
+**Confidence:** HIGH
 
-## Problem Statement
+## Standard Architecture
 
-The current `reminder_templates` table conflates two distinct concerns:
-
-1. **Email content** -- subject line, body text, placeholder variables
-2. **Scheduling logic** -- `delay_days` (when to send relative to deadline), step ordering
-
-These are embedded together in a `steps` JSONB array where each step contains `{step_number, delay_days, subject, body}`. This means:
-- You cannot reuse the same email content with different timing
-- You cannot change timing without touching the template
-- Ad-hoc sends are impossible (no concept of "just send this email now")
-- The override system (`client_template_overrides`) mixes content and timing overrides in one `overridden_fields` JSONB blob
-
-## Current Architecture (v1.0)
-
-### Data Flow
+### System Overview
 
 ```
-reminder_templates.steps[N]     -- contains subject, body, delay_days
-        |
-        v
-client_template_overrides       -- per-client step-level field overrides
-        |
-        v
-resolveTemplateForClient()      -- merges base + overrides via inheritance.ts
-        |
-        v
-queue-builder.ts                -- calculates send_date = deadline - delay_days
-        |                          inserts into reminder_queue
-        v
-reminder_queue                  -- scheduled items with template_id + step_index
-        |
-        v
-scheduler.ts                   -- marks 'scheduled' -> 'pending', resolves variables
-        |
-        v
-send-emails cron                -- picks up 'pending', renders via React Email, sends via Postmark
-        |
-        v
-email_log                      -- delivery tracking
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CLIENT LAYER                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
+│  │ Email Client │  │   Dashboard  │  │ Cron System  │              │
+│  │ (External)   │  │  (Next.js)   │  │   (Vercel)   │              │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘              │
+│         │                  │                  │                      │
+├─────────┼──────────────────┼──────────────────┼──────────────────────┤
+│         │                  │                  │                      │
+│  POSTMARK LAYER            │                  │                      │
+│  ┌──────▼───────┐  ┌──────▼───────┐  ┌──────▼───────┐              │
+│  │   Inbound    │  │   Outbound   │  │   Outbound   │              │
+│  │   Webhook    │  │  (Reminder)  │  │ (Reply to    │              │
+│  │              │  │              │  │   Client)    │              │
+│  └──────┬───────┘  └──────────────┘  └──────────────┘              │
+│         │                                                            │
+├─────────┼────────────────────────────────────────────────────────────┤
+│         │                    API LAYER                               │
+├─────────┼────────────────────────────────────────────────────────────┤
+│  ┌──────▼───────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ /api/webhooks/   │  │  /api/cron/  │  │ Server       │          │
+│  │  inbound-email   │  │ send-emails  │  │ Actions      │          │
+│  └──────┬───────────┘  └──────────────┘  └──────┬───────┘          │
+│         │                                        │                  │
+│         │  ┌──────────────────────┐              │                  │
+│         └──► OpenAI Classification│◄─────────────┘                  │
+│            │  (GPT-4o Structured) │                                 │
+│            └──────────────────────┘                                 │
+│                       │                                              │
+├───────────────────────┼──────────────────────────────────────────────┤
+│                       │          DATA LAYER                          │
+├───────────────────────┼──────────────────────────────────────────────┤
+│  ┌────────────────────▼────────────────────┐                        │
+│  │         Supabase Postgres                │                        │
+│  │ ┌───────────┐ ┌───────────┐ ┌───────────┐                       │
+│  │ │ inbound_  │ │ reply_    │ │ clients/  │                       │
+│  │ │ emails    │ │ classif.  │ │ email_log │                       │
+│  │ └───────────┘ └───────────┘ └───────────┘                       │
+│  └─────────────────────────────────────────┘                        │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Tables Involved
+### Component Responsibilities
 
-| Table | Role | Key Columns |
-|-------|------|-------------|
-| `reminder_templates` | Template + schedule combined | `steps` JSONB (subject, body, delay_days per step) |
-| `client_template_overrides` | Per-client field overrides | `template_id`, `step_index`, `overridden_fields` JSONB |
-| `reminder_queue` | Scheduled sends | `template_id`, `step_index`, `send_date`, `status` |
-| `email_log` | Delivery history | `reminder_queue_id`, `postmark_message_id` |
+| Component | Responsibility | Typical Implementation |
+|-----------|----------------|------------------------|
+| **Postmark Inbound** | Receive client replies, parse email, POST to webhook | Postmark cloud service + MX record |
+| **Inbound Webhook Handler** | Validate webhook, parse payload, store raw email | Next.js API Route + signature validation |
+| **OpenAI Classifier** | Classify email intent using structured output | Vercel AI SDK + Zod schema + GPT-4o |
+| **Reply Classification Store** | Store classification results with confidence scores | Supabase table with enum + confidence |
+| **Status Auto-Update Logic** | Update client_filing_assignments based on high-confidence classifications | Server Action with transaction |
+| **Dashboard Reply Viewer** | Display inbound emails with classification, allow manual review | Next.js Server Component + RLS |
+| **Outbound Reply Handler** | Send accountant replies back to clients | Reuse existing sendRichEmail() |
+| **Reply-To Encoder** | Generate deterministic Reply-To addresses with embedded context | VERP-style encoding in email_sender |
 
-### Key Coupling Points
+## Integration with Existing Architecture
 
-1. **`queue-builder.ts` lines 139-153**: Finds template by `filing_type_id`, iterates `resolvedSteps`, uses `step.delay_days` to calculate `send_date`. Template content and scheduling are inseparable here.
+### Existing Components (Do Not Modify)
 
-2. **`scheduler.ts` lines 117-131**: Fetches template by ID, accesses `template.steps[reminder.step_index]` to get subject/body. The `step_index` on `reminder_queue` is the bridge between scheduling and content.
+| Component | Path | Role |
+|-----------|------|------|
+| `sendRichEmail()` | `lib/email/sender.ts` | Outbound email sender via Postmark |
+| `email_log` table | Migration `20260207020738` | Tracks all outbound emails |
+| `clients` table | Migration `20260207000001` | Client master data |
+| `client_filing_assignments` | Migration `20260207000002` | Which filings apply to each client |
+| `app_settings` table | Migration `20260209120000` | Stores email_reply_to setting |
+| Cron `/api/cron/send-emails` | `app/api/cron/send-emails/route.ts` | Sends queued reminder emails |
 
-3. **`client_template_overrides`**: The `overridden_fields` JSONB stores `{subject?, body?, delay_days?}` -- a mix of content and timing overrides in one record.
+### New Components (To Be Built)
 
-4. **`lib/templates/inheritance.ts`**: `resolveTemplateForClient()` merges both content and timing fields identically since they live in the same object.
+| Component | Path | Purpose |
+|-----------|------|---------|
+| Inbound webhook handler | `app/api/webhooks/inbound-email/route.ts` | Receive Postmark inbound POSTs |
+| `inbound_emails` table | New migration | Store raw inbound email data |
+| `reply_classifications` table | New migration | Store AI classification results |
+| OpenAI classifier service | `lib/ai/classify-email.ts` | Classify email intent using GPT-4o |
+| Reply-To encoder | `lib/email/reply-to-encoder.ts` | Generate/decode VERP-style addresses |
+| Status update action | `app/actions/update-filing-status.ts` | Auto-update records_received_for |
+| Dashboard reply log | `app/(dashboard)/email-logs/page.tsx` | View inbound emails + classifications |
+| Manual override UI | `app/(dashboard)/email-logs/[id]/page.tsx` | Override classification, reply to client |
 
-5. **`lib/validations/template.ts`**: Single schema validates subject + body + delay_days together.
+### Modified Components (Extend Existing)
 
----
+| Component | Current | Change Needed |
+|-----------|---------|---------------|
+| `sendRichEmail()` | Uses static `replyTo` from `app_settings` | Add optional `replyToOverride` param for encoded addresses |
+| `clients.records_received_for` | Manually updated JSONB array | Auto-updated by classification logic |
+| `email_log` table | Tracks outbound only | Add `direction` enum ('outbound', 'inbound'), `inbound_email_id` FK |
 
-## Recommended Architecture (v1.1)
+## Recommended Database Schema
 
-### Design Principles
-
-1. **Separate what changes independently.** Email wording changes at a different pace than scheduling timing. They should be independent entities.
-2. **Compose, don't embed.** Schedules should reference email templates by ID, not contain copies of content.
-3. **Keep the queue contract stable.** The `reminder_queue` and downstream send pipeline should need minimal changes.
-4. **Migrate in place.** No parallel systems -- convert the old structure into the new one with a single migration.
-
-### Component Boundaries
-
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `email_templates` | Store reusable email content (subject, body, category) | Referenced by `schedule_steps`, `ad_hoc_sends` |
-| `schedules` | Define a named timing sequence for a filing type | Contains `schedule_steps` |
-| `schedule_steps` | Pair an email template with a timing (delay_days) | References `email_templates`, belongs to `schedules` |
-| `ad_hoc_sends` | One-off email sends outside the schedule | References `email_templates`, `clients` |
-| `client_template_overrides` (revised) | Per-client email content overrides | References `email_templates` |
-| `client_schedule_overrides` (new) | Per-client timing overrides | References `schedule_steps` |
-| `reminder_queue` (unchanged core) | Scheduled send items | References `schedule_steps` instead of `reminder_templates` |
-
-### Proposed Schema
-
-#### 1. `email_templates` (NEW)
-
-Standalone email content, reusable across schedules and ad-hoc sends.
+### New Table: `inbound_emails`
 
 ```sql
-CREATE TABLE email_templates (
+CREATE TABLE inbound_emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,                    -- "CT600 First Reminder", "Friendly VAT Nudge"
-  category TEXT NOT NULL DEFAULT 'reminder',  -- 'reminder', 'follow_up', 'urgent', 'custom'
-  subject TEXT NOT NULL,                 -- supports {{placeholders}}
-  body TEXT NOT NULL,                    -- supports {{placeholders}}
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  -- Migration tracking
-  migrated_from_template_id UUID,        -- links back to original reminder_template if migrated
-  migrated_from_step_index INT           -- which step this came from
+
+  -- Postmark webhook data
+  postmark_message_id TEXT UNIQUE NOT NULL,
+  from_email TEXT NOT NULL,
+  from_name TEXT,
+  to_email TEXT NOT NULL,  -- The encoded reply-to address
+  subject TEXT NOT NULL,
+  text_body TEXT,
+  html_body TEXT,
+  date TIMESTAMPTZ NOT NULL,
+
+  -- Decoded context (from Reply-To address)
+  client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+  filing_type_id TEXT REFERENCES filing_types(id) ON DELETE SET NULL,
+  original_email_log_id UUID REFERENCES email_log(id) ON DELETE SET NULL,
+
+  -- Processing metadata
+  received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  processed_at TIMESTAMPTZ,
+  processing_status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (processing_status IN ('pending', 'classified', 'failed')),
+
+  -- Full webhook payload (for debugging)
+  raw_payload JSONB NOT NULL,
+
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_email_templates_category ON email_templates(category);
-CREATE INDEX idx_email_templates_active ON email_templates(is_active);
+CREATE INDEX idx_inbound_emails_client ON inbound_emails(client_id);
+CREATE INDEX idx_inbound_emails_status ON inbound_emails(processing_status);
+CREATE INDEX idx_inbound_emails_received ON inbound_emails(received_at DESC);
+CREATE INDEX idx_inbound_emails_postmark ON inbound_emails(postmark_message_id);
 ```
 
-**Key decisions:**
-- `category` is a free TEXT, not an enum. Categories will evolve (urgency levels, custom tags). Using an enum would require migrations for each new category.
-- `subject` and `body` remain plain text with `{{placeholder}}` syntax. The React Email renderer (`lib/email/templates/reminder.tsx`) handles HTML rendering at send time. Rich text editing (Tiptap/etc.) is a UI concern that outputs plain text or HTML to this field.
-- `migrated_from_*` columns track provenance during migration. These can be dropped after the migration is confirmed stable.
-
-#### 2. `schedules` (NEW)
-
-Replaces `reminder_templates` as the container for a filing-type-specific reminder sequence.
+### New Table: `reply_classifications`
 
 ```sql
-CREATE TABLE schedules (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  filing_type_id TEXT REFERENCES filing_types(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,                    -- "Standard CT600 Schedule"
-  description TEXT,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  -- Migration tracking
-  migrated_from_template_id UUID
+CREATE TYPE reply_intent_enum AS ENUM (
+  'paperwork_sent',       -- "I've sent the documents"
+  'question',             -- "I have a question about..."
+  'extension_request',    -- "Can I have more time?"
+  'out_of_office',        -- Auto-reply OOO
+  'unsubscribe',          -- "Stop sending me emails"
+  'acknowledgement',      -- "Thanks, got it"
+  'confusion',            -- "I don't understand"
+  'other'                 -- Catch-all
 );
 
--- One schedule per filing type (matches current constraint)
-CREATE UNIQUE INDEX idx_schedules_filing_type ON schedules(filing_type_id) WHERE is_active = true;
-```
-
-**Key decisions:**
-- The UNIQUE constraint is on `(filing_type_id) WHERE is_active = true` -- partial unique index. This allows inactive/archived schedules while enforcing one active schedule per filing type (matching current behavior where `reminder_templates.filing_type_id` is UNIQUE).
-- A schedule without the filing_type_id constraint would be possible for ad-hoc sequences, but that adds complexity without clear value. Keep it simple: schedules are for filing types.
-
-#### 3. `schedule_steps` (NEW)
-
-The join between schedules and email templates with timing.
-
-```sql
-CREATE TABLE schedule_steps (
+CREATE TABLE reply_classifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  schedule_id UUID NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
-  email_template_id UUID NOT NULL REFERENCES email_templates(id) ON DELETE RESTRICT,
-  step_number INT NOT NULL,              -- ordering within the schedule (1-based)
-  delay_days INT NOT NULL,               -- days before deadline to send
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(schedule_id, step_number)       -- no duplicate step numbers
+  inbound_email_id UUID REFERENCES inbound_emails(id) ON DELETE CASCADE UNIQUE NOT NULL,
+
+  -- AI classification results
+  intent reply_intent_enum NOT NULL,
+  confidence NUMERIC(3,2) NOT NULL CHECK (confidence >= 0 AND confidence <= 1),
+  reasoning TEXT,  -- AI's explanation
+  extracted_filing_types TEXT[],  -- Which filings mentioned (if any)
+
+  -- Manual override
+  manual_override_intent reply_intent_enum,
+  manual_override_by UUID REFERENCES auth.users(id),
+  manual_override_at TIMESTAMPTZ,
+  manual_override_reason TEXT,
+
+  -- Action taken
+  auto_action_taken BOOLEAN DEFAULT false,
+  action_description TEXT,  -- "Marked Corp Tax as records received"
+
+  classified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE INDEX idx_schedule_steps_schedule ON schedule_steps(schedule_id);
-CREATE INDEX idx_schedule_steps_template ON schedule_steps(email_template_id);
+CREATE INDEX idx_reply_class_intent ON reply_classifications(intent);
+CREATE INDEX idx_reply_class_confidence ON reply_classifications(confidence);
+CREATE INDEX idx_reply_class_override ON reply_classifications(manual_override_at)
+  WHERE manual_override_at IS NOT NULL;
 ```
 
-**Key decisions:**
-- `ON DELETE RESTRICT` for `email_template_id`: prevent deleting an email template that is used in a schedule. The UI should warn the user and require them to either replace the template in the schedule or remove the step first.
-- `step_number` is explicit (1-based) rather than relying on array position. This makes reordering and insertion straightforward.
-- Maximum 5 steps per schedule (enforced at application level, matching current validation).
-- This is a **one-to-many** relationship from email_templates to schedule_steps. One template can be used in multiple schedule steps (even within the same schedule if desired). A schedule step references exactly one template.
-
-#### 4. `ad_hoc_sends` (NEW)
-
-For one-off emails outside the scheduled reminder flow.
+### Extend Existing: `email_log`
 
 ```sql
-CREATE TABLE ad_hoc_sends (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email_template_id UUID REFERENCES email_templates(id) ON DELETE SET NULL,
-  subject TEXT NOT NULL,                 -- resolved subject at time of send
-  body TEXT NOT NULL,                    -- resolved body at time of send
-  recipient_client_ids UUID[] NOT NULL,  -- array of client IDs
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'queued', 'sending', 'completed', 'failed')),
-  sent_count INT DEFAULT 0,
-  failed_count INT DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  sent_at TIMESTAMPTZ
-);
+-- Add direction tracking
+ALTER TABLE email_log ADD COLUMN direction TEXT DEFAULT 'outbound'
+  CHECK (direction IN ('outbound', 'inbound'));
 
-CREATE INDEX idx_ad_hoc_sends_status ON ad_hoc_sends(status);
+-- Link inbound emails
+ALTER TABLE email_log ADD COLUMN inbound_email_id UUID
+  REFERENCES inbound_emails(id) ON DELETE SET NULL;
+
+-- Index for replies
+CREATE INDEX idx_email_log_direction ON email_log(direction);
 ```
 
-**Key decisions:**
-- Stores `subject` and `body` as resolved snapshots at send time, not just a template reference. This means ad-hoc sends have a permanent record of what was actually sent, even if the template changes later.
-- `recipient_client_ids` is a UUID array rather than a junction table. For ad-hoc sends to a handful of clients (typical use case: 1-20 clients), an array is simpler than a many-to-many table. Individual send results are tracked in `email_log`.
-- The `email_template_id` is nullable (`ON DELETE SET NULL`) because the ad-hoc send record should persist even if the template is deleted later.
+## Architectural Patterns
 
-#### 5. `client_template_overrides` (REVISED)
+### Pattern 1: Reply-To Encoding (VERP-style)
 
-Changes from overriding `reminder_template` steps to overriding `email_templates` content.
+**What:** Encode client_id + filing_type_id + email_log_id into the Reply-To address subdomain/local-part, allowing deterministic parsing when reply arrives.
 
-```sql
--- NEW table replacing the old client_template_overrides
-CREATE TABLE client_email_overrides (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  email_template_id UUID NOT NULL REFERENCES email_templates(id) ON DELETE CASCADE,
-  overridden_subject TEXT,               -- NULL = use template default
-  overridden_body TEXT,                  -- NULL = use template default
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(client_id, email_template_id)
-);
+**When to use:** Inbound email processing where you need to associate replies with specific outbound emails and context.
 
-CREATE INDEX idx_client_email_overrides_client ON client_email_overrides(client_id);
-CREATE INDEX idx_client_email_overrides_template ON client_email_overrides(email_template_id);
-```
+**Trade-offs:**
+- **Pro:** No database lookups needed to match replies to context
+- **Pro:** Works even if client changes their email address
+- **Con:** Exposes IDs in email headers (use UUIDs, not sequential integers)
+- **Con:** Requires subdomain or plus-addressing support
 
-**Key decisions:**
-- Override granularity is now **per email template per client**, not per step-index. This is cleaner because the email template is the atomic unit of content.
-- `overridden_subject` and `overridden_body` are explicit nullable columns, not a JSONB blob. This is more queryable and more explicit about what can be overridden.
-- No `delay_days` override here -- timing overrides are separate (see below).
-
-#### 6. `client_schedule_overrides` (NEW)
-
-Per-client timing overrides, separate from content overrides.
-
-```sql
-CREATE TABLE client_schedule_overrides (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  schedule_step_id UUID NOT NULL REFERENCES schedule_steps(id) ON DELETE CASCADE,
-  override_delay_days INT NOT NULL,      -- client-specific delay
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(client_id, schedule_step_id)
-);
-
-CREATE INDEX idx_client_schedule_overrides_client ON client_schedule_overrides(client_id);
-```
-
-**Key decisions:**
-- Timing overrides are keyed to `schedule_step_id`, not to the schedule as a whole. This means you can override the delay for step 2 without touching step 1 or 3.
-- Only `delay_days` is overridable for timing. Adding/removing steps per client is out of scope (too complex, and the current system doesn't support it either).
-
-#### 7. `reminder_queue` (MODIFIED)
-
-Minimal changes to the existing queue. Replace `template_id` + `step_index` with `schedule_step_id`.
-
-```sql
--- Column changes to reminder_queue:
-ALTER TABLE reminder_queue ADD COLUMN schedule_step_id UUID REFERENCES schedule_steps(id) ON DELETE SET NULL;
--- Keep template_id and step_index during migration, drop after migration verified
--- ALTER TABLE reminder_queue DROP COLUMN template_id;  -- later
--- ALTER TABLE reminder_queue DROP COLUMN step_index;    -- later
-```
-
-**Key decisions:**
-- During migration, both old columns (`template_id`, `step_index`) and the new column (`schedule_step_id`) coexist. This allows backward compatibility during the transition.
-- The `ON DELETE SET NULL` on `schedule_step_id` means deleting a schedule step doesn't delete queued reminders -- they just lose their link back.
-- `resolved_subject` and `resolved_body` columns remain. These are already the "what was actually sent" snapshot.
-
-### Complete Entity Relationship Diagram
-
-```
-filing_types
-    |
-    | 1:1 (active)
-    v
-schedules
-    |
-    | 1:N
-    v
-schedule_steps -----> email_templates <----- client_email_overrides
-    |                       |                        |
-    |                       | 1:N                    |
-    |                       v                        |
-    |                 ad_hoc_sends                    |
-    |                                                |
-    v                                                v
-client_schedule_overrides                        clients
-    |                                                |
-    v                                                v
-reminder_queue -----------------------------------> email_log
-```
-
-### Relationship Summary
-
-| Relationship | Type | Rationale |
-|-------------|------|-----------|
-| `filing_types` -> `schedules` | 1:1 (active) | Same as current 1:1 between filing_type and reminder_template |
-| `schedules` -> `schedule_steps` | 1:N | A schedule has 1-5 ordered steps |
-| `schedule_steps` -> `email_templates` | N:1 | Many steps can reference the same template |
-| `email_templates` -> `client_email_overrides` | 1:N | One override per client per template |
-| `schedule_steps` -> `client_schedule_overrides` | 1:N | One timing override per client per step |
-| `schedule_steps` -> `reminder_queue` | 1:N | Queue items reference their originating step |
-| `email_templates` -> `ad_hoc_sends` | 1:N | Ad-hoc sends start from a template |
-
----
-
-## Migration Strategy
-
-### Phase 1: Create New Tables (Additive Only)
-
-Create all new tables alongside existing ones. No data movement yet. No existing code changes.
-
-```sql
--- Single migration file
-CREATE TABLE email_templates (...);
-CREATE TABLE schedules (...);
-CREATE TABLE schedule_steps (...);
-CREATE TABLE ad_hoc_sends (...);
-CREATE TABLE client_email_overrides (...);
-CREATE TABLE client_schedule_overrides (...);
-ALTER TABLE reminder_queue ADD COLUMN schedule_step_id UUID REFERENCES schedule_steps(id) ON DELETE SET NULL;
-```
-
-**Risk:** None. Purely additive. Existing system continues working.
-
-### Phase 2: Data Migration (Copy, Don't Move)
-
-A migration function (SQL or TypeScript) that converts existing data:
-
-```
-For each reminder_template:
-  1. Create a `schedules` row from the template metadata
-  2. For each step in template.steps[]:
-     a. Create an `email_templates` row from {subject, body}
-     b. Create a `schedule_steps` row linking schedule -> email_template with delay_days
-  3. For each client_template_override referencing this template:
-     a. If overridden_fields contains subject or body:
-        Create a `client_email_overrides` row
-     b. If overridden_fields contains delay_days:
-        Create a `client_schedule_overrides` row
-
-For each reminder_queue entry with template_id + step_index:
-  Look up the corresponding schedule_step_id and populate the new column
-```
-
-**Key details:**
-- This is a **copy** operation. Old data stays intact. New tables are populated.
-- The `migrated_from_template_id` and `migrated_from_step_index` columns on `email_templates` track which original step each template came from. This is critical for debugging.
-- `client_template_overrides` split: if a single override had `{subject: "Custom", delay_days: 14}`, this becomes TWO records -- one `client_email_overrides` with the subject, one `client_schedule_overrides` with the delay.
-- Run this as a Supabase migration (SQL function) or as a one-time API endpoint. SQL function is preferred because it runs in a transaction.
-
-### Phase 3: Dual-Write Period
-
-Update the application code to write to BOTH old and new tables. This is a safety net.
-
-- `queue-builder.ts`: Read from new `schedules` + `schedule_steps` + `email_templates`, but also keep old lookup as fallback.
-- Template CRUD API: When creating/editing, write to both `reminder_templates` (old) and `email_templates` + `schedules` (new).
-- Override API: Write to both old `client_template_overrides` and new `client_email_overrides` / `client_schedule_overrides`.
-
-**Duration:** Keep dual-write for 1-2 weeks in production. Verify new tables match old tables.
-
-### Phase 4: Cut Over
-
-1. Switch `queue-builder.ts` to read exclusively from new tables.
-2. Switch `scheduler.ts` to resolve content from `email_templates` via `schedule_step_id`.
-3. Switch override API to new tables only.
-4. Remove dual-write code.
-
-### Phase 5: Cleanup
-
-1. Drop `reminder_templates` table (or rename to `_legacy_reminder_templates`).
-2. Drop `client_template_overrides` table (or rename).
-3. Drop `template_id` and `step_index` columns from `reminder_queue`.
-4. Drop `migrated_from_*` columns from `email_templates` and `schedules`.
-
-**Important:** Do NOT drop old tables in the same release as the cutover. Keep them for at least one release cycle as a rollback safety net.
-
----
-
-## Impact on Existing Code
-
-### Files That MUST Change
-
-| File | Change Required | Complexity |
-|------|----------------|------------|
-| `lib/reminders/queue-builder.ts` | Read from `schedules` + `schedule_steps` instead of `reminder_templates.steps` | HIGH -- core logic rewrite |
-| `lib/reminders/scheduler.ts` | Resolve content from `email_templates` via `schedule_step_id` | MEDIUM -- fetch path changes |
-| `lib/templates/inheritance.ts` | `resolveTemplateForClient()` operates on email template + content overrides only | LOW -- simplification |
-| `lib/validations/template.ts` | Split into `emailTemplateSchema` + `scheduleSchema` | LOW -- schema split |
-| `lib/types/database.ts` | Add new interfaces, deprecate old ones | LOW -- type additions |
-| `app/api/templates/route.ts` | CRUD for `email_templates` instead of `reminder_templates` | MEDIUM -- new entity |
-| `app/api/templates/[id]/route.ts` | Same | MEDIUM |
-| `app/api/clients/[id]/template-overrides/route.ts` | Split into content overrides and timing overrides | MEDIUM |
-| `app/(dashboard)/templates/page.tsx` | List `email_templates` instead of `reminder_templates` | LOW -- data source change |
-| `app/(dashboard)/templates/[id]/edit/page.tsx` | Edit email template content only (no delay_days) | MEDIUM -- UI restructure |
-| `app/(dashboard)/templates/components/template-step-editor.tsx` | Move to schedules page, not templates page | MEDIUM -- relocation |
-| `app/(dashboard)/clients/[id]/components/template-overrides.tsx` | Split UI into content overrides vs timing overrides | HIGH -- significant UI change |
-
-### Files That Need NEW Counterparts
-
-| New File | Purpose |
-|----------|---------|
-| `app/(dashboard)/schedules/page.tsx` | Schedule list page |
-| `app/(dashboard)/schedules/[id]/edit/page.tsx` | Schedule editor (step ordering + template selection) |
-| `app/api/schedules/route.ts` | Schedule CRUD |
-| `app/api/schedules/[id]/route.ts` | Single schedule CRUD |
-| `app/api/ad-hoc/route.ts` | Ad-hoc send creation + triggering |
-| `lib/validations/email-template.ts` | Email template validation schema |
-| `lib/validations/schedule.ts` | Schedule validation schema |
-
-### Files Unaffected
-
-| File | Why Unaffected |
-|------|----------------|
-| `lib/email/sender.ts` | Takes `{to, subject, body}` -- doesn't care about source |
-| `lib/email/templates/reminder.tsx` | React Email renderer -- receives resolved content |
-| `app/api/cron/send-emails/route.ts` | Reads `resolved_subject` / `resolved_body` from queue -- doesn't touch templates |
-| `lib/deadlines/calculators.ts` | Deadline calculation is independent of templates |
-| `lib/templates/variables.ts` | Variable substitution is content-agnostic |
-| `lib/bank-holidays/*` | Independent subsystem |
-
----
-
-## Queue Builder Rewrite Detail
-
-The most impactful change. Current `queue-builder.ts` does:
-
-```
-1. Fetch assignments (client + filing_type pairs)
-2. Fetch all reminder_templates
-3. Fetch all client overrides (deadline + template)
-4. For each assignment:
-   a. Find template by filing_type_id
-   b. Resolve steps with client overrides
-   c. For each resolved step:
-      - Calculate send_date = deadline - step.delay_days
-      - Insert into reminder_queue with template_id + step_index
-```
-
-New flow:
-
-```
-1. Fetch assignments (client + filing_type pairs)
-2. Fetch all active schedules with schedule_steps + email_templates
-3. Fetch all client overrides (deadline + schedule + email)
-4. For each assignment:
-   a. Find schedule by filing_type_id
-   b. Resolve email content with client_email_overrides
-   c. Resolve timing with client_schedule_overrides
-   d. For each resolved step:
-      - Calculate send_date = deadline - resolved_delay_days
-      - Insert into reminder_queue with schedule_step_id
-```
-
-The key simplification: content resolution and timing resolution are now independent operations. `resolveTemplateForClient()` only merges content fields. Timing resolution is a separate lookup.
-
----
-
-## Suggested Build Order
-
-Based on dependencies and risk:
-
-### Step 1: Schema Migration (database only)
-- Create all new tables
-- Add `schedule_step_id` to `reminder_queue`
-- Run data migration to populate new tables from existing data
-- **Verification:** Query new tables, confirm row counts match expectations
-
-### Step 2: Email Template CRUD
-- New validation schema (`emailTemplateSchema`)
-- New API routes for `email_templates`
-- New list + edit pages for email templates
-- **No scheduling yet.** Templates are just standalone content at this point.
-- **Verification:** Can create, edit, delete email templates independently
-
-### Step 3: Schedule CRUD
-- New validation schema (`scheduleSchema`)
-- New API routes for `schedules` and `schedule_steps`
-- New schedule editor page (select email templates for each step, set delay_days)
-- Move step-editor component concept to schedule context
-- **Verification:** Can create schedules that reference email templates
-
-### Step 4: Queue Builder Migration
-- Rewrite `queue-builder.ts` to read from new tables
-- Update `scheduler.ts` to resolve content from email templates
-- Update override resolution logic
-- **This is the highest-risk step.** Test thoroughly with existing data.
-- **Verification:** Run queue builder, confirm identical output to old system
-
-### Step 5: Override System Split
-- New `client_email_overrides` API + UI
-- New `client_schedule_overrides` API + UI
-- Update client detail page template overrides component
-- **Verification:** Per-client overrides work for both content and timing independently
-
-### Step 6: Ad-Hoc Sends
-- `ad_hoc_sends` table already created in Step 1
-- New API for creating ad-hoc sends
-- New UI: select clients, pick template, preview, send
-- Integrates with existing `sendReminderEmail()` and `email_log`
-- **Verification:** Can send an email outside the scheduled flow
-
-### Step 7: Cleanup
-- Drop old tables / columns
-- Remove dual-write code
-- Remove migration tracking columns
-
----
-
-## Patterns to Follow
-
-### Pattern 1: Composition Over Embedding
-**What:** Email templates are standalone entities referenced by ID, not JSON blobs embedded in a parent.
-**Why:** Enables reuse, independent editing, and cleaner override boundaries.
 **Example:**
 ```typescript
-// GOOD: schedule_step references email_template by ID
-interface ScheduleStep {
-  id: string;
-  schedule_id: string;
-  email_template_id: string;  // reference, not embedded content
-  step_number: number;
-  delay_days: number;
+// lib/email/reply-to-encoder.ts
+
+export interface ReplyContext {
+  clientId: string;
+  filingTypeId: string;
+  emailLogId: string;
 }
 
-// BAD (current): template step embeds content
-interface TemplateStep {
-  step_number: number;
-  delay_days: number;
-  subject: string;    // embedded content
-  body: string;       // embedded content
+export function encodeReplyTo(context: ReplyContext): string {
+  // Format: replies+<client>.<filing>.<emaillog>@peninsulaaccounting.co.uk
+  // UUIDs are URL-safe (no = substitution needed like VERP)
+  const encoded = `${context.clientId}.${context.filingTypeId}.${context.emailLogId}`;
+  return `replies+${encoded}@peninsulaaccounting.co.uk`;
+}
+
+export function decodeReplyTo(address: string): ReplyContext | null {
+  // Extract local part before @
+  const [localPart] = address.split('@');
+
+  // Match replies+<uuid>.<filing>.<uuid> pattern
+  const match = localPart.match(/^replies\+([a-f0-9-]+)\.([a-z_]+)\.([a-f0-9-]+)$/i);
+
+  if (!match) return null;
+
+  return {
+    clientId: match[1],
+    filingTypeId: match[2],
+    emailLogId: match[3],
+  };
 }
 ```
 
-### Pattern 2: Separate Override Dimensions
-**What:** Content overrides and timing overrides are stored in separate tables.
-**Why:** A client might want custom wording but default timing, or default wording but custom timing. Mixing them in one JSONB blob (current design) makes this awkward.
+### Pattern 2: Structured AI Classification with Confidence Thresholds
 
-### Pattern 3: Snapshot at Send Time
-**What:** The `reminder_queue.resolved_subject` and `resolved_body` columns capture the exact content sent, and `ad_hoc_sends` stores subject/body snapshots.
-**Why:** Templates can change after a send. The queue/log must reflect what was actually sent, not what the template says now.
+**What:** Use OpenAI structured output with Zod schema to classify email intent, then apply confidence thresholds to determine if auto-action is safe.
 
-## Anti-Patterns to Avoid
+**When to use:** AI classification where incorrect actions have consequences (e.g., marking filings as complete when they're not).
 
-### Anti-Pattern 1: Many-to-Many Between Schedules and Email Templates
-**What:** Creating a full junction table where schedules and templates have a many-to-many relationship.
-**Why bad:** Overcomplicates queries and mental model. The `schedule_steps` table already provides the join with ordering. The relationship is `schedule -> [ordered steps] -> email_template`, not `schedule <-> email_template`.
+**Trade-offs:**
+- **Pro:** Type-safe classification results
+- **Pro:** Confidence threshold prevents false positives
+- **Pro:** Manual override path for ambiguous cases
+- **Con:** Requires OpenAI API (cost + latency)
+- **Con:** High threshold means more manual reviews
 
-### Anti-Pattern 2: Versioning Templates
-**What:** Creating a version history table for email templates to track changes over time.
-**Why bad:** Massive complexity for minimal value in a single-user system. The `email_log` already captures what was sent. If the accountant wants to know what a template looked like before they edited it, that is a version control problem (git), not a database problem.
+**Example:**
+```typescript
+// lib/ai/classify-email.ts
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
 
-### Anti-Pattern 3: Removing the JSONB Steps Before Migration Is Verified
-**What:** Dropping the `steps` JSONB column or `reminder_templates` table before confirming the new system works identically.
-**Why bad:** No rollback path. Keep old tables for at least one full deadline cycle (1 month) after cutover.
+const classificationSchema = z.object({
+  intent: z.enum([
+    'paperwork_sent',
+    'question',
+    'extension_request',
+    'out_of_office',
+    'unsubscribe',
+    'acknowledgement',
+    'confusion',
+    'other',
+  ]),
+  confidence: z.number().min(0).max(1),
+  reasoning: z.string(),
+  extractedFilingTypes: z.array(z.string()).optional(),
+});
 
-### Anti-Pattern 4: Trying to Auto-Sync Old and New Tables
-**What:** Building triggers that keep `reminder_templates.steps` in sync with `email_templates` + `schedule_steps`.
-**Why bad:** Fragile, hard to debug, and temporary. The dual-write period should be explicit in application code, not implicit in database triggers.
+export async function classifyEmail(params: {
+  subject: string;
+  body: string;
+  clientName: string;
+  filingType: string;
+}): Promise<z.infer<typeof classificationSchema>> {
+  const { object } = await generateObject({
+    model: openai('gpt-4o'),
+    schema: classificationSchema,
+    prompt: `You are classifying a client's reply to a tax filing reminder.
 
----
+Context:
+- Client: ${params.clientName}
+- Filing Type: ${params.filingType}
 
-## Backward Compatibility Plan
+Email:
+Subject: ${params.subject}
+Body: ${params.body}
 
-### During Migration (Steps 1-4)
+Classify the intent and provide a confidence score (0-1).`,
+  });
 
-| Existing Feature | Compatibility | How |
-|-----------------|---------------|-----|
-| Template list page | Works | Reads from old `reminder_templates` until Step 2 UI is ready |
-| Template edit page | Works | Writes to old table + new tables (dual-write in Step 3) |
-| Client template overrides | Works | Old `client_template_overrides` table untouched until Step 5 |
-| Queue builder (cron) | Works | Reads old tables until Step 4 cutover |
-| Email sending | Works | `send-emails` cron reads `resolved_*` from queue -- source-agnostic |
-| Email log / delivery tracking | Works | Unchanged |
-| Calendar / deadline views | Works | Unchanged (no template dependency) |
+  return object;
+}
 
-### Risk Mitigations
+// High confidence threshold for auto-actions
+export const HIGH_CONFIDENCE_THRESHOLD = 0.85;
 
-1. **Feature flag approach:** The queue builder can check a `USE_NEW_SCHEDULES` environment variable. Set to `false` in production initially, `true` when ready.
-2. **Data validation function:** Before cutover, run a comparison function that rebuilds the queue from BOTH old and new tables and asserts identical results.
-3. **Rollback plan:** If the new queue builder produces incorrect results, flip `USE_NEW_SCHEDULES=false` and the old system takes over immediately. No data loss because old tables are intact.
+export function shouldAutoUpdate(intent: string, confidence: number): boolean {
+  // Only auto-update for clear "paperwork sent" signals
+  return intent === 'paperwork_sent' && confidence >= HIGH_CONFIDENCE_THRESHOLD;
+}
+```
 
----
+### Pattern 3: Webhook Security with Signature Verification
 
-## Open Questions for Phase-Specific Research
+**What:** Verify incoming webhooks using cryptographic signatures to prevent spoofing.
 
-1. **Rich text storage format:** Should `email_templates.body` store plain text (current), HTML, or Tiptap JSON? This depends on the rich text editor choice, which is a separate research question. Recommendation: store HTML (output of Tiptap), use plain text fallback for Postmark's `TextBody` field. The React Email template would render the HTML directly instead of wrapping plain text.
+**When to use:** Any public webhook endpoint (Postmark inbound, Stripe payments, etc.).
 
-2. **Template preview rendering:** How to preview an email template with sample data before it is used in a schedule or ad-hoc send? This needs a preview API endpoint that runs `substituteVariables()` with sample context and returns the rendered HTML.
+**Trade-offs:**
+- **Pro:** Prevents attackers from forging webhook events
+- **Pro:** Industry standard (Postmark, Stripe, GitHub all use this)
+- **Con:** Requires careful handling of raw request body
+- **Con:** Signature verification adds latency
 
-3. **Schedule step maximum:** Currently enforced at 5 steps. Is this still appropriate? The 5-step limit seems driven by UI constraints, not business requirements. Worth confirming with the accountant.
+**Example:**
+```typescript
+// app/api/webhooks/inbound-email/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
-4. **Cascade behavior for template deletion:** If an email template is deleted, what happens to schedule steps that reference it? Current recommendation is `ON DELETE RESTRICT` (prevent deletion). But this means orphan templates cannot be cleaned up easily. Alternative: `ON DELETE SET NULL` + require schedules to handle null template references. Recommendation: `RESTRICT` is safer. The UI should prevent deletion of templates that are in use.
+export async function POST(request: NextRequest) {
+  // Read raw body for signature verification
+  const rawBody = await request.text();
+
+  // Get signature from header
+  const signature = request.headers.get('x-postmark-signature');
+
+  if (!signature) {
+    return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+  }
+
+  // Verify signature using HMAC-SHA256
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.POSTMARK_WEBHOOK_SECRET!)
+    .update(rawBody)
+    .digest('base64');
+
+  if (signature !== expectedSignature) {
+    console.error('Invalid webhook signature');
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+  }
+
+  // Parse JSON after verification
+  const payload = JSON.parse(rawBody);
+
+  // Process webhook...
+
+  return NextResponse.json({ success: true });
+}
+```
+
+## Data Flow
+
+### Inbound Email Processing Flow
+
+```
+Client Reply
+    ↓
+Postmark Inbound (MX: inbound.postmarkapp.com)
+    ↓
+POST /api/webhooks/inbound-email (signature verified)
+    ↓
+1. Decode Reply-To address → extract client_id, filing_type_id, email_log_id
+    ↓
+2. Insert into inbound_emails table (status: pending)
+    ↓
+3. Call OpenAI classifier → intent + confidence + reasoning
+    ↓
+4. Insert into reply_classifications table
+    ↓
+5. IF confidence >= 0.85 AND intent = 'paperwork_sent':
+     → Update clients.records_received_for (add filing_type_id)
+     → Set auto_action_taken = true
+   ELSE:
+     → Flag for manual review
+    ↓
+6. Update inbound_emails.processing_status = 'classified'
+    ↓
+Return 200 OK to Postmark
+```
+
+### Outbound Reply Flow (Accountant → Client)
+
+```
+Dashboard: Accountant views inbound_email
+    ↓
+Clicks "Reply" button
+    ↓
+Compose form (pre-filled with client email)
+    ↓
+POST /api/send-reply
+    ↓
+1. Load client + inbound_email context
+    ↓
+2. Call sendRichEmail({
+     to: inbound_email.from_email,
+     subject: "Re: " + inbound_email.subject,
+     html: rendered_html,
+     text: plain_text,
+     clientId: client.id,
+     replyToOverride: encodeReplyTo(...)  // New param
+   })
+    ↓
+3. Insert into email_log (direction: outbound, inbound_email_id: ...)
+    ↓
+4. Update inbound_email with replied_at timestamp
+    ↓
+Return success → show confirmation in dashboard
+```
+
+### Reminder Email with Encoded Reply-To
+
+```
+Cron: /api/cron/send-emails
+    ↓
+For each pending reminder:
+    ↓
+1. Generate Reply-To address:
+     encodeReplyTo({
+       clientId: reminder.client_id,
+       filingTypeId: reminder.filing_type_id,
+       emailLogId: <inserted email_log.id>
+     })
+    ↓
+2. Call sendRichEmail({
+     ...,
+     replyToOverride: encoded_reply_to
+   })
+    ↓
+3. Postmark sends email with:
+     From: reminders@peninsulaaccounting.co.uk
+     Reply-To: replies+<uuid>.<filing>.<uuid>@peninsulaaccounting.co.uk
+    ↓
+Client replies → goes to Postmark inbound → webhook flow above
+```
+
+## Postmark Configuration Requirements
+
+### MX Record Setup
+
+**DNS Record:**
+```
+Type: MX
+Name: @ (or specific subdomain if using replies.peninsulaaccounting.co.uk)
+Value: inbound.postmarkapp.com
+Priority: 10
+TTL: 3600
+```
+
+**Impact:** All emails sent to `*@peninsulaaccounting.co.uk` will be routed to Postmark inbound processing.
+
+**Alternative (recommended):** Use subdomain `replies.peninsulaaccounting.co.uk` to avoid catching all domain email:
+```
+Type: MX
+Name: replies
+Value: inbound.postmarkapp.com
+Priority: 10
+```
+
+### Webhook Configuration
+
+**In Postmark Dashboard:**
+1. Go to Server → Inbound Message Stream → Settings
+2. Set Inbound Webhook URL: `https://peninsulaaccounting.co.uk/api/webhooks/inbound-email`
+3. Enable webhook authentication (signature verification)
+4. Generate webhook secret → store as `POSTMARK_WEBHOOK_SECRET` env var
+
+**Webhook Payload Fields (Postmark):**
+- `FromName`, `From`, `FromFull` (email, name)
+- `ToFull` (array of recipients)
+- `Subject`, `TextBody`, `HtmlBody`
+- `Date` (ISO 8601 timestamp)
+- `MessageID` (Postmark's unique ID)
+- `MailboxHash` (for matching threads)
+- `Attachments` (array - NOT processed in v3.0)
+
+### Plus-Addressing Support
+
+**Postmark automatically supports plus-addressing:**
+- `replies+abc123@domain.com` is treated as distinct from `replies@domain.com`
+- All addresses forward to same inbound webhook
+- No additional configuration needed
+
+**Verification:** Send test email to `replies+test@peninsulaaccounting.co.uk` and verify webhook receives it.
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0-100 clients (current) | Single Next.js API route handles all webhooks inline. OpenAI classification synchronous. Works fine on Vercel Pro (10s timeout). |
+| 100-500 clients | Move OpenAI classification to background job using Vercel Queue or Inngest. Webhook returns 200 immediately, classification happens async. Add retry logic for OpenAI failures. |
+| 500-2000 clients | Consider rate limiting on OpenAI API (current: 500 RPM on tier 1). Batch classify multiple emails in single request if reply volume spikes. Add Redis cache for classification results to handle duplicate emails. |
+| 2000+ clients | Dedicated email processing service (separate from Next.js). Use job queue (BullMQ + Redis) for classification pipeline. Consider fine-tuned model instead of GPT-4o for cost optimization. |
+
+### Scaling Priorities
+
+1. **First bottleneck:** OpenAI API latency (200-500ms per classification). **Fix:** Move to background queue, return 200 to Postmark immediately.
+2. **Second bottleneck:** Database writes (Supabase free tier has connection limits). **Fix:** Upgrade to Supabase Pro ($25/mo) or batch insert classifications.
+3. **Third bottleneck:** Postmark inbound rate limits (1000 emails/month on free tier). **Fix:** Upgrade Postmark plan based on reply volume.
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Parsing Reply-To from Email Body
+
+**What people do:** Try to extract context by parsing "In reply to..." text in email body or using email threading headers (In-Reply-To, References).
+
+**Why it's wrong:**
+- Email threading headers are unreliable (clients strip them, forwarding breaks them)
+- Body parsing is fragile (different email clients format differently)
+- Requires database lookup to match headers to original email
+- Fails if client manually composes new email to accountant
+
+**Do this instead:** Encode all context in Reply-To address using VERP-style pattern. Deterministic, survives forwarding, no DB lookup needed.
+
+### Anti-Pattern 2: Auto-Updating Status Without Confidence Threshold
+
+**What people do:** Classify email intent with AI, then immediately update client filing status regardless of confidence score.
+
+**Why it's wrong:**
+- AI misclassifications can mark filings as complete when they're not
+- "Thanks for the reminder" (acknowledgement) might be classified as "paperwork sent"
+- No mechanism to catch mistakes until accountant notices missing documents
+
+**Do this instead:** Use confidence threshold (>= 0.85) for auto-actions. Below threshold, flag for manual review. Store classification reasoning for audit trail.
+
+### Anti-Pattern 3: Blocking Webhook Response on OpenAI API
+
+**What people do:** Call OpenAI API synchronously in webhook handler, wait for classification, then return 200 to Postmark.
+
+**Why it's wrong:**
+- OpenAI API can take 500ms+ (especially GPT-4o with structured output)
+- If OpenAI times out or errors, webhook returns 500 → Postmark retries indefinitely
+- Blocks webhook processing queue (Postmark expects <2s responses)
+- No retry logic if OpenAI is down
+
+**Do this instead:**
+- For MVP (<100 clients): Acceptable to call OpenAI synchronously with try/catch. Return 200 even if classification fails (mark as 'failed' status, retry later).
+- For scale: Move classification to background job. Webhook stores raw email, returns 200 immediately, background worker classifies async.
+
+### Anti-Pattern 4: Storing Full HTML Email Body in Production
+
+**What people do:** Store `html_body` from Postmark webhook directly in database for every email.
+
+**Why it's wrong:**
+- HTML emails can be 50KB-500KB (especially with inline CSS)
+- For 1000 replies/month, that's 50-500MB of mostly unused data
+- Supabase free tier has 500MB database limit
+- Rarely need to re-render HTML (text body sufficient for classification + display)
+
+**Do this instead:**
+- Store `text_body` only for classification/display
+- Store `html_body` only for first 30 days (for debugging), then delete via cron
+- Or store HTML in Supabase Storage (separate from database), link via URL
+- For v3.0 MVP: Store both, optimize later if storage becomes issue
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| **Postmark (Inbound)** | Webhook POST with signature verification | Requires MX record DNS setup. Webhook URL must return 200 within 10s or Postmark retries. |
+| **Postmark (Outbound)** | Existing `sendRichEmail()` via Postmark API | Already configured. Add `replyToOverride` param to support encoded addresses. |
+| **OpenAI GPT-4o** | Vercel AI SDK with structured output (Zod schema) | Requires `OPENAI_API_KEY` env var. Use `generateObject()` for classification. Tier 1: 500 RPM limit. |
+| **Supabase Postgres** | Existing admin client for service role access | Use `createAdminClient()` for webhook handler (bypasses RLS). New tables need RLS policies for dashboard. |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| **Webhook → Classifier** | Direct function call (synchronous for MVP) | Consider async queue for scale. Pass `subject`, `body`, `clientName`, `filingType`. |
+| **Classifier → Database** | Supabase admin client (transactional) | Wrap classification + auto-update in transaction. Rollback if either fails. |
+| **Dashboard → Reply Sender** | Server Action → `sendRichEmail()` | Reuse existing email sender. Pass `inbound_email_id` for threading context. |
+| **Cron → Email Sender** | Existing pattern, add Reply-To encoding | Modify to generate encoded Reply-To before calling `sendRichEmail()`. Insert `email_log` first to get ID for encoding. |
+
+## Build Order Recommendation
+
+**Phase 1: Infrastructure (Weeks 1-2)**
+1. Add MX record for `replies.peninsulaaccounting.co.uk`
+2. Configure Postmark inbound webhook URL + secret
+3. Create migrations for `inbound_emails`, `reply_classifications` tables
+4. Extend `email_log` with `direction` + `inbound_email_id`
+5. Add `OPENAI_API_KEY` and `POSTMARK_WEBHOOK_SECRET` to env vars
+
+**Phase 2: Inbound Processing (Weeks 2-3)**
+1. Build Reply-To encoder/decoder (`lib/email/reply-to-encoder.ts`)
+2. Build webhook handler (`app/api/webhooks/inbound-email/route.ts`)
+   - Signature verification
+   - Decode Reply-To
+   - Store in `inbound_emails`
+3. Build OpenAI classifier (`lib/ai/classify-email.ts`)
+   - Structured output with Zod
+   - Intent + confidence + reasoning
+4. Build auto-update logic (`app/actions/update-filing-status.ts`)
+   - Check confidence threshold
+   - Update `clients.records_received_for`
+   - Store in `reply_classifications`
+5. Test with manual email sends to `replies+<encoded>@...`
+
+**Phase 3: Outbound Integration (Week 4)**
+1. Modify `sendRichEmail()` to accept `replyToOverride` param
+2. Modify cron `/api/cron/send-emails` to encode Reply-To before sending
+3. Test full round-trip: cron sends → client replies → webhook processes
+
+**Phase 4: Dashboard (Weeks 4-5)**
+1. Build email log page (`app/(dashboard)/email-logs/page.tsx`)
+   - List all inbound emails with classification
+   - Filter by intent, confidence, manual review needed
+2. Build detail page (`app/(dashboard)/email-logs/[id]/page.tsx`)
+   - Show full email content
+   - Show classification with reasoning
+   - Manual override controls
+   - Reply form
+3. Build reply sender action (`app/actions/send-reply.ts`)
+   - Compose reply email
+   - Call `sendRichEmail()` with encoded Reply-To
+   - Update `inbound_emails.replied_at`
+
+**Phase 5: Monitoring & Refinement (Week 6)**
+1. Add error monitoring (Sentry or similar)
+2. Add classification accuracy tracking dashboard
+3. Tune confidence threshold based on real data
+4. Add retry logic for failed OpenAI calls
 
 ## Sources
 
-- Direct codebase analysis (HIGH confidence -- all findings verified against source files)
-- `supabase/migrations/20260207000002_create_phase2_schema.sql` -- current schema
-- `lib/reminders/queue-builder.ts` -- current queue logic
-- `lib/reminders/scheduler.ts` -- current scheduling logic
-- `lib/templates/inheritance.ts` -- current override resolution
-- `lib/types/database.ts` -- current type definitions
-- `app/api/clients/[id]/template-overrides/route.ts` -- current override API
-- `.planning/PROJECT.md` -- v1.1 requirements
+- [Postmark Inbound Webhook Documentation](https://postmarkapp.com/developer/webhooks/inbound-webhook)
+- [Postmark Inbound Domain Forwarding](https://postmarkapp.com/developer/user-guide/inbound/inbound-domain-forwarding)
+- [VERP (Variable Envelope Return Path) Guide](https://blog.mystrika.com/the-complete-guide-to-verp-variable-envelope-return-path/)
+- [OpenAI Structured Outputs Documentation](https://platform.openai.com/docs/guides/structured-outputs)
+- [Vercel AI SDK Structured Data](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)
+- [Next.js Webhook Security Best Practices](https://makerkit.dev/blog/tutorials/nextjs-security)
+- [Text Classification with Vercel AI SDK](https://vercel.com/academy/ai-sdk/text-classification)
+- [Email Classification with GPT-4o](https://medium.com/@louremipsum/how-i-completed-a-full-stack-assignment-using-brand-new-technologies-in-3-days-55735281c741)
+
+---
+*Architecture research for: Inbound Email Processing + AI Classification*
+*Researched: 2026-02-13*
+*Confidence: HIGH (based on official Postmark docs, OpenAI structured output specs, and Vercel AI SDK patterns)*

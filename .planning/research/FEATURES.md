@@ -1,503 +1,297 @@
-# Feature Landscape
-
-**Domain:** Email template authoring, scheduling, and ad-hoc sending for accounting practice reminders
-**Researched:** 2026-02-08
-**Overall confidence:** MEDIUM-HIGH (Tiptap patterns well-documented; UX patterns verified across multiple sources)
-
----
-
-## Table Stakes
-
-Features users expect. Missing any of these and the system feels broken or incomplete.
-
-### 1. Rich Text Editor with Toolbar
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | WYSIWYG editor replacing the current `<Textarea>` for email body |
-| **Why expected** | User wants "Gmail/Outlook feel" -- plain textarea is the #1 frustration |
-| **Complexity** | Medium |
-| **Recommendation** | Tiptap 3.x with `@tiptap/starter-kit` |
-| **Toolbar controls** | Bold, italic, underline, bullet list, numbered list, link insertion |
-| **Dependencies** | New packages: `@tiptap/react`, `@tiptap/pm`, `@tiptap/starter-kit` |
-
-**Expected behaviors:**
-- Formatting toolbar sits above editor (fixed, not floating -- simpler for non-technical user)
-- Keyboard shortcuts work (Ctrl+B, Ctrl+I, Ctrl+U)
-- Undo/redo works
-- Copy-paste from Word/Outlook preserves basic formatting (bold, lists) but strips complex styles
-- Editor area feels like a real text box, not a code editor
-
-**Why Tiptap over alternatives:**
-- Headless (no forced styling -- fits existing shadcn/Tailwind design system)
-- Extension-based architecture (add only what's needed, avoid bloat)
-- ProseMirror foundation is battle-tested for email editors
-- Mention/Suggestion system is exactly what placeholder insertion needs
-- Already has Next.js/React 19 support
-- JSON storage enables both editor reload and HTML export
-- TinyMCE has merge-tag support but brings its own UI framework (conflict with shadcn)
-- Lexical is powerful but has steeper learning curve for this scope
-
-**Confidence:** HIGH (Tiptap docs verified via WebFetch, multiple production email editors use it)
-
----
-
-### 2. Placeholder Insertion via Slash Command or Trigger
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Type `/` to open autocomplete menu of placeholder variables |
-| **Why expected** | Core value proposition -- user explicitly requested this over manual `{{typing}}` |
-| **Complexity** | Medium |
-| **Recommendation** | Tiptap Mention extension with `/` trigger character, custom node rendering |
-| **Dependencies** | `@tiptap/extension-mention`, `@tiptap/suggestion` |
-
-**Expected behaviors:**
-- User types `/` anywhere in the editor body
-- Dropdown appears with filterable list of available placeholders (client_name, deadline, filing_type, etc.)
-- Typing further filters the list (e.g., `/cli` shows only "client_name")
-- Selecting an item inserts a styled pill/badge (e.g., `[Client Name]` with colored background)
-- Pill is atomic -- cannot be partially edited, only deleted as a whole
-- Pill stores the placeholder key (`client_name`) while displaying the human label (`Client Name`)
-- Backspace on a pill deletes the entire pill
-- Existing PLACEHOLDER_VARIABLES constant (in `lib/types/database.ts`) drives the suggestion list
-
-**Implementation pattern (Tiptap Suggestion utility):**
-- `char: '/'` triggers the autocomplete popup
-- `items` function returns filtered AVAILABLE_PLACEHOLDERS based on query
-- `command` inserts a Mention node with `id: 'client_name'` and `label: 'Client Name'`
-- Custom `renderHTML` renders pills as `<span data-placeholder="client_name" class="...">Client Name</span>`
-- On save, `getJSON()` stores structured content; on send, `getHTML()` exports and a post-processor replaces placeholder spans with actual `{{variable}}` syntax for the existing `substituteVariables()` function
-
-**Alternative considered:** Button/dropdown in toolbar for inserting placeholders. This works but is slower -- the user has to leave the keyboard, click the dropdown, find the variable, click it. Slash command keeps hands on keyboard. Recommend BOTH: slash command as primary, plus a toolbar button as discovery aid for first-time use.
-
-**Confidence:** HIGH (Tiptap Suggestion utility documented, Mention extension customization verified)
-
----
-
-### 3. Subject Line Input (Separate from Body)
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Dedicated subject line input field with placeholder support |
-| **Why expected** | Emails have subjects -- this already exists but needs placeholder insertion too |
-| **Complexity** | Low |
-| **Recommendation** | Keep as `<Input>` but add a small "Insert Variable" dropdown button next to it |
-| **Dependencies** | None new (existing Input component) |
-
-**Expected behaviors:**
-- Subject line remains a single-line text input (not rich text -- email subjects are plain text)
-- Small button beside the input opens a popover/dropdown to insert `{{variable}}` syntax
-- Inserted variables appear as raw `{{client_name}}` text (no pills in single-line input)
-- Slash command NOT needed here -- too complex for a single-line field
-
-**Confidence:** HIGH (standard pattern, already partially exists)
-
----
-
-### 4. Live Preview Pane
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Side-by-side or toggle preview showing rendered email with sample data |
-| **Why expected** | User cannot verify what client receives without seeing rendered output |
-| **Complexity** | Medium |
-| **Recommendation** | Side-by-side layout: editor left, preview right (desktop), toggle on mobile |
-| **Dependencies** | Existing `substituteVariables()` function, existing react-email template |
-
-**Expected behaviors:**
-- Preview updates in near-real-time as user types (debounced ~500ms)
-- Uses sample/dummy client data to fill placeholders (e.g., "ABC Ltd", "31 January 2026")
-- Shows the email as it will be rendered, wrapped in the branded Peninsula Accounting email layout (header, footer)
-- Preview should be inside an iframe or scoped container to prevent email styles from leaking into the app
-- Optionally: dropdown to pick a real client for preview data (differentiator, not table stakes)
-
-**Pipeline for preview:**
-1. Editor content: Tiptap `getHTML()` produces raw HTML with placeholder spans
-2. Post-process: Replace `<span data-placeholder="...">` with actual values from sample context
-3. Wrap: Pass through the existing react-email `ReminderEmail` component layout
-4. Render: Use `@react-email/render` to produce final HTML
-5. Display: Render in an iframe with `srcdoc`
-
-**Confidence:** HIGH (react-email render already works in codebase at `lib/email/sender.ts`)
-
----
-
-### 5. Template Save and Load (JSON Storage)
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Saving rich text template content and reloading it in the editor |
-| **Why expected** | Templates must persist -- this already exists for plain text |
-| **Complexity** | Low |
-| **Recommendation** | Store Tiptap JSON in the `body` field of `TemplateStep` (change from plain string to JSON) |
-| **Dependencies** | Schema migration for `steps` JSONB column format |
-
-**Expected behaviors:**
-- Save: `editor.getJSON()` stored in the template step's body field
-- Load: `editor.commands.setContent(savedJSON)` restores editor state
-- Migration: Existing plain-text bodies must be converted to Tiptap JSON format (wrap in paragraph nodes)
-- Backward compatibility: Old plain-text bodies should still render if loaded
-
-**Why JSON over HTML storage:**
-- JSON preserves the exact editor state (placeholder nodes with metadata)
-- JSON is easier to programmatically search/modify (e.g., "find all templates that use client_name")
-- HTML export is done at send-time, not storage-time
-- Tiptap docs explicitly recommend JSON for storage
-
-**Confidence:** HIGH (Tiptap output docs verified)
-
----
-
-### 6. Ad-Hoc Sending: Client Selection
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Select one or more clients, pick a template, send immediately |
-| **Why expected** | Core v1.1 feature -- the accountant needs to send one-off emails outside the automated schedule |
-| **Complexity** | Medium-High |
-| **Recommendation** | Wizard/stepper flow: Select Clients -> Pick Template -> Preview -> Confirm & Send |
-| **Dependencies** | Existing client list, existing template list, existing email sender |
-
-**Expected behaviors (step-by-step wizard):**
-
-**Step 1: Select Clients**
-- Searchable client list with checkboxes (reuse existing client table component patterns)
-- Show client name, email, client type
-- "Select All" / "Deselect All" for bulk operations
-- Display count of selected clients
-- Filter by client type (Limited Company, Sole Trader, etc.)
-
-**Step 2: Pick Template**
-- List of active templates with name, filing type, description
-- Select a template, then select which step from that template to use
-- Or: "Blank" option for a one-off custom email
-
-**Step 3: Preview & Edit**
-- Show the rendered email with one sample client's data
-- Allow inline edits to subject and body (for this send only, not saved to template)
-- Show recipient count: "This will be sent to N clients"
-- If multiple clients selected, show a "Preview as:" dropdown to switch between different clients
-
-**Step 4: Confirm & Send**
-- Final confirmation: "Send [subject] to N clients?"
-- Send button with loading state
-- Results: show success/failure per client after sending
-- Log all sends to the existing delivery log
-
-**UX pattern source:** This wizard pattern is consistent across Adobe Campaign, ServiceMinder, Cochrane Editorial Manager, and eTrigue -- all verified via WebSearch. The 4-step wizard is the dominant pattern for ad-hoc email workflows.
-
-**Confidence:** MEDIUM-HIGH (pattern well-established; implementation details are project-specific)
-
----
-
-### 7. Ad-Hoc Sending: Confirmation and Delivery Feedback
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Clear confirmation before send, and visible results after send |
-| **Why expected** | Sending emails is a destructive action -- user MUST confirm before bulk send |
-| **Complexity** | Low-Medium |
-| **Recommendation** | Modal confirmation dialog, then toast notifications + results summary |
-| **Dependencies** | Existing sonner toast, existing Postmark sender |
-
-**Expected behaviors:**
-- Confirmation dialog shows: recipient count, subject line, "Are you sure?"
-- Send shows progress (sending 1/N, 2/N...)
-- After completion: summary shows sent count, failed count
-- Failed sends show error reason
-- All sends logged to delivery log (existing audit_log table)
-- User can navigate to delivery log to see full details
-
-**Confidence:** HIGH (straightforward UX pattern)
-
----
-
-### 8. Scheduling View (Upcoming Reminders)
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Dedicated page showing all upcoming scheduled reminders |
-| **Why expected** | User needs visibility into what will be sent and when |
-| **Complexity** | Medium |
-| **Recommendation** | List view (not calendar) as default, with sort/filter capabilities |
-| **Dependencies** | Existing `reminder_queue` table with `scheduled` status entries |
-
-**Expected behaviors:**
-- Table/list showing: send date, client name, filing type, template name, step number, status
-- Sort by date (default: nearest first)
-- Filter by: date range, client, filing type, status
-- Ability to cancel a specific scheduled reminder (set status to 'cancelled')
-- Ability to reschedule (change send_date)
-- Group by date for visual clarity ("Today", "This Week", "Next Week", etc.)
-
-**Why list view over calendar:**
-- The calendar already exists at `/calendar` showing filing deadlines
-- A scheduling view is about operational management, not date visualization
-- List view supports better filtering, searching, and bulk actions
-- Calendar view is a differentiator (see below), not table stakes
-
-**Confidence:** MEDIUM-HIGH (existing reminder_queue data model supports this directly)
-
----
-
-## Differentiators
-
-Features that set the product apart. Not expected, but add significant value.
-
-### 1. Preview with Real Client Data
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Dropdown to select a real client and preview the email with their actual data |
-| **Value** | Catches errors in templates (e.g., missing data for a specific client) |
-| **Complexity** | Low (once base preview exists) |
-| **Notes** | Fetch client + filing data, build TemplateContext, render preview |
-
-**Why differentiate over sample data only:**
-- Sample data always works. Real data might expose edge cases (long names, missing fields)
-- Builds confidence: "I can see exactly what John Smith will receive"
-
----
-
-### 2. Calendar View for Scheduled Reminders
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Calendar visualization of upcoming reminder sends |
-| **Value** | Visual pattern recognition -- see if reminders cluster on certain dates |
-| **Complexity** | Low (react-big-calendar already in project) |
-| **Notes** | Reuse existing calendar component from `/calendar` page |
-
----
-
-### 3. Duplicate Template Action
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | One-click duplicate of an existing template |
-| **Value** | Faster template creation when making variations (e.g., same content, different filing type) |
-| **Complexity** | Low |
-| **Notes** | Copy all template data, rename to "[Original Name] (Copy)", redirect to edit |
-
----
-
-### 4. Template Usage Statistics
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Show how many times a template has been sent, last sent date |
-| **Value** | Helps identify unused templates for cleanup |
-| **Complexity** | Low |
-| **Notes** | Query delivery log grouped by template_id |
-
----
-
-### 5. Undo/Resend for Failed Emails
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Retry sending for emails that failed delivery |
-| **Value** | Recovers from transient Postmark errors without re-creating the send |
-| **Complexity** | Medium |
-| **Notes** | Only for `failed` status entries in delivery log |
-
----
-
-### 6. Inline Link Insertion with Preview
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Insert hyperlinks in the email body with a clean UI (not raw HTML) |
-| **Value** | Link to HMRC payment pages, Companies House filings, etc. |
-| **Complexity** | Low (Tiptap Link extension) |
-| **Notes** | `@tiptap/extension-link` -- adds link mark to editor, provides URL input popup |
-
----
-
-### 7. Dark/Light Mode Email Preview
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Toggle to preview email in dark mode (as some email clients render it) |
-| **Value** | Catches accessibility issues in dark mode email clients |
-| **Complexity** | Medium |
-| **Notes** | Apply dark mode CSS to preview iframe |
-
----
-
-### 8. Template Search and Filtering
-
-| Aspect | Detail |
-|--------|--------|
-| **Feature** | Search templates by name, description, or filing type |
-| **Value** | Useful once template count grows beyond ~10 |
-| **Complexity** | Low |
-| **Notes** | Client-side search on the existing template list; add search input + filing type filter |
-
----
-
-## Anti-Features
-
-Features to explicitly NOT build. Common mistakes in this domain that waste time or create problems.
-
-### 1. Full Drag-and-Drop Email Builder
-
-| Anti-Feature | Building a visual email designer with drag-and-drop blocks, columns, images |
-|--------------|-----------|
-| **Why avoid** | Massive complexity (Unlayer, BeeFree-level effort). The user is a solo accountant sending text-based reminders with some bold text, not designing marketing newsletters. The existing react-email layout wrapper handles branding (header, footer, colors). The body content needs rich text, not visual design tools. |
-| **What to do instead** | Rich text editor for body content within the fixed branded email layout wrapper |
-
-### 2. Server-Side Postmark Templates
-
-| Anti-Feature | Using Postmark's own template system instead of react-email |
-|--------------|-----------|
-| **Why avoid** | The project already has a working react-email pipeline (`lib/email/sender.ts`, `lib/email/templates/reminder.tsx`). Postmark templates use Mustachio syntax which is different from the existing `{{variable}}` system. Switching would require rewriting the entire email rendering pipeline for no user-facing benefit. |
-| **What to do instead** | Keep using react-email for rendering, Postmark for delivery only |
-
-### 3. Multiple Email Layout Templates
-
-| Anti-Feature | Letting users choose between different email layouts/designs |
-|--------------|-----------|
-| **Why avoid** | Single-user system for one accounting practice. One branded layout is sufficient. Multiple layouts adds complexity with no value. |
-| **What to do instead** | One hardcoded layout. If layout changes are needed, modify the react-email component directly. |
-
-### 4. HTML Source Code Editing
-
-| Anti-Feature | "View source" button to directly edit HTML in the email editor |
-|--------------|-----------|
-| **Why avoid** | User is non-technical. Raw HTML editing is confusing, error-prone, and can break email rendering. Tiptap's structured schema prevents invalid HTML by design. |
-| **What to do instead** | WYSIWYG only. What you see is what the email contains. |
-
-### 5. Complex Scheduling Rules Engine
-
-| Anti-Feature | Cron-like scheduling, conditional send rules, time-of-day selection |
-|--------------|-----------|
-| **Why avoid** | The existing scheduler (`lib/reminders/scheduler.ts`) already handles automated reminders based on filing deadlines. It sends at 9am UK time daily. Adding complex scheduling rules creates edge cases, timezone bugs, and confusion. The ad-hoc sending feature covers "send now" needs. |
-| **What to do instead** | Keep automated scheduling as-is (deadline-based). Ad-hoc sending covers everything else. |
-
-### 6. Real-Time Collaborative Editing
-
-| Anti-Feature | Multiple users editing the same template simultaneously |
-|--------------|-----------|
-| **Why avoid** | Single user system. Tiptap supports collaboration via Y.js but it's unnecessary complexity. |
-| **What to do instead** | Single-user editor with normal save behavior |
-
-### 7. Email Analytics Dashboard
-
-| Anti-Feature | Open rates, click rates, engagement metrics |
-|--------------|-----------|
-| **Why avoid** | Postmark TrackOpens is already set to `false` in the codebase. These are filing reminders, not marketing emails. GDPR considerations for UK practice. Tracking adds no value -- the accountant cares whether the email was delivered, not whether it was opened. |
-| **What to do instead** | Delivery status tracking (already exists via Postmark webhooks) |
-
-### 8. Email Template Version History
-
-| Anti-Feature | Full version control for templates with diff view and rollback |
-|--------------|-----------|
-| **Why avoid** | Overengineered for a solo practice with ~5-10 templates. The user edits templates infrequently. |
-| **What to do instead** | Simple "last edited" timestamp (already exists via `updated_at`). If rollback is truly needed later, it's a v2.0 concern. |
-
----
+# Feature Research
+
+**Domain:** Inbound Email Processing + AI Classification for Accounting Practice
+**Researched:** 2026-02-13
+**Confidence:** MEDIUM-HIGH
+
+## Feature Landscape
+
+### Table Stakes (Users Expect These)
+
+Features users assume exist. Missing these = product feels incomplete.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Inbound email receipt via webhook | Standard in email automation systems | LOW | Postmark provides structured JSON with parsed email content, headers, recipients |
+| AI classification of reply intent | Expected in 2026 customer service tools | MEDIUM | Industry standard uses 50-70% confidence threshold; 90%+ is high confidence |
+| Confidence score display | Users need to know AI certainty | LOW | Show percentage or HIGH/MEDIUM/LOW labels; critical for trust |
+| Human review queue for low-confidence replies | Standard safety pattern in AI systems | MEDIUM | Queue interface to show ambiguous replies requiring manual classification |
+| Auto-update filing status on high-confidence "sent" replies | Core value proposition of AI classification | MEDIUM | When AI is 90%+ confident client sent paperwork, mark filing as received |
+| Reply log/timeline view | Expected in all practice management tools | MEDIUM | Chronological view of all client replies per filing type; supports conversation context |
+| Out-of-office detection | Standard in email automation platforms | LOW | Separate OOO from actionable replies; pause reminder sequences |
+| Manual override of AI classification | Users must be able to correct mistakes | LOW | Click to reclassify; trains system and fixes errors |
+| Email threading/conversation grouping | Expected in customer service email tools | MEDIUM | Group related emails by In-Reply-To and References headers; show conversation history |
+| Full email content visibility | Accountants need complete context | LOW | Show plain text body, HTML if available, from/to/subject/date |
+
+### Differentiators (Competitive Advantage)
+
+Features that set the product apart. Not required, but valuable.
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Accounting-specific intent categories | Generic "interested/not interested" doesn't fit accounting workflows | LOW | Categories: Paperwork Sent, Question, Extension Request, Can't Find Records, Accountant Not Needed, Out of Office, Unclear/Other |
+| Reply-from-dashboard (two-way email) | Keeps all communication in one place, no context switching to email client | HIGH | Send replies from app; maintains threading; tracks in conversation log |
+| Contextual AI prompts based on filing type | More accurate classification when AI knows it's Corp Tax vs VAT | MEDIUM | Pass filing type, deadline, client history to LLM for better context |
+| Suggested response drafts for common scenarios | 80% AI draft + 20% human personalization | MEDIUM | AI generates reply for "Can't find records" → accountant edits → sends |
+| Automatic reminder pause on certain intents | Stop reminders when client says "already sent" or "accountant not needed" | MEDIUM | Pause sequence when high-confidence "sent" or "not needed" detected |
+| Reply statistics per filing type | Data-driven insights on which deadlines cause most questions | LOW | Track response rates, intent distribution, time-to-reply by filing type |
+| Batch review for ambiguous replies | Review multiple low-confidence items at once | MEDIUM | Checkbox interface to classify 10 items in one session; efficient for accountants |
+
+### Anti-Features (Commonly Requested, Often Problematic)
+
+Features that seem good but create problems.
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Attachment processing/OCR | "AI should read their uploaded docs" | Postmark free tier doesn't include attachments; OCR is complex and error-prone; adds scope creep | Show "attachment received" indicator; link to Postmark inbox for download; focus on text classification first |
+| Fully automated replies (no human review) | "Let AI handle everything" | Accounting is regulated; mistakes damage client relationships; industry best practice is human-in-loop | Suggested drafts that require one-click review before sending |
+| Training custom ML model on historical emails | "Our emails are unique, train on our data" | Requires 1000+ labeled examples; maintenance burden; modern LLMs already understand accounting context | Use GPT/Claude with few-shot prompting and domain context |
+| Complex branching conversation flows | "Build a chatbot for every scenario" | Clients prefer human contact for accounting; over-automation feels impersonal | Focus on classification + suggested replies; keep humans central |
+| Real-time AI classification on every page load | "Always show fresh AI analysis" | Expensive API calls; unnecessary when classification happens once on receipt | Classify on webhook receipt; store result; only re-classify on manual request |
+| Sentiment analysis | "Detect angry clients" | Adds complexity without clear action; accountants already read tone from content | Show full email text; let humans assess tone |
 
 ## Feature Dependencies
 
 ```
-Rich Text Editor (Tiptap)
-  |
-  +---> Placeholder Insertion (Tiptap Mention extension)
-  |       |
-  |       +---> Live Preview (needs HTML export + placeholder resolution)
-  |       |       |
-  |       |       +---> Preview with Real Client Data (extends base preview)
-  |       |
-  |       +---> Template Save/Load (JSON storage)
-  |               |
-  |               +---> Data migration (plain text -> Tiptap JSON)
-  |
-  +---> Subject Line Placeholder Button (independent of Tiptap body editor)
+[Inbound webhook receipt]
+    └──requires──> [Postmark inbound setup]
+                       └──requires──> [MX record or forwarding domain]
 
-Ad-Hoc Sending (independent of editor, but uses templates)
-  |
-  +---> Client Selection UI
-  |
-  +---> Template/Step Selection
-  |
-  +---> Preview & Edit (depends on Live Preview above)
-  |
-  +---> Confirmation Dialog
-  |
-  +---> Send Execution (uses existing sendReminderEmail)
-  |
-  +---> Delivery Log Integration (existing delivery log)
+[AI classification]
+    └──requires──> [Inbound webhook receipt]
+    └──requires──> [LLM API access (Claude/GPT)]
+    └──requires──> [Classification schema (intent categories)]
 
-Scheduling View (independent, reads existing reminder_queue)
-  |
-  +---> List View with Filters
-  |
-  +---> Cancel/Reschedule Actions
-  |
-  +---> Calendar View (differentiator, uses react-big-calendar)
+[Auto-update filing status]
+    └──requires──> [AI classification]
+    └──requires──> [Confidence threshold logic]
+    └──requires──> [Existing filing status tracking]
+
+[Reply-from-dashboard]
+    └──requires──> [Email threading]
+    └──requires──> [Postmark outbound API]
+    └──requires──> [Reply log]
+    └──enhances──> [Suggested response drafts]
+
+[Human review queue]
+    └──requires──> [AI classification with confidence scores]
+    └──requires──> [Manual override]
+
+[Suggested response drafts]
+    └──requires──> [AI classification]
+    └──requires──> [LLM API access]
+    └──requires──> [Reply-from-dashboard]
+
+[Automatic reminder pause]
+    └──requires──> [AI classification]
+    └──requires──> [Existing reminder scheduler]
+    └──conflicts──> [Fully manual reminder control] (need to decide if AI or user has priority)
 ```
 
----
+### Dependency Notes
 
-## MVP Recommendation
+- **Inbound webhook receipt requires Postmark setup:** DNS MX records or forwarding domain must be configured before emails can be received
+- **AI classification requires classification schema:** Intent categories must be defined before classification can happen; this is domain-specific design work
+- **Auto-update filing status requires confidence threshold logic:** Must define HIGH (90%+), MEDIUM (60-90%), LOW (<60%) thresholds before auto-actions can trigger
+- **Reply-from-dashboard enhances suggested response drafts:** Two-way email unlocks AI-drafted replies; without it, suggested drafts are just clipboard text
+- **Automatic reminder pause conflicts with fully manual reminder control:** Need UI to show "AI paused this reminder" with option to un-pause
 
-For the v1.1 milestone, prioritize in this order:
+## MVP Definition
 
-### Must Ship (Phase 1 - Editor Foundation)
-1. **Rich text editor with Tiptap** replacing textarea -- the core upgrade
-2. **Placeholder slash command** with pill rendering -- the headline feature
-3. **Template JSON storage** with migration from plain text -- enables everything else
-4. **Subject line placeholder button** -- small but necessary
+### Launch With (v1)
 
-### Must Ship (Phase 2 - Preview & Sending)
-5. **Live preview pane** with sample data -- validates the editor output
-6. **Ad-hoc sending wizard** (all 4 steps) -- the second headline feature
-7. **Scheduling list view** -- operational visibility
+Minimum viable product for inbound email + AI classification.
 
-### Defer to Post-v1.1
-- Preview with real client data (low complexity but not critical for launch)
-- Calendar view for schedule (already have calendar page; this is nice-to-have)
-- Template duplication (trivial to add later)
-- Template usage stats (trivial to add later)
-- Template search/filter (not needed until template count grows)
-- Link insertion (add when users ask for it)
+- [ ] **Inbound webhook receipt** — Must receive emails before anything else works
+- [ ] **AI classification with accounting-specific intents** — Core value; differentiates from generic tools
+- [ ] **Confidence score display** — Transparency builds trust in AI
+- [ ] **Auto-update filing status on high-confidence "sent" replies** — Reduces manual data entry; proves AI value
+- [ ] **Reply log/timeline view** — Context for accountants to understand client communication history
+- [ ] **Human review queue for low-confidence replies** — Safety valve; prevents AI mistakes
+- [ ] **Manual override of AI classification** — Accountants must be able to correct errors
+- [ ] **Out-of-office detection** — Prevents false positives in classification
+- [ ] **Full email content visibility** — Accountants need to read full context
 
-### Critical Technical Decision: HTML Email Pipeline
+### Add After Validation (v1.x)
 
-The Tiptap-to-email pipeline is the most architecturally significant piece:
+Features to add once core is working and users validate AI accuracy.
 
-1. **Editor** produces Tiptap JSON (stored in DB)
-2. **Preview** calls `editor.getHTML()`, post-processes placeholder spans to values
-3. **Send** calls `editor.getHTML()`, post-processes placeholder spans to `{{variable}}` syntax
-4. Existing `substituteVariables()` resolves `{{variable}}` to actual values
-5. Resulting HTML is injected into the react-email `ReminderEmail` component (replacing the current `body` prop)
-6. `@react-email/render` produces final email-safe HTML with inline styles
-7. Postmark sends it
+- [ ] **Email threading/conversation grouping** — Trigger: When users complain about losing conversation context
+- [ ] **Reply statistics per filing type** — Trigger: When accountants ask "which deadline causes most questions?"
+- [ ] **Automatic reminder pause on certain intents** — Trigger: When users manually pause reminders after seeing "sent" replies
+- [ ] **Batch review for ambiguous replies** — Trigger: When review queue grows beyond 10 items regularly
 
-**Key change:** The react-email template needs to accept `htmlBody` (rich HTML) instead of plain `body` text. The `whiteSpace: 'pre-wrap'` text rendering must be replaced with `dangerouslySetInnerHTML` or a dedicated HTML container component.
+### Future Consideration (v2+)
 
-**Email safety consideration:** Tiptap produces clean, semantic HTML (p, strong, em, ul, ol, li, a). These tags all render well across email clients when wrapped in the react-email layout. No need for a separate HTML-to-email sanitizer for this limited tag set. However, limit the Tiptap extensions to email-safe formatting only (no images, tables, colors, or custom fonts in v1.1).
+Features to defer until product-market fit is established.
 
----
+- [ ] **Reply-from-dashboard (two-way email)** — Why defer: Complex threading, deliverability concerns; validate classification first
+- [ ] **Suggested response drafts** — Why defer: Requires reply-from-dashboard; focus on inbound classification before outbound automation
+- [ ] **Contextual AI prompts based on filing type** — Why defer: Test if generic classification works first; add context if accuracy is insufficient
+- [ ] **Attachment indicator** — Why defer: Non-critical; users can check Postmark inbox manually
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Inbound webhook receipt | HIGH | LOW | P1 |
+| AI classification | HIGH | MEDIUM | P1 |
+| Confidence score display | HIGH | LOW | P1 |
+| Auto-update filing status | HIGH | MEDIUM | P1 |
+| Reply log | HIGH | MEDIUM | P1 |
+| Human review queue | HIGH | MEDIUM | P1 |
+| Manual override | HIGH | LOW | P1 |
+| Out-of-office detection | MEDIUM | LOW | P1 |
+| Full email content visibility | HIGH | LOW | P1 |
+| Email threading | MEDIUM | MEDIUM | P2 |
+| Reply statistics | MEDIUM | LOW | P2 |
+| Automatic reminder pause | MEDIUM | MEDIUM | P2 |
+| Batch review | LOW | MEDIUM | P2 |
+| Reply-from-dashboard | HIGH | HIGH | P3 |
+| Suggested response drafts | MEDIUM | MEDIUM | P3 |
+| Contextual AI prompts | MEDIUM | MEDIUM | P3 |
+| Attachment indicator | LOW | LOW | P3 |
+
+**Priority key:**
+- P1: Must have for launch (v1)
+- P2: Should have, add when possible (v1.x)
+- P3: Nice to have, future consideration (v2+)
+
+## Intent Classification Schema (Accounting-Specific)
+
+Core differentiator: tailored categories for accounting practice workflows.
+
+| Intent Category | Description | Example Phrases | Auto-Action |
+|----------------|-------------|-----------------|-------------|
+| **Paperwork Sent** | Client confirms they've sent records/docs | "Sent the invoices", "Uploaded to portal", "Emailed last week" | Auto-update filing status to "received" if confidence >90% |
+| **Question** | Client has a question about the filing | "What documents do you need?", "When is the deadline?", "How much will it cost?" | No auto-action; flag for reply |
+| **Extension Request** | Client asks for more time | "Can I have another week?", "Running behind", "Need extension" | No auto-action; flag for reply |
+| **Can't Find Records** | Client is missing documents | "Can't find my receipts", "Lost the invoice", "Don't have Q3 records" | No auto-action; flag for reply |
+| **Accountant Not Needed** | Client says they'll handle it themselves or use another accountant | "I'll file myself", "Using a different accountant", "Don't need your services" | Auto-pause reminder sequence if confidence >90% |
+| **Out of Office** | Auto-reply indicating absence | "Out of office", "On holiday until", "Currently unavailable" | Ignore; don't show in review queue |
+| **Unclear/Other** | Reply doesn't fit above categories or AI is uncertain | Ambiguous text, multiple topics | Show in review queue for manual classification |
+
+**Confidence threshold strategy:**
+- **90%+** (HIGH): Auto-action allowed (update status, pause reminders)
+- **60-89%** (MEDIUM): Show in review queue with AI suggestion
+- **<60%** (LOW): Show in review queue without suggestion; likely misclassification
+
+Based on industry research, 60% is standard threshold for "Undefined" intent, while 90%+ indicates high likelihood of correct classification.
+
+## Competitor Feature Analysis
+
+| Feature | Generic Email Automation (Instantly.ai) | Practice Management Tools (TaxDome, Client Hub) | Our Approach |
+|---------|--------------|--------------|--------------|
+| AI Classification | Interested / Not Interested / OOO / Objection | None (manual client status updates) | Accounting-specific intents (Paperwork Sent, Question, Extension, etc.) |
+| Confidence Thresholds | 50-70% standard; configurable | N/A | 90%+ for auto-action, 60-89% for review queue |
+| Review Queue | Human-in-loop or full autopilot mode | N/A | Always human-in-loop; batch review for efficiency |
+| Auto-Update Status | Auto-schedule follow-ups based on intent | Manual updates only | Auto-update filing status on high-confidence "sent" replies |
+| Reply-from-Dashboard | No (separate email client) | Yes (integrated two-way email) | v2 feature; focus on classification first |
+| Email Threading | Basic conversation grouping | Full timeline view with all interactions | Standard threading by In-Reply-To/References headers |
+| Out-of-Office Detection | Yes (separate from interested replies) | No | Yes; ignore OOO in review queue |
+
+**Key insight:** Generic email tools focus on sales workflows (interested/not interested); practice management tools lack AI classification. Our differentiator is **AI classification tailored to accounting workflows**.
+
+## UX Patterns for Review Queue
+
+Based on customer service email management research:
+
+**Dashboard Integration:**
+- Show review queue count in navigation (e.g., "Review (3)" badge)
+- Display high-priority items (extension requests, questions) at top
+- Low-priority items (unclear replies) at bottom
+
+**Individual Reply Card:**
+```
+[Client Name] - [Filing Type: Corp Tax 2025]
+AI Classification: "Question" (72% confidence)
+
+Email excerpt:
+"What documents do you need for the corp tax return?"
+
+Actions:
+[Confirm Classification ✓] [Change to: ▼] [View Full Email] [Reply]
+```
+
+**Batch Review:**
+```
+☑ Client A - "Paperwork Sent" (85%) → Confirm as Sent
+☑ Client B - "Question" (68%) → Confirm as Question
+☐ Client C - "Unclear" (45%) → Reclassify as Extension Request
+
+[Apply Changes (2 selected)]
+```
+
+**Statistics Dashboard:**
+```
+Last 7 days:
+- 24 replies received
+- 18 auto-classified (75%)
+- 6 requiring review (25%)
+
+Intent breakdown:
+- Paperwork Sent: 12 (50%)
+- Questions: 8 (33%)
+- Extension Requests: 3 (13%)
+- Out of Office: 1 (4%)
+```
+
+## Edge Cases & Handling
+
+| Edge Case | How to Handle |
+|-----------|---------------|
+| Email with multiple intents (e.g., "Sent invoices but have a question") | Classify as "Unclear" → human reviews → manual split or prioritize primary intent |
+| Reply to wrong reminder (client replies to VAT email about Corp Tax) | Show original email context in review; allow manual reassignment to correct filing |
+| Forwarded email from client's assistant | Detect "Fwd:" in subject; treat as new conversation; classify content normally |
+| Reply in language other than English | LLMs handle multi-language; confidence score will be lower for non-English; flag for review |
+| Email thread with 10+ back-and-forth replies | Show most recent reply with "View Thread (10 messages)" link; classify latest message only |
+| Client replies to old reminder from 6 months ago | Show date gap warning; likely outdated; flag for manual review |
+| Bounced email notification from Postmark | Detect bounce webhook separately; don't classify as reply; update client email status |
 
 ## Sources
 
-### Verified (HIGH confidence)
-- [Tiptap React Installation](https://tiptap.dev/docs/editor/getting-started/install/react) - Verified via WebFetch
-- [Tiptap Suggestion Utility](https://tiptap.dev/docs/editor/api/utilities/suggestion) - Verified via WebFetch
-- [Tiptap Mention Extension](https://tiptap.dev/docs/editor/extensions/nodes/mention) - Verified via WebFetch
-- [Tiptap Content Export](https://tiptap.dev/docs/editor/guide/output) - Verified via WebFetch
-- [Postmark Email API](https://postmarkapp.com/developer/user-guide/send-email-with-api) - From WebSearch
-- Existing codebase: `lib/email/sender.ts`, `lib/email/templates/reminder.tsx`, `lib/templates/variables.ts`
+**AI Email Classification & Automation:**
+- [How to automate email reply classification using AI (triage)](https://instantly.ai/blog/automate-email-triage-classification-ai/)
+- [Building an AI Agent-Powered Email Classification & Auto-Reply System Using n8n | Medium](https://medium.com/@TechSnazAI/building-an-ai-agent-powered-email-classification-auto-reply-system-using-n8n-0229adf8f6e7)
+- [How to Automatically Classify, Tag, and Route Incoming Email Using AI - Cobbai Blog](https://cobbai.com/blog/email-classification-ai-support)
+- [Cold Email Benchmark Report 2026: Reply Rates, Deliverability and Trends](https://instantly.ai/cold-email-benchmark-report-2026)
 
-### Referenced (MEDIUM confidence)
-- [Tiptap GitHub Discussion #3185](https://github.com/ueberdosis/tiptap/discussions/3185) - Custom variable rendering patterns
-- [React Email Render Utility](https://react.email/docs/utilities/render) - From WebSearch
-- [10 Best React WYSIWYG Rich Text Editors 2026](https://reactscript.com/best-rich-text-editor/) - Ecosystem survey
+**Confidence Thresholds & Best Practices:**
+- [About confidence thresholds for advanced AI agents - Zendesk help](https://support.zendesk.com/hc/en-us/articles/8357749625498-About-confidence-thresholds-for-advanced-AI-agents)
+- [Intent Classification in 2026: What it is & How it Works](https://research.aimultiple.com/intent-classification/)
+- [A practical guide to setting confidence thresholds for AI responses](https://www.eesel.ai/blog/setting-confidence-thresholds-for-ai-responses)
 
-### Pattern Sources (MEDIUM confidence)
-- [Adobe Campaign Ad-Hoc Templates](https://experienceleague.adobe.com/docs/campaign-classic-learn/tutorials/sending-messages/using-delivery-templates/deploying-ad-hoc-email-delivery-template.html) - Ad-hoc workflow pattern
-- [Cochrane Editorial Manager Ad-Hoc Emails](https://documentation.cochrane.org/emkb/emails/ad-hoc-emails) - Wizard pattern reference
-- [ServiceMinder Ad-Hoc Email Templates](https://serviceminder.knowledgeowl.com/help/ad-hoc-email-templates) - Template selection pattern
+**Accounting Practice Management & Client Communication:**
+- [Improve Client Responsiveness Without Constant Chasing](https://www.clienthub.app/blog/improve-client-responsiveness-accountants-bookkeepers)
+- [The 5 best accounting practice management solutions with email integrations | Karbon](https://karbonhq.com/resources/accounting-practice-management-software-with-email-integration/)
+- [8 Best Accounting Practice Management Software of 2026 - Uku](https://getuku.com/articles/uks-best-accounting-practice-management-software)
+
+**Customer Service Email Queue & Workflow:**
+- [Boost customer service with Amazon Connect AI-enhanced email workflows | AWS](https://aws.amazon.com/blogs/contact-center/boost-customer-service-with-amazon-connect-ai-enhanced-email-workflows/)
+- [10 best customer service email management solutions in 2026 | Jotform](https://www.jotform.com/ai/agents/customer-service-email-management/)
+- [Customer email management: Definition, Strategies and Tools](https://hiverhq.com/blog/customer-email-management)
+
+**Postmark Inbound Email Processing:**
+- [Inbound webhook | Postmark Developer Documentation](https://postmarkapp.com/developer/webhooks/inbound-webhook)
+- [What is inbound processing? | Postmark Developer Documentation](https://postmarkapp.com/developer/user-guide/inbound)
+- [Sample inbound workflow | Postmark Developer Documentation](https://postmarkapp.com/developer/user-guide/inbound/sample-inbound-workflow)
+
+**Email Threading & Conversation Views:**
+- [20 Best Customer Service Email Management Software For 2026](https://thecxlead.com/tools/best-customer-service-email-management-software/)
+- [Understanding simplified email threading - Zendesk help](https://support.zendesk.com/hc/en-us/articles/4565992897562-Understanding-simplified-email-threading)
+- [Configure email threading settings - Genesys Cloud](https://help.genesys.cloud/articles/configure-organization-level-email-threading-timeline/)
+
+**AI-Suggested Responses & Human Review:**
+- [11 Use Cases for Suggest Reply AI That Drive Results (2026)](https://bluetweak.com/blog/ai-suggested-replies/)
+- [Revolutionizing Support: Top AI in Customer Service Examples in 2026](https://www.myaifrontdesk.com/blogs/revolutionizing-support-top-ai-in-customer-service-examples-in-2026)
+- [8 Strategies for Using AI for Customer Service in 2026 | Sprout Social](https://sproutsocial.com/insights/ai-customer-service/)
+
+**Client Portal & Document Workflow:**
+- [Client Hub | Modern Accounting Practice Management & Client Portal Software](https://www.clienthub.app/)
+- [Client portal software for accountants - TaxDome](https://taxdome.com/client-portal)
+- [Practice management software for accounting and tax firms - TaxDome](https://taxdome.com/)
+
+---
+*Feature research for: Inbound Email Processing + AI Classification for Accounting Practice*
+*Researched: 2026-02-13*
+*Confidence: MEDIUM-HIGH (verified with current industry sources, confidence thresholds from authoritative platforms, accounting-specific patterns from practice management tools)*
