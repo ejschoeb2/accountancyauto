@@ -24,6 +24,8 @@
 
 - [ ] **AUTO-01**: High-confidence "Paperwork Sent" replies (90%+) automatically mark filing as records received
 - [ ] **AUTO-02**: Auto-actions logged in audit trail with AI classification details
+- [ ] **AUTO-03**: Auto-action system can be enabled/disabled via toggle in settings page
+- [ ] **AUTO-04**: Auto-action settings configurable during onboarding setup wizard
 
 ### Review & Visibility
 
@@ -65,28 +67,36 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INBD-01 | — | Pending |
-| INBD-02 | — | Pending |
-| INBD-03 | — | Pending |
-| INBD-04 | — | Pending |
-| INBD-05 | — | Pending |
-| AICL-01 | — | Pending |
-| AICL-02 | — | Pending |
-| AICL-03 | — | Pending |
-| AICL-04 | — | Pending |
-| AUTO-01 | — | Pending |
-| AUTO-02 | — | Pending |
-| REVW-01 | — | Pending |
-| REVW-02 | — | Pending |
-| REVW-03 | — | Pending |
-| REVW-04 | — | Pending |
-| REVW-05 | — | Pending |
+| INBD-01 | Phase 10 | Pending |
+| INBD-02 | Phase 10 | Pending |
+| INBD-03 | Phase 10 | Pending |
+| INBD-04 | Phase 10 | Pending |
+| INBD-05 | Phase 10 | Pending |
+| AICL-01 | Phase 11 | Pending |
+| AICL-02 | Phase 11 | Pending |
+| AICL-03 | Phase 11 | Pending |
+| AICL-04 | Phase 11 | Pending |
+| AUTO-01 | Phase 13 | Pending |
+| AUTO-02 | Phase 13 | Pending |
+| AUTO-03 | Phase 13 | Pending |
+| AUTO-04 | Phase 13 | Pending |
+| REVW-01 | Phase 12 | Pending |
+| REVW-02 | Phase 12 | Pending |
+| REVW-03 | Phase 12 | Pending |
+| REVW-04 | Phase 12 | Pending |
+| REVW-05 | Phase 12 | Pending |
 
 **Coverage:**
-- v3.0 requirements: 16 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 16
+- v3.0 requirements: 18 total
+- Mapped to phases: 18/18 (100%)
+- Unmapped: 0
+
+**Phase distribution:**
+- Phase 10 (Inbound Email Infrastructure): 5 requirements
+- Phase 11 (AI Classification Engine): 4 requirements
+- Phase 12 (Accountant Review Interface): 5 requirements
+- Phase 13 (Auto-Action System): 4 requirements
 
 ---
 *Requirements defined: 2026-02-13*
-*Last updated: 2026-02-13 after initial definition*
+*Last updated: 2026-02-13 after roadmap creation*

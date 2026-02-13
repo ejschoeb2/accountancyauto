@@ -5,14 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
-**Current focus:** v3.0 Inbound Email Intelligence
+
+**Current focus:** Phase 10 - Inbound Email Infrastructure
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-12 — Milestone v3.0 started
+Phase: 10 of 13 (Inbound Email Infrastructure)
+Plan: Not yet planned
+Status: Ready to plan
+Last activity: 2026-02-13 — v3.0 roadmap created (Phases 10-13)
+
+Progress: [████████████░░░] 69% (30 of 43 total plans complete)
 
 ## Performance Metrics
 
@@ -29,15 +32,31 @@ Last activity: 2026-02-12 — Milestone v3.0 started
 - Commits: 62
 - Files changed: 92
 
+**v3.0 Velocity:**
+- Total plans completed: 0
+- Phases: 4 (Phase 10-13)
+- Status: Roadmap complete, ready to plan Phase 10
+
 ## Accumulated Context
 
 ### Decisions
 
 See PROJECT.md Key Decisions table for full list (22 decisions).
 
+Recent decisions affecting v3.0:
+- Postmark inbound uses Basic HTTP Auth (not HMAC signatures)
+- VERP-style Reply-To encoding for context tracking
+- Claude Haiku 4.5 for classification (cost/speed balance)
+- 90%+ confidence threshold for auto-actions
+
 ### Known Risks
 
-All v1.0 and v1.1 risks resolved. No open risks.
+All v1.0 and v1.1 risks resolved.
+
+**v3.0 risks identified in research:**
+- AI confidence calibration (start at 99% threshold, lower to 90% after validation)
+- Email loop prevention (Auto-Submitted header check required)
+- Multi-practice isolation in Reply-To encoding
 
 ### Tech Debt
 
@@ -69,10 +88,10 @@ All v1.0 and v1.1 risks resolved. No open risks.
 
 ## Session Continuity
 
-Last session: 2026-02-12
-Stopped at: Starting milestone v3.0
+Last session: 2026-02-13
+Stopped at: v3.0 roadmap created with 4 phases (10-13) covering all 16 requirements
 Resume file: None
-Next step: Define requirements and create roadmap
+Next step: `/gsd:plan-phase 10` to begin Phase 10 planning
 
 ---
-*v3.0 milestone started — Inbound Email Intelligence*
+*v3.0 milestone roadmap complete — ready for Phase 10 planning*
