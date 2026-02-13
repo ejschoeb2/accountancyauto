@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ButtonBase } from '@/components/ui/button-base';
+import { CheckButton } from '@/components/ui/check-button';
 import { usePageLoading } from '@/components/page-loading';
 import {
   Select,
@@ -26,6 +27,14 @@ import { format } from 'date-fns';
 import { Search, X, ArrowUpDown } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
+
+const FILING_TYPE_LABELS: Record<string, string> = {
+  corporation_tax_payment: "Corp Tax",
+  ct600_filing: "CT600",
+  companies_house: "Companies House",
+  vat_return: "VAT Return",
+  self_assessment: "Self Assessment",
+};
 
 type SortField = 'sent_at' | 'client_name' | 'send_date';
 type SortDirection = 'asc' | 'desc';
@@ -56,6 +65,9 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Selection state
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   // Debounce client search
   useEffect(() => {
@@ -225,9 +237,32 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     setCurrentPage(1);
   }
 
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedRows.size === sortedData.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(sortedData.map((item) => item.id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    const newSelection = new Set(selectedRows);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedRows(newSelection);
+  };
+
+  const isAllSelected = sortedData.length > 0 && selectedRows.size === sortedData.length;
+  const isSomeSelected = selectedRows.size > 0 && selectedRows.size < sortedData.length;
+
   return (
-    <div className="space-y-4">
-      {/* Filters */}
+    <div className="space-y-6 pb-0">
+      {/* Filters and Results */}
+      <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -309,14 +344,61 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
         <span className="font-semibold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}</span> of <span className="font-semibold text-foreground">{totalCount}</span>{' '}
         {viewMode === 'sent' ? 'sent emails' : 'queued emails'}
       </div>
+      </div>
 
-      {/* Table */}
-      <div className="rounded-xl border shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
+      {/* Table - Full page width like client table */}
+      <div className="-mx-8 -mb-10 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
         <Table>
           <TableHeader>
             <TableRow>
+              {/* Checkbox column */}
+              <TableHead>
+                <div className="flex items-center justify-center">
+                  <CheckButton
+                    checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </div>
+              </TableHead>
+
               {viewMode === 'sent' ? (
                 <>
+                  {/* Type */}
+                  <TableHead>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      Type
+                    </span>
+                  </TableHead>
+                  {/* Client Name */}
+                  <TableHead>
+                    <button
+                      className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                      onClick={() => handleSort('client_name')}
+                    >
+                      Client Name
+                      <ArrowUpDown className="size-3.5" />
+                    </button>
+                  </TableHead>
+                  {/* Client Type */}
+                  <TableHead>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      Client Type
+                    </span>
+                  </TableHead>
+                  {/* Deadline Type */}
+                  <TableHead>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      Deadline Type
+                    </span>
+                  </TableHead>
+                  {/* Deadline Date */}
+                  <TableHead>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      Deadline Date
+                    </span>
+                  </TableHead>
+                  {/* Date Sent */}
                   <TableHead>
                     <button
                       className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
@@ -326,11 +408,28 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       <ArrowUpDown className="size-3.5" />
                     </button>
                   </TableHead>
+                  {/* Reminder Step */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Type
+                      Reminder Step
                     </span>
                   </TableHead>
+                  {/* Template Name */}
+                  <TableHead>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      Template Name
+                    </span>
+                  </TableHead>
+                  {/* Status */}
+                  <TableHead>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      Status
+                    </span>
+                  </TableHead>
+                </>
+              ) : (
+                <>
+                  {/* Client Name */}
                   <TableHead>
                     <button
                       className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
@@ -340,24 +439,25 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       <ArrowUpDown className="size-3.5" />
                     </button>
                   </TableHead>
+                  {/* Client Type */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Filing Type
+                      Client Type
                     </span>
                   </TableHead>
+                  {/* Deadline Type */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Subject
+                      Deadline Type
                     </span>
                   </TableHead>
+                  {/* Deadline Date */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Delivery Status
+                      Deadline Date
                     </span>
                   </TableHead>
-                </>
-              ) : (
-                <>
+                  {/* Send Date */}
                   <TableHead>
                     <button
                       className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
@@ -367,33 +467,22 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       <ArrowUpDown className="size-3.5" />
                     </button>
                   </TableHead>
-                  <TableHead>
-                    <button
-                      className="flex items-center gap-1 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
-                      onClick={() => handleSort('client_name')}
-                    >
-                      Client Name
-                      <ArrowUpDown className="size-3.5" />
-                    </button>
-                  </TableHead>
+                  {/* Reminder Step */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Filing Type
+                      Reminder Step
                     </span>
                   </TableHead>
+                  {/* Template Name */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Step
+                      Template Name
                     </span>
                   </TableHead>
+                  {/* Status */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Template
-                    </span>
-                  </TableHead>
-                  <TableHead>
-                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Deadline
+                      Status
                     </span>
                   </TableHead>
                 </>
@@ -403,20 +492,36 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : sortedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                   No {viewMode === 'sent' ? 'email logs' : 'queued emails'} found
                 </TableCell>
               </TableRow>
             ) : viewMode === 'sent' ? (
               (sortedData as AuditEntry[]).map((entry) => (
-                <TableRow key={entry.id}>
-                  <TableCell>{formatDate(entry.sent_at)}</TableCell>
+                <TableRow key={entry.id} className="group">
+                  {/* Checkbox */}
+                  <TableCell>
+                    <div
+                      className="flex items-center justify-center cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectRow(entry.id);
+                      }}
+                    >
+                      <CheckButton
+                        checked={selectedRows.has(entry.id)}
+                        onCheckedChange={() => toggleSelectRow(entry.id)}
+                        aria-label="Select row"
+                      />
+                    </div>
+                  </TableCell>
+                  {/* Type */}
                   <TableCell>
                     {entry.send_type === 'ad-hoc' ? (
                       <div className="px-3 py-2 rounded-md bg-violet-500/10 inline-flex items-center">
@@ -432,9 +537,41 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="font-medium">{entry.client_name}</TableCell>
-                  <TableCell>{entry.filing_type_name || '-'}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{entry.subject || '-'}</TableCell>
+                  {/* Client Name */}
+                  <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.client_name}
+                  </TableCell>
+                  {/* Client Type */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.client_type || '—'}
+                  </TableCell>
+                  {/* Deadline Type */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.filing_type_id ? (FILING_TYPE_LABELS[entry.filing_type_id] || entry.filing_type_name) : '—'}
+                  </TableCell>
+                  {/* Deadline Date */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.deadline_date ? format(new Date(entry.deadline_date), 'dd MMM yyyy') : '—'}
+                  </TableCell>
+                  {/* Date Sent */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {formatDate(entry.sent_at)}
+                  </TableCell>
+                  {/* Reminder Step */}
+                  <TableCell>
+                    {entry.step_index !== null ? (
+                      <span className={`inline-flex items-center justify-center rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 ${getStepBadgeClass(entry.step_index)}`}>
+                        Step {entry.step_index + 1}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  {/* Template Name */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.template_name || '—'}
+                  </TableCell>
+                  {/* Status */}
                   <TableCell>
                     <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
                       <span className={`text-sm font-medium ${statusConfig[entry.delivery_status]?.text || 'text-gray-500'}`}>
@@ -446,17 +583,61 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
               ))
             ) : (
               (sortedData as QueuedReminder[]).map((reminder) => (
-                <TableRow key={reminder.id}>
-                  <TableCell>{formatDate(reminder.send_date)}</TableCell>
-                  <TableCell className="font-medium">{reminder.client_name}</TableCell>
-                  <TableCell>{reminder.filing_type_name || '-'}</TableCell>
+                <TableRow key={reminder.id} className="group">
+                  {/* Checkbox */}
+                  <TableCell>
+                    <div
+                      className="flex items-center justify-center cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectRow(reminder.id);
+                      }}
+                    >
+                      <CheckButton
+                        checked={selectedRows.has(reminder.id)}
+                        onCheckedChange={() => toggleSelectRow(reminder.id)}
+                        aria-label="Select row"
+                      />
+                    </div>
+                  </TableCell>
+                  {/* Client Name */}
+                  <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    {reminder.client_name}
+                  </TableCell>
+                  {/* Client Type */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {reminder.client_type || '—'}
+                  </TableCell>
+                  {/* Deadline Type */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {reminder.filing_type_id ? (FILING_TYPE_LABELS[reminder.filing_type_id] || reminder.filing_type_name) : '—'}
+                  </TableCell>
+                  {/* Deadline Date */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {format(new Date(reminder.deadline_date), 'dd MMM yyyy')}
+                  </TableCell>
+                  {/* Send Date */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {formatDate(reminder.send_date)}
+                  </TableCell>
+                  {/* Reminder Step */}
                   <TableCell>
                     <span className={`inline-flex items-center justify-center rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 ${getStepBadgeClass(reminder.step_index)}`}>
                       Step {reminder.step_index + 1}
                     </span>
                   </TableCell>
-                  <TableCell>{reminder.template_name || '-'}</TableCell>
-                  <TableCell>{formatDate(reminder.deadline_date)}</TableCell>
+                  {/* Template Name */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {reminder.template_name || '—'}
+                  </TableCell>
+                  {/* Status */}
+                  <TableCell>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[reminder.status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
+                      <span className={`text-sm font-medium ${statusConfig[reminder.status]?.text || 'text-gray-500'}`}>
+                        {statusConfig[reminder.status]?.label || reminder.status}
+                      </span>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -464,28 +645,50 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
         </Table>
       </div>
 
+      {/* Bulk Actions */}
+      <div className="max-w-7xl mx-auto">
+        {selectedRows.size > 0 && (
+          <div className="rounded-xl border bg-blue-500/5 border-blue-500/20 p-4 flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">
+              {selectedRows.size} {selectedRows.size === 1 ? 'email' : 'emails'} selected
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedRows(new Set())}
+              >
+                Clear selection
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-medium text-foreground/70">
-          Page <span className="font-semibold text-foreground">{currentPage}</span> of <span className="font-semibold text-foreground">{totalPages || 1}</span>
-        </div>
-        <div className="flex gap-2">
-          <ButtonBase
-            variant="muted"
-            buttonType="text-only"
-            onClick={() => setCurrentPage((p) => p - 1)}
-            disabled={!hasPrevPage || loading}
-          >
-            Previous
-          </ButtonBase>
-          <ButtonBase
-            variant="muted"
-            buttonType="text-only"
-            onClick={() => setCurrentPage((p) => p + 1)}
-            disabled={!hasNextPage || loading}
-          >
-            Next
-          </ButtonBase>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-medium text-foreground/70">
+            Page <span className="font-semibold text-foreground">{currentPage}</span> of <span className="font-semibold text-foreground">{totalPages || 1}</span>
+          </div>
+          <div className="flex gap-2">
+            <ButtonBase
+              variant="muted"
+              buttonType="text-only"
+              onClick={() => setCurrentPage((p) => p - 1)}
+              disabled={!hasPrevPage || loading}
+            >
+              Previous
+            </ButtonBase>
+            <ButtonBase
+              variant="muted"
+              buttonType="text-only"
+              onClick={() => setCurrentPage((p) => p + 1)}
+              disabled={!hasNextPage || loading}
+            >
+              Next
+            </ButtonBase>
+          </div>
         </div>
       </div>
     </div>

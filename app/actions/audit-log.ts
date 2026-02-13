@@ -7,8 +7,12 @@ export interface AuditEntry {
   sent_at: string;
   client_id: string;
   client_name: string;
+  client_type: string | null;
   filing_type_id: string | null;
   filing_type_name: string | null;
+  deadline_date: string | null;
+  step_index: number | null;
+  template_name: string | null;
   delivery_status: 'sent' | 'delivered' | 'bounced' | 'failed';
   recipient_email: string;
   subject: string;
@@ -41,7 +45,15 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     (filingTypes || []).map((ft: { id: string; name: string }) => [ft.id, ft.name])
   );
 
-  // Build the query (avoid FK join on filing_types due to PostgREST schema cache issue)
+  // Fetch schedules lookup (small reference table)
+  const { data: schedules } = await supabase
+    .from('schedules')
+    .select('id, filing_type_id, name');
+  const scheduleMap = new Map(
+    (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
+  );
+
+  // Build the query - include reminder_queue join for deadline_date and step_index
   let query = supabase
     .from('email_log')
     .select(`
@@ -53,7 +65,9 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
       recipient_email,
       subject,
       send_type,
-      clients!inner(company_name)
+      reminder_queue_id,
+      clients!inner(company_name, client_type),
+      reminder_queue(deadline_date, step_index)
     `, { count: 'exact' });
 
   // Apply filters
@@ -94,8 +108,12 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     sent_at: row.sent_at,
     client_id: row.client_id,
     client_name: row.clients?.company_name || 'Unknown',
+    client_type: row.clients?.client_type || null,
     filing_type_id: row.filing_type_id,
     filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
+    deadline_date: row.reminder_queue?.deadline_date || null,
+    step_index: row.reminder_queue?.step_index ?? null,
+    template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
     delivery_status: row.delivery_status,
     recipient_email: row.recipient_email,
     subject: row.subject,
@@ -113,6 +131,7 @@ export interface QueuedReminder {
   id: string;
   client_id: string;
   client_name: string;
+  client_type: string | null;
   filing_type_id: string | null;
   filing_type_name: string | null;
   template_id: string | null;
@@ -174,7 +193,7 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
       resolved_subject,
       step_index,
       created_at,
-      clients!inner(company_name)
+      clients!inner(company_name, client_type)
     `, { count: 'exact' });
 
   // Apply filters
@@ -216,6 +235,7 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     id: row.id,
     client_id: row.client_id,
     client_name: row.clients?.company_name || 'Unknown',
+    client_type: row.clients?.client_type || null,
     filing_type_id: row.filing_type_id,
     filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
     template_id: row.template_id,

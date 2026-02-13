@@ -11,31 +11,33 @@ function EmailLogsContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('queued');
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 pb-0">
       {/* Page header */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <h1>Email Logs</h1>
-          <p className="text-muted-foreground mt-1">
-            View sent email history and queued reminders
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <h1>Email Logs</h1>
+            <p className="text-muted-foreground mt-1">
+              View sent email history and queued reminders
+            </p>
+          </div>
 
-        <div className="flex gap-2 items-center">
-          <ButtonWithText
-            onClick={() => setViewMode('queued')}
-            isSelected={viewMode === 'queued'}
-            variant="muted"
-          >
-            Queued Emails
-          </ButtonWithText>
-          <ButtonWithText
-            onClick={() => setViewMode('sent')}
-            isSelected={viewMode === 'sent'}
-            variant="muted"
-          >
-            Sent Emails
-          </ButtonWithText>
+          <div className="flex gap-2 items-center">
+            <ButtonWithText
+              onClick={() => setViewMode('queued')}
+              isSelected={viewMode === 'queued'}
+              variant="muted"
+            >
+              Queued Emails
+            </ButtonWithText>
+            <ButtonWithText
+              onClick={() => setViewMode('sent')}
+              isSelected={viewMode === 'sent'}
+              variant="muted"
+            >
+              Sent Emails
+            </ButtonWithText>
+          </div>
         </div>
       </div>
 
