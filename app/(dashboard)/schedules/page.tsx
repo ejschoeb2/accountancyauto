@@ -43,6 +43,7 @@ export default async function SchedulesPage() {
       if (!acc[step.schedule_id]) acc[step.schedule_id] = []
       acc[step.schedule_id].push({
         step_number: step.step_number,
+        template_id: step.email_template_id,
         template_name: templateNameMap.get(step.email_template_id) ?? 'Unknown template',
         delay_days: step.delay_days,
       })

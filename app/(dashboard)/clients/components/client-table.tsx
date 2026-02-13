@@ -38,7 +38,6 @@ import {
   CardTitle,
   CardContent,
 } from "@/components/ui/card";
-import { Section } from "@/components/ui/section";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -593,7 +592,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-0">
       {/* Page Header with Add Client / Import CSV */}
       <div className="max-w-7xl mx-auto space-y-4">
       <div className="flex items-start justify-between">
@@ -648,17 +647,42 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           )}
         </div>
 
-        {/* Controls toolbar - Edit, Filter, Sort */}
+        {/* Controls toolbar - Edit, Sort, Filter */}
         <div className="flex gap-2 sm:ml-auto items-center">
           <IconButtonWithText
             type="button"
-            variant={isEditMode ? "amber" : "sky"}
+            variant={isEditMode ? "amber" : "violet"}
             onClick={() => setIsEditMode(!isEditMode)}
             title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
           >
             {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
             {isEditMode ? "Done" : "Edit"}
           </IconButtonWithText>
+          <div className="w-px h-6 bg-border mx-1" />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none shrink-0 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-amber-500/10 hover:bg-amber-500/20 focus:bg-accent focus:text-accent-foreground text-amber-600 hover:text-amber-700">
+                  {SORT_LABELS[sortBy]}
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
+                  <DropdownMenuRadioItem value="name-asc">Name (A-Z)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="name-desc">Name (Z-A)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="deadline-asc">Deadline (Earliest)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="deadline-desc">Deadline (Latest)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="status-green">Status (On Track)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="status-amber">Status (Chasing)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="status-red">Status (Overdue)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="type-asc">Type (A-Z)</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="vat-registered">VAT Registered</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <IconButtonWithText
             type="button"
             variant={showFilters ? "amber" : "violet"}
@@ -668,27 +692,6 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
             <SlidersHorizontal className="h-5 w-5" />
             {showFilters ? "Close Filters" : "Filter"}
           </IconButtonWithText>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none shrink-0 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 hover:text-amber-700">
-                {SORT_LABELS[sortBy]}
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
-                <DropdownMenuRadioItem value="name-asc">Name (A-Z)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="name-desc">Name (Z-A)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="deadline-asc">Deadline (Earliest)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="deadline-desc">Deadline (Latest)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="status-green">Status (On Track)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="status-amber">Status (Chasing)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="status-red">Status (Overdue)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="type-asc">Type (A-Z)</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="vat-registered">VAT Registered</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -777,7 +780,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       </div>
 
       {/* Table */}
-      <div className="-mx-8 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
+      <div className="-mx-8 -mb-10 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

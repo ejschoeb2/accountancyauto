@@ -139,7 +139,7 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Records & Reminders</CardTitle>
+          <CardTitle className="text-xl">Records & Reminders</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Loading...</p>
@@ -156,7 +156,7 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Records & Reminders</CardTitle>
+          <CardTitle className="text-xl">Records & Reminders</CardTitle>
           <IconButtonWithText
             variant={paused ? "blue" : "amber"}
             onClick={handlePauseToggle}
@@ -187,7 +187,7 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
           return (
             <div
               key={assignment.id}
-              className="flex items-center space-x-3 rounded-md border p-3 hover:bg-accent/5 transition-colors"
+              className="flex items-center space-x-3 rounded-md border p-3"
             >
               <CheckButton
                 checked={isReceived}
@@ -201,7 +201,7 @@ export function RecordsReceived({ clientId }: RecordsReceivedProps) {
                 aria-label={`Mark ${assignment.filing_types.name} as received`}
               />
               <label
-                className={`flex-1 text-sm font-medium cursor-pointer ${
+                className={`flex-1 text-lg font-medium cursor-pointer ${
                   isReceived ? "line-through text-muted-foreground" : ""
                 }`}
                 onClick={() => !isUpdating && handleRecordsReceivedToggle(assignment.filing_type_id, !isReceived)}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
-import { ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, Plus, Edit } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InlineTemplateEditor } from "./inline-template-editor";
 import type { ScheduleInput } from "@/lib/validations/schedule";
 
 interface ScheduleStepEditorProps {
@@ -40,6 +41,7 @@ export function ScheduleStepAddButton({ onAdd }: { onAdd: () => void }) {
 export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStepEditorProps) {
   const { fields, remove, move } = fieldArray;
   const [customDelayDays, setCustomDelayDays] = useState<Record<number, boolean>>({});
+  const [editingTemplateIndex, setEditingTemplateIndex] = useState<number | null>(null);
 
   const moveUp = (index: number) => {
     if (index > 0) {
@@ -117,21 +119,33 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
                 <Label htmlFor={`steps.${index}.email_template_id`} className="text-sm">
                   Email Template
                 </Label>
-                <Select
-                  value={form.watch(`steps.${index}.email_template_id`)}
-                  onValueChange={(value) => form.setValue(`steps.${index}.email_template_id`, value)}
-                >
-                  <SelectTrigger id={`steps.${index}.email_template_id`} className="h-9">
-                    <SelectValue placeholder="Select template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={form.watch(`steps.${index}.email_template_id`)}
+                    onValueChange={(value) => form.setValue(`steps.${index}.email_template_id`, value)}
+                  >
+                    <SelectTrigger id={`steps.${index}.email_template_id`} className="h-9">
+                      <SelectValue placeholder="Select template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.watch(`steps.${index}.email_template_id`) && (
+                    <IconButton
+                      type="button"
+                      variant="neutral"
+                      onClick={() => setEditingTemplateIndex(editingTemplateIndex === index ? null : index)}
+                      title="Edit template"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </IconButton>
+                  )}
+                </div>
                 {form.formState.errors.steps?.[index]?.email_template_id && (
                   <p className="text-xs text-destructive">
                     {form.formState.errors.steps[index].email_template_id?.message}
@@ -185,6 +199,14 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
               </div>
             </div>
 
+            {/* Inline template editor */}
+            {editingTemplateIndex === index && form.watch(`steps.${index}.email_template_id`) && (
+              <InlineTemplateEditor
+                templateId={form.watch(`steps.${index}.email_template_id`)}
+                onCancel={() => setEditingTemplateIndex(null)}
+                onSave={() => setEditingTemplateIndex(null)}
+              />
+            )}
           </Card>
         ))}
       </div>

@@ -15,6 +15,7 @@ interface RenderTipTapEmailParams {
   bodyJson: Record<string, any>    // TipTap JSON content
   subject: string                   // Subject line (may contain {{placeholders}})
   context: Partial<TemplateContext> // Client data for variable substitution
+  clientId?: string                 // Optional: for unsubscribe link
 }
 
 interface RenderTipTapEmailResult {
@@ -33,7 +34,7 @@ interface RenderTipTapEmailResult {
 export async function renderTipTapEmail(
   params: RenderTipTapEmailParams
 ): Promise<RenderTipTapEmailResult> {
-  const { bodyJson, subject, context } = params
+  const { bodyJson, subject, context, clientId } = params
 
   // Step 1: Validate and convert TipTap JSON to raw HTML
   let rawHtml: string
@@ -64,6 +65,7 @@ export async function renderTipTapEmail(
     ReminderEmail({
       subject: resolvedSubject,
       htmlBody: resolvedHtml,
+      clientId,
     }),
     { pretty: false } // CRITICAL: Keep compact to avoid Gmail 102KB clipping
   )

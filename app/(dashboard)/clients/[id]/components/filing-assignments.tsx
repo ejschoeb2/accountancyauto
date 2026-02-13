@@ -191,7 +191,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Filing Types & Deadlines</CardTitle>
+          <CardTitle className="text-xl">Filing Types & Deadlines</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Loading...</p>
@@ -204,7 +204,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Filing Types & Deadlines</CardTitle>
+          <CardTitle className="text-xl">Filing Types & Deadlines</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
@@ -218,7 +218,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Filing Types & Deadlines</CardTitle>
+        <CardTitle className="text-xl">Filing Types & Deadlines</CardTitle>
       </CardHeader>
       <CardContent>
       <div className="space-y-4">
@@ -241,11 +241,38 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
                     aria-label={`Toggle ${filing.filing_type.name}`}
                     className="mt-1"
                   />
-                  <div>
-                    <div className="font-medium">{filing.filing_type.name}</div>
+                  <div className="flex-1">
+                    <div className="font-medium text-lg">{filing.filing_type.name}</div>
                     {filing.filing_type.description && (
                       <div className="text-sm text-muted-foreground">
                         {filing.filing_type.description}
+                      </div>
+                    )}
+                    {/* Deadline display */}
+                    {filing.is_active && (
+                      <div className="mt-2">
+                        {hasOverride ? (
+                          <div className="text-sm">
+                            <span className="font-medium">Deadline:</span>{' '}
+                            <span className="text-accent font-medium">
+                              {formatDeadline(filing.override_deadline)}
+                            </span>{' '}
+                            <Badge variant="outline" className="ml-2 border-accent text-accent">
+                              Overridden
+                            </Badge>
+                          </div>
+                        ) : (
+                          <div className="text-sm">
+                            <span className="font-medium">Deadline:</span>{' '}
+                            {filing.calculated_deadline ? (
+                              formatDeadline(filing.calculated_deadline)
+                            ) : (
+                              <span className="text-muted-foreground">
+                                Set year-end date to calculate
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -258,60 +285,36 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
                   )}
                   {filing.is_active && filing.calculated_deadline && !hasOverride && (
                     <IconButtonWithText
-                      variant="amber"
+                      variant="blue"
                       onClick={() => handleOpenOverrideDialog(filing.filing_type.id)}
                     >
                       <Calendar className="h-4 w-4" />
                       Override Deadline
                     </IconButtonWithText>
                   )}
+                  {hasOverride && (
+                    <IconButtonWithText
+                      variant="destructive"
+                      onClick={() => handleRemoveOverride(filing.filing_type.id)}
+                    >
+                      <X className="h-4 w-4" />
+                      Remove Override
+                    </IconButtonWithText>
+                  )}
                 </div>
               </div>
 
-              {/* Deadline display */}
-              {filing.is_active && (
-                <div className="ml-7 space-y-2">
-                  {hasOverride ? (
-                    <div className="space-y-1">
-                      <div className="text-sm">
-                        <span className="font-medium">Deadline:</span>{' '}
-                        <span className="text-accent font-medium">
-                          {formatDeadline(filing.override_deadline)}
-                        </span>{' '}
-                        <Badge variant="outline" className="ml-2 border-accent text-accent">
-                          Overridden
-                        </Badge>
-                      </div>
-                      {filing.override_reason && (
-                        <div className="text-sm text-muted-foreground">
-                          Reason: {filing.override_reason}
-                        </div>
-                      )}
-                      <div className="text-sm text-muted-foreground">
-                        Calculated: {formatDeadline(filing.calculated_deadline) || 'Unable to calculate'}
-                      </div>
-                      <IconButtonWithText
-                        variant="destructive"
-                        onClick={() => handleRemoveOverride(filing.filing_type.id)}
-                      >
-                        <X className="h-4 w-4" />
-                        Remove Override
-                      </IconButtonWithText>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <div className="text-sm">
-                        <span className="font-medium">Deadline:</span>{' '}
-                        {filing.calculated_deadline ? (
-                          formatDeadline(filing.calculated_deadline)
-                        ) : (
-                          <span className="text-muted-foreground">
-                            Set year-end date to calculate
-                          </span>
-                        )}
-                      </div>
+              {/* Additional override info */}
+              {filing.is_active && hasOverride && (
+                <div className="ml-7 space-y-1">
+                  {filing.override_reason && (
+                    <div className="text-sm text-muted-foreground">
+                      Reason: {filing.override_reason}
                     </div>
                   )}
+                  <div className="text-sm text-muted-foreground">
+                    Calculated: {formatDeadline(filing.calculated_deadline) || 'Unable to calculate'}
+                  </div>
                 </div>
               )}
             </div>
@@ -354,7 +357,7 @@ export function FilingAssignments({ clientId }: FilingAssignmentsProps) {
           </div>
           <DialogFooter>
             <IconButtonWithText
-              variant="amber"
+              variant="destructive"
               onClick={() => setShowOverrideDialog(false)}
             >
               <X className="h-5 w-5" />

@@ -1,24 +1,29 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { TemplateEditor } from '../components/template-editor'
-import { SubjectLineEditor } from '../components/subject-line-editor'
-import { PlaceholderDropdown } from '../components/placeholder-dropdown'
+import { TemplateEditor } from '../../templates/components/template-editor'
+import { SubjectLineEditor } from '../../templates/components/subject-line-editor'
+import { PlaceholderDropdown } from '../../templates/components/placeholder-dropdown'
+import { Button } from '@/components/ui/button'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CheckButton } from '@/components/ui/check-button'
 import { CheckCircle, X } from 'lucide-react'
 import { toast } from 'sonner'
-import type { TipTapDocument } from '@/lib/types/database'
+import type { TipTapDocument, EmailTemplate } from '@/lib/types/database'
 
-export default function NewTemplatePage() {
+interface InlineTemplateEditorProps {
+  templateId: string
+  onCancel: () => void
+  onSave: () => void
+}
+
+export function InlineTemplateEditor({ templateId, onCancel, onSave }: InlineTemplateEditorProps) {
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
   const [bodyJson, setBodyJson] = useState<TipTapDocument | null>(null)
@@ -28,6 +33,38 @@ export default function NewTemplatePage() {
   // Refs for unified placeholder insertion
   const subjectInputRef = useRef<HTMLInputElement>(null)
   const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void } | null>(null)
+
+  // Load existing template
+  useEffect(() => {
+    const loadTemplate = async () => {
+      try {
+        const response = await fetch(`/api/email-templates/${templateId}`)
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error('Template not found')
+          } else {
+            const error = await response.json()
+            toast.error(error.error || 'Failed to load template')
+          }
+          onCancel()
+          return
+        }
+
+        const template: EmailTemplate = await response.json()
+        setName(template.name)
+        setSubject(template.subject)
+        setBodyJson(template.body_json)
+        setIsActive(template.is_active)
+        setLoading(false)
+      } catch (error) {
+        toast.error('Failed to load template')
+        onCancel()
+      }
+    }
+
+    loadTemplate()
+  }, [templateId, onCancel])
 
   const handleSave = async () => {
     // Validation
@@ -46,8 +83,8 @@ export default function NewTemplatePage() {
 
     setSaving(true)
     try {
-      const response = await fetch('/api/email-templates', {
-        method: 'POST',
+      const response = await fetch(`/api/email-templates/${templateId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
@@ -59,44 +96,50 @@ export default function NewTemplatePage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || 'Failed to create template')
+        throw new Error(error.error || 'Failed to update template')
       }
 
-      toast.success('Template created!')
-      router.push('/templates')
+      toast.success('Template updated!')
+      onSave()
+      router.refresh()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create template')
+      toast.error(error instanceof Error ? error.message : 'Failed to update template')
     } finally {
       setSaving(false)
     }
   }
 
-  const handleCancel = () => {
-    router.push('/templates')
+  if (loading) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        Loading template...
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-10 max-w-7xl mx-auto">
-      {/* Page header */}
+    <div className="space-y-4 p-6 bg-muted/30 rounded-lg border">
+      {/* Action buttons */}
       <div className="flex items-center justify-between">
-        <h1 className="text-foreground">Create Email Template</h1>
+        <h3 className="text-lg font-semibold">Edit Template</h3>
         <div className="flex items-center gap-2">
-          <IconButtonWithText
-            variant="amber"
-            onClick={handleCancel}
-            title="Cancel"
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={saving}
+            size="sm"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4 mr-1.5" />
             Cancel
-          </IconButtonWithText>
+          </Button>
           <IconButtonWithText
             variant="blue"
             onClick={handleSave}
             disabled={saving}
-            title={saving ? 'Saving...' : 'Create template'}
+            title={saving ? 'Saving...' : 'Save template'}
           >
             <CheckCircle className="h-5 w-5" />
-            {saving ? 'Saving...' : 'Create'}
+            {saving ? 'Saving...' : 'Save'}
           </IconButtonWithText>
         </div>
       </div>

@@ -58,7 +58,7 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
                             ? `${Math.abs(client.days_until_deadline)} days overdue`
                             : `${client.days_until_deadline} days`}
                         </span>
-                        <span>•</span>
+                        <span className="text-border">|</span>
                       </>
                     )}
                     <span>

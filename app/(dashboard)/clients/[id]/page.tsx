@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, CheckCircle, X } from 'lucide-react';
+import { ArrowLeft, Edit2, CheckCircle, X, Mail } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import { LoadingScreen } from '@/components/loading-screen';
 import { FilingAssignments } from './components/filing-assignments';
 import { RecordsReceived } from './components/records-received';
 import { ClientAuditLog } from './components/client-audit-log';
+import { SendEmailModal } from '../components/send-email-modal';
 import { toast } from 'sonner';
 
 type ClientType = 'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP';
@@ -54,6 +55,7 @@ export default function ClientPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Client>>({});
@@ -159,10 +161,16 @@ export default function ClientPage() {
             </IconButtonWithText>
           </Link>
           {!editing ? (
-            <IconButtonWithText variant="blue" onClick={handleEdit}>
-              <Edit2 className="h-5 w-5" />
-              Edit
-            </IconButtonWithText>
+            <>
+              <IconButtonWithText variant="blue" onClick={handleEdit}>
+                <Edit2 className="h-5 w-5" />
+                Edit
+              </IconButtonWithText>
+              <IconButtonWithText variant="green" onClick={() => setIsSendEmailModalOpen(true)}>
+                <Mail className="h-5 w-5" />
+                Send Email
+              </IconButtonWithText>
+            </>
           ) : (
             <>
               <IconButtonWithText variant="amber" onClick={handleCancel}>
@@ -181,7 +189,7 @@ export default function ClientPage() {
       {/* Client metadata */}
       <Card>
         <CardHeader>
-          <CardTitle>Client Details</CardTitle>
+          <CardTitle className="text-xl">Client Details</CardTitle>
         </CardHeader>
         <CardContent>
         {editing ? (
@@ -337,12 +345,19 @@ export default function ClientPage() {
       {/* Reminder history / Audit log */}
       <Card>
         <CardHeader>
-          <CardTitle>Reminder History</CardTitle>
+          <CardTitle className="text-xl">Reminder History</CardTitle>
         </CardHeader>
         <CardContent>
           <ClientAuditLog clientId={id} />
         </CardContent>
       </Card>
+
+      {/* Send Email Modal */}
+      <SendEmailModal
+        open={isSendEmailModalOpen}
+        onClose={() => setIsSendEmailModalOpen(false)}
+        selectedClients={client ? [client] : []}
+      />
     </div>
     </PageLoadingProvider>
   );

@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       subject: validation.data.subject,
       body_json: validation.data.body_json,
       is_active: validation.data.is_active,
+      is_custom: true, // Mark as custom since created via UI
     })
     .select()
     .single();

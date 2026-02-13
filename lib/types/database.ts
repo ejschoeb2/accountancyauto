@@ -116,6 +116,7 @@ export interface EmailTemplate {
   body_json: TipTapDocument;
   body_plain: string | null;
   is_active: boolean;
+  is_custom: boolean;
   created_at: string;
   updated_at: string;
 }

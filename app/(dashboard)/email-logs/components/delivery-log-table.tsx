@@ -41,7 +41,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  usePageLoading('delivery-log-table', loading);
+  usePageLoading('email-logs-table', loading);
 
   // Filter state
   const [clientSearch, setClientSearch] = useState('');
@@ -96,7 +96,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
         setTotalCount(result.totalCount);
       }
     } catch (error) {
-      console.error('Error fetching delivery log:', error);
+      console.error('Error fetching email logs:', error);
     } finally {
       setLoading(false);
     }
@@ -304,9 +304,9 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
       </div>
 
       {/* Results count */}
-      <div className="text-sm text-muted-foreground">
-        Showing {sortedData.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
-        {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount}{' '}
+      <div className="text-sm font-medium text-foreground/70">
+        Showing <span className="font-semibold text-foreground">{sortedData.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+        <span className="font-semibold text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}</span> of <span className="font-semibold text-foreground">{totalCount}</span>{' '}
         {viewMode === 'sent' ? 'sent emails' : 'queued emails'}
       </div>
 
@@ -466,8 +466,8 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
 
       {/* Pagination */}
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Page {currentPage} of {totalPages || 1}
+        <div className="text-sm font-medium text-foreground/70">
+          Page <span className="font-semibold text-foreground">{currentPage}</span> of <span className="font-semibold text-foreground">{totalPages || 1}</span>
         </div>
         <div className="flex gap-2">
           <ButtonBase

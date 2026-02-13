@@ -1,11 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
 import { createClient } from "@/lib/supabase/client";
 
-export function SignOutButton() {
+interface SignOutButtonProps {
+  isDemoMode?: boolean;
+}
+
+export function SignOutButton({ isDemoMode = false }: SignOutButtonProps) {
   const router = useRouter();
 
   async function handleSignOut() {
@@ -16,14 +19,12 @@ export function SignOutButton() {
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
+    <ButtonBase
+      buttonType="text-only"
+      variant={isDemoMode ? "violet" : "neutral"}
       onClick={handleSignOut}
-      className="gap-2"
     >
-      <LogOut className="size-4" />
-      Sign out
-    </Button>
+      {isDemoMode ? "Leave Demo Mode" : "Sign Out"}
+    </ButtonBase>
   );
 }

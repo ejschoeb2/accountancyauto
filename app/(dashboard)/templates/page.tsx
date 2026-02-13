@@ -21,6 +21,33 @@ export default async function TemplatesPage() {
     .select('*')
     .order('created_at', { ascending: false })
 
+  // Fetch schedule steps to determine template usage
+  const { data: scheduleSteps } = await supabase
+    .from('schedule_steps')
+    .select('email_template_id, schedule_id')
+
+  // Fetch schedules for names
+  const { data: schedules } = await supabase
+    .from('schedules')
+    .select('id, name')
+
+  // Build map of template_id -> schedule names
+  const templateUsageMap = new Map<string, string[]>()
+  const scheduleNameMap = new Map(
+    (schedules || []).map(s => [s.id, s.name])
+  )
+
+  for (const step of scheduleSteps || []) {
+    const scheduleName = scheduleNameMap.get(step.schedule_id)
+    if (scheduleName) {
+      const existing = templateUsageMap.get(step.email_template_id) || []
+      if (!existing.includes(scheduleName)) {
+        existing.push(scheduleName)
+        templateUsageMap.set(step.email_template_id, existing)
+      }
+    }
+  }
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Page header */}
@@ -35,7 +62,7 @@ export default async function TemplatesPage() {
         <Link href="/templates/new">
           <IconButtonWithText variant="violet">
             <Plus className="h-5 w-5" />
-            Create Template
+            Create Email Template
           </IconButtonWithText>
         </Link>
       </div>
@@ -44,7 +71,11 @@ export default async function TemplatesPage() {
       {templates && templates.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2">
           {(templates as EmailTemplate[]).map((template) => (
-            <TemplateCard key={template.id} template={template} />
+            <TemplateCard
+              key={template.id}
+              template={template}
+              usedInSchedules={templateUsageMap.get(template.id) || []}
+            />
           ))}
         </div>
       ) : (
@@ -56,7 +87,7 @@ export default async function TemplatesPage() {
           <Link href="/templates/new">
             <IconButtonWithText variant="violet" className="mt-4">
               <Plus className="h-5 w-5" />
-              Create Template
+              Create Email Template
             </IconButtonWithText>
           </Link>
         </div>

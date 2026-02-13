@@ -38,6 +38,7 @@ interface SendRichEmailParams {
   subject: string;
   html: string;  // Pre-rendered HTML from renderTipTapEmail
   text: string;  // Plain text fallback from renderTipTapEmail
+  clientId?: string;  // Optional: for List-Unsubscribe header
 }
 
 interface SendReminderEmailResult {
@@ -105,6 +106,7 @@ export async function sendReminderEmail(
  *
  * Accepts pre-rendered HTML and text from renderTipTapEmail().
  * No additional rendering needed - content is already inline-styled.
+ * Includes List-Unsubscribe headers for better deliverability.
  *
  * @param params - Pre-rendered email content
  * @returns Postmark message details
@@ -115,6 +117,19 @@ export async function sendRichEmail(
 ): Promise<SendReminderEmailResult> {
   try {
     const emailFrom = await getEmailFrom();
+
+    // Build List-Unsubscribe headers if clientId provided
+    const headers: Record<string, string> = {};
+    if (params.clientId) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const unsubscribeUrl = `${baseUrl}/api/unsubscribe?client_id=${params.clientId}`;
+
+      // List-Unsubscribe header (supports both mailto and https)
+      headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`;
+
+      // List-Unsubscribe-Post for one-click unsubscribe (Gmail button)
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    }
 
     // Send via Postmark (no React Email rendering needed - already done)
     const result = await postmarkClient.sendEmail({
@@ -127,6 +142,7 @@ export async function sendRichEmail(
       MessageStream: 'outbound',
       TrackOpens: false,
       TrackLinks: 'None' as any,
+      Headers: Object.keys(headers).length > 0 ? headers : undefined,
     });
 
     return {

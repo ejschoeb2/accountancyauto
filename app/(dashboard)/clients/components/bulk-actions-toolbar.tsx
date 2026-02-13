@@ -35,16 +35,7 @@ export function BulkActionsToolbar({
 
         <div className="flex items-center gap-2">
           <ButtonBase
-            variant="blue"
-            buttonType="icon-text"
-            onClick={onBulkEdit}
-          >
-            <Pencil className="size-4" />
-            Bulk Edit
-          </ButtonBase>
-
-          <ButtonBase
-            variant="violet"
+            variant="green"
             buttonType="icon-text"
             onClick={onSendEmail}
           >
@@ -53,12 +44,21 @@ export function BulkActionsToolbar({
           </ButtonBase>
 
           <ButtonBase
+            variant="violet"
+            buttonType="icon-text"
+            onClick={onBulkEdit}
+          >
+            <Pencil className="size-4" />
+            Bulk Edit
+          </ButtonBase>
+
+          <ButtonBase
             variant="destructive"
             buttonType="icon-text"
             onClick={onClearSelection}
           >
             <X className="size-4" />
-            Close
+            Clear
           </ButtonBase>
         </div>
       </div>

@@ -25,3 +25,5 @@ export const SubjectLineEditor = forwardRef<HTMLInputElement, SubjectLineEditorP
     )
   }
 )
+
+SubjectLineEditor.displayName = 'SubjectLineEditor'

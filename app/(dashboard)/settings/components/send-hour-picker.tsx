@@ -47,8 +47,8 @@ export function SendHourPicker({ defaultHour }: { defaultHour: number }) {
     <Card className="p-6">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
-          <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
-            <Clock className="size-6 text-primary" />
+          <div className="flex items-center justify-center size-12 rounded-lg bg-amber-500/10 shrink-0">
+            <Clock className="size-6 text-amber-600" />
           </div>
           <div className="space-y-2">
             <div>

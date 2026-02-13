@@ -8,7 +8,7 @@ export function LoadingScreen() {
         alt="Phase Two Logo"
         width={64}
         height={64}
-        className="animate-pulse-scale-fade"
+        className="animate-pulse-scale"
         priority
       />
     </div>

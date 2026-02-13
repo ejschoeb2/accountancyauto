@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CheckButton } from '@/components/ui/check-button'
-import { CheckCircle, Trash2 } from 'lucide-react'
+import { CheckCircle, Trash2, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -161,6 +161,15 @@ export default function EditTemplatePage() {
           >
             <Trash2 className="h-5 w-5" />
             Delete
+          </IconButtonWithText>
+          <div className="h-8 w-px bg-border" />
+          <IconButtonWithText
+            variant="amber"
+            onClick={handleCancel}
+            title="Cancel"
+          >
+            <X className="h-5 w-5" />
+            Cancel
           </IconButtonWithText>
           <IconButtonWithText
             variant="blue"

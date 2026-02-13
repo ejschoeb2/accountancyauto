@@ -239,6 +239,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
               filing_type: filingTypeName,
               accountant_name: 'Peninsula Accounting',
             },
+            clientId: client.id,
           });
 
           // Update reminder_queue with rendered content

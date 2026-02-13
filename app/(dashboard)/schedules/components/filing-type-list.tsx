@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { ButtonBase } from '@/components/ui/button-base'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { Trash2 } from 'lucide-react'
@@ -20,6 +21,7 @@ import type { FilingType, FilingTypeId } from '@/lib/types/database'
 
 export interface StepDisplay {
   step_number: number
+  template_id: string
   template_name: string
   delay_days: number
 }
@@ -127,19 +129,18 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                       </div>
                     )}
                     {schedule && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                      <ButtonBase
+                        variant="destructive"
+                        buttonType="icon-only"
                         onClick={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
                           handleDelete(schedule.id, schedule.name)
                         }}
                         disabled={deletingId === schedule.id}
-                        className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
                       >
                         <Trash2 className="h-5 w-5" />
-                      </Button>
+                      </ButtonBase>
                     )}
                   </div>
                 </div>
@@ -151,7 +152,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-foreground">Applies to:</span>
                   {ft.applicable_client_types.map((type) => (
-                    <Badge key={type} variant="secondary" className="font-normal bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 rounded-md px-3 py-1.5 text-sm">
+                    <Badge key={type} variant="secondary" className="font-normal bg-blue-500/10 text-blue-500 rounded-md px-3 py-1.5 text-sm">
                       {type}
                     </Badge>
                   ))}
@@ -171,15 +172,14 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                     Reminder Schedule:
                   </p>
                   {schedule.steps.length > 0 && (
-                    <ol className="space-y-1.5 text-sm">
+                    <ol className="space-y-2 text-sm">
                       {schedule.steps.map((step) => (
-                        <li key={step.step_number} className="flex items-center gap-2">
+                        <li key={step.step_number} className="flex items-start gap-2">
                           <span className="text-muted-foreground w-5 text-right shrink-0">
                             {step.step_number}.
                           </span>
-                          <span className="truncate">{step.template_name}</span>
-                          <span className="text-muted-foreground shrink-0">
-                            — {step.delay_days}d before
+                          <span className="min-w-0">
+                            {step.template_name} <span className="text-muted-foreground">— {step.delay_days}d before</span>
                           </span>
                         </li>
                       ))}
@@ -238,19 +238,18 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                       {schedule.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <ButtonBase
+                    variant="destructive"
+                    buttonType="icon-only"
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
                       handleDelete(schedule.id, schedule.name)
                     }}
                     disabled={deletingId === schedule.id}
-                    className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
                   >
                     <Trash2 className="h-5 w-5" />
-                  </Button>
+                  </ButtonBase>
                 </div>
               </div>
             </CardHeader>
@@ -267,15 +266,14 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
               {schedule.steps.length > 0 ? (
                 <div className="space-y-3 flex-1 flex flex-col">
                   <p className="text-base font-bold">Schedule:</p>
-                  <ol className="space-y-1.5 text-sm">
+                  <ol className="space-y-2 text-sm">
                     {schedule.steps.map((step) => (
-                      <li key={step.step_number} className="flex items-center gap-2">
+                      <li key={step.step_number} className="flex items-start gap-2">
                         <span className="text-muted-foreground w-5 text-right shrink-0">
                           {step.step_number}.
                         </span>
-                        <span className="truncate">{step.template_name}</span>
-                        <span className="text-muted-foreground shrink-0">
-                          &mdash; {step.delay_days}d before
+                        <span className="min-w-0">
+                          {step.template_name} <span className="text-muted-foreground">&mdash; {step.delay_days}d before</span>
                         </span>
                       </li>
                     ))}

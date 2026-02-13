@@ -17,6 +17,7 @@ import {
   Section,
   Heading,
   Text,
+  Link,
 } from '@react-email/components';
 
 interface ReminderEmailProps {
@@ -27,6 +28,8 @@ interface ReminderEmailProps {
   filingType?: string;
   // v1.1 rich text mode: pre-rendered HTML
   htmlBody?: string;
+  // Optional: for unsubscribe link
+  clientId?: string;
 }
 
 export default function ReminderEmail({
@@ -35,7 +38,10 @@ export default function ReminderEmail({
   clientName,
   filingType,
   htmlBody,
+  clientId,
 }: ReminderEmailProps) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const unsubscribeUrl = clientId ? `${baseUrl}/api/unsubscribe?client_id=${clientId}` : null;
   return (
     <Html>
       <Head>
@@ -86,9 +92,16 @@ export default function ReminderEmail({
 
           {/* Footer */}
           <Section style={{ backgroundColor: '#f4f4f4', padding: '20px', borderTop: '1px solid #dddddd' }}>
-            <Text style={{ color: '#999999', fontSize: '12px', textAlign: 'center', margin: 0 }}>
+            <Text style={{ color: '#999999', fontSize: '12px', textAlign: 'center', margin: '0 0 10px 0' }}>
               This is an automated reminder from Peninsula Accounting
             </Text>
+            {unsubscribeUrl && (
+              <Text style={{ color: '#999999', fontSize: '11px', textAlign: 'center', margin: 0 }}>
+                <Link href={unsubscribeUrl} style={{ color: '#666666', textDecoration: 'underline' }}>
+                  Unsubscribe from reminder emails
+                </Link>
+              </Text>
+            )}
           </Section>
         </Container>
       </Body>

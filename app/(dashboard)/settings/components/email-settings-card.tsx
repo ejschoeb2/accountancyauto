@@ -52,8 +52,8 @@ export function EmailSettingsCard({ defaultSettings }: EmailSettingsCardProps) {
   return (
     <Card className="p-6">
       <div className="flex items-start gap-4">
-        <div className="flex items-center justify-center size-12 rounded-lg bg-primary/10">
-          <Mail className="size-6 text-primary" />
+        <div className="flex items-center justify-center size-12 rounded-lg bg-status-info/10 shrink-0">
+          <Mail className="size-6 text-status-info" />
         </div>
         <div className="flex-1 space-y-4">
           <div>

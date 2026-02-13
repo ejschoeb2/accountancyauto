@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { ButtonBase } from '@/components/ui/button-base'
+import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardHeader,
@@ -18,9 +20,10 @@ import { formatDistanceToNow } from 'date-fns'
 
 interface TemplateCardProps {
   template: EmailTemplate
+  usedInSchedules: string[]
 }
 
-export function TemplateCard({ template }: TemplateCardProps) {
+export function TemplateCard({ template, usedInSchedules }: TemplateCardProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
 
@@ -55,14 +58,18 @@ export function TemplateCard({ template }: TemplateCardProps) {
 
   return (
     <Link href={`/templates/${template.id}/edit`}>
-      <Card className="cursor-pointer">
+      <Card className="cursor-pointer h-full flex flex-col">
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1 min-w-0">
-              <CardTitle className="truncate">{template.name}</CardTitle>
-              <CardDescription>{template.subject}</CardDescription>
+              <CardTitle className="truncate text-lg">{template.name}</CardTitle>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {template.is_custom && (
+                <div className="px-3 py-2 rounded-md inline-flex items-center bg-violet-500/10">
+                  <span className="text-sm font-medium text-violet-500">Custom</span>
+                </div>
+              )}
               <div className={`px-3 py-2 rounded-md inline-flex items-center ${
                 template.is_active
                   ? 'bg-status-success/10'
@@ -76,20 +83,48 @@ export function TemplateCard({ template }: TemplateCardProps) {
                   {template.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDelete}
+              <ButtonBase
+                variant="destructive"
+                buttonType="icon-only"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleDelete(e)
+                }}
                 disabled={deleting}
-                className="h-10 w-10 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive transition-all duration-200 active:scale-[0.97]"
               >
                 <Trash2 className="h-5 w-5" />
-              </Button>
+              </ButtonBase>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-4 flex-1 flex flex-col">
+          {/* Subject and Used in section */}
+          <div className="space-y-2 text-sm">
+            <div className="text-muted-foreground">
+              <span className="font-medium text-foreground">Subject:</span>{' '}
+              {template.subject}
+            </div>
+            {usedInSchedules.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-foreground">Used in:</span>
+                {usedInSchedules.map((scheduleName) => (
+                  <Badge
+                    key={scheduleName}
+                    variant="secondary"
+                    className="font-normal bg-blue-500/10 text-blue-500 rounded-md px-3 py-1.5 text-sm"
+                  >
+                    {scheduleName}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <hr />
+
+          {/* Updated timestamp */}
           <p className="text-xs text-muted-foreground">
             Updated {formatDistanceToNow(new Date(template.updated_at), { addSuffix: true })}
           </p>

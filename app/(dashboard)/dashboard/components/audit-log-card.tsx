@@ -46,7 +46,7 @@ export function AuditLogCard() {
   }, []);
 
   return (
-    <Link href="/delivery-log">
+    <Link href="/email-logs">
       <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
         <CardContent className="px-5 py-0">
         <div className="flex items-start justify-between mb-6">

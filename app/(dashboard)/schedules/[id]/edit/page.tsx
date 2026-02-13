@@ -295,6 +295,20 @@ export default function EditSchedulePage() {
             : 'Edit Reminder Schedule'}
         </h1>
         <div className="flex items-center gap-2">
+          {!isNew && (
+            <>
+              <IconButtonWithText
+                type="button"
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+                title="Delete schedule"
+              >
+                <Trash2 className="h-5 w-5" />
+                Delete
+              </IconButtonWithText>
+              <div className="h-8 w-px bg-border" />
+            </>
+          )}
           <IconButtonWithText
             type="button"
             variant="amber"
@@ -304,17 +318,6 @@ export default function EditSchedulePage() {
             <X className="h-5 w-5" />
             Cancel
           </IconButtonWithText>
-          {!isNew && (
-            <IconButtonWithText
-              type="button"
-              variant="destructive"
-              onClick={() => setShowDeleteDialog(true)}
-              title="Delete schedule"
-            >
-              <Trash2 className="h-5 w-5" />
-              Delete
-            </IconButtonWithText>
-          )}
           <IconButtonWithText
             type="submit"
             variant="blue"

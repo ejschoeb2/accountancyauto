@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import { NavLinks } from "@/components/nav-links";
 import { SettingsLink } from "@/components/settings-link";
-import { SignOutButton } from "@/components/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardLayout({
@@ -36,7 +35,6 @@ export default async function DashboardLayout({
           <div className="flex items-center gap-4">
             <NavLinks />
             <SettingsLink />
-            <SignOutButton />
           </div>
         </div>
       </header>

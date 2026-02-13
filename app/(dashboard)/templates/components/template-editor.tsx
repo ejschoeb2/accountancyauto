@@ -99,3 +99,5 @@ export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorPro
     )
   }
 )
+
+TemplateEditor.displayName = 'TemplateEditor'

@@ -10,7 +10,8 @@ export const maxDuration = 300;
 
 /**
  * GET /api/cron/send-emails
- * Processes pending reminder_queue entries and sends plain text emails via Postmark
+ * Processes pending reminder_queue entries and sends HTML emails via Postmark
+ * Includes List-Unsubscribe headers for better deliverability
  * Runs at :10 past 8am and 9am UTC (10 minutes after reminders cron)
  * Validates CRON_SECRET header for security
  */
@@ -27,13 +28,14 @@ export async function GET(request: NextRequest) {
     // Use admin client for service-role access
     const adminClient = createAdminClient();
 
-    // Query pending reminders with resolved subject/body
+    // Query pending reminders with resolved subject/body and html_body
     const { data: pendingReminders, error: queryError } = await adminClient
       .from('reminder_queue')
       .select('*, clients!inner(company_name, primary_email)')
       .eq('status', 'pending')
       .not('resolved_subject', 'is', null)
-      .not('resolved_body', 'is', null);
+      .not('resolved_body', 'is', null)
+      .not('html_body', 'is', null);
 
     if (queryError) {
       throw new Error(`Failed to query pending reminders: ${queryError.message}`);
@@ -72,12 +74,13 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        // Send plain text email via Postmark
+        // Send HTML email via Postmark with List-Unsubscribe
         const result = await sendRichEmail({
           to: client.primary_email,
           subject: reminder.resolved_subject!,
-          html: '', // Empty - send plain text only
-          text: reminder.resolved_body!, // Plain text content
+          html: reminder.html_body!,
+          text: reminder.resolved_body!,
+          clientId: reminder.client_id,
         });
 
         // Update reminder_queue: status = sent, sent_at = now

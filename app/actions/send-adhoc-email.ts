@@ -10,6 +10,9 @@ const SendAdhocEmailParamsSchema = z.object({
   clientName: z.string().min(1),
   clientEmail: z.string().email(),
   templateId: z.string().uuid(),
+  customSubject: z.string().optional(),
+  customText: z.string().optional(),
+  customHtml: z.string().optional(),
 });
 
 interface SendAdhocEmailParams {
@@ -17,6 +20,9 @@ interface SendAdhocEmailParams {
   clientName: string;
   clientEmail: string;
   templateId: string;
+  customSubject?: string;
+  customText?: string;
+  customHtml?: string;
 }
 
 interface SendAdhocEmailResult {
@@ -43,39 +49,74 @@ export async function sendAdhocEmail(
 
     const supabase = await createClient();
 
-    // Fetch the email template
-    const { data: template, error: templateError } = await supabase
-      .from('email_templates')
-      .select('id, subject, body_json')
-      .eq('id', validated.templateId)
-      .single();
+    // Use custom subject/text if provided, otherwise fetch and render the template
+    let finalSubject: string;
+    let finalText: string;
+    let finalHtml: string;
 
-    if (templateError || !template) {
-      return {
-        success: false,
-        error: `Template not found: ${templateError?.message || 'Unknown error'}`,
-      };
+    if (validated.customSubject && validated.customText) {
+      // Use the custom content directly (from template edit or scratch composition)
+      finalSubject = validated.customSubject;
+      finalText = validated.customText;
+      // Use custom HTML if provided, otherwise convert plain text to simple HTML
+      if (validated.customHtml) {
+        finalHtml = validated.customHtml;
+      } else {
+        finalHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  ${validated.customText.split('\n\n').map(para => `<p style="margin: 0 0 16px 0;">${para.replace(/\n/g, '<br>')}</p>`).join('')}
+  <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+  <p style="font-size: 12px; color: #666; margin: 0;">
+    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/unsubscribe?client_id=${validated.clientId}" style="color: #666;">Unsubscribe from these emails</a>
+  </p>
+</body>
+</html>`;
+      }
+    } else {
+      // Fetch the email template
+      const { data: template, error: templateError } = await supabase
+        .from('email_templates')
+        .select('id, subject, body_json')
+        .eq('id', validated.templateId)
+        .single();
+
+      if (templateError || !template) {
+        return {
+          success: false,
+          error: `Template not found: ${templateError?.message || 'Unknown error'}`,
+        };
+      }
+
+      // Render the template
+      // Ad-hoc sends don't have a filing type or deadline, so use defaults
+      const rendered = await renderTipTapEmail({
+        bodyJson: template.body_json,
+        subject: template.subject,
+        context: {
+          client_name: validated.clientName,
+          filing_type: 'Ad-hoc',
+          deadline: new Date(),
+          accountant_name: 'Peninsula Accounting',
+        },
+        clientId: validated.clientId,
+      });
+      finalSubject = rendered.subject;
+      finalText = rendered.text;
+      finalHtml = rendered.html;
     }
 
-    // Render the template
-    // Ad-hoc sends don't have a filing type or deadline, so use defaults
-    const rendered = await renderTipTapEmail({
-      bodyJson: template.body_json,
-      subject: template.subject,
-      context: {
-        client_name: validated.clientName,
-        filing_type: 'Ad-hoc',
-        deadline: new Date(),
-        accountant_name: 'Peninsula Accounting',
-      },
-    });
-
-    // Send via Postmark (plain text only)
+    // Send via Postmark (HTML + plain text with List-Unsubscribe)
     const sendResult = await sendRichEmail({
       to: validated.clientEmail,
-      subject: rendered.subject,
-      html: '', // Empty - send plain text only
-      text: rendered.text,
+      subject: finalSubject,
+      html: finalHtml,
+      text: finalText,
+      clientId: validated.clientId,
     });
 
     // Log to email_log
@@ -84,7 +125,7 @@ export async function sendAdhocEmail(
       .insert({
         client_id: validated.clientId,
         recipient_email: validated.clientEmail,
-        subject: rendered.subject,
+        subject: finalSubject,
         delivery_status: 'sent',
         send_type: 'ad-hoc',
         reminder_queue_id: null,
@@ -121,7 +162,8 @@ export async function sendAdhocEmail(
 export async function previewAdhocEmail(params: {
   templateId: string;
   clientName: string;
-}): Promise<{ text: string; subject: string } | { error: string }> {
+  clientId: string;
+}): Promise<{ text: string; html: string; subject: string } | { error: string }> {
   try {
     const supabase = await createClient();
 
@@ -138,7 +180,7 @@ export async function previewAdhocEmail(params: {
       };
     }
 
-    // Render the template with sample data (plain text only)
+    // Render the template with sample data
     const rendered = await renderTipTapEmail({
       bodyJson: template.body_json,
       subject: template.subject,
@@ -148,10 +190,12 @@ export async function previewAdhocEmail(params: {
         deadline: new Date(),
         accountant_name: 'Peninsula Accounting',
       },
+      clientId: params.clientId,
     });
 
     return {
       text: rendered.text,
+      html: rendered.html,
       subject: rendered.subject,
     };
   } catch (error) {
