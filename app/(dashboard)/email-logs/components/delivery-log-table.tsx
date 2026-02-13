@@ -21,6 +21,13 @@ import {
   DropdownMenuRadioItem,
 } from '@/components/ui/dropdown-menu';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -111,6 +118,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
   const [activeClientTypeFilters, setActiveClientTypeFilters] = useState<Set<string>>(new Set());
   const [activeDeadlineTypeFilters, setActiveDeadlineTypeFilters] = useState<Set<string>>(new Set());
   const [activeStatusFilters, setActiveStatusFilters] = useState<Set<string>>(new Set());
+  const [templateFilter, setTemplateFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
 
   // Sort state
@@ -182,6 +190,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     setActiveClientTypeFilters(new Set());
     setActiveDeadlineTypeFilters(new Set());
     setActiveStatusFilters(new Set());
+    setTemplateFilter('all');
   }, [viewMode]);
 
   // Calculate pagination
@@ -202,6 +211,11 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
 
       // Deadline type filter (filing type)
       if (activeDeadlineTypeFilters.size > 0 && (!item.filing_type_id || !activeDeadlineTypeFilters.has(item.filing_type_id))) {
+        return false;
+      }
+
+      // Template filter
+      if (templateFilter !== 'all' && item.template_name !== templateFilter) {
         return false;
       }
 
@@ -280,7 +294,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     });
 
     return sorted;
-  }, [sentData, queuedData, viewMode, activeClientTypeFilters, activeDeadlineTypeFilters, activeStatusFilters, sortBy]);
+  }, [sentData, queuedData, viewMode, activeClientTypeFilters, activeDeadlineTypeFilters, activeStatusFilters, templateFilter, sortBy, dateFrom, dateTo, dateFilterType]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -401,7 +415,8 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     dateTo !== '' ||
     activeClientTypeFilters.size > 0 ||
     activeDeadlineTypeFilters.size > 0 ||
-    activeStatusFilters.size > 0;
+    activeStatusFilters.size > 0 ||
+    templateFilter !== 'all';
 
   function clearAllFilters() {
     setClientSearch('');
@@ -410,6 +425,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     setActiveClientTypeFilters(new Set());
     setActiveDeadlineTypeFilters(new Set());
     setActiveStatusFilters(new Set());
+    setTemplateFilter('all');
     setCurrentPage(1);
   }
 
@@ -582,31 +598,44 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                 </div>
               </div>
 
+              {/* Template Filter */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Template</span>
+                <Select value={templateFilter} onValueChange={setTemplateFilter}>
+                  <SelectTrigger className="w-[280px]">
+                    <SelectValue placeholder="All templates" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All templates</SelectItem>
+                    {uniqueTemplates.map((template) => (
+                      <SelectItem key={template} value={template}>
+                        {template}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Date Range Filter */}
               <div className="space-y-2">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date Range</span>
-                <div className="flex flex-wrap gap-2 items-end">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">Filter by:</label>
-                    <div className="flex gap-2">
-                      <ButtonWithText
-                        onClick={() => setDateFilterType('send_date')}
-                        isSelected={dateFilterType === 'send_date'}
-                        variant="muted"
-                      >
-                        {viewMode === 'sent' ? 'Date Sent' : 'Send Date'}
-                      </ButtonWithText>
-                      <ButtonWithText
-                        onClick={() => setDateFilterType('deadline_date')}
-                        isSelected={dateFilterType === 'deadline_date'}
-                        variant="muted"
-                      >
-                        Deadline Date
-                      </ButtonWithText>
-                    </div>
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">Filter by:</label>
+                    <Select value={dateFilterType} onValueChange={(value) => setDateFilterType(value as DateFilterType)}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="send_date">
+                          {viewMode === 'sent' ? 'Date Sent' : 'Send Date'}
+                        </SelectItem>
+                        <SelectItem value="deadline_date">Deadline Date</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">From:</label>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">From:</label>
                     <Input
                       type="date"
                       value={dateFrom}
@@ -617,8 +646,8 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       className="w-40 hover:border-foreground/20"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">To:</label>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">To:</label>
                     <Input
                       type="date"
                       value={dateTo}
