@@ -3,7 +3,7 @@
 -- New templates created via UI will be marked as custom
 
 ALTER TABLE email_templates
-ADD COLUMN is_custom BOOLEAN NOT NULL DEFAULT false;
+ADD COLUMN IF NOT EXISTS is_custom BOOLEAN NOT NULL DEFAULT false;
 
 -- All existing templates are system templates (not custom)
 UPDATE email_templates SET is_custom = false;

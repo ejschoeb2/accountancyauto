@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { DeliveryLogTable } from './components/delivery-log-table';
-import { ButtonWithText } from '@/components/ui/button-with-text';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 
 type ViewMode = 'sent' | 'queued';
 
@@ -22,22 +22,15 @@ function EmailLogsContent() {
             </p>
           </div>
 
-          <div className="flex gap-2 items-center">
-            <ButtonWithText
-              onClick={() => setViewMode('queued')}
-              isSelected={viewMode === 'queued'}
-              variant="muted"
-            >
-              Queued Emails
-            </ButtonWithText>
-            <ButtonWithText
-              onClick={() => setViewMode('sent')}
-              isSelected={viewMode === 'sent'}
-              variant="muted"
-            >
-              Sent Emails
-            </ButtonWithText>
-          </div>
+          <ToggleGroup
+            options={[
+              { value: 'queued', label: 'Queued Emails' },
+              { value: 'sent', label: 'Sent Emails' },
+            ]}
+            value={viewMode}
+            onChange={setViewMode}
+            variant="muted"
+          />
         </div>
       </div>
 

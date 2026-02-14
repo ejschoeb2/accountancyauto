@@ -142,7 +142,9 @@ export async function sendRichEmail(
       MessageStream: 'outbound',
       TrackOpens: false,
       TrackLinks: 'None' as any,
-      Headers: Object.keys(headers).length > 0 ? headers : undefined,
+      Headers: Object.keys(headers).length > 0
+        ? Object.entries(headers).map(([Name, Value]) => ({ Name, Value }))
+        : undefined,
     });
 
     return {

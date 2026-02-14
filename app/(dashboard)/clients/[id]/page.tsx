@@ -23,28 +23,14 @@ import {
 } from '@/components/ui/card';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { LoadingScreen } from '@/components/loading-screen';
-import { FilingAssignments } from './components/filing-assignments';
-import { RecordsReceived } from './components/records-received';
-import { ClientAuditLog } from './components/client-audit-log';
+import { FilingManagement } from './components/filing-management';
+import { ClientEmailHistoryTable } from './components/client-email-log-table';
 import { SendEmailModal } from '../components/send-email-modal';
 import { toast } from 'sonner';
+import type { Client } from '@/app/actions/clients';
 
 type ClientType = 'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP';
 type VATScheme = 'Standard' | 'Flat Rate' | 'Cash Accounting';
-
-interface Client {
-  id: string;
-  company_name: string;
-  display_name: string | null;
-  primary_email: string | null;
-  phone: string | null;
-  client_type: ClientType | null;
-  year_end_date: string | null;
-  vat_registered: boolean;
-  vat_stagger_group: number | null;
-  vat_scheme: VATScheme | null;
-  reminders_paused: boolean;
-}
 
 export default function ClientPage() {
   const params = useParams();
@@ -56,9 +42,13 @@ export default function ClientPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Client>>({});
+
+  // Trigger refresh for email log
+  const triggerRefresh = () => setRefreshKey(k => k + 1);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -115,6 +105,7 @@ export default function ClientPage() {
       setClient(updated);
       setEditing(false);
       toast.success('Client updated!');
+      triggerRefresh(); // Refresh email log when client details change
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update client');
     } finally {
@@ -187,10 +178,14 @@ export default function ClientPage() {
       </div>
 
       {/* Client metadata */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Client Details</CardTitle>
-        </CardHeader>
+      <Card className="gap-1.5">
+        <div className="px-8">
+          <div className="mb-6">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Client Details</h2>
+            </div>
+          </div>
+        </div>
         <CardContent>
         {editing ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -244,7 +239,7 @@ export default function ClientPage() {
                   <Label htmlFor="vat_stagger_group">VAT Stagger Group</Label>
                   <Select
                     value={formData.vat_stagger_group ? String(formData.vat_stagger_group) : ''}
-                    onValueChange={(value) => setFormData({ ...formData, vat_stagger_group: value ? parseInt(value) : null })}
+                    onValueChange={(value) => setFormData({ ...formData, vat_stagger_group: value ? parseInt(value) as 1 | 2 | 3 : null })}
                   >
                     <SelectTrigger id="vat_stagger_group">
                       <SelectValue placeholder="Select stagger" />
@@ -336,19 +331,23 @@ export default function ClientPage() {
         </CardContent>
       </Card>
 
-      {/* Filing assignments */}
-      <FilingAssignments clientId={id} />
+      {/* Filing Management */}
+      <FilingManagement clientId={id} onUpdate={triggerRefresh} />
 
-      {/* Records received and reminder pause */}
-      <RecordsReceived clientId={id} />
-
-      {/* Reminder history / Audit log */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Reminder History</CardTitle>
-        </CardHeader>
+      {/* Email Log */}
+      <Card className="gap-1.5">
+        <div className="px-8">
+          <div className="mb-6">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Email Log</h2>
+              <p className="text-sm text-muted-foreground">
+                View all sent and queued reminder emails for this client. You can reschedule or cancel upcoming emails.
+              </p>
+            </div>
+          </div>
+        </div>
         <CardContent>
-          <ClientAuditLog clientId={id} />
+          <ClientEmailHistoryTable key={refreshKey} clientId={id} />
         </CardContent>
       </Card>
 

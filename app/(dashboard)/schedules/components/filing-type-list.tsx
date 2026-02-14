@@ -116,12 +116,12 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                     {schedule && (
                       <div className={`px-3 py-2 rounded-md inline-flex items-center ${
                         schedule.is_active
-                          ? 'bg-status-success/10'
+                          ? 'bg-green-500/10'
                           : 'bg-status-neutral/10'
                       }`}>
                         <span className={`text-sm font-medium ${
                           schedule.is_active
-                            ? 'text-status-success'
+                            ? 'text-green-600'
                             : 'text-status-neutral'
                         }`}>
                           {schedule.is_active ? 'Active' : 'Inactive'}
@@ -227,12 +227,12 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                   </div>
                   <div className={`px-3 py-2 rounded-md inline-flex items-center ${
                     schedule.is_active
-                      ? 'bg-status-success/10'
+                      ? 'bg-green-500/10'
                       : 'bg-status-neutral/10'
                   }`}>
                     <span className={`text-sm font-medium ${
                       schedule.is_active
-                        ? 'text-status-success'
+                        ? 'text-green-600'
                         : 'text-status-neutral'
                     }`}>
                       {schedule.is_active ? 'Active' : 'Inactive'}

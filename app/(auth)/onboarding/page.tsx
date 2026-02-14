@@ -172,8 +172,8 @@ export default function OnboardingPage() {
       {/* Step 3: Complete */}
       {wizardStep === "complete" && (
         <div className="text-center space-y-6">
-          <div className="mx-auto w-16 h-16 bg-status-success/10 rounded-full flex items-center justify-center">
-            <CheckCircle className="size-8 text-status-success" />
+          <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center">
+            <CheckCircle className="size-8 text-green-600" />
           </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-bold tracking-tight">

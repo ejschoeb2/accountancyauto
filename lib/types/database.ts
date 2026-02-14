@@ -50,6 +50,28 @@ export interface ClientDeadlineOverride {
 
 
 // ============================================================================
+// Client Filing Status Overrides
+// ============================================================================
+
+export interface ClientFilingStatusOverride {
+  id: string;
+  client_id: string;
+  filing_type_id: FilingTypeId;
+  override_status: 'green' | 'amber' | 'red';
+  reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FilingTypeStatus {
+  filing_type_id: FilingTypeId;
+  status: 'green' | 'amber' | 'red' | 'grey';
+  is_override: boolean; // true if manually set, false if calculated
+  is_records_received: boolean; // true if in records_received_for array
+  deadline_date: string | null;
+}
+
+// ============================================================================
 // Bank Holidays Cache
 // ============================================================================
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Send, MailCheck, PauseCircle } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, MailCheck, MailX } from 'lucide-react';
 import type { DashboardMetrics } from '@/lib/dashboard/metrics';
 
 interface SummaryCardsProps {
@@ -42,27 +42,27 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
                   </p>
                 </div>
                 <div className="size-10 rounded-lg bg-status-danger/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-danger/20">
-                  <AlertTriangle className="size-6 text-status-danger" />
+                  <AlertOctagon className="size-6 text-status-danger" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
-        <Link href="/clients?filter=amber">
+        <Link href="/clients?filter=orange">
           <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
             <CardContent className="px-5 py-0">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Actively Chasing
+                    Critical Clients
                   </p>
                   <p className="text-4xl font-bold mt-3">
-                    {metrics.chasingCount}
+                    {metrics.criticalCount}
                   </p>
                 </div>
-                <div className="size-10 rounded-lg bg-status-warning/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-warning/20">
-                  <Send className="size-6 text-status-warning" />
+                <div className="size-10 rounded-lg bg-status-critical/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-critical/20">
+                  <AlertTriangle className="size-6 text-status-critical" />
                 </div>
               </div>
             </CardContent>
@@ -80,27 +80,27 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
                   {metrics.sentTodayCount}
                 </p>
               </div>
-              <div className="size-10 rounded-lg bg-status-info/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-info/20">
-                <MailCheck className="size-6 text-status-info" />
+              <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-blue-500/20">
+                <MailCheck className="size-6 text-blue-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Link href="/clients?filter=paused">
+        <Link href="/email-logs?delivery_status=bounced,failed">
           <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
             <CardContent className="px-5 py-0">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Paused Clients
+                    Failed Deliveries
                   </p>
                   <p className="text-4xl font-bold mt-3">
-                    {metrics.pausedCount}
+                    {metrics.failedDeliveryCount}
                   </p>
                 </div>
-                <div className="size-10 rounded-lg bg-sky-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-sky-500/20">
-                  <PauseCircle className="size-6 text-sky-500" />
+                <div className="size-10 rounded-lg bg-status-danger/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-danger/20">
+                  <MailX className="size-6 text-status-danger" />
                 </div>
               </div>
             </CardContent>

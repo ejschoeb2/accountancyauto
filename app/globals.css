@@ -39,8 +39,8 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-status-danger: var(--status-danger);
+  --color-status-critical: var(--status-critical);
   --color-status-warning: var(--status-warning);
-  --color-status-success: var(--status-success);
   --color-status-info: var(--status-info);
   --color-status-neutral: var(--status-neutral);
   --radius-sm: calc(var(--radius) - 4px);
@@ -101,10 +101,11 @@
   --sidebar-ring: oklch(0.623 0.214 259.1);
   /* Semantic status colors */
   --status-danger: oklch(0.577 0.245 27.325);
+  --status-critical: oklch(0.713 0.202 40.85);
   --status-warning: oklch(0.705 0.183 54.13);
-  --status-success: oklch(0.586 0.169 149.5);
   --status-info: oklch(0.623 0.214 259.1);
   --status-neutral: oklch(0.554 0.027 256.8);
+  /* Note: Green uses Tailwind's green-500/600 palette instead */
 }
 
 .dark {
@@ -140,10 +141,11 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.623 0.214 259.1);
   --status-danger: oklch(0.704 0.191 22.216);
+  --status-critical: oklch(0.768 0.172 45.0);
   --status-warning: oklch(0.768 0.172 70.08);
-  --status-success: oklch(0.696 0.17 162.48);
   --status-info: oklch(0.623 0.214 259.1);
   --status-neutral: oklch(0.705 0.015 286.067);
+  /* Note: Green uses Tailwind's green-500/600 palette instead */
 }
 
 @layer base {

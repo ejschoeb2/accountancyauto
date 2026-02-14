@@ -716,7 +716,7 @@ export async function cancelRemindersForReceivedRecords(
 ): Promise<number> {
   const { data, error } = await supabase
     .from('reminder_queue')
-    .update({ status: 'cancelled' })
+    .update({ status: 'records_received' })
     .eq('client_id', clientId)
     .eq('filing_type_id', filingTypeId)
     .eq('status', 'scheduled')
@@ -724,6 +724,30 @@ export async function cancelRemindersForReceivedRecords(
 
   if (error) {
     throw new Error(`Failed to cancel reminders: ${error.message}`);
+  }
+
+  return data?.length || 0;
+}
+
+/**
+ * Restore reminders when records are marked as NOT received
+ * Changes status from 'records_received' back to 'scheduled'
+ */
+export async function restoreRemindersForUnreceivedRecords(
+  supabase: SupabaseClient,
+  clientId: string,
+  filingTypeId: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('reminder_queue')
+    .update({ status: 'scheduled' })
+    .eq('client_id', clientId)
+    .eq('filing_type_id', filingTypeId)
+    .eq('status', 'records_received')
+    .select();
+
+  if (error) {
+    throw new Error(`Failed to restore reminders: ${error.message}`);
   }
 
   return data?.length || 0;

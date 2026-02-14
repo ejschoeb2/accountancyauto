@@ -53,31 +53,50 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
   );
 
-  // Build the query - include reminder_queue left join for deadline_date and step_index
-  // Note: Using left join because ad-hoc emails may not have a reminder_queue_id
+  // If client search is provided, find matching client IDs first
+  let matchingClientIds: string[] | undefined;
+  if (clientSearch) {
+    const { data: matchingClients } = await supabase
+      .from('clients')
+      .select('id')
+      .ilike('company_name', `%${clientSearch}%`);
+    matchingClientIds = (matchingClients || []).map((c: { id: string }) => c.id);
+
+    // If no clients match, return empty result early
+    if (matchingClientIds.length === 0) {
+      return { data: [], totalCount: 0 };
+    }
+  }
+
+  // Fetch clients lookup (to avoid PostgREST FK join cache issues - PGRST200)
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id, company_name, client_type');
+  const clientMap = new Map(
+    (clients || []).map((c: { id: string; company_name: string; client_type: string | null }) => [c.id, { company_name: c.company_name, client_type: c.client_type }])
+  );
+
+  // Fetch reminder_queue separately (to avoid PostgREST FK join cache issues)
+  const { data: reminderQueue } = await supabase
+    .from('reminder_queue')
+    .select('id, deadline_date, step_index');
+  const reminderQueueMap = new Map(
+    (reminderQueue || []).map((rq: { id: string; deadline_date: string; step_index: number }) => [rq.id, { deadline_date: rq.deadline_date, step_index: rq.step_index }])
+  );
+
+  // Build the query - no embedded joins, fetch base table only
   let query = supabase
     .from('email_log')
-    .select(`
-      id,
-      sent_at,
-      client_id,
-      filing_type_id,
-      delivery_status,
-      recipient_email,
-      subject,
-      send_type,
-      reminder_queue_id,
-      clients!inner(company_name, client_type),
-      reminder_queue!left(deadline_date, step_index)
-    `, { count: 'exact' });
+    .select('*', { count: 'exact' });
 
   // Apply filters
   if (clientId) {
     query = query.eq('client_id', clientId);
   }
 
-  if (clientSearch) {
-    query = query.ilike('clients.company_name', `%${clientSearch}%`);
+  // Apply client search filter by client IDs
+  if (matchingClientIds && matchingClientIds.length > 0) {
+    query = query.in('client_id', matchingClientIds);
   }
 
   if (dateFrom) {
@@ -103,23 +122,28 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     throw error;
   }
 
-  // Transform the data to match AuditEntry interface
-  const entries: AuditEntry[] = (data || []).map((row: any) => ({
-    id: row.id,
-    sent_at: row.sent_at,
-    client_id: row.client_id,
-    client_name: row.clients?.company_name || 'Unknown',
-    client_type: row.clients?.client_type || null,
-    filing_type_id: row.filing_type_id,
-    filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
-    deadline_date: row.reminder_queue?.deadline_date || null,
-    step_index: row.reminder_queue?.step_index ?? null,
-    template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
-    delivery_status: row.delivery_status,
-    recipient_email: row.recipient_email,
-    subject: row.subject,
-    send_type: row.send_type || 'scheduled',
-  }));
+  // Transform the data to match AuditEntry interface, mapping reference data from lookups
+  const entries: AuditEntry[] = (data || []).map((row: any) => {
+    const client = clientMap.get(row.client_id);
+    const reminderQueueData = row.reminder_queue_id ? reminderQueueMap.get(row.reminder_queue_id) : null;
+
+    return {
+      id: row.id,
+      sent_at: row.sent_at,
+      client_id: row.client_id,
+      client_name: client?.company_name || 'Unknown',
+      client_type: client?.client_type || null,
+      filing_type_id: row.filing_type_id,
+      filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
+      deadline_date: reminderQueueData?.deadline_date || null,
+      step_index: reminderQueueData?.step_index ?? null,
+      template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
+      delivery_status: row.delivery_status,
+      recipient_email: row.recipient_email,
+      subject: row.subject,
+      send_type: row.send_type || 'scheduled',
+    };
+  });
 
   return {
     data: entries,
@@ -139,7 +163,7 @@ export interface QueuedReminder {
   template_name: string | null;
   send_date: string;
   deadline_date: string;
-  status: 'scheduled' | 'pending' | 'sent' | 'cancelled' | 'failed';
+  status: 'scheduled' | 'rescheduled' | 'pending' | 'sent' | 'cancelled' | 'failed' | 'records_received';
   subject: string | null;
   step_index: number;
   created_at: string;
@@ -164,6 +188,21 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
   const supabase = await createClient();
   const { clientSearch, dateFrom, dateTo, clientId, statusFilter, offset, limit } = params;
 
+  // If client search is provided, find matching client IDs first
+  let matchingClientIds: string[] | undefined;
+  if (clientSearch) {
+    const { data: matchingClients } = await supabase
+      .from('clients')
+      .select('id')
+      .ilike('company_name', `%${clientSearch}%`);
+    matchingClientIds = (matchingClients || []).map((c: { id: string }) => c.id);
+
+    // If no clients match, return empty result early
+    if (matchingClientIds.length === 0) {
+      return { data: [], totalCount: 0 };
+    }
+  }
+
   // Fetch filing types lookup (small reference table)
   const { data: filingTypes } = await supabase
     .from('filing_types')
@@ -180,30 +219,27 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
   );
 
-  // Build the query
+  // Fetch clients lookup (to avoid PostgREST FK join cache issues - PGRST200)
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('id, company_name, client_type');
+  const clientMap = new Map(
+    (clients || []).map((c: { id: string; company_name: string; client_type: string | null }) => [c.id, { company_name: c.company_name, client_type: c.client_type }])
+  );
+
+  // Build the query - no embedded joins, fetch base table only
   let query = supabase
     .from('reminder_queue')
-    .select(`
-      id,
-      client_id,
-      filing_type_id,
-      template_id,
-      send_date,
-      deadline_date,
-      status,
-      resolved_subject,
-      step_index,
-      created_at,
-      clients!inner(company_name, client_type)
-    `, { count: 'exact' });
+    .select('*', { count: 'exact' });
 
   // Apply filters
   if (clientId) {
     query = query.eq('client_id', clientId);
   }
 
-  if (clientSearch) {
-    query = query.ilike('clients.company_name', `%${clientSearch}%`);
+  // Apply client search filter by client IDs
+  if (matchingClientIds && matchingClientIds.length > 0) {
+    query = query.in('client_id', matchingClientIds);
   }
 
   if (dateFrom) {
@@ -231,24 +267,28 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     throw error;
   }
 
-  // Transform the data
-  const reminders: QueuedReminder[] = (data || []).map((row: any) => ({
-    id: row.id,
-    client_id: row.client_id,
-    client_name: row.clients?.company_name || 'Unknown',
-    client_type: row.clients?.client_type || null,
-    filing_type_id: row.filing_type_id,
-    filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
-    template_id: row.template_id,
-    // Use schedule name based on filing_type_id (schedules replaced reminder_templates)
-    template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
-    send_date: row.send_date,
-    deadline_date: row.deadline_date,
-    status: row.status,
-    subject: row.resolved_subject,
-    step_index: row.step_index,
-    created_at: row.created_at,
-  }));
+  // Transform the data, mapping reference data from lookups
+  const reminders: QueuedReminder[] = (data || []).map((row: any) => {
+    const client = clientMap.get(row.client_id);
+
+    return {
+      id: row.id,
+      client_id: row.client_id,
+      client_name: client?.company_name || 'Unknown',
+      client_type: client?.client_type || null,
+      filing_type_id: row.filing_type_id,
+      filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
+      template_id: row.template_id,
+      // Use schedule name based on filing_type_id (schedules replaced reminder_templates)
+      template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
+      send_date: row.send_date,
+      deadline_date: row.deadline_date,
+      status: row.status,
+      subject: row.resolved_subject,
+      step_index: row.step_index,
+      created_at: row.created_at,
+    };
+  });
 
   return {
     data: reminders,

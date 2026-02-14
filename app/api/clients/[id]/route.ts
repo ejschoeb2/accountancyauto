@@ -3,7 +3,7 @@ import { updateClientMetadataSchema } from "@/lib/validations/client";
 import { updateClientMetadata } from "@/app/actions/clients";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { handleUnpauseClient, cancelRemindersForReceivedRecords, rebuildQueueForClient } from "@/lib/reminders/queue-builder";
+import { handleUnpauseClient, cancelRemindersForReceivedRecords, restoreRemindersForUnreceivedRecords, rebuildQueueForClient } from "@/lib/reminders/queue-builder";
 
 export async function GET(
   request: NextRequest,
@@ -101,9 +101,9 @@ export async function PATCH(
         await cancelRemindersForReceivedRecords(adminClient, id, filingTypeId);
       }
 
-      // Rebuild queue for filing types that are no longer received
-      if (removedFilingTypes.length > 0) {
-        await rebuildQueueForClient(adminClient, id);
+      // Restore reminders for filing types that are no longer received
+      for (const filingTypeId of removedFilingTypes) {
+        await restoreRemindersForUnreceivedRecords(adminClient, id, filingTypeId);
       }
     }
 

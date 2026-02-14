@@ -33,6 +33,7 @@ import {
   XCircle,
   ArrowLeft,
   ArrowRight,
+  X,
 } from "lucide-react";
 import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
 import {
@@ -407,6 +408,18 @@ export function CsvImportDialog({
             </DialogHeader>
 
             <div className="space-y-6 py-4">
+              {/* Help text - moved above */}
+              <div className="text-sm text-muted-foreground space-y-2">
+                <p>
+                  <span className="font-medium text-foreground">Required:</span>{" "}
+                  {requiredColumns.map((col) => col.name).join(", ")}
+                </p>
+                <p>
+                  <span className="font-medium text-foreground">Optional:</span>{" "}
+                  {optionalColumns.map((col) => col.name).join(", ")}
+                </p>
+              </div>
+
               {/* File upload area */}
               <div
                 className={cn(
@@ -454,41 +467,13 @@ export function CsvImportDialog({
                   {error}
                 </div>
               )}
-
-              {/* Template download */}
-              <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Download className="size-5 text-muted-foreground" />
-                  <div>
-                    <p className="font-medium">Need a template?</p>
-                    <p className="text-sm text-muted-foreground">
-                      Download a sample CSV file (works for Excel too)
-                    </p>
-                  </div>
-                </div>
-                <IconButtonWithText variant="sky" onClick={handleDownloadTemplate}>
-                  <Download className="h-5 w-5" />
-                  Download
-                </IconButtonWithText>
-              </div>
-
-              {/* Help text */}
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p>
-                  <span className="font-medium text-foreground">Required:</span>{" "}
-                  {requiredColumns.map((col) => col.name).join(", ")}
-                </p>
-                <p>
-                  <span className="font-medium text-foreground">Optional:</span>{" "}
-                  {optionalColumns.map((col) => col.name).join(", ")}
-                </p>
-              </div>
             </div>
 
             <DialogFooter>
-              <ButtonBase variant="neutral" buttonType="text-only" onClick={() => handleOpenChange(false)}>
+              <IconButtonWithText variant="destructive" onClick={() => handleOpenChange(false)}>
+                <X className="h-5 w-5" />
                 Cancel
-              </ButtonBase>
+              </IconButtonWithText>
             </DialogFooter>
           </>
         )}
@@ -593,9 +578,9 @@ export function CsvImportDialog({
             </div>
 
             <DialogFooter>
-              <IconButtonWithText variant="neutral" onClick={handleBackToUpload}>
-                <ArrowLeft className="h-5 w-5" />
-                Back
+              <IconButtonWithText variant="destructive" onClick={handleBackToUpload}>
+                <X className="h-5 w-5" />
+                Cancel
               </IconButtonWithText>
               <IconButtonWithText variant="green" onClick={handleProceedWithMapping}>
                 <ArrowRight className="h-5 w-5" />

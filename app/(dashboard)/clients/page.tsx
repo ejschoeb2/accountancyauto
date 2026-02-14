@@ -1,6 +1,6 @@
 import { getClients } from "@/app/actions/clients";
 import { createClient } from "@/lib/supabase/server";
-import { getClientStatusList } from "@/lib/dashboard/metrics";
+import { getClientStatusList, getClientFilingStatuses } from "@/lib/dashboard/metrics";
 import { ClientTable } from "./components/client-table";
 
 interface ClientsPageProps {
@@ -15,7 +15,10 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     getClients(),
     createClient(),
   ]);
-  const clientStatusList = await getClientStatusList(supabase);
+  const [clientStatusList, filingStatusesData] = await Promise.all([
+    getClientStatusList(supabase),
+    getClientFilingStatuses(supabase),
+  ]);
 
   // Build a lookup map: clientId -> { status, next_deadline, next_deadline_type }
   const statusMap: Record<string, { status: string; next_deadline: string | null; next_deadline_type: string | null }> = {};
@@ -28,6 +31,11 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   }
 
   return (
-    <ClientTable initialData={clients} statusMap={statusMap} initialFilter={filterParam} />
+    <ClientTable
+      initialData={clients}
+      statusMap={statusMap}
+      filingStatusMap={filingStatusesData.filingStatuses}
+      initialFilter={filterParam}
+    />
   );
 }

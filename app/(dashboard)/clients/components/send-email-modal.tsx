@@ -33,7 +33,7 @@ import { sendAdhocEmail, previewAdhocEmail } from "@/app/actions/send-adhoc-emai
 import { renderTipTapEmail } from "@/lib/email/render-tiptap";
 import type { TipTapDocument } from "@/lib/types/database";
 
-type SendStep = 'compose' | 'preview' | 'confirm' | 'sending' | 'results';
+type SendStep = 'compose' | 'confirm' | 'sending' | 'results';
 
 interface SendEmailModalProps {
   open: boolean;
@@ -108,7 +108,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         // Brief delay to ensure editor fully unmounts and remounts
         setTimeout(() => {
           setTemplateSubject(template.subject);
-          setTemplateBodyJson(template.body_json);
+          setTemplateBodyJson(template.body_json as TipTapDocument);
           setIsLoadingTemplateContent(false);
         }, 50);
       } else {
@@ -157,9 +157,9 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         return;
       }
 
-      // Render the TipTap content to HTML and plain text
+      // Render the TipTap content to HTML and plain text for preview
       setIsLoadingPreview(true);
-      setStep('preview');
+      setStep('confirm');
       const firstClient = eligibleClients[0];
       try {
         const rendered = await renderTipTapEmail({
@@ -184,16 +184,12 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
       } finally {
         setIsLoadingPreview(false);
       }
-    } else if (step === 'preview') {
-      setStep('confirm');
     }
   };
 
   const handleBack = () => {
-    if (step === 'preview') {
+    if (step === 'confirm') {
       setStep('compose');
-    } else if (step === 'confirm') {
-      setStep('preview');
     }
   };
 
@@ -332,6 +328,14 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                           ref={templateSubjectInputRef}
                           value={templateSubject}
                           onChange={setTemplateSubject}
+                          placeholderButtonSlot={
+                            <PlaceholderDropdown
+                              subjectInputRef={templateSubjectInputRef}
+                              onEditorInsert={(id, label) => {
+                                templateEditorRef.current?.insertPlaceholder(id, label);
+                              }}
+                            />
+                          }
                         />
                         <div className="flex-1">
                           <TemplateEditor
@@ -339,14 +343,6 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                             ref={templateEditorRef}
                             initialContent={templateBodyJson}
                             onUpdate={setTemplateBodyJson}
-                            placeholderButtonSlot={
-                              <PlaceholderDropdown
-                                subjectInputRef={templateSubjectInputRef}
-                                onEditorInsert={(id, label) => {
-                                  templateEditorRef.current?.insertPlaceholder(id, label);
-                                }}
-                              />
-                            }
                           />
                         </div>
                       </Card>
@@ -360,8 +356,8 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                     Cancel
                   </IconButtonWithText>
                   <IconButtonWithText variant="blue" onClick={handleNext} disabled={isNextDisabled}>
-                    <Eye className="h-5 w-5" />
-                    Preview
+                    <ArrowRight className="h-5 w-5" />
+                    Next
                   </IconButtonWithText>
                 </DialogFooter>
               </>
@@ -369,89 +365,37 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
           </>
         )}
 
-        {step === 'preview' && (
+        {step === 'confirm' && (
           <>
             <DialogHeader>
-              <DialogTitle className="text-2xl">Preview & Edit Email</DialogTitle>
+              <DialogTitle className="text-2xl">Preview & Confirm</DialogTitle>
               <DialogDescription>
-                Preview shown for {eligibleClients[0]?.display_name || eligibleClients[0]?.company_name}.
-                Placeholders will be personalized for each recipient. You can edit the content before sending.
+                Preview for {eligibleClients[0]?.display_name || eligibleClients[0]?.company_name}.
+                Placeholders will be personalized for each of the {eligibleClients.length} recipient{eligibleClients.length !== 1 ? 's' : ''}.
               </DialogDescription>
             </DialogHeader>
 
             <div className="py-4 space-y-4 max-w-5xl mx-auto w-full">
               {isLoadingPreview ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="size-6 animate-spin" />
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Subject:</label>
-                    <input
-                      type="text"
-                      value={editedSubject}
-                      onChange={(e) => setEditedSubject(e.target.value)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
+                <Card className="overflow-hidden flex flex-col p-0">
+                  {/* Subject preview */}
+                  <div className="flex items-center gap-3 border-b px-4 py-3 bg-muted/30">
+                    <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
+                    <div className="flex-1 text-sm">{editedSubject}</div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Body:</label>
-                    <textarea
-                      value={editedText}
-                      onChange={(e) => setEditedText(e.target.value)}
-                      rows={15}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono resize-y"
-                    />
+                  {/* Body preview */}
+                  <div className="p-4 bg-background">
+                    <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm">
+                      {editedText}
+                    </div>
                   </div>
-                </>
+                </Card>
               )}
-            </div>
-
-            <DialogFooter>
-              <IconButtonWithText variant="destructive" onClick={handleClose}>
-                <X className="h-5 w-5" />
-                Cancel
-              </IconButtonWithText>
-              <IconButtonWithText variant="amber" onClick={handleBack}>
-                <ArrowLeft className="h-5 w-5" />
-                Back
-              </IconButtonWithText>
-              <IconButtonWithText variant="blue" onClick={handleNext}>
-                <ArrowRight className="h-5 w-5" />
-                Next
-              </IconButtonWithText>
-            </DialogFooter>
-          </>
-        )}
-
-        {step === 'confirm' && (
-          <>
-            <DialogHeader>
-              <DialogTitle className="text-2xl">Confirm Send</DialogTitle>
-              <DialogDescription>
-                Send to {eligibleClients.length} client{eligibleClients.length !== 1 ? 's' : ''}?
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="py-4">
-              {selectedTemplateId && selectedTemplateId !== "no-template" ? (
-                <p className="text-sm text-muted-foreground">
-                  Using template:{' '}
-                  <span className="font-medium text-foreground">
-                    {templates.find((t) => t.id === selectedTemplateId)?.name}
-                  </span>
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Sending custom email
-                </p>
-              )}
-              <div className="mt-4 space-y-2">
-                <p className="text-sm font-medium">Subject:</p>
-                <p className="text-sm text-muted-foreground">{editedSubject}</p>
-              </div>
             </div>
 
             <DialogFooter>
@@ -465,7 +409,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
               </IconButtonWithText>
               <IconButtonWithText variant="green" onClick={handleSend}>
                 <Send className="h-5 w-5" />
-                Send
+                Send to {eligibleClients.length}
               </IconButtonWithText>
             </DialogFooter>
           </>
@@ -512,8 +456,8 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                           {sentCount}
                         </p>
                       </div>
-                      <div className="size-10 rounded-lg bg-status-success/10 flex items-center justify-center transition-all duration-200">
-                        <CheckCircle2 className="size-6 text-status-success" />
+                      <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center transition-all duration-200">
+                        <CheckCircle2 className="size-6 text-green-600" />
                       </div>
                     </div>
                   </CardContent>

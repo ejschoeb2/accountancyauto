@@ -23,7 +23,7 @@ export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
               <div
                 className={cn(
                   "flex items-center justify-center size-9 rounded-full text-sm font-semibold transition-colors",
-                  isCompleted && "bg-status-success text-white",
+                  isCompleted && "bg-green-500 text-white",
                   isCurrent && "bg-primary text-primary-foreground ring-4 ring-primary/20",
                   isFuture && "border-2 border-muted-foreground/30 text-muted-foreground"
                 )}
@@ -33,7 +33,7 @@ export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
               <span
                 className={cn(
                   "text-xs mt-1.5 whitespace-nowrap",
-                  isCompleted && "text-status-success font-medium",
+                  isCompleted && "text-green-600 font-medium",
                   isCurrent && "text-foreground font-medium",
                   isFuture && "text-muted-foreground"
                 )}
@@ -47,7 +47,7 @@ export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
               <div
                 className={cn(
                   "h-0.5 w-12 sm:w-20 mx-2 mt-[-1.25rem] transition-colors",
-                  index < currentStep ? "bg-status-success" : "bg-muted-foreground/20"
+                  index < currentStep ? "bg-green-500" : "bg-muted-foreground/20"
                 )}
               />
             )}

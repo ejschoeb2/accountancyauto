@@ -134,7 +134,7 @@ export function EmailSettingsCard({ defaultSettings }: EmailSettingsCardProps) {
               </ButtonBase>
             )}
             {saved && (
-              <span className="text-sm text-status-success font-medium">
+              <span className="text-sm text-green-600 font-medium">
                 Saved
               </span>
             )}

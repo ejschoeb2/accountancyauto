@@ -46,3 +46,20 @@ export type CreateClientInput = z.infer<typeof createClientSchema>;
 export type ClientType = z.infer<typeof clientTypeSchema>;
 export type UpdateClientMetadataInput = z.infer<typeof updateClientMetadataSchema>;
 export type BulkUpdateInput = z.infer<typeof bulkUpdateSchema>;
+
+// Status override validation
+export const statusOverrideSchema = z.object({
+  filing_type_id: z.string(),
+  override_status: z.enum(['green', 'red']), // Only allow manual setting to on-track or overdue
+  reason: z.string().optional().nullable(),
+});
+
+export const bulkStatusUpdateSchema = z.object({
+  client_ids: z.array(z.string()).min(1),
+  filing_type_id: z.string(),
+  override_status: z.enum(['green', 'red']).nullable(), // null = clear override
+  reason: z.string().optional().nullable(),
+});
+
+export type StatusOverrideInput = z.infer<typeof statusOverrideSchema>;
+export type BulkStatusUpdateInput = z.infer<typeof bulkStatusUpdateSchema>;

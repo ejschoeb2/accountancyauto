@@ -12,7 +12,6 @@ import { useEffect, forwardRef, useImperativeHandle } from 'react'
 interface TemplateEditorProps {
   initialContent?: TipTapDocument | null
   onUpdate?: (json: TipTapDocument) => void
-  placeholderButtonSlot?: React.ReactNode
 }
 
 export interface TemplateEditorHandle {
@@ -20,7 +19,7 @@ export interface TemplateEditorHandle {
 }
 
 export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorProps>(
-  ({ initialContent, onUpdate, placeholderButtonSlot }, ref) => {
+  ({ initialContent, onUpdate }, ref) => {
     const editor = useEditor({
       immediatelyRender: false, // CRITICAL: Next.js SSR
       shouldRerenderOnTransaction: false, // Performance optimization
@@ -85,12 +84,7 @@ export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorPro
 
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between border-b bg-background">
-          <EditorToolbar editor={editor} placeholderButtonSlot={null} />
-          <div className="px-2 py-2 shrink-0">
-            {placeholderButtonSlot}
-          </div>
-        </div>
+        <EditorToolbar editor={editor} />
         <EditorContent
           editor={editor}
           className="prose prose-sm max-w-none p-4 min-h-[300px] flex-1 focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-full"

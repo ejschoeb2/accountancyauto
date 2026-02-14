@@ -12,8 +12,8 @@ import type { AuditEntry } from '@/app/actions/audit-log';
 const statusConfig = {
   delivered: {
     label: 'Delivered',
-    bg: 'bg-status-success/10',
-    text: 'text-status-success',
+    bg: 'bg-green-500/10',
+    text: 'text-green-600',
   },
   sent: {
     label: 'Sent',

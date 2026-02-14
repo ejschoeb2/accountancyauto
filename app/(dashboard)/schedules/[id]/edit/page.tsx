@@ -20,7 +20,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckButton } from '@/components/ui/check-button'
 import { CheckCircle, Trash2, X } from 'lucide-react'
 import {
   Select,
@@ -334,9 +333,9 @@ export default function EditSchedulePage() {
       <input type="hidden" {...form.register('schedule_type')} />
 
       {/* Basic Information */}
-      <Card className="gap-3">
+      <Card className="gap-1.5">
         <CardHeader>
-          <CardTitle className="text-xl">Basic Information</CardTitle>
+          <CardTitle className="text-2xl">Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Schedule Type indicator (read-only for existing schedules) */}
@@ -520,28 +519,22 @@ export default function EditSchedulePage() {
             </p>
           )}
         </div>
-
-        <div className="flex items-center space-x-2">
-          <CheckButton
-            checked={form.watch('is_active')}
-            onCheckedChange={(checked) => form.setValue('is_active', checked as boolean)}
-            aria-label="Active schedule"
-          />
-          <Label className="cursor-pointer" onClick={() => form.setValue('is_active', !form.watch('is_active'))}>
-            Active (reminders will be sent automatically)
-          </Label>
-        </div>
         </CardContent>
       </Card>
 
       {/* Reminder Steps */}
-      <Card className="gap-3">
-        <CardHeader>
-          <CardTitle className="text-xl">Reminder Steps</CardTitle>
-          <CardAction>
+      <Card className="gap-1.5">
+        <div className="px-8">
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Reminder Steps</h2>
+              <p className="text-sm text-muted-foreground">
+                Each step sends an email at a specific number of days before the deadline. Configure the email template and timing for each reminder.
+              </p>
+            </div>
             <ScheduleStepAddButton onAdd={() => stepsFieldArray.append({ email_template_id: "", delay_days: 7 })} />
-          </CardAction>
-        </CardHeader>
+          </div>
+        </div>
         <CardContent>
           <ScheduleStepEditor form={form} fieldArray={stepsFieldArray} templates={emailTemplates} />
         </CardContent>
@@ -549,10 +542,14 @@ export default function EditSchedulePage() {
 
       {/* Client selector for new custom schedules (opt-in, none selected by default) */}
       {isNew && scheduleType === 'custom' && (
-        <Card className="gap-3">
-          <CardHeader>
-            <CardTitle className="text-xl">Applies To</CardTitle>
-          </CardHeader>
+        <Card className="gap-1.5">
+          <div className="px-8">
+            <div className="mb-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold">Applies To</h2>
+              </div>
+            </div>
+          </div>
           <CardContent>
             <ClientSelector
               selectedIds={selectedClientIds}
@@ -574,10 +571,14 @@ export default function EditSchedulePage() {
 
       {/* Client Exclusions - for existing schedules */}
       {!isNew && (
-        <Card className="gap-3">
-          <CardHeader>
-            <CardTitle className="text-xl">Applies To</CardTitle>
-          </CardHeader>
+        <Card className="gap-1.5">
+          <div className="px-8">
+            <div className="mb-6">
+              <div className="space-y-1">
+                <h2 className="text-2xl font-semibold">Applies To</h2>
+              </div>
+            </div>
+          </div>
           <CardContent>
             <ClientExclusions scheduleId={scheduleId} />
           </CardContent>

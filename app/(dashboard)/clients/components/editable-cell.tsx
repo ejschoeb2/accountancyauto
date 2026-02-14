@@ -95,25 +95,23 @@ export function EditableCell({
           return formatDateDisplay(value);
         case "boolean":
           return value ? (
-            <ButtonBase
-              type="button"
-              buttonType="icon-text"
-              className="pointer-events-none bg-status-success/10 text-status-success hover:text-status-success"
-            >
-              <Check className="h-4 w-4" />
-              Yes
-            </ButtonBase>
+            <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center gap-2">
+              <span className="text-green-600">
+                <Check className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-medium text-green-600">
+                Yes
+              </span>
+            </div>
           ) : (
-            <ButtonBase
-              type="button"
-              variant="red"
-              buttonType="icon-text"
-              isSelected={true}
-              className="pointer-events-none opacity-100"
-            >
-              <X className="h-4 w-4" />
-              No
-            </ButtonBase>
+            <div className="px-3 py-2 rounded-md bg-status-danger/10 inline-flex items-center gap-2">
+              <span className="text-status-danger">
+                <X className="h-4 w-4" />
+              </span>
+              <span className="text-sm font-medium text-status-danger">
+                No
+              </span>
+            </div>
           );
         case "select":
           const option = options.find((opt) => opt.value === value);
@@ -194,9 +192,8 @@ export function EditableCell({
 
       {type === "boolean" && (
         Boolean(editValue) ? (
-          <ButtonBase
+          <button
             type="button"
-            buttonType="icon-text"
             onClick={() => {
               setEditValue(false);
               setTimeout(() => {
@@ -208,17 +205,18 @@ export function EditableCell({
               }, 100);
             }}
             disabled={isSaving}
-            className="bg-status-success/10 hover:bg-status-success/20 text-status-success hover:text-status-success"
+            className="px-3 py-2 rounded-md bg-green-500/10 hover:bg-green-500/20 inline-flex items-center gap-2 transition-colors"
           >
-            <Check className="h-4 w-4" />
-            Yes
-          </ButtonBase>
+            <span className="text-green-600 hover:text-green-700">
+              <Check className="h-4 w-4" />
+            </span>
+            <span className="text-sm font-medium text-green-600 hover:text-green-700">
+              Yes
+            </span>
+          </button>
         ) : (
-          <ButtonBase
+          <button
             type="button"
-            variant="red"
-            buttonType="icon-text"
-            isSelected={true}
             onClick={() => {
               setEditValue(true);
               setTimeout(() => {
@@ -230,10 +228,15 @@ export function EditableCell({
               }, 100);
             }}
             disabled={isSaving}
+            className="px-3 py-2 rounded-md bg-status-danger/10 hover:bg-status-danger/20 inline-flex items-center gap-2 transition-colors"
           >
-            <X className="h-4 w-4" />
-            No
-          </ButtonBase>
+            <span className="text-status-danger">
+              <X className="h-4 w-4" />
+            </span>
+            <span className="text-sm font-medium text-status-danger">
+              No
+            </span>
+          </button>
         )
       )}
     </div>

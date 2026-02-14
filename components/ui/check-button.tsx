@@ -8,12 +8,23 @@ interface CheckButtonProps {
   disabled?: boolean
   className?: string
   "aria-label"?: string
+  variant?: "default" | "success"
 }
 
 const CheckButton = React.forwardRef<HTMLButtonElement, CheckButtonProps>(
-  ({ checked = false, onCheckedChange, disabled, className, "aria-label": ariaLabel }, ref) => {
+  ({ checked = false, onCheckedChange, disabled, className, "aria-label": ariaLabel, variant = "default" }, ref) => {
     const isChecked = checked === true
     const isIndeterminate = checked === "indeterminate"
+
+    const colors = variant === "success"
+      ? {
+          bg: isChecked || isIndeterminate ? "bg-green-500/10 hover:bg-green-500/20" : "bg-status-neutral/10 hover:bg-status-neutral/20",
+          icon: "text-green-600"
+        }
+      : {
+          bg: isChecked || isIndeterminate ? "bg-blue-500/10 hover:bg-blue-500/20" : "bg-status-neutral/10 hover:bg-status-neutral/20",
+          icon: "text-blue-500"
+        }
 
     return (
       <button
@@ -23,9 +34,7 @@ const CheckButton = React.forwardRef<HTMLButtonElement, CheckButtonProps>(
         disabled={disabled}
         className={cn(
           "size-8 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed",
-          isChecked || isIndeterminate
-            ? "bg-blue-500/10 hover:bg-blue-500/20"
-            : "bg-status-neutral/10 hover:bg-status-neutral/20",
+          colors.bg,
           className
         )}
         aria-label={ariaLabel}
@@ -33,9 +42,9 @@ const CheckButton = React.forwardRef<HTMLButtonElement, CheckButtonProps>(
         role="checkbox"
       >
         {isIndeterminate ? (
-          <Minus className="size-5 text-blue-500" />
+          <Minus className={cn("size-5", colors.icon)} />
         ) : isChecked ? (
-          <Check className="size-5 text-blue-500" />
+          <Check className={cn("size-5", colors.icon)} />
         ) : null}
       </button>
     )

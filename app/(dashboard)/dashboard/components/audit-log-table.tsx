@@ -14,8 +14,8 @@ const ITEMS_PER_PAGE = 20;
 const statusConfig = {
   delivered: {
     label: 'Delivered',
-    bg: 'bg-status-success/10',
-    text: 'text-status-success',
+    bg: 'bg-green-500/10',
+    text: 'text-green-600',
   },
   sent: {
     label: 'Sent',

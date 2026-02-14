@@ -11,7 +11,11 @@ import { StatusDistribution } from './components/status-distribution';
 function DashboardContent() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     overdueCount: 0,
-    chasingCount: 0,
+    criticalCount: 0,
+    approachingCount: 0,
+    scheduledCount: 0,
+    completedCount: 0,
+    inactiveCount: 0,
     sentTodayCount: 0,
     pausedCount: 0,
     failedDeliveryCount: 0,

@@ -62,7 +62,7 @@ export function SendHourPicker({ defaultHour }: { defaultHour: number }) {
 
         <div className="flex items-center gap-3">
           {saved && (
-            <span className="text-sm text-status-success font-medium">Saved</span>
+            <span className="text-sm text-green-600 font-medium">Saved</span>
           )}
           {error && (
             <span className="text-sm text-status-danger font-medium">{error}</span>

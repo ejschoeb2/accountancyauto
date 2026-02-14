@@ -1,11 +1,17 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { format } from 'date-fns';
-import { calculateClientStatus, TrafficLightStatus } from './traffic-light';
+import { calculateClientStatus, calculateFilingTypeStatus, TrafficLightStatus } from './traffic-light';
 import { calculateDeadline } from '@/lib/deadlines/calculators';
+import type { FilingTypeStatus, FilingTypeId } from '@/lib/types/database';
+import type { Client } from '@/app/actions/clients';
 
 export interface DashboardMetrics {
-  overdueCount: number;
-  chasingCount: number;
+  overdueCount: number; // red
+  criticalCount: number; // orange (< 1 week)
+  approachingCount: number; // amber (1-4 weeks)
+  scheduledCount: number; // blue (> 4 weeks)
+  completedCount: number; // green (records received)
+  inactiveCount: number; // grey (paused)
   sentTodayCount: number;
   pausedCount: number;
   failedDeliveryCount: number;
@@ -70,7 +76,11 @@ export async function getDashboardMetrics(
 
   // Calculate traffic-light status for each client
   let overdueCount = 0;
-  let chasingCount = 0;
+  let criticalCount = 0;
+  let approachingCount = 0;
+  let scheduledCount = 0;
+  let completedCount = 0;
+  let inactiveCount = 0;
 
   for (const client of clients || []) {
     // Get client's active filings
@@ -105,7 +115,11 @@ export async function getDashboardMetrics(
     });
 
     if (status === 'red') overdueCount++;
-    if (status === 'amber') chasingCount++;
+    else if (status === 'orange') criticalCount++;
+    else if (status === 'amber') approachingCount++;
+    else if (status === 'blue') scheduledCount++;
+    else if (status === 'green') completedCount++;
+    else if (status === 'grey') inactiveCount++;
   }
 
   // Query email_log for today's sent count
@@ -140,7 +154,11 @@ export async function getDashboardMetrics(
 
   return {
     overdueCount,
-    chasingCount,
+    criticalCount,
+    approachingCount,
+    scheduledCount,
+    completedCount,
+    inactiveCount,
     sentTodayCount: sentTodayCount || 0,
     pausedCount: pausedCount || 0,
     failedDeliveryCount: failedDeliveryCount || 0,
@@ -258,12 +276,14 @@ export async function getClientStatusList(
     };
   });
 
-  // Sort by priority: RED first, then AMBER, then GREEN, then GREY
+  // Sort by priority: RED first, then ORANGE, then AMBER, then BLUE, then GREEN, then GREY
   const statusPriority: Record<TrafficLightStatus, number> = {
     red: 1,
-    amber: 2,
-    green: 3,
-    grey: 4,
+    orange: 2,
+    amber: 3,
+    blue: 4,
+    green: 5,
+    grey: 6,
   };
 
   return statusRows.sort((a, b) => {
@@ -279,4 +299,103 @@ export async function getClientStatusList(
 
     return 0;
   });
+}
+
+// All filing types
+const ALL_FILING_TYPES: FilingTypeId[] = [
+  'corporation_tax_payment',
+  'ct600_filing',
+  'companies_house',
+  'vat_return',
+  'self_assessment',
+];
+
+/**
+ * Fetch client filing statuses for the status view
+ * Returns clients and a map of filing statuses per client
+ */
+export async function getClientFilingStatuses(
+  supabase: SupabaseClient
+): Promise<{
+  clients: Client[];
+  filingStatuses: Record<string, FilingTypeStatus[]>;
+}> {
+  // Fetch clients
+  const { data: clients, error: clientsError } = await supabase
+    .from('clients')
+    .select('*')
+    .order('company_name');
+
+  if (clientsError) throw new Error(clientsError.message);
+
+  // Fetch status overrides for all clients
+  const { data: overrides, error: overridesError } = await supabase
+    .from('client_filing_status_overrides')
+    .select('*');
+
+  if (overridesError) throw new Error(overridesError.message);
+
+  // Fetch filing assignments to know which filing types are actually assigned to each client
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from('client_filing_assignments')
+    .select('client_id, filing_type_id, is_active')
+    .eq('is_active', true);
+
+  if (assignmentsError) throw new Error(assignmentsError.message);
+
+  // Build a map of client -> assigned filing types
+  const clientAssignments = new Map<string, Set<string>>();
+  for (const assignment of assignments || []) {
+    if (!clientAssignments.has(assignment.client_id)) {
+      clientAssignments.set(assignment.client_id, new Set());
+    }
+    clientAssignments.get(assignment.client_id)!.add(assignment.filing_type_id);
+  }
+
+  // Build status map per client
+  const filingStatuses: Record<string, FilingTypeStatus[]> = {};
+
+  for (const client of clients || []) {
+    const assignedFilings = clientAssignments.get(client.id) || new Set();
+
+    const clientFilings = ALL_FILING_TYPES.map((filingTypeId) => {
+      // Only process filing types that are assigned to this client OR have records received OR have manual override
+      const override = overrides?.find(
+        (o) => o.client_id === client.id && o.filing_type_id === filingTypeId
+      );
+      const isRecordsReceived = (client.records_received_for || []).includes(filingTypeId);
+      const isAssigned = assignedFilings.has(filingTypeId);
+
+      // Skip if not assigned and no records received and no override
+      if (!isAssigned && !isRecordsReceived && !override) {
+        return null;
+      }
+
+      // Calculate deadline only for assigned filing types
+      const deadline = isAssigned ? calculateDeadline(filingTypeId, {
+        year_end_date: client.year_end_date || undefined,
+        vat_stagger_group: client.vat_stagger_group || undefined,
+      }) : null;
+      const deadlineDate = deadline ? format(deadline, 'yyyy-MM-dd') : null;
+
+      const status = calculateFilingTypeStatus({
+        filing_type_id: filingTypeId,
+        deadline_date: deadlineDate,
+        is_records_received: isRecordsReceived,
+        override_status: override?.override_status || null,
+      });
+
+      return {
+        filing_type_id: filingTypeId,
+        status,
+        is_override: !!override,
+        is_records_received: isRecordsReceived,
+        deadline_date: deadlineDate,
+      };
+    }).filter((filing): filing is FilingTypeStatus => filing !== null);
+
+    filingStatuses[client.id] = clientFilings;
+  }
+
+  return { clients: clients || [], filingStatuses };
 }

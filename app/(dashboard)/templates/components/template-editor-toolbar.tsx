@@ -6,10 +6,9 @@ import type { Editor } from '@tiptap/react'
 
 interface EditorToolbarProps {
   editor: Editor | null
-  placeholderButtonSlot?: React.ReactNode
 }
 
-export function EditorToolbar({ editor, placeholderButtonSlot }: EditorToolbarProps) {
+export function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) {
     return null
   }

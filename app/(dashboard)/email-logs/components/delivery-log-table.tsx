@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,18 +9,21 @@ import { ButtonBase } from '@/components/ui/button-base';
 import { CheckButton } from '@/components/ui/check-button';
 import { ButtonWithText } from '@/components/ui/button-with-text';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { usePageLoading } from '@/components/page-loading';
 import {
   Card,
   CardContent,
 } from '@/components/ui/card';
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from '@/components/ui/dropdown-menu';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -36,8 +40,26 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { getAuditLog, getQueuedReminders, type AuditEntry, type QueuedReminder } from '@/app/actions/audit-log';
+import { cancelScheduling, uncancelScheduling, rescheduleToSpecificDate, rescheduleWithOffset } from '@/app/actions/email-queue';
 import { format } from 'date-fns';
-import { Search, X, ArrowUpDown, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import {
+  Search,
+  X,
+  ArrowUpDown,
+  SlidersHorizontal,
+  Pencil,
+  Calendar,
+  Check,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Archive,
+  Send,
+  Loader2,
+  AlertCircle,
+  AlertTriangle
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -69,9 +91,11 @@ const DEADLINE_TYPE_OPTIONS = [
 // Status labels for both queued and sent
 const STATUS_LABELS_QUEUED: Record<string, string> = {
   scheduled: "Scheduled",
+  rescheduled: "Rescheduled",
   pending: "Pending",
   sent: "Sent",
-  cancelled: "Cancelled",
+  cancelled: "Manually Cancelled",
+  records_received: "Records Received",
   failed: "Failed",
 };
 
@@ -102,6 +126,7 @@ interface DeliveryLogTableProps {
 }
 
 export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
+  const router = useRouter();
   const [sentData, setSentData] = useState<AuditEntry[]>([]);
   const [queuedData, setQueuedData] = useState<QueuedReminder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -129,6 +154,13 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
 
   // Selection state
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+
+  // Edit state
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleMode, setRescheduleMode] = useState<'specific' | 'offset'>('specific');
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [offsetDays, setOffsetDays] = useState(0);
 
   // Debounce client search
   useEffect(() => {
@@ -191,7 +223,17 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     setActiveDeadlineTypeFilters(new Set());
     setActiveStatusFilters(new Set());
     setTemplateFilter('all');
+    // Close edit panel when switching views
+    setShowEditPanel(false);
+    setSelectedRows(new Set());
   }, [viewMode]);
+
+  // Auto-show edit panel when rows are selected in queued view
+  useEffect(() => {
+    if (viewMode === 'queued' && selectedRows.size > 0) {
+      setShowEditPanel(true);
+    }
+  }, [selectedRows, viewMode]);
 
   // Calculate pagination
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
@@ -305,41 +347,60 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     }
   };
 
-  const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+  const statusConfig: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
     delivered: {
       label: 'Delivered',
-      bg: 'bg-status-success/10',
-      text: 'text-status-success',
+      bg: 'bg-green-500/10',
+      text: 'text-green-600',
+      icon: <CheckCircle className="h-4 w-4" />,
     },
     sent: {
       label: 'Sent',
       bg: 'bg-blue-500/10',
       text: 'text-blue-500',
+      icon: <Send className="h-4 w-4" />,
     },
     bounced: {
       label: 'Bounced',
       bg: 'bg-status-warning/10',
       text: 'text-status-warning',
+      icon: <AlertTriangle className="h-4 w-4" />,
     },
     failed: {
       label: 'Failed',
       bg: 'bg-status-danger/10',
       text: 'text-status-danger',
+      icon: <AlertCircle className="h-4 w-4" />,
     },
     cancelled: {
-      label: 'Cancelled',
+      label: 'Manually Cancelled',
       bg: 'bg-status-danger/10',
       text: 'text-status-danger',
+      icon: <XCircle className="h-4 w-4" />,
+    },
+    records_received: {
+      label: 'Records Received',
+      bg: 'bg-green-500/10',
+      text: 'text-green-600',
+      icon: <CheckCircle className="h-4 w-4" />,
     },
     scheduled: {
       label: 'Scheduled',
+      bg: 'bg-sky-500/10',
+      text: 'text-sky-500',
+      icon: <Clock className="h-4 w-4" />,
+    },
+    rescheduled: {
+      label: 'Rescheduled',
       bg: 'bg-blue-500/10',
       text: 'text-blue-500',
+      icon: <Calendar className="h-4 w-4" />,
     },
     pending: {
       label: 'Pending',
       bg: 'bg-amber-500/10',
       text: 'text-amber-600',
+      icon: <Loader2 className="h-4 w-4" />,
     },
   };
 
@@ -440,6 +501,122 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
   const isAllSelected = sortedData.length > 0 && selectedRows.size === sortedData.length;
   const isSomeSelected = selectedRows.size > 0 && selectedRows.size < sortedData.length;
 
+  // Row click handler
+  const handleRowClick = (e: React.MouseEvent, clientId: string, rowId: string) => {
+    // Don't do anything if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('[data-checkbox]') ||
+      target.tagName === 'BUTTON' ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'SELECT' ||
+      target.closest('button')
+    ) {
+      return;
+    }
+
+    // If edit mode is active (panel shown or rows selected), toggle row selection
+    if (viewMode === 'queued' && (showEditPanel || selectedRows.size > 0)) {
+      toggleSelectRow(rowId);
+    } else {
+      // Navigate to client page
+      router.push(`/clients/${clientId}`);
+    }
+  };
+
+  // Handler functions
+  const handleCancelScheduling = async () => {
+    if (selectedRows.size === 0) return;
+
+    if (!confirm(`Are you sure you want to cancel scheduling for ${selectedRows.size} email(s)?`)) {
+      return;
+    }
+
+    try {
+      const selectedIds = Array.from(selectedRows);
+      const result = await cancelScheduling({ reminderIds: selectedIds });
+
+      if (result.success) {
+        alert(result.message);
+        // Refresh data
+        await fetchData();
+        setSelectedRows(new Set());
+        setShowEditPanel(false);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error cancelling scheduling:', error);
+      alert('An error occurred while cancelling scheduling');
+    }
+  };
+
+  const handleUncancelScheduling = async () => {
+    if (selectedRows.size === 0) return;
+
+    if (!confirm(`Are you sure you want to uncancel ${selectedRows.size} email(s)?`)) {
+      return;
+    }
+
+    try {
+      const selectedIds = Array.from(selectedRows);
+      const result = await uncancelScheduling({ reminderIds: selectedIds });
+
+      if (result.success) {
+        alert(result.message);
+        // Refresh data
+        await fetchData();
+        setSelectedRows(new Set());
+        setShowEditPanel(false);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error uncancelling scheduling:', error);
+      alert('An error occurred while uncancelling scheduling');
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (selectedRows.size === 0) return;
+
+    try {
+      const selectedIds = Array.from(selectedRows);
+      let result;
+
+      if (rescheduleMode === 'specific') {
+        result = await rescheduleToSpecificDate({
+          reminderIds: selectedIds,
+          newDate: rescheduleDate,
+        });
+      } else {
+        result = await rescheduleWithOffset({
+          reminderIds: selectedIds,
+          offsetDays: offsetDays,
+        });
+      }
+
+      if (result.success) {
+        alert(result.message);
+        // Refresh data
+        await fetchData();
+        setSelectedRows(new Set());
+        setShowEditPanel(false);
+        setShowRescheduleModal(false);
+        setRescheduleDate('');
+        setOffsetDays(0);
+      } else {
+        const errorMsg = result.errors && result.errors.length > 0
+          ? `${result.message}\n\n${result.errors.join('\n')}`
+          : result.message;
+        alert(`Error: ${errorMsg}`);
+      }
+    } catch (error) {
+      console.error('Error rescheduling:', error);
+      alert('An error occurred while rescheduling');
+    }
+  };
+
   return (
     <div className="space-y-6 pb-0">
       {/* Search and Controls */}
@@ -466,8 +643,19 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
             )}
           </div>
 
-          {/* Controls toolbar - Filter & Sort */}
+          {/* Controls toolbar - Edit, Filter & Sort */}
           <div className="flex gap-2 sm:ml-auto items-center">
+            {viewMode === 'queued' && (
+              <IconButtonWithText
+                type="button"
+                variant="violet"
+                onClick={() => setShowEditPanel(true)}
+                title="Edit selected emails"
+              >
+                <Pencil className="h-5 w-5" />
+                Edit
+              </IconButtonWithText>
+            )}
             <IconButtonWithText
               type="button"
               variant={showFilters ? "amber" : "violet"}
@@ -485,24 +673,19 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
             <div className="w-px h-6 bg-border mx-1" />
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center justify-between gap-2 rounded-md border border-input bg-white px-3 py-2 h-9 text-sm whitespace-nowrap shadow-xs outline-none disabled:cursor-not-allowed disabled:opacity-50 hover:shadow-md hover:border-primary/20 transition-all duration-200 focus-visible:border-2 focus-visible:border-primary focus-visible:ring-0 focus-visible:shadow-md">
-                    {SORT_LABELS[sortBy]}
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
-                    <DropdownMenuRadioItem value="client-name-asc">Client Name (A-Z)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="client-name-desc">Client Name (Z-A)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="send-date-asc">Send Date (Earliest)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="send-date-desc">Send Date (Latest)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="deadline-date-asc">Deadline Date (Earliest)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="deadline-date-desc">Deadline Date (Latest)</DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-9 min-w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="client-name-asc">Client Name (A-Z)</SelectItem>
+                  <SelectItem value="client-name-desc">Client Name (Z-A)</SelectItem>
+                  <SelectItem value="send-date-asc">Send Date (Earliest)</SelectItem>
+                  <SelectItem value="send-date-desc">Send Date (Latest)</SelectItem>
+                  <SelectItem value="deadline-date-asc">Deadline Date (Earliest)</SelectItem>
+                  <SelectItem value="deadline-date-desc">Deadline Date (Latest)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -679,12 +862,6 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
 
               {viewMode === 'sent' ? (
                 <>
-                  {/* Type */}
-                  <TableHead>
-                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Type
-                    </span>
-                  </TableHead>
                   {/* Client Name */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -697,10 +874,10 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       Client Type
                     </span>
                   </TableHead>
-                  {/* Deadline Type */}
+                  {/* Date Sent */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Deadline Type
+                      Date Sent
                     </span>
                   </TableHead>
                   {/* Deadline Date */}
@@ -709,22 +886,22 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       Deadline Date
                     </span>
                   </TableHead>
-                  {/* Date Sent */}
+                  {/* Deadline Type */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Date Sent
-                    </span>
-                  </TableHead>
-                  {/* Reminder Step */}
-                  <TableHead>
-                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Reminder Step
+                      Deadline Type
                     </span>
                   </TableHead>
                   {/* Template Name */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                       Template Name
+                    </span>
+                  </TableHead>
+                  {/* Type */}
+                  <TableHead>
+                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      Type
                     </span>
                   </TableHead>
                   {/* Status */}
@@ -748,10 +925,10 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       Client Type
                     </span>
                   </TableHead>
-                  {/* Deadline Type */}
+                  {/* Send Date */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Deadline Type
+                      Send Date
                     </span>
                   </TableHead>
                   {/* Deadline Date */}
@@ -760,16 +937,10 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       Deadline Date
                     </span>
                   </TableHead>
-                  {/* Send Date */}
+                  {/* Deadline Type */}
                   <TableHead>
                     <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Send Date
-                    </span>
-                  </TableHead>
-                  {/* Reminder Step */}
-                  <TableHead>
-                    <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                      Reminder Step
+                      Deadline Type
                     </span>
                   </TableHead>
                   {/* Template Name */}
@@ -791,22 +962,27 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : sortedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                   No {viewMode === 'sent' ? 'email logs' : 'queued emails'} found
                 </TableCell>
               </TableRow>
             ) : viewMode === 'sent' ? (
               (sortedData as AuditEntry[]).map((entry) => (
-                <TableRow key={entry.id} className="group">
+                <TableRow
+                  key={entry.id}
+                  className="group cursor-pointer"
+                  onClick={(e) => handleRowClick(e, entry.client_id, entry.id)}
+                >
                   {/* Checkbox */}
                   <TableCell>
                     <div
+                      data-checkbox
                       className="flex items-center justify-center cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -819,6 +995,30 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                         aria-label="Select row"
                       />
                     </div>
+                  </TableCell>
+                  {/* Client Name */}
+                  <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.client_name}
+                  </TableCell>
+                  {/* Client Type */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.client_type || '—'}
+                  </TableCell>
+                  {/* Date Sent */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {format(new Date(entry.sent_at), 'dd MMM yyyy')}
+                  </TableCell>
+                  {/* Deadline Date */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.deadline_date ? format(new Date(entry.deadline_date), 'dd MMM yyyy') : '—'}
+                  </TableCell>
+                  {/* Deadline Type */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.filing_type_id ? (FILING_TYPE_LABELS[entry.filing_type_id] || entry.filing_type_name) : '—'}
+                  </TableCell>
+                  {/* Template Name */}
+                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    {entry.template_name || '—'}
                   </TableCell>
                   {/* Type */}
                   <TableCell>
@@ -836,37 +1036,12 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                       </div>
                     )}
                   </TableCell>
-                  {/* Client Name */}
-                  <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                    {entry.client_name}
-                  </TableCell>
-                  {/* Client Type */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {entry.client_type || '—'}
-                  </TableCell>
-                  {/* Deadline Type */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {entry.filing_type_id ? (FILING_TYPE_LABELS[entry.filing_type_id] || entry.filing_type_name) : '—'}
-                  </TableCell>
-                  {/* Deadline Date */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {entry.deadline_date ? format(new Date(entry.deadline_date), 'dd MMM yyyy') : '—'}
-                  </TableCell>
-                  {/* Date Sent */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {formatDate(entry.sent_at)}
-                  </TableCell>
-                  {/* Reminder Step */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {entry.step_index !== null ? entry.step_index + 1 : '—'}
-                  </TableCell>
-                  {/* Template Name */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {entry.template_name || '—'}
-                  </TableCell>
                   {/* Status */}
                   <TableCell>
-                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center gap-2`}>
+                      <span className={statusConfig[entry.delivery_status]?.text || 'text-gray-500'}>
+                        {statusConfig[entry.delivery_status]?.icon}
+                      </span>
                       <span className={`text-sm font-medium ${statusConfig[entry.delivery_status]?.text || 'text-gray-500'}`}>
                         {statusConfig[entry.delivery_status]?.label || entry.delivery_status}
                       </span>
@@ -876,10 +1051,15 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
               ))
             ) : (
               (sortedData as QueuedReminder[]).map((reminder) => (
-                <TableRow key={reminder.id} className="group">
+                <TableRow
+                  key={reminder.id}
+                  className="group cursor-pointer"
+                  onClick={(e) => handleRowClick(e, reminder.client_id, reminder.id)}
+                >
                   {/* Checkbox */}
                   <TableCell>
                     <div
+                      data-checkbox
                       className="flex items-center justify-center cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -901,21 +1081,17 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                   <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
                     {reminder.client_type || '—'}
                   </TableCell>
-                  {/* Deadline Type */}
+                  {/* Send Date */}
                   <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {reminder.filing_type_id ? (FILING_TYPE_LABELS[reminder.filing_type_id] || reminder.filing_type_name) : '—'}
+                    {format(new Date(reminder.send_date), 'dd MMM yyyy')}
                   </TableCell>
                   {/* Deadline Date */}
                   <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
                     {format(new Date(reminder.deadline_date), 'dd MMM yyyy')}
                   </TableCell>
-                  {/* Send Date */}
+                  {/* Deadline Type */}
                   <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {formatDate(reminder.send_date)}
-                  </TableCell>
-                  {/* Reminder Step */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                    {reminder.step_index + 1}
+                    {reminder.filing_type_id ? (FILING_TYPE_LABELS[reminder.filing_type_id] || reminder.filing_type_name) : '—'}
                   </TableCell>
                   {/* Template Name */}
                   <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
@@ -923,7 +1099,10 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                   </TableCell>
                   {/* Status */}
                   <TableCell>
-                    <div className={`px-3 py-2 rounded-md ${statusConfig[reminder.status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[reminder.status]?.bg || 'bg-gray-500/10'} inline-flex items-center gap-2`}>
+                      <span className={statusConfig[reminder.status]?.text || 'text-gray-500'}>
+                        {statusConfig[reminder.status]?.icon}
+                      </span>
                       <span className={`text-sm font-medium ${statusConfig[reminder.status]?.text || 'text-gray-500'}`}>
                         {statusConfig[reminder.status]?.label || reminder.status}
                       </span>
@@ -936,28 +1115,76 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
         </Table>
       </div>
 
-      {/* Bulk Actions */}
-      <div className="max-w-7xl mx-auto">
-        {selectedRows.size > 0 && (
-          <div className="rounded-xl border bg-blue-500/5 border-blue-500/20 p-4 flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground">
-              {selectedRows.size} {selectedRows.size === 1 ? 'email' : 'emails'} selected
+      {/* Edit Actions Toolbar - Fixed Bottom Popup */}
+      {viewMode === 'queued' && (
+        <div
+          className={cn(
+            "fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-in-out",
+            showEditPanel || selectedRows.size > 0
+              ? "translate-y-0 opacity-100"
+              : "translate-y-20 opacity-0 pointer-events-none"
+          )}
+        >
+          <div className="bg-background border shadow-lg rounded-lg px-4 py-3 flex items-center gap-4">
+            <span className="text-sm font-medium whitespace-nowrap">
+              {selectedRows.size === 0
+                ? 'Select emails to edit'
+                : `${selectedRows.size} email${selectedRows.size !== 1 ? 's' : ''} selected`
+              }
             </span>
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedRows(new Set())}
+
+            <div className="flex items-center gap-2">
+              {selectedRows.size > 0 && (
+                <>
+                  <ButtonBase
+                    variant="green"
+                    buttonType="icon-text"
+                    onClick={() => handleUncancelScheduling()}
+                  >
+                    <CheckCircle className="size-4" />
+                    Uncancel Email
+                  </ButtonBase>
+
+                  <ButtonBase
+                    variant="amber"
+                    buttonType="icon-text"
+                    onClick={() => setShowRescheduleModal(true)}
+                  >
+                    <Calendar className="size-4" />
+                    Reschedule Email
+                  </ButtonBase>
+
+                  <ButtonBase
+                    variant="destructive"
+                    buttonType="icon-text"
+                    onClick={() => handleCancelScheduling()}
+                  >
+                    <X className="size-4" />
+                    Cancel Email
+                  </ButtonBase>
+
+                  <div className="w-px h-6 bg-border" />
+                </>
+              )}
+
+              <ButtonBase
+                variant="destructive"
+                buttonType="icon-text"
+                onClick={() => {
+                  setShowEditPanel(false);
+                  setSelectedRows(new Set());
+                }}
               >
-                Clear selection
-              </Button>
+                <X className="size-4" />
+                Close
+              </ButtonBase>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Pagination */}
-      <div className="max-w-7xl mx-auto mt-6">
+      <div className="max-w-7xl mx-auto mt-16">
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium text-foreground/70">
             Page <span className="font-semibold text-foreground">{currentPage}</span> of <span className="font-semibold text-foreground">{totalPages || 1}</span>
@@ -982,6 +1209,98 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
           </div>
         </div>
       </div>
+
+      {/* Reschedule Modal */}
+      <Dialog open={showRescheduleModal} onOpenChange={setShowRescheduleModal}>
+        <DialogContent className="sm:max-w-[500px]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Reschedule Emails</DialogTitle>
+            <DialogDescription>
+              Choose how to reschedule the selected {selectedRows.size} {selectedRows.size === 1 ? 'email' : 'emails'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Reschedule Mode Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Reschedule Method</Label>
+              <ToggleGroup
+                options={[
+                  { value: 'specific', label: 'Set Specific Date' },
+                  { value: 'offset', label: 'Add/Subtract Days' },
+                ]}
+                value={rescheduleMode}
+                onChange={setRescheduleMode}
+                variant="muted"
+              />
+            </div>
+
+            {/* Specific Date Input */}
+            {rescheduleMode === 'specific' && (
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-date" className="text-sm font-medium">
+                  New Send Date
+                </Label>
+                <Input
+                  id="reschedule-date"
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="hover:border-foreground/20"
+                />
+                <p className="text-xs text-muted-foreground">
+                  All selected emails will be rescheduled to this date
+                </p>
+              </div>
+            )}
+
+            {/* Offset Days Input */}
+            {rescheduleMode === 'offset' && (
+              <div className="space-y-2">
+                <Label htmlFor="offset-days" className="text-sm font-medium">
+                  Days to Add/Subtract
+                </Label>
+                <Input
+                  id="offset-days"
+                  type="number"
+                  value={offsetDays}
+                  onChange={(e) => setOffsetDays(parseInt(e.target.value) || 0)}
+                  placeholder="e.g., 7 or -3"
+                  className="hover:border-foreground/20"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use positive numbers to delay, negative to bring forward (e.g., 7 for one week later, -3 for three days earlier)
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <IconButtonWithText
+              variant="destructive"
+              onClick={() => {
+                setShowRescheduleModal(false);
+                setRescheduleDate('');
+                setOffsetDays(0);
+              }}
+            >
+              <X className="h-5 w-5" />
+              Cancel
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="green"
+              onClick={handleReschedule}
+              disabled={
+                (rescheduleMode === 'specific' && !rescheduleDate) ||
+                (rescheduleMode === 'offset' && offsetDays === 0)
+              }
+            >
+              <Check className="h-5 w-5" />
+              Apply
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

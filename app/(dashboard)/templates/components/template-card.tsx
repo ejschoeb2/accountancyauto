@@ -72,12 +72,12 @@ export function TemplateCard({ template, usedInSchedules }: TemplateCardProps) {
               )}
               <div className={`px-3 py-2 rounded-md inline-flex items-center ${
                 template.is_active
-                  ? 'bg-status-success/10'
+                  ? 'bg-green-500/10'
                   : 'bg-status-neutral/10'
               }`}>
                 <span className={`text-sm font-medium ${
                   template.is_active
-                    ? 'text-status-success'
+                    ? 'text-green-600'
                     : 'text-status-neutral'
                 }`}>
                   {template.is_active ? 'Active' : 'Inactive'}
@@ -121,13 +121,6 @@ export function TemplateCard({ template, usedInSchedules }: TemplateCardProps) {
               </div>
             )}
           </div>
-
-          <hr />
-
-          {/* Updated timestamp */}
-          <p className="text-xs text-muted-foreground">
-            Updated {formatDistanceToNow(new Date(template.updated_at), { addSuffix: true })}
-          </p>
         </CardContent>
       </Card>
     </Link>

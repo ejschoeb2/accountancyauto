@@ -12,72 +12,95 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
   // Count clients by status
   const statusCounts = {
     red: clients.filter((c) => c.status === 'red').length,
+    orange: clients.filter((c) => c.status === 'orange').length,
     amber: clients.filter((c) => c.status === 'amber').length,
+    blue: clients.filter((c) => c.status === 'blue').length,
     green: clients.filter((c) => c.status === 'green').length,
     grey: clients.filter((c) => c.status === 'grey').length,
   };
 
   const total = clients.length;
 
-  // Calculate percentages
+  // Calculate percentages - show all statuses regardless of count
   const statusData = [
     {
       label: 'Overdue',
+      subtext: 'Deadline passed',
       count: statusCounts.red,
       percentage: total > 0 ? (statusCounts.red / total) * 100 : 0,
-      color: '#ef4444',
+      color: '#ef4444', // Lighter red to match badge style
       bgColor: 'bg-status-danger',
     },
     {
-      label: 'Chasing',
+      label: 'Critical',
+      subtext: '< 1 week',
+      count: statusCounts.orange,
+      percentage: total > 0 ? (statusCounts.orange / total) * 100 : 0,
+      color: '#f97316', // Lighter orange to match badge style
+      bgColor: 'bg-status-critical',
+    },
+    {
+      label: 'Approaching',
+      subtext: '1-4 weeks',
       count: statusCounts.amber,
       percentage: total > 0 ? (statusCounts.amber / total) * 100 : 0,
-      color: '#f59e0b',
+      color: '#eab308', // Lighter yellow to match badge style
       bgColor: 'bg-status-warning',
     },
     {
-      label: 'Up to Date',
-      count: statusCounts.green,
-      percentage: total > 0 ? (statusCounts.green / total) * 100 : 0,
-      color: '#10b981',
-      bgColor: 'bg-status-success',
+      label: 'Scheduled',
+      subtext: '> 4 weeks',
+      count: statusCounts.blue,
+      percentage: total > 0 ? (statusCounts.blue / total) * 100 : 0,
+      color: '#38bdf8', // Lighter sky blue to match badge style
+      bgColor: 'bg-sky-500',
     },
     {
-      label: 'Paused',
+      label: 'Completed',
+      subtext: 'Records received',
+      count: statusCounts.green,
+      percentage: total > 0 ? (statusCounts.green / total) * 100 : 0,
+      color: '#22c55e', // Lighter green to match badge style
+      bgColor: 'bg-green-500',
+    },
+    {
+      label: 'Inactive',
+      subtext: 'Paused/No filings',
       count: statusCounts.grey,
       percentage: total > 0 ? (statusCounts.grey / total) * 100 : 0,
-      color: '#9ca3af',
+      color: '#94a3b8', // Lighter slate to match badge style
       bgColor: 'bg-status-neutral',
     },
-  ].filter((item) => item.count > 0); // Only show statuses with clients
+  ];
 
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
-      <CardContent className="px-5 py-0">
+      <CardContent className="px-5 py-0 h-full flex flex-col">
         <div className="flex items-start justify-between mb-6">
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Client Status Distribution
           </p>
-          <div className="size-10 rounded-lg bg-emerald-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-emerald-500/20">
-            <PieChart className="size-6 text-emerald-500" />
+          <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
+            <PieChart className="size-6 text-violet-500" />
           </div>
         </div>
-        <div>
+        <div className="flex-1">
           {total === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               No clients to display
             </p>
           ) : (
-            <div className="space-y-4">
-              {/* Simple pie chart using conic gradient */}
-              <div className="flex items-center justify-center py-2">
-                <div className="relative size-44">
+            <div className="flex items-center justify-center gap-12">
+              {/* Pie chart */}
+              <div className="flex items-center justify-center flex-shrink-0">
+                <div className="relative size-48">
                   <div
                     className="size-full rounded-full"
                     style={{
                       background: `conic-gradient(${statusData
-                        .map((item, index) => {
-                          const startPercent = statusData
+                        .filter((item) => item.count > 0)
+                        .map((item, index, arr) => {
+                          const startPercent = arr
                             .slice(0, index)
                             .reduce((sum, d) => sum + d.percentage, 0);
                           const endPercent = startPercent + item.percentage;
@@ -87,22 +110,24 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
                     }}
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="size-32 rounded-full bg-card flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold">{total}</span>
-                      <span className="text-sm text-muted-foreground">Clients</span>
+                    <div className="size-36 rounded-full bg-card flex items-center justify-center">
+                      <span className="text-5xl font-bold">{total}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Legend */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3 min-w-[240px]">
                 {statusData.map((item) => (
-                  <div key={item.label} className="flex items-center gap-2">
-                    <div className={`size-3 rounded-sm ${item.bgColor}`} />
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-xs font-medium truncate">{item.label}</span>
-                      <span className="text-xs text-muted-foreground">
+                  <div key={item.label} className="flex items-center gap-2.5">
+                    <div className={`size-4 rounded ${item.bgColor} flex-shrink-0`} />
+                    <div className="flex items-baseline justify-between flex-1 gap-16">
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
+                        <span className="text-sm whitespace-nowrap">({item.subtext})</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
                         {item.count} ({item.percentage.toFixed(0)}%)
                       </span>
                     </div>

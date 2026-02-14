@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { Upload, Pencil, X as XIcon, Plus } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus, CheckCircle, XCircle, AlertCircle, Minus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -15,7 +15,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { Search, X, SlidersHorizontal, Calendar, ChevronDown } from "lucide-react";
+import { Search, X, SlidersHorizontal, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -39,12 +39,12 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { TrafficLightBadge } from "@/app/(dashboard)/dashboard/components/traffic-light-badge";
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
@@ -52,6 +52,12 @@ import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { BulkEditModal } from "./bulk-edit-modal";
 import { SendEmailModal } from "./send-email-modal";
+import { ToggleGroup } from "@/components/ui/toggle-group";
+import { StatusDropdown } from "./status-dropdown";
+import { FilingStatusBadge } from "./filing-status-badge";
+import { BulkEditStatusModal } from "./bulk-edit-status-modal";
+import type { FilingTypeStatus } from "@/lib/types/database";
+import type { Row } from "@tanstack/react-table";
 
 // Lazy load the CSV import dialog to avoid hydration issues
 const CsvImportDialog = dynamic(() => import("./csv-import-dialog").then(m => ({ default: m.CsvImportDialog })), { ssr: false });
@@ -77,9 +83,18 @@ const FILING_TYPE_LABELS: Record<string, string> = {
   self_assessment: "Self Assessment",
 };
 
+const ALL_FILING_TYPES = [
+  'corporation_tax_payment',
+  'ct600_filing',
+  'companies_house',
+  'vat_return',
+  'self_assessment',
+] as const;
+
 interface ClientTableProps {
   initialData: Client[];
   statusMap: Record<string, ClientStatusInfo>;
+  filingStatusMap: Record<string, FilingTypeStatus[]>;
   initialFilter?: string;
 }
 
@@ -101,8 +116,10 @@ const VAT_STAGGER_GROUP_OPTIONS = [
 // Status filter config
 const STATUS_LABELS: Record<TrafficLightStatus, string> = {
   red: "Overdue",
-  amber: "Chasing",
-  green: "On Track",
+  orange: "Critical",
+  amber: "Approaching",
+  blue: "Scheduled",
+  green: "Records Received",
   grey: "Inactive",
 };
 
@@ -112,20 +129,19 @@ const SORT_LABELS: Record<string, string> = {
   "name-desc": "Name (Z-A)",
   "deadline-asc": "Deadline (Earliest)",
   "deadline-desc": "Deadline (Latest)",
-  "status-green": "Status (On Track)",
-  "status-amber": "Status (Chasing)",
-  "status-red": "Status (Overdue)",
+  "most-urgent": "Most Urgent",
   "type-asc": "Type (A-Z)",
-  "vat-registered": "VAT Registered",
 };
 
-export function ClientTable({ initialData, statusMap, initialFilter }: ClientTableProps) {
+export function ClientTable({ initialData, statusMap, filingStatusMap, initialFilter }: ClientTableProps) {
   const router = useRouter();
   const [data, setData] = useState<Client[]>(initialData);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [sortBy, setSortBy] = useState<string>("deadline-asc");
+  const [sortBy, setSortBy] = useState<string>("most-urgent");
+  type ViewMode = 'data' | 'status';
+  const [viewMode, setViewMode] = useState<ViewMode>('data');
 
   // Initialize filters based on initialFilter parameter
   const getInitialStatusFilters = () => {
@@ -136,13 +152,17 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
 
   const [activeTypeFilters, setActiveTypeFilters] = useState<Set<string>>(new Set());
   const [activeVatFilter, setActiveVatFilter] = useState<string | null>(null);
+  const [activeVatStaggerFilters, setActiveVatStaggerFilters] = useState<Set<string>>(new Set());
   const [activeStatusFilters, setActiveStatusFilters] = useState<Set<TrafficLightStatus>>(getInitialStatusFilters());
   const [pausedFilter, setPausedFilter] = useState<boolean>(initialFilter === "paused");
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(initialFilter ? true : false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isBulkStatusModalOpen, setIsBulkStatusModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -183,6 +203,18 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
     setActiveVatFilter((prev) => (prev === value ? null : value));
   }
 
+  function toggleVatStaggerFilter(stagger: string) {
+    setActiveVatStaggerFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(stagger)) {
+        next.delete(stagger);
+      } else {
+        next.add(stagger);
+      }
+      return next;
+    });
+  }
+
   // Filter and sort data based on tag filters + status filter + sort option
   const filteredData = useMemo(() => {
     let filtered = data.filter((client) => {
@@ -201,10 +233,31 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       if (activeVatFilter === "no-vat" && client.vat_registered) {
         return false;
       }
+      // VAT stagger filter
+      if (activeVatStaggerFilters.size > 0) {
+        if (!client.vat_stagger_group || !activeVatStaggerFilters.has(client.vat_stagger_group.toString())) {
+          return false;
+        }
+      }
       // Traffic light status filter
       if (activeStatusFilters.size > 0) {
         const clientStatus = statusMap[client.id]?.status as TrafficLightStatus | undefined;
         if (!clientStatus || !activeStatusFilters.has(clientStatus)) {
+          return false;
+        }
+      }
+      // Date range filter for next deadline
+      if (dateFrom || dateTo) {
+        const nextDeadline = statusMap[client.id]?.next_deadline;
+        if (!nextDeadline) return false;
+
+        const deadlineDate = nextDeadline.split('T')[0]; // Get just the date part
+
+        if (dateFrom && deadlineDate < dateFrom) {
+          return false;
+        }
+
+        if (dateTo && deadlineDate > dateTo) {
           return false;
         }
       }
@@ -234,23 +287,34 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           if (!deadlineB) return 1;
           return deadlineB.localeCompare(deadlineA);
         }
-        case "status-green":
-          return statusMap[a.id]?.status === "green" ? -1 : statusMap[b.id]?.status === "green" ? 1 : 0;
-        case "status-amber":
-          return statusMap[a.id]?.status === "amber" ? -1 : statusMap[b.id]?.status === "amber" ? 1 : 0;
-        case "status-red":
-          return statusMap[a.id]?.status === "red" ? -1 : statusMap[b.id]?.status === "red" ? 1 : 0;
+        case "most-urgent": {
+          // Count overdue and waiting statuses for each client
+          const filingsA = filingStatusMap[a.id] || [];
+          const filingsB = filingStatusMap[b.id] || [];
+
+          const overdueCountA = filingsA.filter(f => !f.is_records_received && f.status === 'red').length;
+          const overdueCountB = filingsB.filter(f => !f.is_records_received && f.status === 'red').length;
+
+          // First sort by overdue count (more overdue = more urgent)
+          if (overdueCountA !== overdueCountB) {
+            return overdueCountB - overdueCountA;
+          }
+
+          // If same overdue count, sort by waiting count
+          const waitingCountA = filingsA.filter(f => !f.is_records_received && f.status === 'green').length;
+          const waitingCountB = filingsB.filter(f => !f.is_records_received && f.status === 'green').length;
+
+          return waitingCountB - waitingCountA;
+        }
         case "type-asc":
           return (a.client_type || "").localeCompare(b.client_type || "");
-        case "vat-registered":
-          return b.vat_registered === a.vat_registered ? 0 : b.vat_registered ? -1 : 1;
         default:
           return 0;
       }
     });
 
     return sorted;
-  }, [data, activeTypeFilters, activeVatFilter, activeStatusFilters, pausedFilter, statusMap, sortBy]);
+  }, [data, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, statusMap, sortBy, filingStatusMap, dateFrom, dateTo]);
 
   // Get selected clients
   const selectedClients = useMemo(() => {
@@ -311,6 +375,155 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
     [selectedClients, data]
   );
 
+  // Handle status update
+  const handleStatusUpdate = useCallback(
+    async (clientId: string, filingTypeId: string, newStatus: TrafficLightStatus | null) => {
+      try {
+        if (newStatus === null) {
+          // Clear override (revert to calculated)
+          await fetch(`/api/clients/${clientId}/filing-status?filing_type_id=${filingTypeId}`, {
+            method: 'DELETE',
+          });
+        } else {
+          // Set override
+          await fetch(`/api/clients/${clientId}/filing-status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filing_type_id: filingTypeId,
+              override_status: newStatus,
+            }),
+          });
+        }
+
+        toast.success('Status updated');
+        router.refresh(); // Refresh to get updated data
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to update status');
+      }
+    },
+    [router]
+  );
+
+
+  // Define status view columns
+  const statusColumns = useMemo<ColumnDef<Client>[]>(
+    () => [
+      {
+        id: "select",
+        header: ({ table }) => (
+          <div className="flex items-center justify-center">
+            <CheckButton
+              checked={
+                table.getIsAllPageRowsSelected()
+                  ? true
+                  : table.getIsSomePageRowsSelected()
+                  ? "indeterminate"
+                  : false
+              }
+              onCheckedChange={(value) =>
+                table.toggleAllPageRowsSelected(!!value)
+              }
+              aria-label="Select all"
+            />
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div
+            className="flex items-center justify-center cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              row.toggleSelected(!row.getIsSelected());
+            }}
+          >
+            <CheckButton
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label="Select row"
+            />
+          </div>
+        ),
+        enableSorting: false,
+        enableHiding: false,
+      },
+      {
+        accessorKey: "display_name",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Client Name
+          </span>
+        ),
+        cell: ({ row }) => {
+          const client = row.original;
+          return (
+            <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+              {client.display_name || client.company_name}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "client_type",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Client Type
+          </span>
+        ),
+        cell: ({ row }) => {
+          const client = row.original;
+          return (
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              {client.client_type || '—'}
+            </span>
+          );
+        },
+      },
+      // Filing type status columns (one per filing type)
+      ...ALL_FILING_TYPES.map((filingTypeId) => ({
+        id: filingTypeId,
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            {FILING_TYPE_LABELS[filingTypeId]}
+          </span>
+        ),
+        cell: ({ row }: { row: Row<Client> }) => {
+          const client = row.original;
+          const filingStatus = filingStatusMap[client.id]?.find(
+            (f) => f.filing_type_id === filingTypeId
+          );
+
+          if (!filingStatus) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+
+          if (isEditMode) {
+            // Show dropdown in edit mode
+            return (
+              <StatusDropdown
+                clientId={client.id}
+                filingTypeId={filingTypeId}
+                currentStatus={filingStatus.status}
+                isRecordsReceived={filingStatus.is_records_received}
+                isOverride={filingStatus.is_override}
+                onUpdate={handleStatusUpdate}
+              />
+            );
+          }
+
+          // Show badge in view mode
+          return (
+            <FilingStatusBadge
+              status={filingStatus.status}
+              isRecordsReceived={filingStatus.is_records_received}
+              isOverride={filingStatus.is_override}
+            />
+          );
+        },
+        enableSorting: false,
+      })),
+    ],
+    [filingStatusMap, isEditMode, handleStatusUpdate]
+  );
 
   // Define columns
   const columns = useMemo<ColumnDef<Client>[]>(
@@ -532,25 +745,54 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           const info = statusMap[row.original.id];
           if (!info) return <span className="text-muted-foreground">—</span>;
 
-          const statusColors: Record<string, { bg: string; text: string }> = {
-            red: { bg: 'bg-status-danger/10', text: 'text-status-danger' },
-            amber: { bg: 'bg-status-warning/10', text: 'text-status-warning' },
-            green: { bg: 'bg-status-success/10', text: 'text-status-success' },
-            grey: { bg: 'bg-status-neutral/10', text: 'text-status-neutral' },
+          const statusConfig: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {
+            red: {
+              bg: 'bg-status-danger/10',
+              text: 'text-status-danger',
+              icon: <XCircle className="h-4 w-4" />,
+              label: 'Overdue',
+            },
+            orange: {
+              bg: 'bg-status-critical/10',
+              text: 'text-status-critical',
+              icon: <AlertCircle className="h-4 w-4" />,
+              label: 'Critical',
+            },
+            amber: {
+              bg: 'bg-status-warning/10',
+              text: 'text-status-warning',
+              icon: <AlertCircle className="h-4 w-4" />,
+              label: 'Approaching',
+            },
+            blue: {
+              bg: 'bg-status-info/10',
+              text: 'text-status-info',
+              icon: <CheckCircle className="h-4 w-4" />,
+              label: 'Scheduled',
+            },
+            green: {
+              bg: 'bg-green-500/10',
+              text: 'text-green-600',
+              icon: <CheckCircle className="h-4 w-4" />,
+              label: 'Records Received',
+            },
+            grey: {
+              bg: 'bg-status-neutral/10',
+              text: 'text-status-neutral',
+              icon: <Minus className="h-4 w-4" />,
+              label: 'Inactive',
+            },
           };
 
-          const colors = statusColors[info.status] || statusColors.grey;
-          const labels: Record<string, string> = {
-            red: 'Overdue',
-            amber: 'Chasing',
-            green: 'On Track',
-            grey: 'Inactive',
-          };
+          const config = statusConfig[info.status] || statusConfig.grey;
 
           return (
-            <div className={`px-3 py-2 rounded-md ${colors.bg} inline-flex items-center`}>
-              <span className={`text-sm font-medium ${colors.text}`}>
-                {labels[info.status] || '—'}
+            <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center gap-2`}>
+              <span className={config.text}>
+                {config.icon}
+              </span>
+              <span className={`text-sm font-medium ${config.text}`}>
+                {config.label}
               </span>
             </div>
           );
@@ -563,7 +805,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
 
   const table = useReactTable({
     data: filteredData,
-    columns,
+    columns: viewMode === 'status' ? statusColumns : columns,
     state: {
       rowSelection,
       sorting,
@@ -581,48 +823,44 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
   const activeFilterCount =
     activeTypeFilters.size +
     (activeVatFilter ? 1 : 0) +
+    activeVatStaggerFilters.size +
     activeStatusFilters.size +
     (pausedFilter ? 1 : 0);
 
   function clearAllFilters() {
     setActiveTypeFilters(new Set());
     setActiveVatFilter(null);
+    setActiveVatStaggerFilters(new Set());
     setActiveStatusFilters(new Set());
     setPausedFilter(false);
+    setDateFrom('');
+    setDateTo('');
   }
 
   return (
     <div className="space-y-6 pb-0">
       {/* Page Header with Add Client / Import CSV */}
       <div className="max-w-7xl mx-auto space-y-4">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <h1>Clients</h1>
-          <p className="text-muted-foreground">
-            Manage your client records and reminder settings
-          </p>
+        {/* Page Header */}
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <h1>Clients</h1>
+            <p className="text-muted-foreground">
+              Manage your client records and reminder settings
+            </p>
+          </div>
+
+          {/* View Toggle */}
+          <ToggleGroup
+            options={[
+              { value: 'data', label: 'Client Data' },
+              { value: 'status', label: 'Client Deadlines' },
+            ]}
+            value={viewMode}
+            onChange={setViewMode}
+            variant="muted"
+          />
         </div>
-        <div className="flex gap-2 items-center">
-          <IconButtonWithText
-            type="button"
-            variant="green"
-            onClick={() => setIsCreateDialogOpen(true)}
-            title="Add a new client"
-          >
-            <Plus className="h-5 w-5" />
-            Add Client
-          </IconButtonWithText>
-          <IconButtonWithText
-            type="button"
-            variant="sky"
-            onClick={() => setIsCsvDialogOpen(true)}
-            title="Import clients from CSV"
-          >
-            <Upload className="h-5 w-5" />
-            Import CSV
-          </IconButtonWithText>
-        </div>
-      </div>
 
       {/* Search Input and Controls */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -647,8 +885,26 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
           )}
         </div>
 
-        {/* Controls toolbar - Edit, Sort, Filter */}
+        {/* Controls toolbar - Add, Import, Edit, Filter, Sort */}
         <div className="flex gap-2 sm:ml-auto items-center">
+          <IconButtonWithText
+            type="button"
+            variant="green"
+            onClick={() => setIsCreateDialogOpen(true)}
+            title="Add a new client"
+          >
+            <Plus className="h-5 w-5" />
+            Add Client
+          </IconButtonWithText>
+          <IconButtonWithText
+            type="button"
+            variant="sky"
+            onClick={() => setIsCsvDialogOpen(true)}
+            title="Import clients from CSV"
+          >
+            <Upload className="h-5 w-5" />
+            Import CSV
+          </IconButtonWithText>
           <IconButtonWithText
             type="button"
             variant={isEditMode ? "amber" : "violet"}
@@ -658,31 +914,6 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
             {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
             {isEditMode ? "Done" : "Edit"}
           </IconButtonWithText>
-          <div className="w-px h-6 bg-border mx-1" />
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 h-10 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none shrink-0 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] bg-amber-500/10 hover:bg-amber-500/20 focus:bg-accent focus:text-accent-foreground text-amber-600 hover:text-amber-700">
-                  {SORT_LABELS[sortBy]}
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
-                  <DropdownMenuRadioItem value="name-asc">Name (A-Z)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="name-desc">Name (Z-A)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="deadline-asc">Deadline (Earliest)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="deadline-desc">Deadline (Latest)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="status-green">Status (On Track)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="status-amber">Status (Chasing)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="status-red">Status (Overdue)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="type-asc">Type (A-Z)</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="vat-registered">VAT Registered</DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
           <IconButtonWithText
             type="button"
             variant={showFilters ? "amber" : "violet"}
@@ -692,6 +923,23 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
             <SlidersHorizontal className="h-5 w-5" />
             {showFilters ? "Close Filters" : "Filter"}
           </IconButtonWithText>
+          <div className="w-px h-6 bg-border mx-1" />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="h-9 min-w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="most-urgent">Most Urgent</SelectItem>
+                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                <SelectItem value="deadline-asc">Deadline (Earliest)</SelectItem>
+                <SelectItem value="deadline-desc">Deadline (Latest)</SelectItem>
+                <SelectItem value="type-asc">Type (A-Z)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -704,7 +952,7 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
               <div className="space-y-2 flex-1">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
                 <div className="flex flex-wrap gap-2">
-                  {(["red", "amber", "green", "grey"] as const).map((status) => {
+                  {(["red", "orange", "amber", "blue", "green", "grey"] as const).map((status) => {
                     return (
                       <ButtonWithText
                         key={status}
@@ -767,6 +1015,48 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
                 >
                   Not VAT Registered
                 </ButtonWithText>
+              </div>
+            </div>
+
+            {/* VAT Stagger Group */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">VAT Stagger Group</span>
+              <div className="flex flex-wrap gap-2">
+                {VAT_STAGGER_GROUP_OPTIONS.map((opt) => (
+                  <ButtonWithText
+                    key={opt.value}
+                    onClick={() => toggleVatStaggerFilter(opt.value)}
+                    isSelected={activeVatStaggerFilters.has(opt.value)}
+                    variant="muted"
+                  >
+                    {opt.label}
+                  </ButtonWithText>
+                ))}
+              </div>
+            </div>
+
+            {/* Next Deadline Date Range Filter */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Next Deadline Date Range</span>
+              <div className="flex flex-wrap gap-4 items-end">
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">From:</label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-40 hover:border-foreground/20"
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">To:</label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-40 hover:border-foreground/20"
+                  />
+                </div>
               </div>
             </div>
           </CardContent>
@@ -852,7 +1142,13 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
       <div className="max-w-7xl mx-auto">
       <BulkActionsToolbar
         selectedCount={selectedClients.length}
-        onBulkEdit={() => setIsBulkModalOpen(true)}
+        onBulkEdit={() => {
+          if (viewMode === 'status') {
+            setIsBulkStatusModalOpen(true);
+          } else {
+            setIsBulkModalOpen(true);
+          }
+        }}
         onSendEmail={() => setIsSendEmailModalOpen(true)}
         onClearSelection={() => setRowSelection({})}
       />
@@ -864,6 +1160,17 @@ export function ClientTable({ initialData, statusMap, initialFilter }: ClientTab
         onClose={() => setIsBulkModalOpen(false)}
         selectedClients={selectedClients}
         onSave={handleBulkUpdate}
+      />
+
+      {/* Bulk Edit Status Modal */}
+      <BulkEditStatusModal
+        open={isBulkStatusModalOpen}
+        onClose={() => setIsBulkStatusModalOpen(false)}
+        selectedClients={selectedClients}
+        onComplete={() => {
+          setRowSelection({});
+          router.refresh();
+        }}
       />
 
       {/* Send Email Modal */}

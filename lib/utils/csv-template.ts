@@ -5,7 +5,7 @@ export const CSV_COLUMNS = [
   {
     name: "company_name",
     required: true,
-    description: "Exact company name as in QuickBooks",
+    description: "Company name to match existing clients",
   },
   {
     name: "client_type",
@@ -84,7 +84,7 @@ export function generateCsvTemplateWithComments(): string {
     "# Client Metadata Import Template",
     "#",
     "# Instructions:",
-    "# 1. Required column: company_name (must match exactly as in QuickBooks)",
+    "# 1. Required column: company_name (must match existing client names exactly)",
     "# 2. Optional columns: client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme",
     "# 3. Dates must be in YYYY-MM-DD format",
     "# 4. Boolean values can be: Yes/No, yes/no, TRUE/FALSE, true/false",

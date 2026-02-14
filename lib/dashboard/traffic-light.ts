@@ -3,12 +3,14 @@
  *
  * Status priority (first match wins):
  * - GREY: Paused or no active filings
- * - RED: Any deadline passed without records
- * - AMBER: Actively chasing (reminder sent, no records, deadline not passed)
- * - GREEN: All filings on track
+ * - GREEN: Records received (completed)
+ * - RED: Deadline passed without records (Overdue)
+ * - ORANGE: < 1 week until deadline (Critical)
+ * - AMBER: 1-4 weeks until deadline (Approaching)
+ * - BLUE: > 4 weeks until deadline (Scheduled)
  */
 
-export type TrafficLightStatus = 'green' | 'amber' | 'red' | 'grey';
+export type TrafficLightStatus = 'green' | 'blue' | 'amber' | 'orange' | 'red' | 'grey';
 
 export interface ClientStatusInput {
   reminders_paused: boolean;
@@ -24,11 +26,13 @@ export interface ClientStatusInput {
  * Calculate traffic-light status for a single client
  *
  * GREY: Client has reminders_paused = true OR filings array is empty
- * RED: ANY filing where deadline_date < today AND filing_type_id NOT in records_received_for
- * AMBER: ANY filing where has_been_sent = true AND filing_type_id NOT in records_received_for AND deadline NOT passed
- * GREEN: All filings either have records received OR no reminders sent yet and deadline not passed
+ * GREEN: ALL filings have records received
+ * RED: ANY filing where deadline_date < today AND filing_type_id NOT in records_received_for (Overdue)
+ * ORANGE: ANY filing where deadline is < 1 week away AND no records (Critical)
+ * AMBER: ANY filing where deadline is 1-4 weeks away AND no records (Approaching)
+ * BLUE: All remaining filings > 4 weeks away (Scheduled)
  *
- * Priority order: grey > red > amber > green (check in this order, first match wins)
+ * Priority order: grey > green > red > orange > amber > blue (check in this order, first match wins)
  */
 export function calculateClientStatus(input: ClientStatusInput): TrafficLightStatus {
   const { reminders_paused, records_received_for, filings } = input;
@@ -43,6 +47,22 @@ export function calculateClientStatus(input: ClientStatusInput): TrafficLightSta
 
   const recordsReceivedSet = new Set(records_received_for);
 
+  // Check if ALL filings have records received
+  const allRecordsReceived = filings.every(filing =>
+    recordsReceivedSet.has(filing.filing_type_id)
+  );
+
+  if (allRecordsReceived) {
+    return 'green'; // GREEN: All records received
+  }
+
+  // Time thresholds
+  const oneWeekFromNow = new Date(today);
+  oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+
+  const fourWeeksFromNow = new Date(today);
+  fourWeeksFromNow.setDate(fourWeeksFromNow.getDate() + 28);
+
   // RED: Any deadline passed without records
   for (const filing of filings) {
     const deadlineDate = new Date(filing.deadline_date);
@@ -52,23 +72,92 @@ export function calculateClientStatus(input: ClientStatusInput): TrafficLightSta
     const deadlinePassed = deadlineDate < today;
 
     if (deadlinePassed && !hasRecords) {
-      return 'red';
+      return 'red'; // Overdue
     }
   }
 
-  // AMBER: Actively chasing (reminder sent, no records, deadline not passed)
+  // ORANGE: Any deadline < 1 week away without records
   for (const filing of filings) {
     const deadlineDate = new Date(filing.deadline_date);
     deadlineDate.setHours(0, 0, 0, 0);
 
     const hasRecords = recordsReceivedSet.has(filing.filing_type_id);
-    const deadlinePassed = deadlineDate < today;
 
-    if (filing.has_been_sent && !hasRecords && !deadlinePassed) {
-      return 'amber';
+    if (!hasRecords && deadlineDate >= today && deadlineDate < oneWeekFromNow) {
+      return 'orange'; // Critical (< 1 week)
     }
   }
 
-  // GREEN: All filings on track
-  return 'green';
+  // AMBER: Any deadline 1-4 weeks away without records
+  for (const filing of filings) {
+    const deadlineDate = new Date(filing.deadline_date);
+    deadlineDate.setHours(0, 0, 0, 0);
+
+    const hasRecords = recordsReceivedSet.has(filing.filing_type_id);
+
+    if (!hasRecords && deadlineDate >= oneWeekFromNow && deadlineDate < fourWeeksFromNow) {
+      return 'amber'; // Approaching (1-4 weeks)
+    }
+  }
+
+  // BLUE: All remaining filings > 4 weeks away
+  return 'blue'; // Scheduled (> 4 weeks)
+}
+
+/**
+ * Calculate status for a single filing type
+ *
+ * Priority:
+ * 1. If records received, always show green
+ * 2. If manual override exists, use it
+ * 3. Calculate based on deadline:
+ *    - RED: Overdue (deadline passed)
+ *    - ORANGE: Critical (< 1 week)
+ *    - AMBER: Approaching (1-4 weeks)
+ *    - BLUE: Scheduled (> 4 weeks)
+ *    - GREY: No deadline set
+ */
+export interface FilingStatusInput {
+  filing_type_id: string;
+  deadline_date: string | null;
+  is_records_received: boolean;
+  override_status: TrafficLightStatus | null;
+}
+
+export function calculateFilingTypeStatus(input: FilingStatusInput): TrafficLightStatus {
+  // Priority 1: If records received, always show green
+  if (input.is_records_received) {
+    return 'green';
+  }
+
+  // Priority 2: If manual override exists, use it
+  if (input.override_status) {
+    return input.override_status;
+  }
+
+  // Priority 3: Calculate based on deadline
+  if (!input.deadline_date) {
+    return 'grey'; // No deadline set
+  }
+
+  const deadline = new Date(input.deadline_date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Time thresholds
+  const oneWeekFromNow = new Date(today);
+  oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+
+  const fourWeeksFromNow = new Date(today);
+  fourWeeksFromNow.setDate(fourWeeksFromNow.getDate() + 28);
+
+  if (deadline < today) {
+    return 'red'; // Overdue
+  } else if (deadline < oneWeekFromNow) {
+    return 'orange'; // Critical (< 1 week)
+  } else if (deadline < fourWeeksFromNow) {
+    return 'amber'; // Approaching (1-4 weeks)
+  } else {
+    return 'blue'; // Scheduled (> 4 weeks)
+  }
 }

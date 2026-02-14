@@ -94,14 +94,19 @@ Or disable their account:
 4. Check your inbox for the magic link (or check Supabase logs if using built-in email)
 5. Click the link → should redirect to dashboard
 
-## Old QuickBooks Code
+## Removed QuickBooks Code
 
-QuickBooks OAuth code is still present in:
-- `lib/quickbooks/` - OAuth client and sync logic
-- `app/actions/quickbooks.ts` - OAuth actions
-- `app/(auth)/onboarding/callback/route.ts` - QuickBooks callback (unused now)
+All QuickBooks integration code has been removed:
+- ✅ Deleted `lib/quickbooks/` directory
+- ✅ Deleted `app/actions/quickbooks.ts`
+- ✅ Deleted `app/(auth)/onboarding/callback/route.ts`
+- ✅ Deleted `components/qbo-status-banner.tsx`
+- ✅ Deleted QuickBooks type definitions
+- ✅ Removed QuickBooks from settings page
+- ✅ Removed `intuit-oauth` and `node-quickbooks` npm packages
+- ✅ Removed QuickBooks environment variables
 
-These can be removed if you're certain you won't need QuickBooks integration.
+**Note:** The `quickbooks_id` field remains in the database schema for backwards compatibility with existing data, but is no longer used.
 
 ## Security Notes
 

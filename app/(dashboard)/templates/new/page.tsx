@@ -127,20 +127,24 @@ export default function NewTemplatePage() {
 
       {/* Email Composer */}
       <Card className="overflow-hidden flex flex-col p-0">
-        <SubjectLineEditor ref={subjectInputRef} value={subject} onChange={setSubject} />
+        <SubjectLineEditor
+          ref={subjectInputRef}
+          value={subject}
+          onChange={setSubject}
+          placeholderButtonSlot={
+            <PlaceholderDropdown
+              subjectInputRef={subjectInputRef}
+              onEditorInsert={(id, label) => {
+                editorRef.current?.insertPlaceholder(id, label)
+              }}
+            />
+          }
+        />
         <div className="flex-1">
           <TemplateEditor
             ref={editorRef}
             initialContent={bodyJson}
             onUpdate={setBodyJson}
-            placeholderButtonSlot={
-              <PlaceholderDropdown
-                subjectInputRef={subjectInputRef}
-                onEditorInsert={(id, label) => {
-                  editorRef.current?.insertPlaceholder(id, label)
-                }}
-              />
-            }
           />
         </div>
       </Card>

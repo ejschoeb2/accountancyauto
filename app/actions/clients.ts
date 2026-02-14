@@ -19,6 +19,7 @@ export interface Client {
   vat_stagger_group: 1 | 2 | 3 | null;
   vat_scheme: "Standard" | "Flat Rate" | "Cash Accounting" | "Annual Accounting" | null;
   reminders_paused: boolean;
+  records_received_for: string[] | null; // Array of filing_type_id strings
   synced_at: string | null;
   created_at: string;
   updated_at: string;

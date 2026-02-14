@@ -10,11 +10,30 @@ interface UpcomingDeadlinesProps {
   clients: ClientStatusRow[];
 }
 
+// Map filing type IDs to short display names
+function getFilingTypeLabel(filingTypeId: string | null): string {
+  if (!filingTypeId) return '';
+
+  const labels: Record<string, string> = {
+    corporation_tax_payment: 'Corp Tax',
+    ct600_filing: 'CT600',
+    companies_house: 'Companies House',
+    vat_return: 'VAT Return',
+    self_assessment: 'Self Assessment',
+  };
+
+  return labels[filingTypeId] || filingTypeId;
+}
+
 export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
-  // Filter to clients with deadlines and take top 5
+  // Filter to clients with deadlines, sort by deadline (earliest first), and take top 4
   const upcomingClients = clients
     .filter((c) => c.next_deadline !== null)
-    .slice(0, 5);
+    .sort((a, b) => {
+      if (!a.next_deadline || !b.next_deadline) return 0;
+      return a.next_deadline.localeCompare(b.next_deadline);
+    })
+    .slice(0, 4);
 
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
@@ -40,15 +59,26 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
                   href={`/clients/${client.id}`}
                   className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
                 >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <TrafficLightBadge status={client.status} />
+                  {/* Left: Company name */}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="font-medium text-sm truncate">
                       {client.company_name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 text-sm text-muted-foreground">
-                    {client.days_until_deadline !== null && (
-                      <>
+
+                  {/* Right: Deadline type tag + Status badge + divider + days/date */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {client.next_deadline_type && (
+                      <div className="px-3 py-1.5 rounded-md inline-flex items-center bg-blue-500/10">
+                        <span className="text-sm font-normal text-blue-500">
+                          {getFilingTypeLabel(client.next_deadline_type)}
+                        </span>
+                      </div>
+                    )}
+                    <TrafficLightBadge status={client.status} />
+                    <div className="h-4 border-r border-gray-300 dark:border-gray-700" />
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      {client.days_until_deadline !== null && (
                         <span>
                           {client.days_until_deadline === 0
                             ? 'Today'
@@ -58,16 +88,8 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
                             ? `${Math.abs(client.days_until_deadline)} days overdue`
                             : `${client.days_until_deadline} days`}
                         </span>
-                        <span className="text-border">|</span>
-                      </>
-                    )}
-                    <span>
-                      {client.next_deadline &&
-                        new Date(client.next_deadline).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: 'short',
-                        })}
-                    </span>
+                      )}
+                    </div>
                   </div>
                 </Link>
               ))}
