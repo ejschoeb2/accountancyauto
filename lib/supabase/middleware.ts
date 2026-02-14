@@ -37,7 +37,7 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes that don't require authentication
-  const publicRoutes = ["/login", "/onboarding/callback"];
+  const publicRoutes = ["/login", "/auth/callback"];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
   // If user is authenticated and trying to access login, redirect to home

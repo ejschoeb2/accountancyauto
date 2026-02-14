@@ -1,32 +1,38 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { Loader2, Play } from "lucide-react";
+import { Loader2, Mail, Play, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { initiateQuickBooksOAuth } from "@/app/actions/quickbooks";
-import { signInAsDemo } from "./actions";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { sendMagicLink, signInAsDemo } from "./actions";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
 
-  async function handleQuickBooksLogin() {
+  // Check for error from URL params
+  const urlError = searchParams?.get("error");
+
+  async function handleMagicLink(e: React.FormEvent) {
+    e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    try {
-      const authUrl = await initiateQuickBooksOAuth();
-      window.location.href = authUrl;
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to initiate QuickBooks login"
-      );
+    const result = await sendMagicLink(email);
+
+    if (result?.error) {
+      setError(result.error);
+      setIsLoading(false);
+    } else {
+      setMagicLinkSent(true);
       setIsLoading(false);
     }
   }
@@ -44,6 +50,40 @@ export default function LoginPage() {
       // Success - server action redirects
       router.refresh();
     }
+  }
+
+  if (magicLinkSent) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-8">
+          <div className="flex flex-col items-center gap-6">
+            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center">
+              <CheckCircle className="size-8 text-green-600" />
+            </div>
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight">
+                Check your email
+              </h1>
+              <p className="text-muted-foreground">
+                We've sent a login link to <strong>{email}</strong>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Click the link in the email to sign in. You can close this window.
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setMagicLinkSent(false);
+                setEmail("");
+              }}
+            >
+              Send another link
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -73,43 +113,52 @@ export default function LoginPage() {
               Welcome to Peninsula Accounting
             </h1>
             <p className="text-muted-foreground">
-              Sign in with your QuickBooks account to get started
+              Sign in with your email to get started
             </p>
           </div>
         </div>
 
-        {/* Login Button */}
+        {/* Login Form */}
         <div className="space-y-4">
-          {error && (
+          {(error || urlError) && (
             <div className="rounded-lg border border-status-danger/30 bg-status-danger/5 p-3 text-sm text-status-danger">
-              {error}
+              {error || (urlError === "auth_failed" && "Authentication failed. Please try again.") || "An error occurred. Please try again."}
             </div>
           )}
 
-          <Button
-            onClick={handleQuickBooksLogin}
-            disabled={isLoading || isDemoLoading}
-            className="w-full h-12 text-base"
-            style={{ backgroundColor: "#0077C5" }}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="size-5 mr-2 animate-spin" />
-                Connecting to QuickBooks...
-              </>
-            ) : (
-              <>
-                <svg
-                  className="size-5 mr-2"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M15.5 0C13 0 11 2 11 4.5V11H4.5C2 11 0 13 0 15.5S2 20 4.5 20H11v3.5c0 .3.2.5.5.5s.5-.2.5-.5V20h7.5c2.5 0 4.5-2 4.5-4.5S22 11 19.5 11H12V4.5c0-2 1.5-3.5 3.5-3.5s3.5 1.5 3.5 3.5v.5c0 .3.2.5.5.5s.5-.2.5-.5V4.5C20 2 18 0 15.5 0zM4.5 19C2.6 19 1 17.4 1 15.5S2.6 12 4.5 12H11v3.5c0 2-1.5 3.5-3.5 3.5H4.5zm15 0H12v-7h7.5c1.9 0 3.5 1.6 3.5 3.5S21.4 19 19.5 19z" />
-                </svg>
-                Sign in with QuickBooks
-              </>
-            )}
-          </Button>
+          <form onSubmit={handleMagicLink} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isLoading || isDemoLoading}
+                className="h-12"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isLoading || isDemoLoading || !email}
+              className="w-full h-12 text-base"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="size-5 mr-2 animate-spin" />
+                  Sending link...
+                </>
+              ) : (
+                <>
+                  <Mail className="size-5 mr-2" />
+                  Send login link
+                </>
+              )}
+            </Button>
+          </form>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -141,10 +190,7 @@ export default function LoginPage() {
             )}
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground space-y-1">
-            <p className="font-medium">
-              QuickBooks: Connect your live data
-            </p>
+          <div className="text-center text-sm text-muted-foreground">
             <p>
               Demo: Explore with sample data (no account needed)
             </p>
@@ -152,5 +198,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
