@@ -1,6 +1,44 @@
 import { z } from "zod";
 
 /**
+ * Parse various date formats and convert to YYYY-MM-DD
+ */
+function parseFlexibleDate(dateStr: string): string | undefined {
+  if (!dateStr || dateStr.trim() === "") return undefined;
+
+  const trimmed = dateStr.trim();
+
+  // Already in YYYY-MM-DD format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (ddmmyyyyMatch) {
+    const [, day, month, year] = ddmmyyyyMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  // MM/DD/YYYY or MM-DD-YYYY (common in US)
+  const mmddyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (mmddyyyyMatch) {
+    const [, month, day, year] = mmddyyyyMatch;
+    // Ambiguous - assume DD/MM/YYYY for UK context (Peninsula is UK-based)
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  // YYYY/MM/DD or YYYY.MM.DD
+  const yyyymmddMatch = trimmed.match(/^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/);
+  if (yyyymmddMatch) {
+    const [, year, month, day] = yyyymmddMatch;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return undefined;
+}
+
+/**
  * Zod schema for validating CSV rows during import.
  * Be lenient on input formats to accommodate various CSV sources.
  */
@@ -11,8 +49,15 @@ export const csvRowSchema = z.object({
     .optional(),
   year_end_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD format")
     .optional()
+    .transform((val) => {
+      if (!val || val === "") return "";
+      const parsed = parseFlexibleDate(val);
+      if (!parsed) {
+        throw new Error(`Invalid date format: ${val}. Use DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD`);
+      }
+      return parsed;
+    })
     .or(z.literal("")),
   vat_registered: z
     .enum(["Yes", "No", "yes", "no", "TRUE", "FALSE", "true", "false", ""])

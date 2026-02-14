@@ -15,7 +15,7 @@ export const CSV_COLUMNS = [
   {
     name: "year_end_date",
     required: false,
-    description: "YYYY-MM-DD format",
+    description: "DD/MM/YYYY, MM/DD/YYYY, or YYYY-MM-DD",
   },
   {
     name: "vat_registered",

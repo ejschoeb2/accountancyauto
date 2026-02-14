@@ -34,6 +34,7 @@ import {
   ArrowLeft,
   ArrowRight,
   X,
+  Sparkles,
 } from "lucide-react";
 import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
 import {
@@ -396,7 +397,7 @@ export function CsvImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl" showCloseButton={false}>
+      <DialogContent className="sm:max-w-4xl" showCloseButton={false}>
         {state === "upload" && (
           <>
             <DialogHeader>
@@ -483,7 +484,7 @@ export function CsvImportDialog({
             <DialogHeader>
               <DialogTitle>Map CSV Columns</DialogTitle>
               <DialogDescription>
-                Match your CSV columns to the system fields. Required fields must be mapped.
+                Match your CSV columns to the system fields. Mapping is optional - you can enter values manually later.
               </DialogDescription>
             </DialogHeader>
 
@@ -494,13 +495,6 @@ export function CsvImportDialog({
                   {error}
                 </div>
               )}
-
-              {/* File info */}
-              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-3 rounded-lg">
-                <FileText className="size-4" />
-                <span className="font-medium">{selectedFile?.name}</span>
-                <span>• {parsedData.rows.length} rows detected</span>
-              </div>
 
               {/* Column mapping table */}
               <div className="space-y-3">
@@ -514,48 +508,47 @@ export function CsvImportDialog({
                   return (
                     <div
                       key={col.name}
-                      className={cn(
-                        "border rounded-lg p-4 space-y-3",
-                        col.required && !mappedColumn && "border-destructive bg-destructive/5"
-                      )}
+                      className="border rounded-lg p-4 space-y-3 hover:border-foreground/20 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm">
-                              {col.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                            </p>
-                            {col.required && (
-                              <Badge variant="destructive" className="text-xs">
-                                Required
-                              </Badge>
-                            )}
-                          </div>
+                          <p className="font-medium text-sm">
+                            {col.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </p>
                           <p className="text-xs text-muted-foreground mt-1">
                             {col.description}
                           </p>
                         </div>
 
-                        <Select
-                          value={mappedColumn || "__none__"}
-                          onValueChange={(value) =>
-                            handleMappingChange(col.name, value === "__none__" ? null : value)
-                          }
-                        >
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Select column..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">
-                              <span className="text-muted-foreground">Don&apos;t map</span>
-                            </SelectItem>
-                            {parsedData.headers.map((header) => (
-                              <SelectItem key={header} value={header}>
-                                {header}
+                        <div className="flex items-center gap-3">
+                          {col.required && (
+                            <div className="px-3 py-2 rounded-md bg-status-danger/10 inline-flex items-center gap-1.5">
+                              <span className="text-sm font-medium text-status-danger">
+                                Required
+                              </span>
+                            </div>
+                          )}
+                          <Select
+                            value={mappedColumn || "__none__"}
+                            onValueChange={(value) =>
+                              handleMappingChange(col.name, value === "__none__" ? null : value)
+                            }
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select column..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">
+                                <span className="text-muted-foreground">Don&apos;t map</span>
                               </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                              {parsedData.headers.map((header) => (
+                                <SelectItem key={header} value={header}>
+                                  {header}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
 
                       {/* Preview values */}
@@ -583,7 +576,7 @@ export function CsvImportDialog({
                 Cancel
               </IconButtonWithText>
               <IconButtonWithText variant="green" onClick={handleProceedWithMapping}>
-                <ArrowRight className="h-5 w-5" />
+                <Sparkles className="h-5 w-5" />
                 Import
               </IconButtonWithText>
             </DialogFooter>
