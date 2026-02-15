@@ -29,7 +29,7 @@ export interface Client {
 // Partial type for metadata updates
 export type ClientMetadata = Pick<
   Client,
-  "primary_email" | "phone" | "client_type" | "year_end_date" | "vat_registered" | "vat_stagger_group" | "vat_scheme"
+  "primary_email" | "phone" | "client_type" | "year_end_date" | "vat_registered" | "vat_stagger_group" | "vat_scheme" | "reminders_paused" | "records_received_for" | "completed_for"
 >;
 
 // Bulk update fields (only fields that can be bulk-edited)

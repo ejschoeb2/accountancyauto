@@ -212,23 +212,67 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
         ? [...recordsReceived, filingTypeId]
         : recordsReceived.filter((id) => id !== filingTypeId);
 
+      // If unchecking records received, also uncheck completed
+      const newCompletedFor = checked
+        ? completedFor
+        : completedFor.filter((id) => id !== filingTypeId);
+
       const response = await fetch(`/api/clients/${clientId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           records_received_for: newRecordsReceived,
+          completed_for: newCompletedFor,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update records received');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update records received');
       }
 
       setRecordsReceived(newRecordsReceived);
+      setCompletedFor(newCompletedFor);
       toast.success(
         checked
           ? 'Records marked as received - reminders cancelled'
           : 'Records marked as not received - reminders rescheduled'
+      );
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Toggle completed
+  const handleCompletedToggle = async (filingTypeId: string, checked: boolean) => {
+    setIsUpdating(true);
+
+    try {
+      const newCompletedFor = checked
+        ? [...completedFor, filingTypeId]
+        : completedFor.filter((id) => id !== filingTypeId);
+
+      const response = await fetch(`/api/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          completed_for: newCompletedFor,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update completion status');
+      }
+
+      setCompletedFor(newCompletedFor);
+      toast.success(
+        checked
+          ? 'Filing marked as completed'
+          : 'Filing marked as not completed'
       );
       onUpdate?.();
     } catch (error) {
@@ -360,8 +404,9 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
           {filings.map((filing) => {
             const hasOverride = !!filing.override_deadline;
             const isReceived = recordsReceived.includes(filing.filing_type.id);
+            const isCompleted = completedFor.includes(filing.filing_type.id);
             const deadlinePassed = isDeadlinePassed(filing);
-            const canRollover = isReceived && deadlinePassed && filing.is_active;
+            const canRollover = isReceived && isCompleted && deadlinePassed && filing.is_active;
 
             return (
               <div
@@ -386,9 +431,13 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                         <span className="font-medium text-base">{filing.filing_type.name}</span>
                         {filing.is_active && (
                           <>
-                            {isReceived ? (
+                            {isReceived && isCompleted ? (
                               <span className="text-sm text-green-600">
                                 Deadline met ({formatDeadline(filing.override_deadline || filing.calculated_deadline)})
+                              </span>
+                            ) : isReceived ? (
+                              <span className="text-sm text-violet-600">
+                                Records received ({formatDeadline(filing.override_deadline || filing.calculated_deadline)})
                               </span>
                             ) : hasOverride ? (
                               <span className="text-sm text-muted-foreground">
@@ -426,7 +475,12 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                         </div>
                       )}
 
-                      {filing.is_active && isReceived && (
+                      {filing.is_active && isReceived && !isCompleted && (
+                        <p className="text-sm text-muted-foreground">
+                          Mark as completed to enable rollover to next year's deadline.
+                        </p>
+                      )}
+                      {filing.is_active && isReceived && isCompleted && (
                         <p className="text-sm text-muted-foreground">
                           Press "Roll Over" to prepare for next year's deadline, or wait and it will automatically update once the deadline passes.
                         </p>
@@ -434,7 +488,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                     </div>
                   </div>
 
-                  {/* Right side: Records received checkbox and button */}
+                  {/* Right side: Records received and completed checkboxes + button */}
                   <div className="flex items-center gap-3">
                     {!filing.is_active ? (
                       <Badge variant="outline" className="text-muted-foreground">
@@ -466,6 +520,30 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                           </label>
                         </div>
 
+                        {/* Completed checkbox */}
+                        <div className="flex items-center gap-2">
+                          <CheckButton
+                            checked={isCompleted}
+                            onCheckedChange={(checked) =>
+                              handleCompletedToggle(
+                                filing.filing_type.id,
+                                checked as boolean
+                              )
+                            }
+                            disabled={isUpdating || !isReceived}
+                            aria-label={`Mark ${filing.filing_type.name} as completed`}
+                            variant={isCompleted ? "success" : "default"}
+                          />
+                          <label
+                            className={`text-sm cursor-pointer whitespace-nowrap ${
+                              isCompleted ? "line-through text-muted-foreground" : isReceived ? "text-foreground" : "text-muted-foreground"
+                            }`}
+                            onClick={() => !isUpdating && isReceived && handleCompletedToggle(filing.filing_type.id, !isCompleted)}
+                          >
+                            Completed
+                          </label>
+                        </div>
+
                         {/* Divider */}
                         {filing.calculated_deadline && (
                           <Separator orientation="vertical" className="h-8" />
@@ -474,14 +552,23 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                         {/* Action button */}
                         {filing.calculated_deadline && (
                           <>
-                            {/* Show Roll Over button if records received, otherwise show Override button */}
-                            {isReceived ? (
+                            {/* Show Roll Over button if both records received AND completed */}
+                            {isReceived && isCompleted ? (
                               <IconButtonWithText
                                 variant="green"
                                 onClick={() => handleOpenRolloverDialog(filing.filing_type.id)}
                               >
                                 <RefreshCw className="h-4 w-4" />
                                 Roll Over
+                              </IconButtonWithText>
+                            ) : isReceived && !isCompleted ? (
+                              /* Show disabled Override button if only records received */
+                              <IconButtonWithText
+                                variant="muted"
+                                disabled={true}
+                              >
+                                <Calendar className="h-4 w-4" />
+                                Override Deadline
                               </IconButtonWithText>
                             ) : hasOverride ? (
                               <IconButtonWithText
@@ -521,7 +608,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
               <p>This will:</p>
               <ul className="list-disc list-inside space-y-1 text-sm">
                 <li>Advance year-end date to next year (for annual filings)</li>
-                <li>Clear "records received" status</li>
+                <li>Clear "records received" and "completed" status</li>
                 <li>Cancel scheduled reminders for this cycle</li>
                 <li>Generate new reminders for the next cycle</li>
               </ul>
