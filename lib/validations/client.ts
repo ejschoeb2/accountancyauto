@@ -22,6 +22,7 @@ export const updateClientMetadataSchema = z.object({
   vat_scheme: z.enum(["Standard", "Flat Rate", "Cash Accounting", "Annual Accounting"]).optional().nullable(),
   reminders_paused: z.boolean().optional(),
   records_received_for: z.array(z.string()).optional(),
+  completed_for: z.array(z.string()).optional(),
 }).partial();
 
 export const bulkUpdateSchema = z.array(

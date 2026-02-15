@@ -46,6 +46,7 @@ interface FilingManagementProps {
 export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) {
   const [filings, setFilings] = useState<FilingAssignment[]>([]);
   const [recordsReceived, setRecordsReceived] = useState<string[]>([]);
+  const [completedFor, setCompletedFor] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   usePageLoading('filing-management', loading);
@@ -78,6 +79,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
           const clientData = await clientRes.json();
           const client = clientData.data || clientData;
           setRecordsReceived(client.records_received_for || []);
+          setCompletedFor(client.completed_for || []);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
@@ -289,6 +291,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
           const clientData = await clientRes.json();
           const client = clientData.data || clientData;
           setRecordsReceived(client.records_received_for || []);
+          setCompletedFor(client.completed_for || []);
         }
 
         onUpdate?.();

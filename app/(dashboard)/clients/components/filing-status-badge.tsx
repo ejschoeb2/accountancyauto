@@ -33,11 +33,17 @@ const STATUS_CONFIG: Record<TrafficLightStatus, { bg: string; text: string; icon
     icon: <CheckCircle className="h-4 w-4" />,
     label: 'Scheduled',
   },
+  violet: {
+    bg: 'bg-violet-500/10',
+    text: 'text-violet-600',
+    icon: <CheckCircle className="h-4 w-4" />,
+    label: 'Records Received',
+  },
   green: {
     bg: 'bg-green-500/10',
     text: 'text-green-600',
     icon: <CheckCircle className="h-4 w-4" />,
-    label: 'Records Received',
+    label: 'Completed',
   },
   grey: {
     bg: 'bg-status-neutral/10',
@@ -52,20 +58,6 @@ export function FilingStatusBadge({
   isRecordsReceived,
   isOverride,
 }: FilingStatusBadgeProps) {
-  // Records Received styling - GREEN (completed state)
-  if (isRecordsReceived) {
-    return (
-      <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center gap-2">
-        <span className="text-green-600">
-          <CheckCircle className="h-4 w-4" />
-        </span>
-        <span className="text-sm font-medium text-green-600">
-          Records Received
-        </span>
-      </div>
-    );
-  }
-
   const config = STATUS_CONFIG[status];
 
   return (

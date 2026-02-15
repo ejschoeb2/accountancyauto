@@ -8,7 +8,8 @@ import type { Client } from '@/app/actions/clients';
 export interface DashboardMetrics {
   overdueCount: number; // red
   criticalCount: number; // orange (< 1 week)
-  approachingCount: number; // amber (1-4 weeks)
+  approachingCount: number; // amber (1-4 weeks) - no reminder sent yet
+  approachingSentCount: number; // amber (1-4 weeks) - reminder already sent
   scheduledCount: number; // blue (> 4 weeks)
   completedCount: number; // green (records received)
   inactiveCount: number; // grey (paused)
@@ -39,6 +40,7 @@ export async function getDashboardMetrics(
       id,
       reminders_paused,
       records_received_for,
+      completed_for,
       year_end_date,
       vat_stagger_group
     `);
@@ -78,6 +80,7 @@ export async function getDashboardMetrics(
   let overdueCount = 0;
   let criticalCount = 0;
   let approachingCount = 0;
+  let approachingSentCount = 0;
   let scheduledCount = 0;
   let completedCount = 0;
   let inactiveCount = 0;
@@ -111,12 +114,41 @@ export async function getDashboardMetrics(
       records_received_for: Array.isArray(client.records_received_for)
         ? client.records_received_for
         : [],
+      completed_for: Array.isArray(client.completed_for)
+        ? client.completed_for
+        : [],
       filings,
     });
 
     if (status === 'red') overdueCount++;
     else if (status === 'orange') criticalCount++;
-    else if (status === 'amber') approachingCount++;
+    else if (status === 'amber') {
+      // Check if any amber-causing filing has been sent
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const oneWeekFromNow = new Date(today);
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+      const fourWeeksFromNow = new Date(today);
+      fourWeeksFromNow.setDate(fourWeeksFromNow.getDate() + 28);
+
+      const recordsReceivedSet = new Set(
+        Array.isArray(client.records_received_for) ? client.records_received_for : []
+      );
+
+      const hasAmberFilingSent = filings.some(filing => {
+        const deadlineDate = new Date(filing.deadline_date);
+        deadlineDate.setHours(0, 0, 0, 0);
+        const hasRecords = recordsReceivedSet.has(filing.filing_type_id);
+        const isAmberRange = deadlineDate >= oneWeekFromNow && deadlineDate < fourWeeksFromNow;
+        return !hasRecords && isAmberRange && filing.has_been_sent;
+      });
+
+      if (hasAmberFilingSent) {
+        approachingSentCount++;
+      } else {
+        approachingCount++;
+      }
+    }
     else if (status === 'blue') scheduledCount++;
     else if (status === 'green') completedCount++;
     else if (status === 'grey') inactiveCount++;
@@ -156,6 +188,7 @@ export async function getDashboardMetrics(
     overdueCount,
     criticalCount,
     approachingCount,
+    approachingSentCount,
     scheduledCount,
     completedCount,
     inactiveCount,
@@ -243,6 +276,9 @@ export async function getClientStatusList(
       reminders_paused: client.reminders_paused || false,
       records_received_for: Array.isArray(client.records_received_for)
         ? client.records_received_for
+        : [],
+      completed_for: Array.isArray(client.completed_for)
+        ? client.completed_for
         : [],
       filings,
     });

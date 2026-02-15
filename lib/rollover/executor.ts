@@ -33,7 +33,7 @@ export interface RolloverResult {
  *
  * Steps:
  * 1. Advance year_end_date if annual filing (Corp Tax, CT600, Companies House)
- * 2. Remove filing type from records_received_for array
+ * 2. Remove filing type from records_received_for and completed_for arrays
  * 3. Delete scheduled reminders for this filing type
  * 4. Rebuild queue (will calculate new deadlines)
  * 5. Log to audit trail
@@ -47,7 +47,7 @@ export async function rolloverFiling(
     // 1. Fetch client data
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('id, company_name, year_end_date, records_received_for')
+      .select('id, company_name, year_end_date, records_received_for, completed_for')
       .eq('id', clientId)
       .single();
 
@@ -79,22 +79,31 @@ export async function rolloverFiling(
       }
     }
 
-    // 3. Remove filing type from records_received_for array
+    // 3. Remove filing type from records_received_for and completed_for arrays
     const currentRecordsReceived = Array.isArray(client.records_received_for)
       ? client.records_received_for
+      : [];
+    const currentCompletedFor = Array.isArray(client.completed_for)
+      ? client.completed_for
       : [];
 
     const updatedRecordsReceived = currentRecordsReceived.filter(
       (id) => id !== filingTypeId
     );
+    const updatedCompletedFor = currentCompletedFor.filter(
+      (id) => id !== filingTypeId
+    );
 
     const { error: recordsError } = await supabase
       .from('clients')
-      .update({ records_received_for: updatedRecordsReceived })
+      .update({
+        records_received_for: updatedRecordsReceived,
+        completed_for: updatedCompletedFor,
+      })
       .eq('id', clientId);
 
     if (recordsError) {
-      throw new Error(`Failed to update records_received_for: ${recordsError.message}`);
+      throw new Error(`Failed to update records_received_for and completed_for: ${recordsError.message}`);
     }
 
     // 4. Delete scheduled reminders for this filing type

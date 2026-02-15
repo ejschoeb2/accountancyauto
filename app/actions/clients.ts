@@ -20,6 +20,7 @@ export interface Client {
   vat_scheme: "Standard" | "Flat Rate" | "Cash Accounting" | "Annual Accounting" | null;
   reminders_paused: boolean;
   records_received_for: string[] | null; // Array of filing_type_id strings
+  completed_for: string[] | null; // Array of filing_type_id strings for which accountant has completed processing
   synced_at: string | null;
   created_at: string;
   updated_at: string;

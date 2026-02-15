@@ -30,8 +30,13 @@ const STATUS_CONFIG: Record<
     bg: 'bg-sky-500/10',
     text: 'text-sky-500',
   },
-  green: {
+  violet: {
     label: 'Records Received',
+    bg: 'bg-violet-500/10',
+    text: 'text-violet-600',
+  },
+  green: {
+    label: 'Completed',
     bg: 'bg-green-500/10',
     text: 'text-green-600',
   },

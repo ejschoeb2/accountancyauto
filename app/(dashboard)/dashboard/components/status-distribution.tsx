@@ -15,6 +15,7 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
     orange: clients.filter((c) => c.status === 'orange').length,
     amber: clients.filter((c) => c.status === 'amber').length,
     blue: clients.filter((c) => c.status === 'blue').length,
+    violet: clients.filter((c) => c.status === 'violet').length,
     green: clients.filter((c) => c.status === 'green').length,
     grey: clients.filter((c) => c.status === 'grey').length,
   };
@@ -56,8 +57,16 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
       bgColor: 'bg-sky-500',
     },
     {
+      label: 'Records Received',
+      subtext: 'Awaiting completion',
+      count: statusCounts.violet,
+      percentage: total > 0 ? (statusCounts.violet / total) * 100 : 0,
+      color: '#8b5cf6', // Violet to match badge style
+      bgColor: 'bg-violet-500',
+    },
+    {
       label: 'Completed',
-      subtext: 'Records received',
+      subtext: 'Fully processed',
       count: statusCounts.green,
       percentage: total > 0 ? (statusCounts.green / total) * 100 : 0,
       color: '#22c55e', // Lighter green to match badge style
