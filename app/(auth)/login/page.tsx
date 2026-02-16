@@ -93,41 +93,40 @@ function LoginForm() {
   if (isDemo) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-8">
-          {/* Branding */}
-          <div className="flex flex-col items-center gap-4">
-            <Image
-              src="/logofini.png"
-              alt="Logo"
-              width={64}
-              height={64}
-              className="object-contain"
-            />
-            <div className="text-center space-y-2 mt-4">
-              <h1 className="text-3xl font-bold tracking-tight">
-                Welcome to PhaseTwo
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                Demo Environment
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Explore with sample data
-              </p>
+        <div className="w-full max-w-md">
+          {/* Card container */}
+          <div className="rounded-lg border bg-card shadow-sm p-8">
+            {/* Branding */}
+            <div className="flex flex-col items-center gap-6 mb-6">
+              <Image
+                src="/logofini.png"
+                alt="Logo"
+                width={80}
+                height={80}
+                className="object-contain"
+              />
+              <div className="text-center space-y-1">
+                <h1 className="text-3xl font-bold tracking-tight">
+                  Welcome to PhaseTwo
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Explore with sample data
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Demo Login */}
-          <div className="space-y-4">
+            {/* Error message */}
             {error && (
-              <div className="rounded-lg border border-status-danger/30 bg-status-danger/5 p-3 text-sm text-status-danger">
+              <div className="rounded-lg border border-status-danger/30 bg-status-danger/5 p-3 text-sm text-status-danger mb-4">
                 {error}
               </div>
             )}
 
+            {/* Demo Login Button */}
             <Button
               onClick={handleDemoLogin}
               disabled={isDemoLoading}
-              className="w-full h-12 text-base"
+              className="w-full h-12 text-base bg-status-info hover:bg-status-info/90 text-white"
             >
               {isDemoLoading ? (
                 <>
