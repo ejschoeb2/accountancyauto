@@ -328,8 +328,9 @@ export async function getClientStatusList(
     orange: 2,
     amber: 3,
     blue: 4,
-    green: 5,
-    grey: 6,
+    violet: 5,
+    green: 6,
+    grey: 7,
   };
 
   return statusRows.sort((a, b) => {
