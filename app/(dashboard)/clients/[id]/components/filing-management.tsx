@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { format, isPast } from 'date-fns';
 import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Calendar, CheckCircle, X, RefreshCw, Loader2 } from 'lucide-react';
+import { Calendar, CheckCircle, X, RefreshCw, Loader2, ExternalLink } from 'lucide-react';
 import { rolloverFiling } from '@/lib/rollover/executor';
 import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -291,6 +291,34 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
     }
   };
 
+  // Get filing portal URL and button text based on filing type
+  const getFilingPortal = (filingTypeName: string): { url: string; label: string } => {
+    const lowerName = filingTypeName.toLowerCase();
+
+    if (lowerName.includes('companies house')) {
+      return {
+        url: 'https://ewf.companieshouse.gov.uk/',
+        label: 'Take me to Companies House'
+      };
+    } else if (lowerName.includes('vat')) {
+      return {
+        url: 'https://www.tax.service.gov.uk/vat-through-software/what-you-need-to-do',
+        label: 'Take me to HMRC'
+      };
+    } else if (lowerName.includes('self assessment')) {
+      return {
+        url: 'https://www.tax.service.gov.uk/personal-account',
+        label: 'Take me to HMRC'
+      };
+    } else {
+      // Corporation Tax, CT600, and others
+      return {
+        url: 'https://www.tax.service.gov.uk/business-account',
+        label: 'Take me to HMRC'
+      };
+    }
+  };
+
   // Check if deadline has passed
   const isDeadlinePassed = (filing: FilingAssignment): boolean => {
     const deadline = filing.override_deadline || filing.calculated_deadline;
@@ -477,7 +505,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
 
                       {filing.is_active && isReceived && !isCompleted && (
                         <p className="text-sm text-muted-foreground">
-                          Mark as completed to enable rollover to next year's deadline.
+                          Click the button to file online, then mark as completed when done.
                         </p>
                       )}
                       {filing.is_active && isReceived && isCompleted && (
@@ -562,14 +590,22 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                                 Roll Over
                               </IconButtonWithText>
                             ) : isReceived && !isCompleted ? (
-                              /* Show disabled Override button if only records received */
-                              <IconButtonWithText
-                                variant="muted"
-                                disabled={true}
-                              >
-                                <Calendar className="h-4 w-4" />
-                                Override Deadline
-                              </IconButtonWithText>
+                              /* Show "Take me to HMRC/Companies House" button when records received but not yet completed */
+                              (() => {
+                                const portal = getFilingPortal(filing.filing_type.name);
+                                return (
+                                  <IconButtonWithText
+                                    variant="blue"
+                                    onClick={() => {
+                                      window.open(portal.url, '_blank', 'noopener,noreferrer');
+                                      toast.success('Opening filing portal in new tab');
+                                    }}
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                    {portal.label}
+                                  </IconButtonWithText>
+                                );
+                              })()
                             ) : hasOverride ? (
                               <IconButtonWithText
                                 variant="destructive"
