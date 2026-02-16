@@ -197,7 +197,7 @@ export function InboundEmailDetailModal({
                         <ButtonBase
                           onClick={handleApprove}
                           disabled={isUpdating}
-                          buttonType="text-with-icon"
+                          buttonType="icon-text"
                           variant="green"
                           className="w-full"
                         >
@@ -235,7 +235,7 @@ export function InboundEmailDetailModal({
                   <ButtonBase
                     onClick={() => onNavigate?.("prev")}
                     disabled={!hasPrev}
-                    buttonType="text-with-icon"
+                    buttonType="icon-text"
                     variant="violet"
                     className="flex-1"
                   >
@@ -245,7 +245,7 @@ export function InboundEmailDetailModal({
                   <ButtonBase
                     onClick={() => onNavigate?.("next")}
                     disabled={!hasNext}
-                    buttonType="text-with-icon"
+                    buttonType="icon-text"
                     variant="violet"
                     className="flex-1"
                   >
