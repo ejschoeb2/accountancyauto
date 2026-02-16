@@ -411,6 +411,7 @@ export async function getClientFilingStatuses(
         (o) => o.client_id === client.id && o.filing_type_id === filingTypeId
       );
       const isRecordsReceived = (client.records_received_for || []).includes(filingTypeId);
+      const isCompleted = (client.completed_for || []).includes(filingTypeId);
       const isAssigned = assignedFilings.has(filingTypeId);
 
       // Skip if not assigned and no records received and no override
@@ -429,6 +430,7 @@ export async function getClientFilingStatuses(
         filing_type_id: filingTypeId,
         deadline_date: deadlineDate,
         is_records_received: isRecordsReceived,
+        is_completed: isCompleted,
         override_status: override?.override_status || null,
       });
 
