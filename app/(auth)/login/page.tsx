@@ -18,6 +18,9 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
+  // Check if this is a demo deployment
+  const isDemo = process.env.NEXT_PUBLIC_IS_DEMO === "true";
+
   // Check for error from URL params
   const urlError = searchParams?.get("error");
 
@@ -86,31 +89,80 @@ function LoginForm() {
     );
   }
 
+  // Demo deployment: simplified "Enter Demo" page
+  if (isDemo) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-8">
+          {/* Branding */}
+          <div className="flex flex-col items-center gap-4">
+            <Image
+              src="/logofini.png"
+              alt="Logo"
+              width={64}
+              height={64}
+              className="object-contain"
+            />
+            <div className="text-center space-y-2 mt-4">
+              <h1 className="text-3xl font-bold tracking-tight">
+                Welcome to PhaseTwo
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                Demo Environment
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Explore with sample data
+              </p>
+            </div>
+          </div>
+
+          {/* Demo Login */}
+          <div className="space-y-4">
+            {error && (
+              <div className="rounded-lg border border-status-danger/30 bg-status-danger/5 p-3 text-sm text-status-danger">
+                {error}
+              </div>
+            )}
+
+            <Button
+              onClick={handleDemoLogin}
+              disabled={isDemoLoading}
+              className="w-full h-12 text-base"
+            >
+              {isDemoLoading ? (
+                <>
+                  <Loader2 className="size-5 mr-2 animate-spin" />
+                  Loading demo...
+                </>
+              ) : (
+                <>
+                  <Play className="size-5 mr-2" />
+                  Enter Demo
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Real deployment: normal login flow (no demo button)
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         {/* Branding */}
         <div className="flex flex-col items-center gap-4">
-          <div className="flex items-center gap-4">
-            <Image
-              src="/logofini.png"
-              alt="Logo"
-              width={48}
-              height={48}
-              className="object-contain"
-            />
-            <div className="w-px h-12 bg-border" />
-            <Image
-              src="/peninsulaccountinglogo.jpg"
-              alt="Peninsula Accounting"
-              width={140}
-              height={48}
-              className="object-contain"
-            />
-          </div>
+          <Image
+            src="/logofini.png"
+            alt="Logo"
+            width={64}
+            height={64}
+            className="object-contain"
+          />
           <div className="text-center space-y-2 mt-4">
             <h1 className="text-2xl font-bold tracking-tight">
-              Welcome to Peninsula Accounting
+              Welcome to PhaseTwo
             </h1>
             <p className="text-muted-foreground">
               Sign in with your email to get started
@@ -136,14 +188,14 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading || isDemoLoading}
+                disabled={isLoading}
                 className="h-12"
               />
             </div>
 
             <Button
               type="submit"
-              disabled={isLoading || isDemoLoading || !email}
+              disabled={isLoading || !email}
               className="w-full h-12 text-base"
             >
               {isLoading ? (
@@ -159,42 +211,6 @@ function LoginForm() {
               )}
             </Button>
           </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or
-              </span>
-            </div>
-          </div>
-
-          <Button
-            onClick={handleDemoLogin}
-            disabled={isLoading || isDemoLoading}
-            variant="outline"
-            className="w-full h-12 text-base"
-          >
-            {isDemoLoading ? (
-              <>
-                <Loader2 className="size-5 mr-2 animate-spin" />
-                Signing in to demo...
-              </>
-            ) : (
-              <>
-                <Play className="size-5 mr-2" />
-                Try Demo
-              </>
-            )}
-          </Button>
-
-          <div className="text-center text-sm text-muted-foreground">
-            <p>
-              Demo: Explore with sample data (no account needed)
-            </p>
-          </div>
         </div>
       </div>
     </div>

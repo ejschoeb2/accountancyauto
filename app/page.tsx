@@ -14,12 +14,15 @@ export default async function Home() {
     redirect("/login");
   }
 
-  // Demo users skip onboarding entirely
-  if (user.email === "demo@peninsula-internal.local") {
+  // Check if this is a demo deployment
+  const isDemo = process.env.NEXT_PUBLIC_IS_DEMO === "true";
+
+  // Demo deployments skip onboarding entirely
+  if (isDemo) {
     redirect("/dashboard");
   }
 
-  // For non-demo users, check if onboarding is complete
+  // For real deployments, check if onboarding is complete
   const onboardingComplete = await getOnboardingComplete();
 
   if (!onboardingComplete) {
