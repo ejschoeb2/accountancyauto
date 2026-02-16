@@ -52,8 +52,10 @@ export function BulkActionsToolbar({
             Delete Clients
           </ButtonBase>
 
+          <div className="h-8 w-px bg-border" />
+
           <ButtonBase
-            variant="destructive"
+            variant="amber"
             buttonType="icon-text"
             onClick={onClearSelection}
           >

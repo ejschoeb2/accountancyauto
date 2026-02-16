@@ -3,7 +3,14 @@
 import { useState, useTransition } from "react";
 import { Mail } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { ToggleGroup } from "@/components/ui/toggle-group";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   updateInboundCheckerMode,
   type InboundCheckerMode,
@@ -44,24 +51,30 @@ export function InboundCheckerCard({ defaultMode }: InboundCheckerCardProps) {
           <Mail className="size-6 text-violet-500" />
         </div>
         <div className="flex-1 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Inbound Email Checker Configuration</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure how the system responds to inbound emails with client documents
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">Inbound Email Checker</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure how the system responds to inbound emails with client documents
+              </p>
+            </div>
+            <Badge variant="violet">Beta Feature</Badge>
           </div>
 
           <div className="space-y-3">
-            <ToggleGroup
-              options={[
-                { value: "auto", label: "Make changes automatically" },
-                { value: "recommend", label: "Provide recommendation only" },
-              ]}
+            <Select
               value={mode}
-              onChange={(value) => handleChange(value as InboundCheckerMode)}
-              variant="muted"
+              onValueChange={(value) => handleChange(value as InboundCheckerMode)}
               disabled={isPending}
-            />
+            >
+              <SelectTrigger className="h-9 min-w-[280px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">Make changes automatically</SelectItem>
+                <SelectItem value="recommend">Provide recommendation only</SelectItem>
+              </SelectContent>
+            </Select>
 
             <p className="text-xs text-muted-foreground">
               {mode === "auto" ? (
