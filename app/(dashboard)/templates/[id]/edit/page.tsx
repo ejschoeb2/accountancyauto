@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { TemplateEditor } from '../../components/template-editor'
 import { SubjectLineEditor } from '../../components/subject-line-editor'
 import { PlaceholderDropdown } from '../../components/placeholder-dropdown'
+import { EditorToolbar } from '../../components/template-editor-toolbar'
 import { Button } from '@/components/ui/button'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { LoadingScreen } from '@/components/loading-screen'
@@ -15,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CheckButton } from '@/components/ui/check-button'
-import { CheckCircle, Trash2, X } from 'lucide-react'
+import { CheckCircle, Pencil, Trash2, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -40,10 +41,21 @@ export default function EditTemplatePage() {
   const [saving, setSaving] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [editor, setEditor] = useState<any>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
 
   // Refs for unified placeholder insertion
   const subjectInputRef = useRef<HTMLInputElement>(null)
-  const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void } | null>(null)
+  const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void; getEditor: () => any } | null>(null)
+
+  // Store original values for change tracking
+  const [originalValues, setOriginalValues] = useState<{
+    name: string
+    subject: string
+    bodyJson: TipTapDocument | null
+    isActive: boolean
+  } | null>(null)
 
   // Load existing template
   useEffect(() => {
@@ -67,6 +79,12 @@ export default function EditTemplatePage() {
         setSubject(template.subject)
         setBodyJson(template.body_json)
         setIsActive(template.is_active)
+        setOriginalValues({
+          name: template.name,
+          subject: template.subject,
+          bodyJson: template.body_json,
+          isActive: template.is_active,
+        })
         setLoading(false)
       } catch (error) {
         toast.error('Failed to load template')
@@ -76,6 +94,46 @@ export default function EditTemplatePage() {
 
     loadTemplate()
   }, [templateId, router])
+
+  // Update editor state when ref changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (editorRef.current) {
+        const ed = editorRef.current.getEditor()
+        if (ed && ed !== editor) {
+          setEditor(ed)
+        }
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [editor])
+
+  // Track unsaved changes
+  useEffect(() => {
+    if (!originalValues) return
+
+    const hasChanges =
+      name !== originalValues.name ||
+      subject !== originalValues.subject ||
+      isActive !== originalValues.isActive ||
+      JSON.stringify(bodyJson) !== JSON.stringify(originalValues.bodyJson)
+
+    setHasUnsavedChanges(hasChanges)
+  }, [name, subject, bodyJson, isActive, originalValues])
+
+  // Warn on browser close/refresh with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
 
   const handleSave = async () => {
     // Validation
@@ -111,6 +169,8 @@ export default function EditTemplatePage() {
       }
 
       toast.success('Template updated!')
+      setHasUnsavedChanges(false)
+      setShowUnsavedDialog(false)
       router.push('/templates')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update template')
@@ -141,6 +201,15 @@ export default function EditTemplatePage() {
   }
 
   const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedDialog(true)
+    } else {
+      router.push('/templates')
+    }
+  }
+
+  const confirmCancel = () => {
+    setHasUnsavedChanges(false)
     router.push('/templates')
   }
 
@@ -207,21 +276,28 @@ export default function EditTemplatePage() {
         </Label>
       </div>
 
+      {/* Toolbar with Insert Variable button on left */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <PlaceholderDropdown
+          subjectInputRef={subjectInputRef}
+          onEditorInsert={(id, label) => {
+            editorRef.current?.insertPlaceholder(id, label)
+          }}
+        />
+        <div className="w-px h-6 bg-border" />
+        <EditorToolbar editor={editor} />
+      </div>
+
       {/* Email Composer */}
       <Card className="overflow-hidden flex flex-col p-0">
+        {/* Subject Line */}
         <SubjectLineEditor
           ref={subjectInputRef}
           value={subject}
           onChange={setSubject}
-          placeholderButtonSlot={
-            <PlaceholderDropdown
-              subjectInputRef={subjectInputRef}
-              onEditorInsert={(id, label) => {
-                editorRef.current?.insertPlaceholder(id, label)
-              }}
-            />
-          }
         />
+
+        {/* Email Body */}
         <div className="flex-1">
           <TemplateEditor
             ref={editorRef}
@@ -230,6 +306,42 @@ export default function EditTemplatePage() {
           />
         </div>
       </Card>
+
+      {/* Unsaved Changes Dialog */}
+      <Dialog open={showUnsavedDialog} onOpenChange={() => {}}>
+        <DialogContent className="[&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes. Are you sure you want to leave without saving?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <IconButtonWithText
+              variant="violet"
+              onClick={() => setShowUnsavedDialog(false)}
+            >
+              <Pencil className="h-5 w-5" />
+              Keep Editing
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="destructive"
+              onClick={confirmCancel}
+            >
+              <X className="h-5 w-5" />
+              Discard Changes
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="blue"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              <CheckCircle className="h-5 w-5" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

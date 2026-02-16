@@ -11,8 +11,9 @@ export function PlaceholderPill({ node }: NodeViewProps) {
     <NodeViewWrapper
       as="span"
       className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-sm font-medium select-none"
+      contentEditable={false}
     >
-      {`{{${label || id}}}`}
+      {label || id}
     </NodeViewWrapper>
   )
 }

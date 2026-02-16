@@ -5,9 +5,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { PlaceholderNode } from '../extensions/placeholder-node'
 import { PasteHandler } from '../extensions/paste-handler'
-import { EditorToolbar } from './template-editor-toolbar'
 import type { TipTapDocument } from '@/lib/types/database'
 import { useEffect, forwardRef, useImperativeHandle } from 'react'
+import type { Editor } from '@tiptap/react'
 
 interface TemplateEditorProps {
   initialContent?: TipTapDocument | null
@@ -16,6 +16,7 @@ interface TemplateEditorProps {
 
 export interface TemplateEditorHandle {
   insertPlaceholder: (id: string, label: string) => void
+  getEditor: () => Editor | null
 }
 
 export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorProps>(
@@ -54,7 +55,7 @@ export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorPro
       },
     })
 
-    // Expose insertPlaceholder method
+    // Expose insertPlaceholder method and editor
     useImperativeHandle(ref, () => ({
       insertPlaceholder: (id: string, label: string) => {
         if (editor) {
@@ -64,6 +65,7 @@ export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorPro
           }).run()
         }
       },
+      getEditor: () => editor,
     }), [editor])
 
     // Cleanup on unmount
@@ -83,13 +85,10 @@ export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorPro
     }
 
     return (
-      <div className="flex flex-col h-full">
-        <EditorToolbar editor={editor} />
-        <EditorContent
-          editor={editor}
-          className="prose prose-sm max-w-none p-4 min-h-[300px] flex-1 focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-full"
-        />
-      </div>
+      <EditorContent
+        editor={editor}
+        className="prose prose-sm max-w-none p-4 min-h-[300px] flex-1 focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-full"
+      />
     )
   }
 )

@@ -79,7 +79,13 @@
       "Bash(node scripts/apply-constraint-fix.mjs:*)",
       "Bash(node scripts/apply-status-override-migration.mjs:*)",
       "Bash(node:*)",
-      "Bash(timeout 10 npm run dev:*)"
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(dir /b \"app\\\\\\(dashboard\\)\\\\rollover\"\" && echo \"---rollover---\" && dir /b \"librollover\"\")",
+      "Bash(dir /b \"app\\\\api\\\\reminder-queue\"\" && echo \"---reminder-queue---\" && dir /b \"appapirun-migration\"\")",
+      "Bash(dir /b \".planning\\\\data\"\" && echo \"---planning-data---\" && dir /b \"appapiclientsbulk-status-update\"\")",
+      "Bash(npx @supabase/supabase-js:*)",
+      "WebFetch(domain:postmarkapp.com)",
+      "Bash(dir:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

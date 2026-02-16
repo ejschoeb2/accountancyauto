@@ -33,19 +33,22 @@ export interface ClientStatusRow {
 export async function getDashboardMetrics(
   supabase: SupabaseClient
 ): Promise<DashboardMetrics> {
-  // Fetch all clients with their filing data
-  const { data: clients, error: clientsError } = await supabase
-    .from('clients')
-    .select(`
-      id,
-      reminders_paused,
-      records_received_for,
-      completed_for,
-      year_end_date,
-      vat_stagger_group
-    `);
+  try {
+    // Fetch all clients with their filing data
+    const { data: clients, error: clientsError } = await supabase
+      .from('clients')
+      .select(`
+        id,
+        reminders_paused,
+        records_received_for,
+        year_end_date,
+        vat_stagger_group
+      `);
 
-  if (clientsError) throw clientsError;
+    if (clientsError) {
+      console.error('Error fetching clients:', clientsError);
+      throw clientsError;
+    }
 
   // Fetch all active filing assignments
   const { data: assignments, error: assignmentsError } = await supabase
@@ -114,43 +117,48 @@ export async function getDashboardMetrics(
       records_received_for: Array.isArray(client.records_received_for)
         ? client.records_received_for
         : [],
-      completed_for: Array.isArray(client.completed_for)
-        ? client.completed_for
-        : [],
+      completed_for: [], // TODO: Add when migration is applied
       filings,
     });
 
     if (status === 'red') overdueCount++;
     else if (status === 'orange') criticalCount++;
     else if (status === 'amber') {
-      // Check if any amber-causing filing has been sent
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const oneWeekFromNow = new Date(today);
-      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
-      const fourWeeksFromNow = new Date(today);
-      fourWeeksFromNow.setDate(fourWeeksFromNow.getDate() + 28);
+      try {
+        // Check if any amber-causing filing has been sent
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const oneWeekFromNow = new Date(today);
+        oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+        const fourWeeksFromNow = new Date(today);
+        fourWeeksFromNow.setDate(fourWeeksFromNow.getDate() + 28);
 
-      const recordsReceivedSet = new Set(
-        Array.isArray(client.records_received_for) ? client.records_received_for : []
-      );
+        const recordsReceivedSet = new Set(
+          Array.isArray(client.records_received_for) ? client.records_received_for : []
+        );
 
-      const hasAmberFilingSent = filings.some(filing => {
-        const deadlineDate = new Date(filing.deadline_date);
-        deadlineDate.setHours(0, 0, 0, 0);
-        const hasRecords = recordsReceivedSet.has(filing.filing_type_id);
-        const isAmberRange = deadlineDate >= oneWeekFromNow && deadlineDate < fourWeeksFromNow;
-        return !hasRecords && isAmberRange && filing.has_been_sent;
-      });
+        const hasAmberFilingSent = filings.some(filing => {
+          const deadlineDate = new Date(filing.deadline_date);
+          deadlineDate.setHours(0, 0, 0, 0);
+          const hasRecords = recordsReceivedSet.has(filing.filing_type_id);
+          const isAmberRange = deadlineDate >= oneWeekFromNow && deadlineDate < fourWeeksFromNow;
+          return !hasRecords && isAmberRange && filing.has_been_sent;
+        });
 
-      if (hasAmberFilingSent) {
-        approachingSentCount++;
-      } else {
+        if (hasAmberFilingSent) {
+          approachingSentCount++;
+        } else {
+          approachingCount++;
+        }
+      } catch (amberError) {
+        console.error('Error processing amber client:', client.id, amberError);
+        // Default to unsent count on error
         approachingCount++;
       }
     }
     else if (status === 'blue') scheduledCount++;
     else if (status === 'green') completedCount++;
+    else if (status === 'violet') completedCount++; // Treat violet as completed for metrics
     else if (status === 'grey') inactiveCount++;
   }
 
@@ -184,18 +192,22 @@ export async function getDashboardMetrics(
 
   if (failedError) throw failedError;
 
-  return {
-    overdueCount,
-    criticalCount,
-    approachingCount,
-    approachingSentCount,
-    scheduledCount,
-    completedCount,
-    inactiveCount,
-    sentTodayCount: sentTodayCount || 0,
-    pausedCount: pausedCount || 0,
-    failedDeliveryCount: failedDeliveryCount || 0,
-  };
+    return {
+      overdueCount,
+      criticalCount,
+      approachingCount,
+      approachingSentCount,
+      scheduledCount,
+      completedCount,
+      inactiveCount,
+      sentTodayCount: sentTodayCount || 0,
+      pausedCount: pausedCount || 0,
+      failedDeliveryCount: failedDeliveryCount || 0,
+    };
+  } catch (error) {
+    console.error('Error in getDashboardMetrics:', error);
+    throw error;
+  }
 }
 
 /**
@@ -277,9 +289,7 @@ export async function getClientStatusList(
       records_received_for: Array.isArray(client.records_received_for)
         ? client.records_received_for
         : [],
-      completed_for: Array.isArray(client.completed_for)
-        ? client.completed_for
-        : [],
+      completed_for: [], // TODO: Add when migration is applied
       filings,
     });
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertOctagon, AlertTriangle, MailCheck, MailX } from 'lucide-react';
+import { AlertOctagon, AlertTriangle, Clock, ClockCheck, MailCheck, MailX } from 'lucide-react';
 import type { DashboardMetrics } from '@/lib/dashboard/metrics';
 
 interface SummaryCardsProps {
@@ -49,20 +49,20 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
           </Card>
         </Link>
 
-        <Link href="/clients?filter=orange">
+        <Link href="/clients?filter=amber">
           <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
             <CardContent className="px-5 py-0">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                    Critical Clients
+                    Approaching Clients
                   </p>
                   <p className="text-4xl font-bold mt-3">
-                    {metrics.criticalCount}
+                    {metrics.approachingCount + metrics.approachingSentCount}
                   </p>
                 </div>
-                <div className="size-10 rounded-lg bg-status-critical/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-critical/20">
-                  <AlertTriangle className="size-6 text-status-critical" />
+                <div className="size-10 rounded-lg bg-status-warning/10 flex items-center justify-center transition-all duration-200 group-hover:bg-status-warning/20">
+                  <Clock className="size-6 text-status-warning" />
                 </div>
               </div>
             </CardContent>

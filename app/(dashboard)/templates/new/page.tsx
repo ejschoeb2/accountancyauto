@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { TemplateEditor } from '../components/template-editor'
 import { SubjectLineEditor } from '../components/subject-line-editor'
 import { PlaceholderDropdown } from '../components/placeholder-dropdown'
+import { EditorToolbar } from '../components/template-editor-toolbar'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import {
   Card,
@@ -24,10 +25,25 @@ export default function NewTemplatePage() {
   const [bodyJson, setBodyJson] = useState<TipTapDocument | null>(null)
   const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [editor, setEditor] = useState<any>(null)
 
   // Refs for unified placeholder insertion
   const subjectInputRef = useRef<HTMLInputElement>(null)
-  const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void } | null>(null)
+  const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void; getEditor: () => any } | null>(null)
+
+  // Update editor state when ref changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (editorRef.current) {
+        const ed = editorRef.current.getEditor()
+        if (ed && ed !== editor) {
+          setEditor(ed)
+        }
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [editor])
 
   const handleSave = async () => {
     // Validation
@@ -125,21 +141,28 @@ export default function NewTemplatePage() {
         </Label>
       </div>
 
+      {/* Toolbar with Insert Variable button on left */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <PlaceholderDropdown
+          subjectInputRef={subjectInputRef}
+          onEditorInsert={(id, label) => {
+            editorRef.current?.insertPlaceholder(id, label)
+          }}
+        />
+        <div className="w-px h-6 bg-border" />
+        <EditorToolbar editor={editor} />
+      </div>
+
       {/* Email Composer */}
       <Card className="overflow-hidden flex flex-col p-0">
+        {/* Subject Line */}
         <SubjectLineEditor
           ref={subjectInputRef}
           value={subject}
           onChange={setSubject}
-          placeholderButtonSlot={
-            <PlaceholderDropdown
-              subjectInputRef={subjectInputRef}
-              onEditorInsert={(id, label) => {
-                editorRef.current?.insertPlaceholder(id, label)
-              }}
-            />
-          }
         />
+
+        {/* Email Body */}
         <div className="flex-1">
           <TemplateEditor
             ref={editorRef}

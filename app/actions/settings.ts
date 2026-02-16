@@ -151,3 +151,37 @@ export async function markOnboardingComplete(): Promise<{ error?: string }> {
   if (error) return { error: error.message };
   return {};
 }
+
+// --- Inbound Email Checker Mode ---
+
+export type InboundCheckerMode = "auto" | "recommend";
+
+export async function getInboundCheckerMode(): Promise<InboundCheckerMode> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "inbound_checker_mode")
+    .single();
+
+  return data?.value === "recommend" ? "recommend" : "auto";
+}
+
+export async function updateInboundCheckerMode(
+  mode: InboundCheckerMode
+): Promise<{ error?: string }> {
+  if (mode !== "auto" && mode !== "recommend") {
+    return { error: "Mode must be 'auto' or 'recommend'" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { key: "inbound_checker_mode", value: mode },
+      { onConflict: "key" }
+    );
+
+  if (error) return { error: error.message };
+  return {};
+}

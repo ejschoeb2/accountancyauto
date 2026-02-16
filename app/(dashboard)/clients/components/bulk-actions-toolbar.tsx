@@ -1,19 +1,17 @@
 "use client";
 
-import { Pencil, X, Mail } from "lucide-react";
+import { X, Mail } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import { cn } from "@/lib/utils";
 
 interface BulkActionsToolbarProps {
   selectedCount: number;
-  onBulkEdit: () => void;
   onSendEmail: () => void;
   onClearSelection: () => void;
 }
 
 export function BulkActionsToolbar({
   selectedCount,
-  onBulkEdit,
   onSendEmail,
   onClearSelection,
 }: BulkActionsToolbarProps) {
@@ -40,16 +38,7 @@ export function BulkActionsToolbar({
             onClick={onSendEmail}
           >
             <Mail className="size-4" />
-            Send Email
-          </ButtonBase>
-
-          <ButtonBase
-            variant="violet"
-            buttonType="icon-text"
-            onClick={onBulkEdit}
-          >
-            <Pencil className="size-4" />
-            Bulk Edit
+            Send Bulk Email
           </ButtonBase>
 
           <ButtonBase

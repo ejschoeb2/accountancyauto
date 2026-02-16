@@ -20,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle, Trash2, X } from 'lucide-react'
+import { CheckCircle, Pencil, Trash2, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -68,6 +68,8 @@ export default function EditSchedulePage() {
   const [scheduleType, setScheduleType] = useState<'filing' | 'custom'>(initialScheduleType)
   const [dateMode, setDateMode] = useState<DateMode>('one-off')
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set())
+  const [initialClientIds, setInitialClientIds] = useState<Set<string>>(new Set())
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
 
   const VALID_FILING_TYPE_IDS: FilingTypeId[] = [
     'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return', 'self_assessment',
@@ -209,6 +211,27 @@ export default function EditSchedulePage() {
     loadData()
   }, [scheduleId, isNew, router, form])
 
+  // Track unsaved changes
+  const hasUnsavedChanges = form.formState.isDirty || (
+    isNew && scheduleType === 'custom' && (
+      selectedClientIds.size !== initialClientIds.size ||
+      Array.from(selectedClientIds).some(id => !initialClientIds.has(id))
+    )
+  )
+
+  // Warn on browser close/refresh with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
+
   const onSubmit = async (data: ScheduleInput) => {
     setSaving(true)
     try {
@@ -249,6 +272,7 @@ export default function EditSchedulePage() {
       }
 
       toast.success(isNew ? 'Reminder schedule created!' : 'Reminder schedule updated!')
+      setShowUnsavedDialog(false)
       router.push('/schedules')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Failed to ${isNew ? 'create' : 'update'} reminder schedule`)
@@ -279,6 +303,14 @@ export default function EditSchedulePage() {
   }
 
   const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedDialog(true)
+    } else {
+      router.push('/schedules')
+    }
+  }
+
+  const confirmCancel = () => {
     router.push('/schedules')
   }
 
@@ -584,6 +616,42 @@ export default function EditSchedulePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Unsaved Changes Dialog */}
+      <Dialog open={showUnsavedDialog} onOpenChange={() => {}}>
+        <DialogContent className="[&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>Unsaved Changes</DialogTitle>
+            <DialogDescription>
+              You have unsaved changes. Are you sure you want to leave without saving?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <IconButtonWithText
+              variant="violet"
+              onClick={() => setShowUnsavedDialog(false)}
+            >
+              <Pencil className="h-5 w-5" />
+              Keep Editing
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="destructive"
+              onClick={confirmCancel}
+            >
+              <X className="h-5 w-5" />
+              Discard Changes
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="blue"
+              onClick={() => form.handleSubmit(onSubmit)()}
+              disabled={saving}
+            >
+              <CheckCircle className="h-5 w-5" />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

@@ -50,12 +50,10 @@ import { TrafficLightBadge } from "@/app/(dashboard)/dashboard/components/traffi
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
-import { BulkEditModal } from "./bulk-edit-modal";
 import { SendEmailModal } from "./send-email-modal";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { StatusDropdown } from "./status-dropdown";
 import { FilingStatusBadge } from "./filing-status-badge";
-import { BulkEditStatusModal } from "./bulk-edit-status-modal";
 import type { FilingTypeStatus } from "@/lib/types/database";
 import type { Row } from "@tanstack/react-table";
 
@@ -64,9 +62,7 @@ const CsvImportDialog = dynamic(() => import("./csv-import-dialog").then(m => ({
 const CreateClientDialog = dynamic(() => import("./create-client-dialog").then(m => ({ default: m.CreateClientDialog })), { ssr: false });
 import {
   type Client,
-  type BulkUpdateFields,
   updateClientMetadata,
-  bulkUpdateClients,
 } from "@/app/actions/clients";
 
 export interface ClientStatusInfo {
@@ -158,11 +154,9 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(initialFilter ? true : false);
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isBulkStatusModalOpen, setIsBulkStatusModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -347,33 +341,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
     [data]
   );
 
-  // Handle bulk update
-  const handleBulkUpdate = useCallback(
-    async (updates: BulkUpdateFields) => {
-      const clientIds = selectedClients.map((c) => c.id);
-
-      // Optimistic update
-      const previousData = [...data];
-      setData((prev) =>
-        prev.map((client) =>
-          clientIds.includes(client.id) ? { ...client, ...updates } : client
-        )
-      );
-
-      try {
-        await bulkUpdateClients(clientIds, updates);
-        toast.success(`Updated ${clientIds.length} client${clientIds.length !== 1 ? "s" : ""}`);
-        setRowSelection({});
-      } catch (error) {
-        // Revert on error
-        setData(previousData);
-        const message = error instanceof Error ? error.message : "Failed to update";
-        toast.error(message);
-        throw error;
-      }
-    },
-    [selectedClients, data]
-  );
 
   // Handle status update
   const handleStatusUpdate = useCallback(
@@ -1140,38 +1107,12 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
 
       {/* Bulk Actions Toolbar */}
       <div className="max-w-7xl mx-auto">
-      <BulkActionsToolbar
-        selectedCount={selectedClients.length}
-        onBulkEdit={() => {
-          if (viewMode === 'status') {
-            setIsBulkStatusModalOpen(true);
-          } else {
-            setIsBulkModalOpen(true);
-          }
-        }}
-        onSendEmail={() => setIsSendEmailModalOpen(true)}
-        onClearSelection={() => setRowSelection({})}
-      />
+        <BulkActionsToolbar
+          selectedCount={selectedClients.length}
+          onSendEmail={() => setIsSendEmailModalOpen(true)}
+          onClearSelection={() => setRowSelection({})}
+        />
       </div>
-
-      {/* Bulk Edit Modal */}
-      <BulkEditModal
-        open={isBulkModalOpen}
-        onClose={() => setIsBulkModalOpen(false)}
-        selectedClients={selectedClients}
-        onSave={handleBulkUpdate}
-      />
-
-      {/* Bulk Edit Status Modal */}
-      <BulkEditStatusModal
-        open={isBulkStatusModalOpen}
-        onClose={() => setIsBulkStatusModalOpen(false)}
-        selectedClients={selectedClients}
-        onComplete={() => {
-          setRowSelection({});
-          router.refresh();
-        }}
-      />
 
       {/* Send Email Modal */}
       <SendEmailModal

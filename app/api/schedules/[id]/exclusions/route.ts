@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 /**
  * GET /api/schedules/[id]/exclusions
@@ -10,7 +10,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   const { data, error } = await supabase
     .from("schedule_client_exclusions")
@@ -38,7 +38,7 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const supabase = await createClient();
+  const supabase = createServiceClient();
 
   let body: { excluded_client_ids: string[] };
   try {
@@ -80,7 +80,7 @@ export async function PUT(
   if (deleteError) {
     console.error("Error deleting exclusions:", deleteError);
     return NextResponse.json(
-      { error: "Failed to update exclusions" },
+      { error: `Failed to delete existing exclusions: ${deleteError.message}` },
       { status: 500 }
     );
   }
@@ -99,7 +99,7 @@ export async function PUT(
     if (insertError) {
       console.error("Error inserting exclusions:", insertError);
       return NextResponse.json(
-        { error: "Failed to update exclusions" },
+        { error: `Failed to insert exclusions: ${insertError.message}` },
         { status: 500 }
       );
     }

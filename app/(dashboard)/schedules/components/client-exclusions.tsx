@@ -74,6 +74,9 @@ export function ClientExclusions({ scheduleId }: ClientExclusionsProps) {
   }, [clients, search])
 
   const toggleExclusion = async (clientId: string) => {
+    // Prevent multiple simultaneous updates
+    if (saving) return
+
     const newExcluded = new Set(excludedIds)
     if (newExcluded.has(clientId)) {
       newExcluded.delete(clientId)
@@ -149,7 +152,6 @@ export function ClientExclusions({ scheduleId }: ClientExclusionsProps) {
               >
                 <CheckButton
                   checked={!isExcluded}
-                  onCheckedChange={() => toggleExclusion(client.id)}
                   aria-label={`${isExcluded ? 'Include' : 'Exclude'} ${client.company_name}`}
                 />
                 <div className="min-w-0 flex-1">

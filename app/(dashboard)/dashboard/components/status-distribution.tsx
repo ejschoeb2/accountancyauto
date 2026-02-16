@@ -58,7 +58,7 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
     },
     {
       label: 'Records Received',
-      subtext: 'Awaiting completion',
+      subtext: 'Awaiting Submission',
       count: statusCounts.violet,
       percentage: total > 0 ? (statusCounts.violet / total) * 100 : 0,
       color: '#8b5cf6', // Violet to match badge style
@@ -69,7 +69,7 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
       subtext: 'Fully processed',
       count: statusCounts.green,
       percentage: total > 0 ? (statusCounts.green / total) * 100 : 0,
-      color: '#22c55e', // Lighter green to match badge style
+      color: '#10b981', // Standard button green (green-500)
       bgColor: 'bg-green-500',
     },
     {
@@ -89,8 +89,8 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Client Status Distribution
           </p>
-          <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
-            <PieChart className="size-6 text-violet-500" />
+          <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-green-500/20">
+            <PieChart className="size-6 text-green-600" />
           </div>
         </div>
         <div className="flex-1">
@@ -99,10 +99,10 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
               No clients to display
             </p>
           ) : (
-            <div className="flex items-center justify-center gap-12">
+            <div className="flex items-center justify-center gap-9">
               {/* Pie chart */}
               <div className="flex items-center justify-center flex-shrink-0">
-                <div className="relative size-48">
+                <div className="relative size-40">
                   <div
                     className="size-full rounded-full"
                     style={{
@@ -119,20 +119,20 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
                     }}
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="size-36 rounded-full bg-card flex items-center justify-center">
-                      <span className="text-5xl font-bold">{total}</span>
+                    <div className="size-28 rounded-full bg-card flex items-center justify-center">
+                      <span className="text-4xl font-bold">{total}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Legend */}
-              <div className="space-y-3 min-w-[240px]">
+              <div className="space-y-3 min-w-[300px]">
                 {statusData.map((item) => (
                   <div key={item.label} className="flex items-center gap-2.5">
                     <div className={`size-4 rounded ${item.bgColor} flex-shrink-0`} />
-                    <div className="flex items-baseline justify-between flex-1 gap-16">
-                      <div className="flex items-baseline gap-1 min-w-0">
+                    <div className="flex items-baseline gap-6 flex-1">
+                      <div className="flex items-baseline gap-1 flex-1">
                         <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
                         <span className="text-sm whitespace-nowrap">({item.subtext})</span>
                       </div>

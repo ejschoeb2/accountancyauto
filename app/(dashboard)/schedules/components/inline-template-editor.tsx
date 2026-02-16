@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { TemplateEditor } from '../../templates/components/template-editor'
 import { SubjectLineEditor } from '../../templates/components/subject-line-editor'
 import { PlaceholderDropdown } from '../../templates/components/placeholder-dropdown'
+import { EditorToolbar } from '../../templates/components/template-editor-toolbar'
 import { Button } from '@/components/ui/button'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { Card } from '@/components/ui/card'
@@ -29,10 +30,25 @@ export function InlineTemplateEditor({ templateId, onCancel, onSave }: InlineTem
   const [bodyJson, setBodyJson] = useState<TipTapDocument | null>(null)
   const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [editor, setEditor] = useState<any>(null)
 
   // Refs for unified placeholder insertion
   const subjectInputRef = useRef<HTMLInputElement>(null)
-  const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void } | null>(null)
+  const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void; getEditor: () => any } | null>(null)
+
+  // Update editor state when ref changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (editorRef.current) {
+        const ed = editorRef.current.getEditor()
+        if (ed && ed !== editor) {
+          setEditor(ed)
+        }
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
+  }, [editor])
 
   // Load existing template
   useEffect(() => {
@@ -168,21 +184,28 @@ export function InlineTemplateEditor({ templateId, onCancel, onSave }: InlineTem
         </Label>
       </div>
 
+      {/* Toolbar with Insert Variable button on left */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <PlaceholderDropdown
+          subjectInputRef={subjectInputRef}
+          onEditorInsert={(id, label) => {
+            editorRef.current?.insertPlaceholder(id, label)
+          }}
+        />
+        <div className="w-px h-6 bg-border" />
+        <EditorToolbar editor={editor} />
+      </div>
+
       {/* Email Composer */}
       <Card className="overflow-hidden flex flex-col p-0">
+        {/* Subject Line */}
         <SubjectLineEditor
           ref={subjectInputRef}
           value={subject}
           onChange={setSubject}
-          placeholderButtonSlot={
-            <PlaceholderDropdown
-              subjectInputRef={subjectInputRef}
-              onEditorInsert={(id, label) => {
-                editorRef.current?.insertPlaceholder(id, label)
-              }}
-            />
-          }
         />
+
+        {/* Email Body */}
         <div className="flex-1">
           <TemplateEditor
             ref={editorRef}

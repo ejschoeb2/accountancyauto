@@ -1,8 +1,9 @@
-import { getSendHour, getEmailSettings } from "@/app/actions/settings";
+import { getSendHour, getEmailSettings, getInboundCheckerMode } from "@/app/actions/settings";
 import { LogOut, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { SendHourPicker } from "./components/send-hour-picker";
 import { EmailSettingsCard } from "./components/email-settings-card";
+import { InboundCheckerCard } from "./components/inbound-checker-card";
 import { SignOutButton } from "@/components/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,9 +15,10 @@ export default async function SettingsPage() {
 
   const isDemoUser = user?.email === "demo@peninsula-internal.local";
 
-  const [sendHour, emailSettings] = await Promise.all([
+  const [sendHour, emailSettings, inboundCheckerMode] = await Promise.all([
     getSendHour(),
     getEmailSettings(),
+    getInboundCheckerMode(),
   ]);
 
   return (
@@ -61,6 +63,9 @@ export default async function SettingsPage() {
 
       {/* Email Settings Card */}
       <EmailSettingsCard defaultSettings={emailSettings} />
+
+      {/* Inbound Email Checker Card */}
+      <InboundCheckerCard defaultMode={inboundCheckerMode} />
     </div>
   );
 }

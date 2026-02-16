@@ -1,6 +1,6 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
+import { ButtonBase } from '@/components/ui/button-base'
 import { Bold, Italic, List, ListOrdered, Link2, Unlink } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 
@@ -33,78 +33,78 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
   }
 
   return (
-    <div className="border-b p-2 flex items-center gap-1 flex-wrap bg-background">
+    <div className="flex items-center gap-2 flex-wrap">
       {/* Bold */}
-      <Button
+      <ButtonBase
         type="button"
-        variant={editor.isActive('bold') ? 'default' : 'ghost'}
-        size="sm"
+        variant="muted"
+        buttonType="icon-only"
+        isSelected={editor.isActive('bold')}
         onClick={() => editor.chain().focus().toggleBold().run()}
         title="Bold (Ctrl+B)"
       >
-        <Bold />
-      </Button>
+        <Bold className="h-4 w-4" />
+      </ButtonBase>
 
       {/* Italic */}
-      <Button
+      <ButtonBase
         type="button"
-        variant={editor.isActive('italic') ? 'default' : 'ghost'}
-        size="sm"
+        variant="muted"
+        buttonType="icon-only"
+        isSelected={editor.isActive('italic')}
         onClick={() => editor.chain().focus().toggleItalic().run()}
         title="Italic (Ctrl+I)"
       >
-        <Italic />
-      </Button>
-
-      {/* Separator */}
-      <div className="w-px h-6 bg-border mx-1" />
+        <Italic className="h-4 w-4" />
+      </ButtonBase>
 
       {/* Bullet List */}
-      <Button
+      <ButtonBase
         type="button"
-        variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
-        size="sm"
+        variant="muted"
+        buttonType="icon-only"
+        isSelected={editor.isActive('bulletList')}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         title="Bullet List"
       >
-        <List />
-      </Button>
+        <List className="h-4 w-4" />
+      </ButtonBase>
 
       {/* Ordered List */}
-      <Button
+      <ButtonBase
         type="button"
-        variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
-        size="sm"
+        variant="muted"
+        buttonType="icon-only"
+        isSelected={editor.isActive('orderedList')}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         title="Numbered List"
       >
-        <ListOrdered />
-      </Button>
-
-      {/* Separator */}
-      <div className="w-px h-6 bg-border mx-1" />
+        <ListOrdered className="h-4 w-4" />
+      </ButtonBase>
 
       {/* Link */}
       {editor.isActive('link') ? (
-        <Button
+        <ButtonBase
           type="button"
-          variant="default"
-          size="sm"
+          variant="muted"
+          buttonType="icon-only"
+          isSelected={true}
           onClick={() => editor.chain().focus().unsetLink().run()}
           title="Remove Link"
         >
-          <Unlink />
-        </Button>
+          <Unlink className="h-4 w-4" />
+        </ButtonBase>
       ) : (
-        <Button
+        <ButtonBase
           type="button"
-          variant="ghost"
-          size="sm"
+          variant="muted"
+          buttonType="icon-only"
+          isSelected={false}
           onClick={handleSetLink}
           title="Add Link"
         >
-          <Link2 />
-        </Button>
+          <Link2 className="h-4 w-4" />
+        </ButtonBase>
       )}
 
     </div>

@@ -27,6 +27,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TemplateEditor } from "@/app/(dashboard)/templates/components/template-editor";
 import { SubjectLineEditor } from "@/app/(dashboard)/templates/components/subject-line-editor";
 import { PlaceholderDropdown } from "@/app/(dashboard)/templates/components/placeholder-dropdown";
+import { EditorToolbar } from "@/app/(dashboard)/templates/components/template-editor-toolbar";
 
 import type { Client } from "@/app/actions/clients";
 import { sendAdhocEmail, previewAdhocEmail } from "@/app/actions/send-adhoc-email";
@@ -72,8 +73,23 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
   const [templateSubject, setTemplateSubject] = useState<string>("");
   const [templateBodyJson, setTemplateBodyJson] = useState<TipTapDocument | null>(null);
   const [isLoadingTemplateContent, setIsLoadingTemplateContent] = useState(false);
+  const [editor, setEditor] = useState<any>(null);
   const templateSubjectInputRef = useRef<HTMLInputElement>(null);
-  const templateEditorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void } | null>(null);
+  const templateEditorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void; getEditor: () => any } | null>(null);
+
+  // Update editor state when ref changes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (templateEditorRef.current) {
+        const ed = templateEditorRef.current.getEditor();
+        if (ed && ed !== editor) {
+          setEditor(ed);
+        }
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [editor]);
 
   // Calculate eligible clients (those with email addresses)
   const eligibleClients = selectedClients.filter(
@@ -257,7 +273,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         showCloseButton={false}
         onInteractOutside={(e) => preventClose && e.preventDefault()}
         onEscapeKeyDown={(e) => preventClose && e.preventDefault()}
-        className="max-w-5xl sm:max-w-5xl max-h-[90vh] overflow-y-auto"
+        className="sm:max-w-6xl max-h-[90vh] overflow-y-auto"
       >
         {step === 'compose' && (
           <>
@@ -317,35 +333,42 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                     </Select>
                   </div>
 
-                  <div className="max-w-5xl mx-auto w-full">
+                  <div className="w-full space-y-4">
                     {isLoadingTemplateContent ? (
                       <Card className="overflow-hidden flex flex-col p-0 min-h-[400px] items-center justify-center">
                         <Loader2 className="size-6 animate-spin text-muted-foreground" />
                       </Card>
                     ) : (
-                      <Card className="overflow-hidden flex flex-col p-0">
-                        <SubjectLineEditor
-                          ref={templateSubjectInputRef}
-                          value={templateSubject}
-                          onChange={setTemplateSubject}
-                          placeholderButtonSlot={
-                            <PlaceholderDropdown
-                              subjectInputRef={templateSubjectInputRef}
-                              onEditorInsert={(id, label) => {
-                                templateEditorRef.current?.insertPlaceholder(id, label);
-                              }}
-                            />
-                          }
-                        />
-                        <div className="flex-1">
-                          <TemplateEditor
-                            key={selectedTemplateId}
-                            ref={templateEditorRef}
-                            initialContent={templateBodyJson}
-                            onUpdate={setTemplateBodyJson}
+                      <>
+                        {/* Toolbar with Insert Variable button */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <PlaceholderDropdown
+                            subjectInputRef={templateSubjectInputRef}
+                            onEditorInsert={(id, label) => {
+                              templateEditorRef.current?.insertPlaceholder(id, label);
+                            }}
                           />
+                          <div className="w-px h-6 bg-border" />
+                          <EditorToolbar editor={editor} />
                         </div>
-                      </Card>
+
+                        {/* Email Composer */}
+                        <Card className="overflow-hidden flex flex-col p-0">
+                          <SubjectLineEditor
+                            ref={templateSubjectInputRef}
+                            value={templateSubject}
+                            onChange={setTemplateSubject}
+                          />
+                          <div className="flex-1">
+                            <TemplateEditor
+                              key={selectedTemplateId}
+                              ref={templateEditorRef}
+                              initialContent={templateBodyJson}
+                              onUpdate={setTemplateBodyJson}
+                            />
+                          </div>
+                        </Card>
+                      </>
                     )}
                   </div>
                 </div>
@@ -375,7 +398,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
               </DialogDescription>
             </DialogHeader>
 
-            <div className="py-4 space-y-4 max-w-5xl mx-auto w-full">
+            <div className="py-4 space-y-4 w-full">
               {isLoadingPreview ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="size-6 animate-spin text-muted-foreground" />

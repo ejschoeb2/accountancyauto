@@ -13,6 +13,7 @@ function DashboardContent() {
     overdueCount: 0,
     criticalCount: 0,
     approachingCount: 0,
+    approachingSentCount: 0,
     scheduledCount: 0,
     completedCount: 0,
     inactiveCount: 0,

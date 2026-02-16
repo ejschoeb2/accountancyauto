@@ -9,8 +9,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
@@ -35,6 +44,7 @@ import {
   ArrowRight,
   X,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
 import {
@@ -305,6 +315,55 @@ export function CsvImportDialog({
     URL.revokeObjectURL(url);
   }, []);
 
+  // Parse date from various formats to YYYY-MM-DD
+  const parseDate = useCallback((dateValue: string): string | null => {
+    if (!dateValue || dateValue.trim() === "") return null;
+
+    const trimmed = dateValue.trim();
+
+    // Already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    // Handle DD/MM/YYYY or DD-MM-YYYY format
+    const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (ddmmyyyyMatch) {
+      const [, day, month, year] = ddmmyyyyMatch;
+      const paddedDay = day.padStart(2, "0");
+      const paddedMonth = month.padStart(2, "0");
+      return `${year}-${paddedMonth}-${paddedDay}`;
+    }
+
+    // Handle Excel date serial number (days since 1900-01-01)
+    const serialNumber = parseFloat(trimmed);
+    if (!isNaN(serialNumber) && serialNumber > 0) {
+      // Excel epoch starts at 1900-01-01, but there's a leap year bug for 1900
+      const excelEpoch = new Date(1900, 0, 1);
+      const daysOffset = serialNumber > 59 ? serialNumber - 2 : serialNumber - 1; // Account for Excel 1900 leap year bug
+      const date = new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    // Try parsing as a general date string
+    try {
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) {
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, "0");
+        const day = String(parsed.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+    } catch {
+      // Fall through to return null
+    }
+
+    return null;
+  }, []);
+
   // Validate that required fields are mapped
   const validateMapping = useCallback((): string | null => {
     const requiredFields = CSV_COLUMNS.filter((col) => col.required);
@@ -332,36 +391,39 @@ export function CsvImportDialog({
     setError(null);
 
     // Transform rows based on column mapping into editable format
-    const transformed = parsedData.rows.map((row) => {
-      const mappedData: Record<string, string> = {};
+    const transformed = parsedData.rows
+      .map((row) => {
+        const mappedData: Record<string, string> = {};
 
-      Object.entries(columnMapping).forEach(([systemField, csvColumn]) => {
-        if (csvColumn) {
-          mappedData[systemField] = row[csvColumn] || "";
-        }
-      });
+        Object.entries(columnMapping).forEach(([systemField, csvColumn]) => {
+          if (csvColumn) {
+            mappedData[systemField] = row[csvColumn] || "";
+          }
+        });
 
-      // Convert to EditableRow format
-      const editableRow: EditableRow = {
-        id: crypto.randomUUID(),
-        company_name: mappedData.company_name || "",
-        client_type: mappedData.client_type || null,
-        year_end_date: mappedData.year_end_date || null,
-        vat_registered: mappedData.vat_registered
-          ? ["yes", "true", "1"].includes(mappedData.vat_registered.toLowerCase())
-          : null,
-        vat_stagger_group: mappedData.vat_stagger_group
-          ? parseInt(mappedData.vat_stagger_group, 10)
-          : null,
-        vat_scheme: mappedData.vat_scheme || null,
-      };
+        // Convert to EditableRow format
+        const editableRow: EditableRow = {
+          id: crypto.randomUUID(),
+          company_name: mappedData.company_name || "",
+          client_type: mappedData.client_type || null,
+          year_end_date: parseDate(mappedData.year_end_date || ""),
+          vat_registered: mappedData.vat_registered
+            ? ["yes", "true", "1"].includes(mappedData.vat_registered.toLowerCase())
+            : true, // Default to true if not specified
+          vat_stagger_group: mappedData.vat_stagger_group
+            ? parseInt(mappedData.vat_stagger_group, 10)
+            : null,
+          vat_scheme: mappedData.vat_scheme || null,
+        };
 
-      return editableRow;
-    });
+        return editableRow;
+      })
+      // Filter out rows with empty company names (data cleansing)
+      .filter((row) => row.company_name.trim() !== "");
 
     setEditableRows(transformed);
     setState("edit-data");
-  }, [parsedData, columnMapping, validateMapping]);
+  }, [parsedData, columnMapping, validateMapping, parseDate]);
 
   // Handle mapping change
   const handleMappingChange = useCallback((systemField: string, csvColumn: string | null) => {
@@ -376,6 +438,11 @@ export function CsvImportDialog({
     setEditableRows((prev) =>
       prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
     );
+  }, []);
+
+  // Handle row deletion in edit-data step
+  const handleDeleteRow = useCallback((rowId: string) => {
+    setEditableRows((prev) => prev.filter((row) => row.id !== rowId));
   }, []);
 
   // Import with edited data
@@ -455,7 +522,7 @@ export function CsvImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-4xl" showCloseButton={false}>
+      <DialogContent className="sm:max-w-7xl" showCloseButton={false}>
         {state === "upload" && (
           <>
             <DialogHeader>
@@ -614,11 +681,29 @@ export function CsvImportDialog({
                         <div className="bg-muted/50 rounded p-2 text-xs">
                           <p className="text-muted-foreground mb-1">Preview:</p>
                           <div className="space-y-0.5">
-                            {sampleValues.map((value, idx) => (
-                              <p key={idx} className="font-mono truncate">
-                                {value}
-                              </p>
-                            ))}
+                            {sampleValues.map((value, idx) => {
+                              // Format preview value based on field type
+                              let displayValue = value;
+                              if (col.name === "year_end_date") {
+                                const parsedDate = parseDate(value);
+                                if (parsedDate) {
+                                  // Format as DD/MM/YYYY for preview
+                                  const [year, month, day] = parsedDate.split("-");
+                                  displayValue = `${day}/${month}/${year}`;
+                                } else {
+                                  displayValue = value + " (invalid date)";
+                                }
+                              } else if (col.name === "vat_registered") {
+                                const isYes = ["yes", "true", "1"].includes(value.toLowerCase());
+                                displayValue = isYes ? "Yes" : "No";
+                              }
+
+                              return (
+                                <p key={idx} className="font-mono truncate">
+                                  {displayValue}
+                                </p>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -659,34 +744,72 @@ export function CsvImportDialog({
               )}
 
               {/* Editable data table */}
-              <div className="max-h-[500px] overflow-y-auto border rounded-lg">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 sticky top-0">
-                    <tr>
-                      <th className="text-left p-3 font-medium border-b">Company Name</th>
-                      <th className="text-left p-3 font-medium border-b">Client Type</th>
-                      <th className="text-left p-3 font-medium border-b">Year End</th>
-                      <th className="text-left p-3 font-medium border-b">VAT Registered</th>
-                      <th className="text-left p-3 font-medium border-b">VAT Stagger</th>
-                      <th className="text-left p-3 font-medium border-b">VAT Scheme</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <div className="max-h-[500px] overflow-y-auto border shadow-sm rounded-lg bg-white">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[60px]" />
+                      <TableHead>
+                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                          Company Name
+                        </span>
+                      </TableHead>
+                      <TableHead>
+                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                          Client Type
+                        </span>
+                      </TableHead>
+                      <TableHead>
+                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                          Year End
+                        </span>
+                      </TableHead>
+                      <TableHead>
+                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                          VAT Registered
+                        </span>
+                      </TableHead>
+                      <TableHead>
+                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                          VAT Stagger
+                        </span>
+                      </TableHead>
+                      <TableHead>
+                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                          VAT Scheme
+                        </span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {editableRows.map((row) => (
-                      <tr key={row.id} className="border-b hover:bg-muted/30">
+                      <TableRow key={row.id} className="group">
+                        {/* Delete Button */}
+                        <TableCell>
+                          <div className="flex items-center justify-center">
+                            <ButtonBase
+                              variant="destructive"
+                              buttonType="icon-only"
+                              onClick={() => handleDeleteRow(row.id)}
+                              title="Delete this row"
+                            >
+                              <Trash2 className="h-5 w-5" />
+                            </ButtonBase>
+                          </div>
+                        </TableCell>
+
                         {/* Company Name - readonly */}
-                        <td className="p-3">
-                          <div className="font-medium">{row.company_name || "—"}</div>
-                        </td>
+                        <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                          {row.company_name || "—"}
+                        </TableCell>
 
                         {/* Client Type - select */}
-                        <td className="p-3">
+                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
                           <EditableCell
                             value={row.client_type || ""}
                             onSave={(value) => handleCellEdit(row.id, "client_type", value)}
                             type="select"
                             options={[
-                              { value: "", label: "—" },
                               { value: "Limited Company", label: "Limited Company" },
                               { value: "Sole Trader", label: "Sole Trader" },
                               { value: "Partnership", label: "Partnership" },
@@ -694,30 +817,30 @@ export function CsvImportDialog({
                             ]}
                             isEditMode
                           />
-                        </td>
+                        </TableCell>
 
                         {/* Year End Date - date */}
-                        <td className="p-3">
+                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
                           <EditableCell
                             value={row.year_end_date || ""}
                             onSave={(value) => handleCellEdit(row.id, "year_end_date", value)}
                             type="date"
                             isEditMode
                           />
-                        </td>
+                        </TableCell>
 
                         {/* VAT Registered - boolean */}
-                        <td className="p-3">
+                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
                           <EditableCell
                             value={row.vat_registered ?? ""}
                             onSave={(value) => handleCellEdit(row.id, "vat_registered", value)}
                             type="boolean"
                             isEditMode
                           />
-                        </td>
+                        </TableCell>
 
                         {/* VAT Stagger Group - select */}
-                        <td className="p-3">
+                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
                           <EditableCell
                             value={row.vat_stagger_group ? String(row.vat_stagger_group) : ""}
                             onSave={(value) =>
@@ -725,23 +848,21 @@ export function CsvImportDialog({
                             }
                             type="select"
                             options={[
-                              { value: "", label: "—" },
                               { value: "1", label: "1 (Mar/Jun/Sep/Dec)" },
                               { value: "2", label: "2 (Jan/Apr/Jul/Oct)" },
                               { value: "3", label: "3 (Feb/May/Aug/Nov)" },
                             ]}
                             isEditMode
                           />
-                        </td>
+                        </TableCell>
 
                         {/* VAT Scheme - select */}
-                        <td className="p-3">
+                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
                           <EditableCell
                             value={row.vat_scheme || ""}
                             onSave={(value) => handleCellEdit(row.id, "vat_scheme", value)}
                             type="select"
                             options={[
-                              { value: "", label: "—" },
                               { value: "Standard", label: "Standard" },
                               { value: "Flat Rate", label: "Flat Rate" },
                               { value: "Cash Accounting", label: "Cash Accounting" },
@@ -749,11 +870,11 @@ export function CsvImportDialog({
                             ]}
                             isEditMode
                           />
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </div>
 

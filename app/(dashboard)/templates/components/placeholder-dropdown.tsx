@@ -74,11 +74,11 @@ export function PlaceholderDropdown({
           ref={dropdownRef}
           variant="ghost"
           type="button"
-          className="px-4 py-2 h-10 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
-          title="Insert placeholder"
+          className="px-4 py-2 h-10 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 hover:text-purple-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
+          title="Insert variable"
         >
           <Plus className="h-5 w-5" />
-          Insert
+          Insert Variable
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -92,12 +92,7 @@ export function PlaceholderDropdown({
             onClick={() => handlePlaceholderSelect(placeholder.name, toTitleCase(placeholder.name))}
             className="focus:bg-muted/30 focus:text-foreground rounded-sm px-2 py-1.5 text-sm cursor-default"
           >
-            <div className="flex flex-col">
-              <span className="font-medium">{toTitleCase(placeholder.name)}</span>
-              <span className="text-xs text-muted-foreground">
-                {placeholder.name}
-              </span>
-            </div>
+            <span className="font-medium">{toTitleCase(placeholder.name)}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
