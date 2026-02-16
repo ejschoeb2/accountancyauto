@@ -115,7 +115,8 @@ const STATUS_LABELS: Record<TrafficLightStatus, string> = {
   orange: "Critical",
   amber: "Approaching",
   blue: "Scheduled",
-  green: "Records Received",
+  violet: "Records Received",
+  green: "Completed",
   grey: "Inactive",
 };
 
