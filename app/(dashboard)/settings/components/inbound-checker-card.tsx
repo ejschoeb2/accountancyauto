@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { Mail } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -58,7 +57,9 @@ export function InboundCheckerCard({ defaultMode }: InboundCheckerCardProps) {
                 Configure how the system responds to inbound emails with client documents
               </p>
             </div>
-            <Badge variant="violet">Beta Feature</Badge>
+            <div className="px-3 py-2 rounded-md inline-flex items-center bg-violet-500/10 shrink-0">
+              <span className="text-sm font-medium text-violet-500">Beta Feature</span>
+            </div>
           </div>
 
           <div className="space-y-3">

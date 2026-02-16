@@ -23,7 +23,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen flex flex-col">
       {/* Header / Navigation */}
       <header className="bg-background">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">
           {/* Branding */}
           <div className="flex items-center gap-4">
             <Image src="/logofini.png" alt="Logo" width={32} height={32} className="object-contain" />
