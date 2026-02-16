@@ -44,6 +44,7 @@ import {
 import { cn } from "@/lib/utils";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { EditableCell } from "./editable-cell";
 
 interface CsvImportDialogProps {
   open: boolean;
@@ -51,7 +52,7 @@ interface CsvImportDialogProps {
   onImportComplete: () => void;
 }
 
-type DialogState = "upload" | "mapping" | "importing" | "results";
+type DialogState = "upload" | "mapping" | "edit-data" | "importing" | "results";
 
 interface ColumnMapping {
   [systemField: string]: string | null; // systemField -> CSV column name
@@ -61,6 +62,16 @@ interface ParsedCsvData {
   headers: string[];
   rows: Record<string, string>[];
   sampleRows: Record<string, string>[]; // First 3 rows for preview
+}
+
+interface EditableRow {
+  id: string; // UUID for React key
+  company_name: string; // Required, readonly
+  client_type: string | null;
+  year_end_date: string | null; // YYYY-MM-DD format
+  vat_registered: boolean | null;
+  vat_stagger_group: number | null; // 1, 2, or 3
+  vat_scheme: string | null;
 }
 
 /**
@@ -76,6 +87,7 @@ export function CsvImportDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedCsvData | null>(null);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
+  const [editableRows, setEditableRows] = useState<EditableRow[]>([]);
   const [result, setResult] = useState<CsvImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showUnmatched, setShowUnmatched] = useState(false);
@@ -93,6 +105,7 @@ export function CsvImportDialog({
           setSelectedFile(null);
           setParsedData(null);
           setColumnMapping({});
+          setEditableRows([]);
           setResult(null);
           setError(null);
           setShowUnmatched(false);
@@ -305,8 +318,8 @@ export function CsvImportDialog({
     return null;
   }, [columnMapping]);
 
-  // Apply mapping and proceed to import
-  const handleProceedWithMapping = useCallback(async () => {
+  // Apply mapping and proceed to edit-data step
+  const handleProceedWithMapping = useCallback(() => {
     if (!parsedData) return;
 
     // Validate mapping
@@ -316,28 +329,76 @@ export function CsvImportDialog({
       return;
     }
 
+    setError(null);
+
+    // Transform rows based on column mapping into editable format
+    const transformed = parsedData.rows.map((row) => {
+      const mappedData: Record<string, string> = {};
+
+      Object.entries(columnMapping).forEach(([systemField, csvColumn]) => {
+        if (csvColumn) {
+          mappedData[systemField] = row[csvColumn] || "";
+        }
+      });
+
+      // Convert to EditableRow format
+      const editableRow: EditableRow = {
+        id: crypto.randomUUID(),
+        company_name: mappedData.company_name || "",
+        client_type: mappedData.client_type || null,
+        year_end_date: mappedData.year_end_date || null,
+        vat_registered: mappedData.vat_registered
+          ? ["yes", "true", "1"].includes(mappedData.vat_registered.toLowerCase())
+          : null,
+        vat_stagger_group: mappedData.vat_stagger_group
+          ? parseInt(mappedData.vat_stagger_group, 10)
+          : null,
+        vat_scheme: mappedData.vat_scheme || null,
+      };
+
+      return editableRow;
+    });
+
+    setEditableRows(transformed);
+    setState("edit-data");
+  }, [parsedData, columnMapping, validateMapping]);
+
+  // Handle mapping change
+  const handleMappingChange = useCallback((systemField: string, csvColumn: string | null) => {
+    setColumnMapping((prev) => ({
+      ...prev,
+      [systemField]: csvColumn,
+    }));
+  }, []);
+
+  // Handle cell edit in edit-data step
+  const handleCellEdit = useCallback(async (rowId: string, field: string, value: unknown) => {
+    setEditableRows((prev) =>
+      prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
+    );
+  }, []);
+
+  // Import with edited data
+  const handleImportEditedData = useCallback(async () => {
     setState("importing");
     setError(null);
 
     try {
-      // Transform rows based on column mapping
-      const transformedRows = parsedData.rows.map((row) => {
-        const transformed: Record<string, string> = {};
-
-        Object.entries(columnMapping).forEach(([systemField, csvColumn]) => {
-          if (csvColumn) {
-            transformed[systemField] = row[csvColumn] || "";
-          }
-        });
-
-        return transformed;
-      });
-
-      // Create a CSV string from transformed data
+      // Transform editableRows back to CSV format
       const headers = CSV_COLUMNS.map((col) => col.name).join(",");
-      const csvRows = transformedRows.map((row) =>
+      const csvRows = editableRows.map((row) =>
         CSV_COLUMNS.map((col) => {
-          const value = row[col.name] || "";
+          let value = "";
+
+          // Convert row data to string format for CSV
+          if (col.name === "vat_registered") {
+            value = row.vat_registered === true ? "Yes" : row.vat_registered === false ? "No" : "";
+          } else if (col.name === "vat_stagger_group") {
+            value = row.vat_stagger_group ? String(row.vat_stagger_group) : "";
+          } else {
+            value = (row[col.name as keyof EditableRow] as string) || "";
+          }
+
           // Escape quotes and wrap in quotes if contains comma/quote/newline
           if (value.includes(",") || value.includes('"') || value.includes("\n")) {
             return `"${value.replace(/"/g, '""')}"`;
@@ -359,20 +420,10 @@ export function CsvImportDialog({
       setResult(importResult);
       setState("results");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
-      setState("mapping");
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setState("edit-data");
     }
-  }, [parsedData, columnMapping, validateMapping, selectedFile]);
-
-  // Handle mapping change
-  const handleMappingChange = useCallback((systemField: string, csvColumn: string | null) => {
-    setColumnMapping((prev) => ({
-      ...prev,
-      [systemField]: csvColumn,
-    }));
-  }, []);
+  }, [editableRows, selectedFile]);
 
   // Go back to upload
   const handleBackToUpload = useCallback(() => {
@@ -380,6 +431,13 @@ export function CsvImportDialog({
     setSelectedFile(null);
     setParsedData(null);
     setColumnMapping({});
+    setEditableRows([]);
+    setError(null);
+  }, []);
+
+  // Go back to mapping from edit-data
+  const handleBackToMapping = useCallback(() => {
+    setState("mapping");
     setError(null);
   }, []);
 
@@ -576,8 +634,137 @@ export function CsvImportDialog({
                 Cancel
               </IconButtonWithText>
               <IconButtonWithText variant="green" onClick={handleProceedWithMapping}>
+                <ArrowRight className="h-5 w-5" />
+                Next: Review Data
+              </IconButtonWithText>
+            </DialogFooter>
+          </>
+        )}
+
+        {state === "edit-data" && (
+          <>
+            <DialogHeader>
+              <DialogTitle>Review & Edit Import Data</DialogTitle>
+              <DialogDescription>
+                Review and edit your data before importing. Company names will be matched to existing clients.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {error && (
+                <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
+                  <AlertCircle className="size-4" />
+                  {error}
+                </div>
+              )}
+
+              {/* Editable data table */}
+              <div className="max-h-[500px] overflow-y-auto border rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="text-left p-3 font-medium border-b">Company Name</th>
+                      <th className="text-left p-3 font-medium border-b">Client Type</th>
+                      <th className="text-left p-3 font-medium border-b">Year End</th>
+                      <th className="text-left p-3 font-medium border-b">VAT Registered</th>
+                      <th className="text-left p-3 font-medium border-b">VAT Stagger</th>
+                      <th className="text-left p-3 font-medium border-b">VAT Scheme</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editableRows.map((row) => (
+                      <tr key={row.id} className="border-b hover:bg-muted/30">
+                        {/* Company Name - readonly */}
+                        <td className="p-3">
+                          <div className="font-medium">{row.company_name || "—"}</div>
+                        </td>
+
+                        {/* Client Type - select */}
+                        <td className="p-3">
+                          <EditableCell
+                            value={row.client_type || ""}
+                            onSave={(value) => handleCellEdit(row.id, "client_type", value)}
+                            type="select"
+                            options={[
+                              { value: "", label: "—" },
+                              { value: "Limited Company", label: "Limited Company" },
+                              { value: "Sole Trader", label: "Sole Trader" },
+                              { value: "Partnership", label: "Partnership" },
+                              { value: "LLP", label: "LLP" },
+                            ]}
+                            isEditMode
+                          />
+                        </td>
+
+                        {/* Year End Date - date */}
+                        <td className="p-3">
+                          <EditableCell
+                            value={row.year_end_date || ""}
+                            onSave={(value) => handleCellEdit(row.id, "year_end_date", value)}
+                            type="date"
+                            isEditMode
+                          />
+                        </td>
+
+                        {/* VAT Registered - boolean */}
+                        <td className="p-3">
+                          <EditableCell
+                            value={row.vat_registered ?? ""}
+                            onSave={(value) => handleCellEdit(row.id, "vat_registered", value)}
+                            type="boolean"
+                            isEditMode
+                          />
+                        </td>
+
+                        {/* VAT Stagger Group - select */}
+                        <td className="p-3">
+                          <EditableCell
+                            value={row.vat_stagger_group ? String(row.vat_stagger_group) : ""}
+                            onSave={(value) =>
+                              handleCellEdit(row.id, "vat_stagger_group", value ? parseInt(String(value), 10) : null)
+                            }
+                            type="select"
+                            options={[
+                              { value: "", label: "—" },
+                              { value: "1", label: "1 (Mar/Jun/Sep/Dec)" },
+                              { value: "2", label: "2 (Jan/Apr/Jul/Oct)" },
+                              { value: "3", label: "3 (Feb/May/Aug/Nov)" },
+                            ]}
+                            isEditMode
+                          />
+                        </td>
+
+                        {/* VAT Scheme - select */}
+                        <td className="p-3">
+                          <EditableCell
+                            value={row.vat_scheme || ""}
+                            onSave={(value) => handleCellEdit(row.id, "vat_scheme", value)}
+                            type="select"
+                            options={[
+                              { value: "", label: "—" },
+                              { value: "Standard", label: "Standard" },
+                              { value: "Flat Rate", label: "Flat Rate" },
+                              { value: "Cash Accounting", label: "Cash Accounting" },
+                              { value: "Annual Accounting", label: "Annual Accounting" },
+                            ]}
+                            isEditMode
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <IconButtonWithText variant="destructive" onClick={handleBackToMapping}>
+                <ArrowLeft className="h-5 w-5" />
+                Back
+              </IconButtonWithText>
+              <IconButtonWithText variant="green" onClick={handleImportEditedData}>
                 <Sparkles className="h-5 w-5" />
-                Import
+                Import {editableRows.length} {editableRows.length === 1 ? "Client" : "Clients"}
               </IconButtonWithText>
             </DialogFooter>
           </>
