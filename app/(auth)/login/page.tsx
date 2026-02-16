@@ -94,15 +94,15 @@ function LoginForm() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md">
-          {/* Card container */}
-          <div className="rounded-lg border bg-card shadow-sm p-8">
+          {/* Card container with hover effect */}
+          <div className="group rounded-lg border bg-card shadow-sm hover:shadow-md transition-shadow duration-200 p-8">
             {/* Branding */}
             <div className="flex flex-col items-center gap-6 mb-6">
               <Image
                 src="/logofini.png"
                 alt="Logo"
-                width={80}
-                height={80}
+                width={54}
+                height={54}
                 className="object-contain"
               />
               <div className="text-center space-y-1">

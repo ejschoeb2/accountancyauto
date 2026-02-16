@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { Upload, Pencil, X as XIcon, Plus, CheckCircle, XCircle, AlertCircle, Minus } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus, CheckCircle, XCircle, AlertCircle, Minus, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -63,7 +63,16 @@ const CreateClientDialog = dynamic(() => import("./create-client-dialog").then(m
 import {
   type Client,
   updateClientMetadata,
+  deleteClients,
 } from "@/app/actions/clients";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export interface ClientStatusInfo {
   status: string;
@@ -156,10 +165,12 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   const [dateTo, setDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(initialFilter ? true : false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleImportComplete = () => {
     window.location.reload();
@@ -168,6 +179,26 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   const handleClientCreated = (newClient: Client) => {
     setData((prev) => [...prev, newClient]);
     router.refresh();
+  };
+
+  const handleDeleteClients = async () => {
+    setIsDeleting(true);
+    try {
+      const selectedClientIds = selectedClients.map((c) => c.id);
+      await deleteClients(selectedClientIds);
+
+      // Remove deleted clients from local state
+      setData((prev) => prev.filter((c) => !selectedClientIds.includes(c.id)));
+      setRowSelection({});
+      setIsDeleteDialogOpen(false);
+
+      toast.success(`Successfully deleted ${selectedClientIds.length} client${selectedClientIds.length !== 1 ? 's' : ''}`);
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete clients");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   function toggleStatusFilter(status: TrafficLightStatus) {
@@ -1111,6 +1142,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         <BulkActionsToolbar
           selectedCount={selectedClients.length}
           onSendEmail={() => setIsSendEmailModalOpen(true)}
+          onDeleteClients={() => setIsDeleteDialogOpen(true)}
           onClearSelection={() => setRowSelection({})}
         />
       </div>
@@ -1121,6 +1153,45 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         onClose={() => setIsSendEmailModalOpen(false)}
         selectedClients={selectedClients}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={() => {}}>
+        <DialogContent className="[&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>Delete Clients</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedClients.length} client{selectedClients.length !== 1 ? 's' : ''}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <IconButtonWithText
+              variant="violet"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              <XIcon className="h-5 w-5" />
+              Cancel
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="destructive"
+              onClick={handleDeleteClients}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-5 w-5" />
+                  Delete
+                </>
+              )}
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* CSV Import Dialog */}
       <CsvImportDialog

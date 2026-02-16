@@ -1,18 +1,20 @@
 "use client";
 
-import { X, Mail } from "lucide-react";
+import { X, Mail, Trash2 } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import { cn } from "@/lib/utils";
 
 interface BulkActionsToolbarProps {
   selectedCount: number;
   onSendEmail: () => void;
+  onDeleteClients: () => void;
   onClearSelection: () => void;
 }
 
 export function BulkActionsToolbar({
   selectedCount,
   onSendEmail,
+  onDeleteClients,
   onClearSelection,
 }: BulkActionsToolbarProps) {
   const isVisible = selectedCount > 0;
@@ -39,6 +41,15 @@ export function BulkActionsToolbar({
           >
             <Mail className="size-4" />
             Send Bulk Email
+          </ButtonBase>
+
+          <ButtonBase
+            variant="destructive"
+            buttonType="icon-text"
+            onClick={onDeleteClients}
+          >
+            <Trash2 className="size-4" />
+            Delete Clients
           </ButtonBase>
 
           <ButtonBase

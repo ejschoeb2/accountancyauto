@@ -139,3 +139,23 @@ export async function bulkUpdateClients(
 
   return { success: true, count: clientIds.length };
 }
+
+/**
+ * Delete multiple clients
+ */
+export async function deleteClients(
+  clientIds: string[]
+): Promise<{ success: boolean; count: number }> {
+  const supabase = await createClient();
+
+  const { error, count } = await supabase
+    .from("clients")
+    .delete()
+    .in("id", clientIds);
+
+  if (error) {
+    throw new Error(`Failed to delete clients: ${error.message}`);
+  }
+
+  return { success: true, count: count || 0 };
+}
