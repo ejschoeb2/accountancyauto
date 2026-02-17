@@ -12,21 +12,26 @@ import {
 
 interface EmailSettingsCardProps {
   defaultSettings: EmailSettings;
+  senderDomain: string;
 }
 
-export function EmailSettingsCard({ defaultSettings }: EmailSettingsCardProps) {
+export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettingsCardProps) {
   const [senderName, setSenderName] = useState(defaultSettings.senderName);
-  const [senderAddress, setSenderAddress] = useState(
-    defaultSettings.senderAddress
-  );
+
+  // Only store/edit the local part (before @)
+  const defaultLocalPart = defaultSettings.senderAddress.split("@")[0] ?? "reminders";
+  const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
   const [replyTo, setReplyTo] = useState(defaultSettings.replyTo);
+
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const currentAddress = `${senderLocalPart}@${senderDomain}`;
+
   const isDirty =
     senderName !== defaultSettings.senderName ||
-    senderAddress !== defaultSettings.senderAddress ||
+    currentAddress !== defaultSettings.senderAddress ||
     replyTo !== defaultSettings.replyTo;
 
   function handleSave() {
@@ -36,7 +41,7 @@ export function EmailSettingsCard({ defaultSettings }: EmailSettingsCardProps) {
     startTransition(async () => {
       const result = await updateEmailSettings({
         senderName: senderName.trim(),
-        senderAddress: senderAddress.trim(),
+        senderAddress: currentAddress,
         replyTo: replyTo.trim(),
       });
 
@@ -63,7 +68,7 @@ export function EmailSettingsCard({ defaultSettings }: EmailSettingsCardProps) {
             </p>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label
                 htmlFor="settings-sender-name"
@@ -81,46 +86,61 @@ export function EmailSettingsCard({ defaultSettings }: EmailSettingsCardProps) {
                   setError(null);
                 }}
                 disabled={isPending}
+                placeholder="Peninsula Accounting"
               />
             </div>
             <div className="space-y-1.5">
               <label
-                htmlFor="settings-sender-address"
+                htmlFor="settings-sender-local"
                 className="text-sm font-medium"
               >
                 Sender Email
               </label>
-              <Input
-                id="settings-sender-address"
-                type="email"
-                value={senderAddress}
-                onChange={(e) => {
-                  setSenderAddress(e.target.value);
-                  setSaved(false);
-                  setError(null);
-                }}
-                disabled={isPending}
-              />
+              <div className="flex items-center gap-0">
+                <Input
+                  id="settings-sender-local"
+                  type="text"
+                  value={senderLocalPart}
+                  onChange={(e) => {
+                    // Only allow valid local part characters
+                    const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
+                    setSenderLocalPart(value);
+                    setSaved(false);
+                    setError(null);
+                  }}
+                  disabled={isPending}
+                  placeholder="reminders"
+                  className="rounded-r-none"
+                />
+                <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+                  @{senderDomain}
+                </div>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label
-                htmlFor="settings-reply-to"
-                className="text-sm font-medium"
-              >
-                Reply-to Email
-              </label>
-              <Input
-                id="settings-reply-to"
-                type="email"
-                value={replyTo}
-                onChange={(e) => {
-                  setReplyTo(e.target.value);
-                  setSaved(false);
-                  setError(null);
-                }}
-                disabled={isPending}
-              />
-            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="settings-reply-to"
+              className="text-sm font-medium"
+            >
+              Reply-To Address
+            </label>
+            <Input
+              id="settings-reply-to"
+              type="email"
+              value={replyTo}
+              onChange={(e) => {
+                setReplyTo(e.target.value);
+                setSaved(false);
+                setError(null);
+              }}
+              disabled={isPending}
+              placeholder="replies@reply.yourdomain.co.uk"
+            />
+            <p className="text-xs text-muted-foreground">
+              Where client replies are sent. Set this to your Postmark inbound address so replies are automatically processed.
+            </p>
           </div>
 
           <div className="flex items-center gap-3">

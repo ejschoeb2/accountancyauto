@@ -53,7 +53,7 @@ export async function renderTipTapEmail(
     client_name: context.client_name || '[Client Name]',
     deadline: context.deadline || new Date(),
     filing_type: context.filing_type || '[Filing Type]',
-    accountant_name: context.accountant_name || 'Peninsula Accounting',
+    accountant_name: context.accountant_name || 'PhaseTwo',
   }
 
   // Step 3: Substitute variables in HTML body and subject

@@ -70,9 +70,9 @@ export default function OnboardingPage() {
         .catch(() => {
           // Will show defaults
           setEmailSettings({
-            senderName: "Peninsula Accounting",
-            senderAddress: "reminders@peninsulaaccounting.co.uk",
-            replyTo: "info@peninsulaaccounting.co.uk",
+            senderName: "PhaseTwo",
+            senderAddress: "hello@phasetwo.uk",
+            replyTo: "hello@phasetwo.uk",
           });
         })
         .finally(() => setIsLoadingEmail(false));

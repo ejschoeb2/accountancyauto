@@ -23,8 +23,10 @@ When you establish a new UI pattern during development, update DESIGN.md to docu
 - Commits go directly to main/master (no branching)
 - Use specific file paths with git commands (repo is in user home directory)
 
-## Tech Stack
+## Tech Stack & Architecture
 
 - Next.js + Supabase + Postmark
 - UK accounting practice reminder system
+- **Consult `ARCHITECTURE.md` for full backend architecture** — database schema, API routes, cron pipeline, auth model, Supabase client usage, and the reminder/email pipeline. Read this before making backend changes.
+- **Consult `ENV_VARIABLES.md` for environment variable reference** — what each variable does, where it's used, and which are tenant-specific.
 - See MEMORY.md for lessons learned about Supabase/PostgREST quirks and deadline calculations

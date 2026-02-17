@@ -101,7 +101,7 @@ export async function sendAdhocEmail(
           client_name: validated.clientName,
           filing_type: 'Ad-hoc',
           deadline: new Date(),
-          accountant_name: 'Peninsula Accounting',
+          accountant_name: 'PhaseTwo',
         },
         clientId: validated.clientId,
       });
@@ -188,7 +188,7 @@ export async function previewAdhocEmail(params: {
         client_name: params.clientName,
         filing_type: 'Ad-hoc',
         deadline: new Date(),
-        accountant_name: 'Peninsula Accounting',
+        accountant_name: 'PhaseTwo',
       },
       clientId: params.clientId,
     });

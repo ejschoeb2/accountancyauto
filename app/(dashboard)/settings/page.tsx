@@ -21,7 +21,10 @@ export default async function SettingsPage() {
       <SendHourPicker defaultHour={sendHour} />
 
       {/* Email Settings Card */}
-      <EmailSettingsCard defaultSettings={emailSettings} />
+      <EmailSettingsCard
+        defaultSettings={emailSettings}
+        senderDomain={process.env.POSTMARK_SENDER_DOMAIN ?? "phasetwo.uk"}
+      />
 
       {/* Inbound Email Checker Card */}
       <InboundCheckerCard defaultMode={inboundCheckerMode} />

@@ -66,9 +66,9 @@ export interface EmailSettings {
 }
 
 const EMAIL_DEFAULTS: EmailSettings = {
-  senderName: "Peninsula Accounting",
-  senderAddress: "reminders@peninsulaaccounting.co.uk",
-  replyTo: "info@peninsulaaccounting.co.uk",
+  senderName: "PhaseTwo",
+  senderAddress: "hello@phasetwo.uk",
+  replyTo: "hello@phasetwo.uk",
 };
 
 const EMAIL_KEYS = {

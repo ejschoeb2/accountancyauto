@@ -237,7 +237,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
               client_name: client.company_name,
               deadline: new UTCDate(reminder.deadline_date),
               filing_type: filingTypeName,
-              accountant_name: 'Peninsula Accounting',
+              accountant_name: 'PhaseTwo',
             },
             clientId: client.id,
           });

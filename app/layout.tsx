@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Peninsula Accounting",
+  title: "PhaseTwo",
   description: "Client reminder system",
 };
 
