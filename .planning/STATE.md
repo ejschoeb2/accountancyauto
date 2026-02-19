@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — roadmap complete, ready to plan Phase 10
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 10 in progress
 
 ## Current Position
 
-Phase: Phase 10 — Org Data Model & RLS Foundation (not started)
-Plan: —
-Status: Roadmap complete — awaiting `/gsd:plan-phase 10`
-Last activity: 2026-02-19 — v3.0 roadmap created (5 phases, 43 requirements mapped)
+Phase: Phase 10 — Org Data Model & RLS Foundation (1 of 5 plans complete)
+Plan: 01 of 5 (Database Schema)
+Status: In progress
+Last activity: 2026-02-19 — Completed 10-01-PLAN.md (database schema migration)
 
-Progress: [████████████░░░░░░░░] v3.0 roadmap complete, execution not yet started (30 plans complete from v1.0-v2.0; v3.0 plans TBD)
+Progress: [█░░░░░░░░░░░░░░░░░░░] 1/5 Phase 10 plans complete
 
 ## Performance Metrics
 
@@ -39,10 +39,10 @@ Progress: [████████████░░░░░░░░] v3.0 ro
 - Status: Shipped
 
 **v3.0 Velocity:**
-- Total plans completed: 0
+- Total plans completed: 1
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Roadmap complete, ready to plan Phase 10
+- Status: Phase 10 in progress (Plan 01 complete)
 
 ## Accumulated Context
 
@@ -61,6 +61,10 @@ Recent decisions affecting v3.0:
 - Plan tier enum values: `('lite', 'sole_trader', 'practice', 'firm')` — must confirm before Phase 10 migration SQL
 - Stripe API version to pin: `2026-01-28.clover`
 - One new npm package: `stripe@^20.3.1` — all other dependencies already present
+- [D-10-01-01] app_settings restructured: key TEXT PK -> UUID id PK + UNIQUE(org_id, key)
+- [D-10-01-02] locks keeps TEXT PK; org scoping via org_id column + application code
+- [D-10-01-03] filing_types, bank_holidays_cache, oauth_tokens skipped from org_id migration (global reference data)
+- [D-10-01-04] Temporary USING(true) RLS policies on new tables (Plan 02 replaces)
 
 ### Known Risks
 
@@ -78,7 +82,7 @@ All v1.0 and v1.1 risks resolved.
 
 | Question | Resolve Before |
 |----------|---------------|
-| Exact `plan_tier` enum values (placeholder SQL used `starter/pro/enterprise`) | Phase 10 plan |
+| ~~Exact `plan_tier` enum values~~ RESOLVED: `('lite', 'sole_trader', 'practice', 'firm')` created in 10-01 | Phase 10 plan |
 | Is Peninsula VAT-registered? (determines Stripe Tax configuration) | Phase 11 plan |
 | Reserved slug list (admin, www, api, app, billing, etc.) | Phase 10/13 plan |
 | Where do per-org Postmark server tokens come from for new tenants? (admin enters own token vs programmatic via API vs shared account) | Phase 13 plan |
@@ -119,10 +123,10 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: v3.0 roadmap created — 5 phases (10-14), 43 requirements mapped
+Last session: 2026-02-19 22:26 UTC
+Stopped at: Completed 10-01-PLAN.md (database schema migration)
 Resume file: None
-Next step: `/gsd:plan-phase 10` to begin Phase 10: Org Data Model & RLS Foundation
+Next step: Execute 10-02-PLAN.md (RLS policies)
 
 ---
-*v3.0 roadmap complete — ready for Phase 10 planning (2026-02-19)*
+*Phase 10 Plan 01 complete — database schema migration applied (2026-02-19)*
