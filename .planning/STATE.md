@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 ## Current Position
 
-Phase: Phase 10 — Org Data Model & RLS Foundation (1 of 5 plans complete)
-Plan: 01 of 5 (Database Schema)
+Phase: Phase 10 — Org Data Model & RLS Foundation (2 of 5 plans complete)
+Plan: 03 of 5 (Cron Org Scoping)
 Status: In progress
-Last activity: 2026-02-19 — Completed 10-01-PLAN.md (database schema migration)
+Last activity: 2026-02-19 — Completed 10-03-PLAN.md (cron org scoping)
 
-Progress: [█░░░░░░░░░░░░░░░░░░░] 1/5 Phase 10 plans complete
+Progress: [██░░░░░░░░░░░░░░░░░░] 2/5 Phase 10 plans complete
 
 ## Performance Metrics
 
@@ -39,10 +39,10 @@ Progress: [█░░░░░░░░░░░░░░░░░░░] 1/5 Pha
 - Status: Shipped
 
 **v3.0 Velocity:**
-- Total plans completed: 1
+- Total plans completed: 2
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 in progress (Plan 01 complete)
+- Status: Phase 10 in progress (Plans 01, 03 complete)
 
 ## Accumulated Context
 
@@ -65,6 +65,10 @@ Recent decisions affecting v3.0:
 - [D-10-01-02] locks keeps TEXT PK; org scoping via org_id column + application code
 - [D-10-01-03] filing_types, bank_holidays_cache, oauth_tokens skipped from org_id migration (global reference data)
 - [D-10-01-04] Temporary USING(true) RLS policies on new tables (Plan 02 replaces)
+- [D-10-03-01] Sequential org iteration in cron jobs (not parallel)
+- [D-10-03-02] rebuildQueueForClient takes optional orgId (falls back to client.org_id)
+- [D-10-03-03] cancel/restore/unpause helpers unchanged (client_id already scopes to one org)
+- [D-10-03-04] sendRichEmail kept unchanged; new sendRichEmailForOrg for cron jobs
 
 ### Known Risks
 
@@ -123,10 +127,10 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-19 22:26 UTC
-Stopped at: Completed 10-01-PLAN.md (database schema migration)
+Last session: 2026-02-19 22:42 UTC
+Stopped at: Completed 10-03-PLAN.md (cron org scoping)
 Resume file: None
-Next step: Execute 10-02-PLAN.md (RLS policies)
+Next step: Execute 10-04-PLAN.md (server action org scoping) or 10-02-PLAN.md (RLS policies, if not already complete)
 
 ---
-*Phase 10 Plan 01 complete — database schema migration applied (2026-02-19)*
+*Phase 10 Plan 03 complete — cron pipeline org-scoped (2026-02-19)*
