@@ -66,53 +66,55 @@ Accountants spend hours every month manually chasing clients for records and doc
 
 ### Active
 
-- [ ] Postmark inbound webhook receives and stores client reply emails
-- [ ] AI classification of reply intent (paperwork sent, question, extension request, out of office, etc.)
-- [ ] High-confidence classifications auto-update client filing status (e.g. mark records received)
-- [ ] Ambiguous or low-confidence replies flagged for accountant review
-- [ ] Reply log with full email content visible in the dashboard
-- [ ] Accountant can reply back to clients from within the dashboard
-- [ ] Reply-To addressing scheme that encodes client/filing context for deterministic matching
+- [ ] Organisations table as root entity with plan tier, billing fields, and per-org Postmark credentials
+- [ ] All data tables (clients, schedules, email_templates, reminder_queue, email_log, etc.) gain org_id FK
+- [ ] RLS policies rewritten to scope all queries to authenticated user's organisation
+- [ ] Subdomain routing resolves org from subdomain in Next.js middleware
+- [ ] user_organisations table linking users to orgs with admin/member roles
+- [ ] Team invite flow: admin invites team members via email link, accept joins org
+- [ ] Stripe billing: checkout session, webhook handler, subscription status enforcement, billing management page
+- [ ] 4 pricing tiers enforced: Lite (£20, 1 user, 40 clients), Sole Trader (£39, 2 users, 100 clients), Practice (£89, 5 users, 300 clients), Firm (£159, 15 users, 750 clients)
+- [ ] Guided onboarding flow: create account → create org → firm details → choose plan → Stripe checkout → 14-day trial
+- [ ] Super-admin dashboard: view all tenants, plan/status/client count/health monitoring
+
+### Deferred
+
+- Inbound email intelligence (v3.0 inbound plan, phases 10-13) — deferred indefinitely; can revisit after multi-tenancy is stable
+- HMRC API integration (MTD VAT/ITSA) — Phase 4 of strategic roadmap, after multi-tenancy foundation
 
 ### Out of Scope
 
-- Multi-tenancy / SaaS signup flow — single practice only
-- Team member management — solo practitioner
 - Write access to QuickBooks — read-only client data sync
 - Mobile app — web dashboard only
 - Real-time chat or client portal — email reminders only
 - SMS reminders — email only
-- Billing / payments integration
 - Document upload from clients — just reminders, not a file exchange platform
-- Attachment processing from inbound emails — text classification only for v3.0
 - Drag-and-drop email builder — rich text editor sufficient
 - HTML source code editing — non-technical user, would bypass sanitization
-- Real-time collaborative editing — solo practitioner
-- Email analytics (open/click tracking) — privacy concern, no actionable value
+- Real-time collaborative editing — email analytics (open/click tracking) — privacy concern
+- iXBRL CT600 filing — requires accounts production engine; aspirational only (see ROADMAP.md Phase 6)
 
 ## Context
 
-- **Practice:** Peninsula Accounting, UK-based accounting practice
-- **User:** Solo practitioner who is the only dashboard user
+- **Target users:** UK accounting practices (sole traders to small firms); product is a SaaS platform they subscribe to
 - **Domain:** UK accounting obligations — Companies House annual accounts, HMRC Corporation Tax, Self Assessment, VAT returns (quarterly/monthly), CIS returns, confirmation statements
-- **Client types:** Limited Companies, Sole Traders, Partnerships, LLPs — each with different filing obligations
-- **QuickBooks API:** Uses QBO query API with SQL-like syntax, webhooks for real-time updates, OAuth 2.0 with 1-hour access tokens and 100-day refresh tokens
-- **Email requirements:** Must appear to come from Peninsula Accounting's domain, requires Postmark domain verification with DKIM + return-path CNAME
+- **Client types per org:** Limited Companies, Sole Traders, Partnerships, LLPs — each with different filing obligations
+- **Email requirements:** Each org sends from their own domain via their own Postmark server (credentials stored in organisations table)
 - **Filing deadlines are mostly formulaic:** Corporation Tax = year-end + 9 months 1 day, Companies House = year-end + 9 months (private), VAT = quarter-end + 1 month 7 days, Self Assessment = 31 January following tax year — all overridable per client
-- **Current state:** v2.0 tagged 2026-02-12 — Next.js + Supabase + Postmark + TipTap 3.x, auth + onboarding added
-- **Architecture:** Normalized relational tables (email_templates, schedules, schedule_steps), TipTap JSON for template bodies, React Email for rendering, two-stage cron (queue + send)
-- **v1.1 audit:** 40/40 requirements satisfied, 10/10 cross-phase integrations, 3/3 E2E flows, UAT 17/17 after fixes
-- **Milestones shipped:** v1.0 MVP (2026-02-07), v1.1 Template & Scheduling Redesign (2026-02-08), v2.0 stable release (2026-02-12)
+- **Current state:** v2.0 shipped 2026-02-14 — single-tenant, one Vercel + Supabase + Postmark deployment per firm, RLS uses USING(true), no org isolation
+- **Architecture:** Normalized relational tables, TipTap JSON templates, React Email rendering, two-stage cron (queue + send)
+- **Multi-tenancy target:** Single Supabase project, all tables gain org_id FK, RLS scoped via user_organisations, subdomain routing (orgslug.app.domain.com)
+- **Milestones shipped:** v1.0 MVP (2026-02-07), v1.1 Template & Scheduling Redesign (2026-02-08), v2.0 QOL & Platform Hardening (2026-02-14)
 
 ## Constraints
 
-- **Tech stack:** Next.js on Vercel Pro, Supabase (Postgres + Auth + Edge Functions), Postmark for transactional email, TipTap 3.x for rich text editing
-- **QuickBooks scope:** `com.intuit.quickbooks.accounting` — read-only access to customer records
+- **Tech stack:** Next.js on Vercel Pro, Supabase (Postgres + Auth + Edge Functions), Postmark for transactional email, Stripe for billing, TipTap 3.x for rich text editing
 - **Vercel Pro:** Required for cron jobs (daily scheduler)
-- **Postmark domain verification:** One-time DNS setup required before emails can be sent from practice domain
-- **Intuit app review:** Required for production QuickBooks access; sandbox available for development
-- **Single user:** No auth complexity — Supabase Auth with single account
+- **Supabase shared project:** Single Supabase project for all tenants — org_id isolation via RLS, not separate databases
+- **Stripe:** Subscription billing with 4 tiers; trial period via Stripe or application-layer trial_ends_at; overage via Stripe metered billing or application-layer enforcement
+- **Subdomain routing:** Wildcard subdomain (`*.app.domain.com`) requires DNS wildcard record + Vercel wildcard domain config
 - **UK-specific:** Filing obligations, deadline calculations, and terminology are all UK accounting standards
+- **Data migration:** Existing single-tenant data must be migrated to first org; zero data loss required
 
 ## Key Decisions
 
@@ -140,17 +142,18 @@ Accountants spend hours every month manually chasing clients for records and doc
 | Three urgency levels only | normal/high/urgent — 'low' removed for simplicity | Good |
 | Paste always strips formatting | Plain text only, no Ctrl+Shift+V — predictable paste behavior | Good |
 
-## Current Milestone: v3.0 Inbound Email Intelligence
+## Current Milestone: v3.0 Multi-Tenancy & SaaS Platform
 
-**Goal:** Close the feedback loop — when clients reply to reminders, the system reads, classifies, and acts on their responses automatically.
+**Goal:** Transform the application from a single-firm tool into a multi-tenant SaaS platform serving multiple independent accounting practices with full data isolation, Stripe billing, and a guided onboarding experience.
 
 **Target features:**
-- Postmark inbound email webhook processing
-- AI-powered reply classification (Claude API)
-- Automatic status updates for high-confidence replies
-- Accountant review queue for ambiguous replies
-- Reply log with full email content in dashboard
-- Reply-from-dashboard capability
+- Centralised database with org_id isolation and RLS policies
+- Subdomain routing (orgslug.app.domain.com) with org resolution in middleware
+- Per-org Postmark credentials stored in organisations table
+- Stripe billing (4 tiers: Lite/Sole Trader/Practice/Firm) with 14-day free trial
+- Team member invites with admin/member roles
+- Guided onboarding wizard for new firm signup
+- Super-admin dashboard for tenant management
 
 ---
-*Last updated: 2026-02-12 after v3.0 milestone start*
+*Last updated: 2026-02-19 after v3.0 milestone pivot to multi-tenancy (inbound email deferred)*
