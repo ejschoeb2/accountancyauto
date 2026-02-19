@@ -119,60 +119,58 @@
 
 ## Traceability
 
-*Populated during roadmap creation.*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ORG-01 | TBD | Pending |
-| ORG-02 | TBD | Pending |
-| ORG-03 | TBD | Pending |
-| ORG-04 | TBD | Pending |
-| ORG-05 | TBD | Pending |
-| ORG-06 | TBD | Pending |
-| ORG-07 | TBD | Pending |
-| ORG-08 | TBD | Pending |
-| ORG-09 | TBD | Pending |
-| ORG-10 | TBD | Pending |
-| AUTH-01 | TBD | Pending |
-| AUTH-02 | TBD | Pending |
-| AUTH-03 | TBD | Pending |
-| AUTH-04 | TBD | Pending |
-| AUTH-05 | TBD | Pending |
-| BILL-01 | TBD | Pending |
-| BILL-02 | TBD | Pending |
-| BILL-03 | TBD | Pending |
-| BILL-04 | TBD | Pending |
-| BILL-05 | TBD | Pending |
-| BILL-06 | TBD | Pending |
-| BILL-07 | TBD | Pending |
-| BILL-08 | TBD | Pending |
-| BILL-09 | TBD | Pending |
-| BILL-10 | TBD | Pending |
-| ONBD-01 | TBD | Pending |
-| ONBD-02 | TBD | Pending |
-| ONBD-03 | TBD | Pending |
-| ONBD-04 | TBD | Pending |
-| ONBD-05 | TBD | Pending |
-| ONBD-06 | TBD | Pending |
-| TEAM-01 | TBD | Pending |
-| TEAM-02 | TBD | Pending |
-| TEAM-03 | TBD | Pending |
-| TEAM-04 | TBD | Pending |
-| TEAM-05 | TBD | Pending |
-| TEAM-06 | TBD | Pending |
-| ADMN-01 | TBD | Pending |
-| ADMN-02 | TBD | Pending |
-| ADMN-03 | TBD | Pending |
-| ADMN-04 | TBD | Pending |
-| NOTF-01 | TBD | Pending |
-| NOTF-02 | TBD | Pending |
+| ORG-01 | Phase 10 | Pending |
+| ORG-02 | Phase 10 | Pending |
+| ORG-03 | Phase 10 | Pending |
+| ORG-04 | Phase 10 | Pending |
+| ORG-05 | Phase 10 | Pending |
+| ORG-06 | Phase 10 | Pending |
+| ORG-07 | Phase 10 | Pending |
+| ORG-08 | Phase 10 | Pending |
+| ORG-09 | Phase 10 | Pending |
+| ORG-10 | Phase 10 | Pending |
+| AUTH-01 | Phase 12 | Pending |
+| AUTH-02 | Phase 12 | Pending |
+| AUTH-03 | Phase 12 | Pending |
+| AUTH-04 | Phase 12 | Pending |
+| AUTH-05 | Phase 12 | Pending |
+| BILL-01 | Phase 11 | Pending |
+| BILL-02 | Phase 11 | Pending |
+| BILL-03 | Phase 11 | Pending |
+| BILL-04 | Phase 11 | Pending |
+| BILL-05 | Phase 11 | Pending |
+| BILL-06 | Phase 11 | Pending |
+| BILL-07 | Phase 11 | Pending |
+| BILL-08 | Phase 11 | Pending |
+| BILL-09 | Phase 11 | Pending |
+| BILL-10 | Phase 11 | Pending |
+| ONBD-01 | Phase 13 | Pending |
+| ONBD-02 | Phase 13 | Pending |
+| ONBD-03 | Phase 13 | Pending |
+| ONBD-04 | Phase 13 | Pending |
+| ONBD-05 | Phase 13 | Pending |
+| ONBD-06 | Phase 13 | Pending |
+| TEAM-01 | Phase 13 | Pending |
+| TEAM-02 | Phase 13 | Pending |
+| TEAM-03 | Phase 13 | Pending |
+| TEAM-04 | Phase 13 | Pending |
+| TEAM-05 | Phase 13 | Pending |
+| TEAM-06 | Phase 13 | Pending |
+| ADMN-01 | Phase 14 | Pending |
+| ADMN-02 | Phase 14 | Pending |
+| ADMN-03 | Phase 14 | Pending |
+| ADMN-04 | Phase 14 | Pending |
+| NOTF-01 | Phase 13 | Pending |
+| NOTF-02 | Phase 11 | Pending |
 
 **Coverage:**
-- v3.0 requirements: 44 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 44 ⚠️
+- v3.0 requirements: 43 total
+- Mapped to phases: 43
+- Unmapped: 0
 
 ---
 
 *Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 after initial definition*
+*Last updated: 2026-02-19 — traceability populated after roadmap creation*
