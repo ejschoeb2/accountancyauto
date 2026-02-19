@@ -1,102 +1,178 @@
-# Requirements: Peninsula Accounting v3.0 — Inbound Email Intelligence
+# Requirements: Peninsula Accounting v3.0 — Multi-Tenancy & SaaS Platform
 
-**Defined:** 2026-02-13
-**Core Value:** Close the feedback loop — when clients reply to reminders, the system reads, classifies, and acts on their responses automatically.
+**Defined:** 2026-02-19
+**Core Value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
+
+---
 
 ## v3.0 Requirements
 
-### Inbound Processing
+### ORG — Org Data Model & Multi-Tenant Database
 
-- [ ] **INBD-01**: System receives client reply emails via Postmark inbound webhook
-- [ ] **INBD-02**: Reply-To address encodes client ID and filing type using cryptographic tokens (VERP-style)
-- [ ] **INBD-03**: Webhook validates authenticity via Basic HTTP Auth and header verification
-- [ ] **INBD-04**: System detects and ignores auto-generated emails (Auto-Submitted header) to prevent loops
-- [ ] **INBD-05**: Inbound emails stored in database with sender, subject, body, and decoded context
+- [ ] **ORG-01**: `organisations` table exists with: id (uuid), name, slug (unique, URL-safe), plan_tier, client_count_limit, user_count_limit, stripe_customer_id, stripe_subscription_id, subscription_status, trial_ends_at, postmark_server_token, postmark_sender_domain
+- [ ] **ORG-02**: `user_organisations` junction table links users to orgs with role (admin | member)
+- [ ] **ORG-03**: `invitations` table stores pending team invites: org_id, email, role, token (hashed), expires_at, accepted_at
+- [ ] **ORG-04**: All data tables gain `org_id` FK: clients, email_templates, schedules, schedule_steps, schedule_client_exclusions, client_email_overrides, client_schedule_overrides, client_filing_assignments, client_deadline_overrides, client_filing_status_overrides, reminder_queue, email_log, inbound_emails, app_settings, locks
+- [ ] **ORG-05**: `app_settings` unique constraint changes from `(key)` to `(org_id, key)`
+- [ ] **ORG-06**: `filing_types` and `bank_holidays_cache` remain global (no org_id — shared reference data)
+- [ ] **ORG-07**: Existing single-tenant data is migrated to a first org row with zero data loss; existing user assigned as admin of that org
+- [ ] **ORG-08**: Supabase Custom Access Token Hook writes `org_id` and `org_role` into JWT `app_metadata` at login; all RLS policies use JWT claim, not table subquery
+- [ ] **ORG-09**: RLS policies on all data tables scope reads/writes to `org_id = (auth.jwt() ->> 'org_id')::uuid`
+- [ ] **ORG-10**: Both cron jobs (reminders + send-emails) iterate over active `organisations` and apply `.eq('org_id', org.id)` to every query; lock keys are org-scoped
 
-### AI Classification
+### AUTH — Authentication, Session & Subdomain Routing
 
-- [ ] **AICL-01**: AI classifies reply intent into 7 accounting-specific categories (Paperwork Sent, Question, Extension Request, Can't Find Records, Accountant Not Needed, Out of Office, Unclear)
-- [ ] **AICL-02**: Each classification includes confidence score (HIGH 90%+, MEDIUM 60-89%, LOW <60%)
-- [ ] **AICL-03**: Classification uses Claude Haiku 4.5 with structured outputs for guaranteed schema compliance
-- [ ] **AICL-04**: Out-of-office replies detected and excluded from review queue
+- [ ] **AUTH-01**: Next.js middleware extracts `orgSlug` from the `host` header and rewrites requests to org-scoped routes
+- [ ] **AUTH-02**: `getCurrentOrg()` server utility resolves slug → org_id via Supabase with `React.cache()` deduplication (one DB call per request)
+- [ ] **AUTH-03**: Users logging in at the wrong org's subdomain see a clear error and are not granted access to that org's data
+- [ ] **AUTH-04**: Middleware enforces access gating: orgs with expired trial or cancelled subscription are redirected to `/billing` except for the billing page itself
+- [ ] **AUTH-05**: Per-org Postmark credentials (`postmark_server_token`, `postmark_sender_domain`) are read from `organisations` table; `lib/email/sender.ts` accepts a `serverToken` parameter replacing the env var
 
-### Auto-Actions
+### BILL — Stripe Billing
 
-- [ ] **AUTO-01**: High-confidence "Paperwork Sent" replies (90%+) automatically mark filing as records received
-- [ ] **AUTO-02**: Auto-actions logged in audit trail with AI classification details
-- [ ] **AUTO-03**: Auto-action system can be enabled/disabled via toggle in settings page
-- [ ] **AUTO-04**: Auto-action settings configurable during onboarding setup wizard
+- [ ] **BILL-01**: 4 Stripe products created in GBP: Lite (£20/mo), Sole Trader (£39/mo), Practice (£89/mo), Firm (£159/mo)
+- [ ] **BILL-02**: Stripe Hosted Checkout is initiated from plan selection during onboarding; no client-side Stripe.js required
+- [ ] **BILL-03**: Stripe webhook handler with idempotency table (`processed_webhook_events`) handles: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+- [ ] **BILL-04**: `organisations` row is updated with `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `plan_tier`, and limit fields on webhook events
+- [ ] **BILL-05**: Billing management page shows: current plan name, client count vs limit, user count vs limit, trial expiry (if active), and a link to Stripe Customer Portal for payment method / invoice management
+- [ ] **BILL-06**: Client count enforced: adding a client is blocked when at or over limit; a warning banner appears at 80% of limit with an upgrade prompt
+- [ ] **BILL-07**: User (seat) count enforced: inviting a team member is blocked when at or over the plan's user_count_limit
+- [ ] **BILL-08**: Lite tier has no overage — firm must upgrade to Sole Trader once 40-client limit is reached
+- [ ] **BILL-09**: Stripe Tax enabled for UK VAT (20%) on all subscriptions; plan prices are exclusive of VAT
+- [ ] **BILL-10**: 14-day free trial tracked via `trial_ends_at` in `organisations`; trial can be started without a payment method
 
-### Review & Visibility
+### ONBD — Onboarding Flow
 
-- [ ] **REVW-01**: Human review queue shows all replies below 90% confidence for accountant classification
-- [ ] **REVW-02**: Accountant can manually override AI classification with correct intent
-- [ ] **REVW-03**: Full email content (body, subject, sender, date) visible in dashboard
-- [ ] **REVW-04**: Reply log shows chronological list of all inbound emails per client
-- [ ] **REVW-05**: Review queue shows badge count in navigation
+- [ ] **ONBD-01**: Sign-up page: new user creates a Supabase Auth account (email + password); no existing account required
+- [ ] **ONBD-02**: Org creation step: user enters firm name and org slug (auto-suggested, editable, unique, validated against reserved slug list); creates `organisations` and `user_organisations` (admin) rows
+- [ ] **ONBD-03**: Firm details step: sender name and email (pre-fills Postmark per-org config); Postmark server token field (optional — can be configured later in Settings)
+- [ ] **ONBD-04**: Plan selection step: all 4 tiers shown with feature comparison and pricing; selecting a paid plan launches Stripe Checkout; "Start free trial" option begins 14-day trial and skips Stripe Checkout
+- [ ] **ONBD-05**: After completing onboarding, user is redirected to their org subdomain dashboard (`orgslug.app.domain.com/dashboard`)
+- [ ] **ONBD-06**: Already-onboarded orgs cannot re-enter the onboarding flow; `setup_complete` flag in `app_settings` prevents this
 
-## Future Requirements (v3.1+)
+### TEAM — Team Management & Invites
+
+- [ ] **TEAM-01**: Admin can invite team members by email from the Settings page; invite email is sent via Postmark with a tokenized accept link (expires 7 days)
+- [ ] **TEAM-02**: Accept invite flow: recipient clicks link → creates Supabase Auth account if new, or logs in if existing → is added to the org via `user_organisations`
+- [ ] **TEAM-03**: Settings page shows current team: member name, email, role, joined date; admin can remove members and change roles
+- [ ] **TEAM-04**: Admin role has full access: clients, dashboard, templates, schedules, email logs, settings, billing, team management
+- [ ] **TEAM-05**: Member role has restricted access: clients and dashboard only; billing and team management tabs are hidden/blocked
+- [ ] **TEAM-06**: An org must always retain at least one admin; removing the last admin is prevented with an error
+
+### ADMN — Super-Admin Dashboard
+
+- [ ] **ADMN-01**: Super-admin flag stored in Supabase Auth `app_metadata.is_super_admin`; writable only via service role (not by any user action)
+- [ ] **ADMN-02**: `/admin` route requires `is_super_admin = true`; non-super-admin users are redirected to their dashboard
+- [ ] **ADMN-03**: Super-admin org list shows: org name, slug, plan_tier, subscription_status, trial_ends_at, client count, user count — sortable by plan and status
+- [ ] **ADMN-04**: Clicking an org shows its detail: full org settings, member list, Stripe subscription ID for manual lookup
+
+### NOTF — System Notification Emails
+
+- [ ] **NOTF-01**: Trial-ending-soon email sent to org admin 3 days before `trial_ends_at`; triggered by a daily cron check (not Stripe webhook)
+- [ ] **NOTF-02**: Payment-failed email sent to org admin when `invoice.payment_failed` webhook is received; includes link to Stripe Customer Portal to update payment method
+
+---
+
+## Future Requirements (v3.x and later roadmap phases)
+
+### Billing Enhancements
+
+- **BILL-EXT-01**: Stripe metered/usage-based overage billing (£15/50 clients beyond tier limit) — deferred; soft-cap warnings handle overages in v3.0
+- **BILL-EXT-02**: Annual billing option (2 months free) — simple Stripe config; defer until monthly billing is stable
 
 ### Communication
 
-- **COMM-01**: Accountant can reply to clients from within the dashboard (two-way email)
-- **COMM-02**: Email threading groups related messages into conversations
+- **NOTF-EXT-01**: Subscription-cancelled confirmation email with data retention notice
+- **NOTF-EXT-02**: Plan-upgrade/downgrade confirmation email
+- **NOTF-EXT-03**: New team member welcome email (sent to invited user on accept)
 
-### Automation
+### Admin Tooling
 
-- **AUTM-01**: Auto-pause reminder sequence on high-confidence "Accountant Not Needed" intent
-- **AUTM-02**: AI generates suggested response drafts for common scenarios
+- **ADMN-EXT-01**: Super-admin impersonation (log in as any org user) — significant RLS security implications; v3.x only
+- **ADMN-EXT-02**: Super-admin manual plan override without Stripe (for trials, discounts)
 
-### Analytics
+### Future Strategic Phases (from ROADMAP.md)
 
-- **ANLY-01**: Reply statistics per filing type (response rates, intent distribution)
-- **ANLY-02**: Batch review interface for classifying multiple replies at once
+- Inbound email intelligence — deferred from original v3.0 plan; revisit after multi-tenancy is stable
+- Document storage (Supabase Storage) — ROADMAP.md Phase 3
+- HMRC API integration (MTD VAT/ITSA) — ROADMAP.md Phase 4
+- AI agent interface — ROADMAP.md Phase 5
+
+---
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Attachment processing/OCR | Text classification only for v3.0; adds scope creep |
-| Fully automated replies (no human review) | Accounting is regulated; mistakes damage client relationships |
-| Custom ML model training | Modern LLMs handle accounting context; insufficient training data |
-| Sentiment analysis | Adds complexity without clear action; accountants read tone from content |
-| Real-time re-classification on page load | Expensive; classify once on receipt, store result |
-| Complex chatbot conversation flows | Clients prefer human contact; over-automation feels impersonal |
+| Stripe metered overage billing | Complexity for v3.0; soft-cap + upgrade prompt is sufficient initially |
+| SSO / OAuth login (Google, Microsoft) | Email/password sufficient for UK accounting SaaS at this scale |
+| Multi-org membership (one user in multiple orgs) | Edge case; subdomain model handles it via separate logins |
+| White-label / custom domain per org | Requires wildcard cert per org; defer until there is demand |
+| org-level analytics / reporting | No user request; not in ROADMAP.md |
+| Mobile app | Web dashboard only |
+| Real-time collaborative editing | Solo/small team; not applicable |
+| Document upload from clients | Out of scope until Phase 3 of strategic roadmap |
+| iXBRL CT600 filing | Aspirational; see ROADMAP.md Phase 6 |
+| Super-admin impersonation in v3.0 | RLS security implications require careful design; v3.x |
+
+---
 
 ## Traceability
 
+*Populated during roadmap creation.*
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INBD-01 | Phase 10 | Pending |
-| INBD-02 | Phase 10 | Pending |
-| INBD-03 | Phase 10 | Pending |
-| INBD-04 | Phase 10 | Pending |
-| INBD-05 | Phase 10 | Pending |
-| AICL-01 | Phase 11 | Pending |
-| AICL-02 | Phase 11 | Pending |
-| AICL-03 | Phase 11 | Pending |
-| AICL-04 | Phase 11 | Pending |
-| AUTO-01 | Phase 13 | Pending |
-| AUTO-02 | Phase 13 | Pending |
-| AUTO-03 | Phase 13 | Pending |
-| AUTO-04 | Phase 13 | Pending |
-| REVW-01 | Phase 12 | Pending |
-| REVW-02 | Phase 12 | Pending |
-| REVW-03 | Phase 12 | Pending |
-| REVW-04 | Phase 12 | Pending |
-| REVW-05 | Phase 12 | Pending |
+| ORG-01 | TBD | Pending |
+| ORG-02 | TBD | Pending |
+| ORG-03 | TBD | Pending |
+| ORG-04 | TBD | Pending |
+| ORG-05 | TBD | Pending |
+| ORG-06 | TBD | Pending |
+| ORG-07 | TBD | Pending |
+| ORG-08 | TBD | Pending |
+| ORG-09 | TBD | Pending |
+| ORG-10 | TBD | Pending |
+| AUTH-01 | TBD | Pending |
+| AUTH-02 | TBD | Pending |
+| AUTH-03 | TBD | Pending |
+| AUTH-04 | TBD | Pending |
+| AUTH-05 | TBD | Pending |
+| BILL-01 | TBD | Pending |
+| BILL-02 | TBD | Pending |
+| BILL-03 | TBD | Pending |
+| BILL-04 | TBD | Pending |
+| BILL-05 | TBD | Pending |
+| BILL-06 | TBD | Pending |
+| BILL-07 | TBD | Pending |
+| BILL-08 | TBD | Pending |
+| BILL-09 | TBD | Pending |
+| BILL-10 | TBD | Pending |
+| ONBD-01 | TBD | Pending |
+| ONBD-02 | TBD | Pending |
+| ONBD-03 | TBD | Pending |
+| ONBD-04 | TBD | Pending |
+| ONBD-05 | TBD | Pending |
+| ONBD-06 | TBD | Pending |
+| TEAM-01 | TBD | Pending |
+| TEAM-02 | TBD | Pending |
+| TEAM-03 | TBD | Pending |
+| TEAM-04 | TBD | Pending |
+| TEAM-05 | TBD | Pending |
+| TEAM-06 | TBD | Pending |
+| ADMN-01 | TBD | Pending |
+| ADMN-02 | TBD | Pending |
+| ADMN-03 | TBD | Pending |
+| ADMN-04 | TBD | Pending |
+| NOTF-01 | TBD | Pending |
+| NOTF-02 | TBD | Pending |
 
 **Coverage:**
-- v3.0 requirements: 18 total
-- Mapped to phases: 18/18 (100%)
-- Unmapped: 0
-
-**Phase distribution:**
-- Phase 10 (Inbound Email Infrastructure): 5 requirements
-- Phase 11 (AI Classification Engine): 4 requirements
-- Phase 12 (Accountant Review Interface): 5 requirements
-- Phase 13 (Auto-Action System): 4 requirements
+- v3.0 requirements: 44 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 44 ⚠️
 
 ---
-*Requirements defined: 2026-02-13*
-*Last updated: 2026-02-13 after roadmap creation*
+
+*Requirements defined: 2026-02-19*
+*Last updated: 2026-02-19 after initial definition*
