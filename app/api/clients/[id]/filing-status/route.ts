@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
 import { statusOverrideSchema } from "@/lib/validations/client";
 
 // PUT - Create or update status override
@@ -23,9 +24,11 @@ export async function PUT(
   const { filing_type_id, override_status, reason } = validation.data;
 
   // Upsert override
+  const orgId = await getOrgId();
   const { data, error } = await supabase
     .from('client_filing_status_overrides')
     .upsert({
+      org_id: orgId,
       client_id: clientId,
       filing_type_id,
       override_status,

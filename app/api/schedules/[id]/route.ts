@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
 import { scheduleSchema } from "@/lib/validations/schedule";
 
 /**
@@ -192,7 +193,9 @@ export async function PUT(
 
   // Insert new steps if provided
   if (data.steps && data.steps.length > 0) {
+    const orgId = await getOrgId();
     const stepsToInsert = data.steps.map((step, index) => ({
+      org_id: orgId,
       schedule_id: id,
       email_template_id: step.email_template_id,
       step_number: index + 1, // 1-based indexing

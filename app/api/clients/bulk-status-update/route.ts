@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
 import { bulkStatusUpdateSchema } from "@/lib/validations/client";
 
 export async function POST(request: NextRequest) {
@@ -32,7 +33,9 @@ export async function POST(request: NextRequest) {
     }
   } else {
     // Upsert overrides for all selected clients
+    const orgId = await getOrgId();
     const records = client_ids.map((client_id) => ({
+      org_id: orgId,
       client_id,
       filing_type_id,
       override_status,

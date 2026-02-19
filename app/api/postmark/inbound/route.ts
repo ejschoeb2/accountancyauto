@@ -95,16 +95,28 @@ export async function POST(request: NextRequest) {
     // Create service client (bypasses RLS for webhook)
     const supabase = createServiceClient();
 
-    // Step 1: Look up client by email
+    // Step 1: Look up client by email (include org_id for the INSERT)
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('id, company_name, primary_email')
+      .select('id, company_name, primary_email, org_id')
       .ilike('primary_email', senderEmail)
       .single();
 
     if (clientError) {
       console.warn('[Postmark Inbound] Client not found for email:', senderEmail);
       // Still store email, but with null client_id for manual review
+    }
+
+    // Resolve org_id: from matched client, or fall back to founding org
+    // Phase 12 will resolve org from the inbound email address / Postmark server
+    let orgId = client?.org_id;
+    if (!orgId) {
+      const { data: foundingOrg } = await supabase
+        .from('organisations')
+        .select('id')
+        .eq('slug', 'peninsula')
+        .single();
+      orgId = foundingOrg?.id;
     }
 
     // Step 2: Detect if documents are present
@@ -117,6 +129,7 @@ export async function POST(request: NextRequest) {
     const { data: inboundEmail, error: insertError } = await supabase
       .from('inbound_emails')
       .insert({
+        org_id: orgId,
         client_id: client?.id || null,
         filing_type_id: detectedFilingType,
         received_at: receivedAt,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
 import { createClientSchema } from "@/lib/validations/client";
 
 /**
@@ -53,10 +54,12 @@ export async function POST(request: NextRequest) {
   const { company_name, primary_email, client_type, year_end_date, vat_registered, display_name } = result.data;
 
   const supabase = await createClient();
+  const orgId = await getOrgId();
 
   const { data, error } = await supabase
     .from("clients")
     .insert({
+      org_id: orgId,
       company_name,
       primary_email,
       client_type,

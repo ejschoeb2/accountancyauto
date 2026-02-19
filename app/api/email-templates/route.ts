@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
 import { emailTemplateSchema } from "@/lib/validations/email-template";
 import type { EmailTemplate } from "@/lib/types/database";
 
@@ -52,9 +53,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const orgId = await getOrgId();
   const { data, error } = await supabase
     .from("email_templates")
     .insert({
+      org_id: orgId,
       name: validation.data.name,
       subject: validation.data.subject,
       body_json: validation.data.body_json,

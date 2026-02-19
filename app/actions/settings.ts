@@ -1,12 +1,15 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
 
 export async function getSendHour(): Promise<number> {
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { data } = await supabase
     .from("app_settings")
     .select("value")
+    .eq("org_id", orgId)
     .eq("key", "reminder_send_hour")
     .single();
 
@@ -19,10 +22,13 @@ export async function updateSendHour(hour: number): Promise<{ error?: string }> 
   }
 
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { error } = await supabase
     .from("app_settings")
-    .update({ value: String(hour) })
-    .eq("key", "reminder_send_hour");
+    .upsert(
+      { org_id: orgId, key: "reminder_send_hour", value: String(hour) },
+      { onConflict: "org_id,key" }
+    );
 
   if (error) {
     return { error: error.message };
@@ -37,9 +43,11 @@ export type SetupMode = "demo" | "real";
 
 export async function getSetupMode(): Promise<SetupMode | null> {
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { data } = await supabase
     .from("app_settings")
     .select("value")
+    .eq("org_id", orgId)
     .eq("key", "setup_mode")
     .single();
 
@@ -49,9 +57,13 @@ export async function getSetupMode(): Promise<SetupMode | null> {
 
 export async function updateSetupMode(mode: SetupMode): Promise<{ error?: string }> {
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { error } = await supabase
     .from("app_settings")
-    .upsert({ key: "setup_mode", value: mode }, { onConflict: "key" });
+    .upsert(
+      { org_id: orgId, key: "setup_mode", value: mode },
+      { onConflict: "org_id,key" }
+    );
 
   if (error) return { error: error.message };
   return {};
@@ -79,9 +91,11 @@ const EMAIL_KEYS = {
 
 export async function getEmailSettings(): Promise<EmailSettings> {
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { data } = await supabase
     .from("app_settings")
     .select("key, value")
+    .eq("org_id", orgId)
     .in("key", Object.values(EMAIL_KEYS));
 
   const map = new Map(data?.map((r) => [r.key, r.value]) ?? []);
@@ -109,17 +123,18 @@ export async function updateEmailSettings(
   }
 
   const supabase = await createClient();
+  const orgId = await getOrgId();
 
-  const entries: { key: string; value: string }[] = [
-    { key: EMAIL_KEYS.senderName, value: settings.senderName.trim() },
-    { key: EMAIL_KEYS.senderAddress, value: settings.senderAddress.trim() },
-    { key: EMAIL_KEYS.replyTo, value: settings.replyTo.trim() },
+  const entries: { org_id: string; key: string; value: string }[] = [
+    { org_id: orgId, key: EMAIL_KEYS.senderName, value: settings.senderName.trim() },
+    { org_id: orgId, key: EMAIL_KEYS.senderAddress, value: settings.senderAddress.trim() },
+    { org_id: orgId, key: EMAIL_KEYS.replyTo, value: settings.replyTo.trim() },
   ];
 
   for (const entry of entries) {
     const { error } = await supabase
       .from("app_settings")
-      .upsert(entry, { onConflict: "key" });
+      .upsert(entry, { onConflict: "org_id,key" });
 
     if (error) {
       return { error: error.message };
@@ -133,9 +148,11 @@ export async function updateEmailSettings(
 
 export async function getOnboardingComplete(): Promise<boolean> {
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { data } = await supabase
     .from("app_settings")
     .select("value")
+    .eq("org_id", orgId)
     .eq("key", "onboarding_complete")
     .single();
 
@@ -144,9 +161,13 @@ export async function getOnboardingComplete(): Promise<boolean> {
 
 export async function markOnboardingComplete(): Promise<{ error?: string }> {
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { error } = await supabase
     .from("app_settings")
-    .upsert({ key: "onboarding_complete", value: "true" }, { onConflict: "key" });
+    .upsert(
+      { org_id: orgId, key: "onboarding_complete", value: "true" },
+      { onConflict: "org_id,key" }
+    );
 
   if (error) return { error: error.message };
   return {};
@@ -158,9 +179,11 @@ export type InboundCheckerMode = "auto" | "recommend";
 
 export async function getInboundCheckerMode(): Promise<InboundCheckerMode> {
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { data } = await supabase
     .from("app_settings")
     .select("value")
+    .eq("org_id", orgId)
     .eq("key", "inbound_checker_mode")
     .single();
 
@@ -175,11 +198,12 @@ export async function updateInboundCheckerMode(
   }
 
   const supabase = await createClient();
+  const orgId = await getOrgId();
   const { error } = await supabase
     .from("app_settings")
     .upsert(
-      { key: "inbound_checker_mode", value: mode },
-      { onConflict: "key" }
+      { org_id: orgId, key: "inbound_checker_mode", value: mode },
+      { onConflict: "org_id,key" }
     );
 
   if (error) return { error: error.message };

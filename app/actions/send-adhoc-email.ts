@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { getOrgId } from '@/lib/auth/org-context';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { sendRichEmail } from '@/lib/email/sender';
 
@@ -119,10 +120,12 @@ export async function sendAdhocEmail(
       clientId: validated.clientId,
     });
 
-    // Log to email_log
+    // Log to email_log (org_id required for INSERT — RLS validates but doesn't auto-set)
+    const orgId = await getOrgId();
     const { error: logError } = await supabase
       .from('email_log')
       .insert({
+        org_id: orgId,
         client_id: validated.clientId,
         recipient_email: validated.clientEmail,
         subject: finalSubject,

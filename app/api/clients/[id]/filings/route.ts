@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getOrgId } from '@/lib/auth/org-context';
 import { calculateDeadline } from '@/lib/deadlines/calculators';
 import { z } from 'zod';
 import type { FilingType, FilingTypeId } from '@/lib/types/database';
@@ -92,7 +93,9 @@ export async function GET(
 
       // Insert auto-assignments
       if (applicableFilings.length > 0) {
+        const orgId = await getOrgId();
         const assignmentsToInsert = applicableFilings.map((ft) => ({
+          org_id: orgId,
           client_id: clientId,
           filing_type_id: ft.id,
           is_active: true,
@@ -197,9 +200,11 @@ export async function PUT(
 
     const { assignments } = validation.data;
     const supabase = await createClient();
+    const orgId = await getOrgId();
 
     // Upsert assignments (insert on conflict update is_active)
     const assignmentsToUpsert = assignments.map((a) => ({
+      org_id: orgId,
       client_id: clientId,
       filing_type_id: a.filing_type_id,
       is_active: a.is_active,
