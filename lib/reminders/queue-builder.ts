@@ -15,6 +15,11 @@ interface Client {
   records_received_for: string[];
 }
 
+export interface Org {
+  id: string;
+  name: string;
+}
+
 export interface BuildResult {
   created: number;
   skipped: number;
@@ -23,12 +28,13 @@ export interface BuildResult {
 /**
  * Log warnings/errors to email_log for visibility
  */
-async function logQueueWarning(supabase: SupabaseClient, entry: {
+async function logQueueWarning(supabase: SupabaseClient, orgId: string, entry: {
   message: string;
   client_id?: string;
   filing_type_id?: string;
 }): Promise<void> {
   await supabase.from('email_log').insert({
+    org_id: orgId,
     client_id: entry.client_id || null,
     filing_type_id: entry.filing_type_id || null,
     delivery_status: 'failed',
@@ -69,15 +75,17 @@ function getNextCustomDate(schedule: {
 /**
  * Build reminder queue from schedules, filing assignments, and deadlines (v1.1)
  * Idempotent: won't create duplicates if queue already populated
+ * Org-scoped: all queries filtered by org_id
  */
-export async function buildReminderQueue(supabase: SupabaseClient): Promise<BuildResult> {
+export async function buildReminderQueue(supabase: SupabaseClient, org: Org): Promise<BuildResult> {
   let created = 0;
   let skipped = 0;
 
-  // Fetch all clients with active filing assignments
+  // Fetch all clients with active filing assignments for this org
   const { data: assignments, error: assignmentsError } = await supabase
     .from('client_filing_assignments')
     .select('*, clients!inner(*)')
+    .eq('org_id', org.id)
     .eq('is_active', true);
 
   if (assignmentsError) {
@@ -92,6 +100,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
   const { data: schedules, error: schedulesError } = await supabase
     .from('schedules')
     .select('*')
+    .eq('org_id', org.id)
     .eq('is_active', true)
     .eq('schedule_type', 'filing');
 
@@ -102,6 +111,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
   const { data: scheduleSteps, error: stepsError } = await supabase
     .from('schedule_steps')
     .select('*')
+    .eq('org_id', org.id)
     .order('step_number', { ascending: true });
 
   if (stepsError) {
@@ -111,6 +121,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
   const { data: emailTemplates, error: templatesError } = await supabase
     .from('email_templates')
     .select('*')
+    .eq('org_id', org.id)
     .eq('is_active', true);
 
   if (templatesError) {
@@ -145,7 +156,8 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
   // Fetch deadline overrides (these remain relevant - not template overrides)
   const { data: deadlineOverrides, error: deadlineError } = await supabase
     .from('client_deadline_overrides')
-    .select('*');
+    .select('*')
+    .eq('org_id', org.id);
 
   if (deadlineError) {
     throw new Error(`Failed to fetch deadline overrides: ${deadlineError.message}`);
@@ -164,7 +176,8 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
   // Fetch schedule-level client exclusions
   const { data: exclusionsData } = await supabase
     .from('schedule_client_exclusions')
-    .select('schedule_id, client_id');
+    .select('schedule_id, client_id')
+    .eq('org_id', org.id);
 
   const exclusionSet = new Set(
     (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
@@ -211,7 +224,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
     const schedule = scheduleByFilingType.get(filingTypeId);
     if (!schedule) {
       // Log warning to email_log and skip
-      await logQueueWarning(supabase, {
+      await logQueueWarning(supabase, org.id, {
         message: `No schedule found for filing type ${filingTypeId}`,
         client_id: client.id,
         filing_type_id: filingTypeId,
@@ -229,7 +242,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
     // Get steps for this schedule
     const steps = stepsBySchedule.get(schedule.id) || [];
     if (steps.length === 0) {
-      await logQueueWarning(supabase, {
+      await logQueueWarning(supabase, org.id, {
         message: `Schedule ${schedule.id} has no steps`,
         client_id: client.id,
         filing_type_id: filingTypeId,
@@ -244,7 +257,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
       const template = templateMap.get(step.email_template_id);
       if (!template) {
         // Log warning and skip this step (continue with remaining steps)
-        await logQueueWarning(supabase, {
+        await logQueueWarning(supabase, org.id, {
           message: `Template ${step.email_template_id} not found for schedule ${schedule.id} step ${step.step_number}`,
           client_id: client.id,
           filing_type_id: filingTypeId,
@@ -283,6 +296,7 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
       const { error: insertError } = await supabase
         .from('reminder_queue')
         .insert({
+          org_id: org.id,
           client_id: client.id,
           filing_type_id: filingTypeId,
           template_id: schedule.id, // Points to schedule (not old reminder_templates)
@@ -307,16 +321,18 @@ export async function buildReminderQueue(supabase: SupabaseClient): Promise<Buil
 
 /**
  * Build reminder queue entries for custom schedules (v1.1+)
- * Custom schedules apply to ALL active, non-paused clients
+ * Custom schedules apply to ALL active, non-paused clients within the org
+ * Org-scoped: all queries filtered by org_id
  */
-export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promise<BuildResult> {
+export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Org): Promise<BuildResult> {
   let created = 0;
   let skipped = 0;
 
-  // 1. Fetch all active custom schedules
+  // 1. Fetch all active custom schedules for this org
   const { data: customSchedules, error: schedulesError } = await supabase
     .from('schedules')
     .select('*')
+    .eq('org_id', org.id)
     .eq('is_active', true)
     .eq('schedule_type', 'custom');
 
@@ -328,10 +344,11 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
     return { created: 0, skipped: 0 };
   }
 
-  // 2. Fetch all active, non-paused clients
+  // 2. Fetch all active, non-paused clients for this org
   const { data: clients, error: clientsError } = await supabase
     .from('clients')
     .select('*')
+    .eq('org_id', org.id)
     .eq('reminders_paused', false);
 
   if (clientsError) {
@@ -342,11 +359,12 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
     return { created: 0, skipped: 0 };
   }
 
-  // 3. Fetch schedule steps
+  // 3. Fetch schedule steps for this org
   const scheduleIds = customSchedules.map(s => s.id);
   const { data: scheduleSteps, error: stepsError } = await supabase
     .from('schedule_steps')
     .select('*')
+    .eq('org_id', org.id)
     .in('schedule_id', scheduleIds)
     .order('step_number', { ascending: true });
 
@@ -364,10 +382,11 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
 
   const holidays = await getUKBankHolidaySet();
 
-  // 4. Fetch schedule-level client exclusions
+  // 4. Fetch schedule-level client exclusions for this org
   const { data: exclusionsData } = await supabase
     .from('schedule_client_exclusions')
-    .select('schedule_id, client_id');
+    .select('schedule_id, client_id')
+    .eq('org_id', org.id);
 
   const exclusionSet = new Set(
     (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
@@ -382,7 +401,7 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
     });
 
     if (!targetDate) {
-      await logQueueWarning(supabase, {
+      await logQueueWarning(supabase, org.id, {
         message: `Custom schedule ${schedule.id} (${schedule.name}) has no valid target date`,
       });
       skipped++;
@@ -391,7 +410,7 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
 
     const steps = stepsBySchedule.get(schedule.id) || [];
     if (steps.length === 0) {
-      await logQueueWarning(supabase, {
+      await logQueueWarning(supabase, org.id, {
         message: `Custom schedule ${schedule.id} (${schedule.name}) has no steps`,
       });
       skipped++;
@@ -432,6 +451,7 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
         const { error: insertError } = await supabase
           .from('reminder_queue')
           .insert({
+            org_id: org.id,
             client_id: client.id,
             filing_type_id: null,
             template_id: schedule.id,
@@ -457,10 +477,15 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient): Promis
 /**
  * Rebuild queue entries for a specific client (v1.1)
  * Used when client metadata, assignments, or overrides change
+ * Org-scoped: all queries filtered by org_id
+ *
+ * When called from server actions, orgId can be derived from the client's org_id.
+ * When called from cron, org is passed explicitly.
  */
 export async function rebuildQueueForClient(
   supabase: SupabaseClient,
-  clientId: string
+  clientId: string,
+  orgId?: string
 ): Promise<void> {
   // Delete all 'scheduled' reminders for this client
   // Don't touch 'pending', 'sent', 'cancelled'
@@ -485,11 +510,15 @@ export async function rebuildQueueForClient(
     throw new Error(`Failed to fetch client: ${clientError?.message}`);
   }
 
+  // Resolve org_id: use explicit parameter, or fall back to client's org_id
+  const resolvedOrgId = orgId || client.org_id;
+
   // Fetch active assignments for this client
   const { data: assignments, error: assignmentsError } = await supabase
     .from('client_filing_assignments')
     .select('*')
     .eq('client_id', clientId)
+    .eq('org_id', resolvedOrgId)
     .eq('is_active', true);
 
   if (assignmentsError) {
@@ -500,10 +529,11 @@ export async function rebuildQueueForClient(
     return;
   }
 
-  // Fetch v1.1 normalized tables
+  // Fetch v1.1 normalized tables scoped to org
   const { data: schedules, error: schedulesError } = await supabase
     .from('schedules')
     .select('*')
+    .eq('org_id', resolvedOrgId)
     .eq('is_active', true);
 
   if (schedulesError) {
@@ -513,6 +543,7 @@ export async function rebuildQueueForClient(
   const { data: scheduleSteps, error: stepsError } = await supabase
     .from('schedule_steps')
     .select('*')
+    .eq('org_id', resolvedOrgId)
     .order('step_number', { ascending: true });
 
   if (stepsError) {
@@ -522,6 +553,7 @@ export async function rebuildQueueForClient(
   const { data: emailTemplates, error: templatesError } = await supabase
     .from('email_templates')
     .select('*')
+    .eq('org_id', resolvedOrgId)
     .eq('is_active', true);
 
   if (templatesError) {
@@ -552,7 +584,8 @@ export async function rebuildQueueForClient(
   const { data: deadlineOverrides, error: deadlineError } = await supabase
     .from('client_deadline_overrides')
     .select('*')
-    .eq('client_id', clientId);
+    .eq('client_id', clientId)
+    .eq('org_id', resolvedOrgId);
 
   if (deadlineError) {
     throw new Error(`Failed to fetch deadline overrides: ${deadlineError.message}`);
@@ -570,7 +603,8 @@ export async function rebuildQueueForClient(
   const { data: clientExclusions } = await supabase
     .from('schedule_client_exclusions')
     .select('schedule_id')
-    .eq('client_id', clientId);
+    .eq('client_id', clientId)
+    .eq('org_id', resolvedOrgId);
 
   const excludedScheduleIds = new Set(
     (clientExclusions || []).map(e => e.schedule_id)
@@ -610,7 +644,7 @@ export async function rebuildQueueForClient(
     // Look up schedule
     const schedule = scheduleByFilingType.get(filingTypeId);
     if (!schedule) {
-      await logQueueWarning(supabase, {
+      await logQueueWarning(supabase, resolvedOrgId, {
         message: `No schedule found for filing type ${filingTypeId}`,
         client_id: clientId,
         filing_type_id: filingTypeId,
@@ -625,7 +659,7 @@ export async function rebuildQueueForClient(
 
     const steps = stepsByScheduleMap.get(schedule.id) || [];
     if (steps.length === 0) {
-      await logQueueWarning(supabase, {
+      await logQueueWarning(supabase, resolvedOrgId, {
         message: `Schedule ${schedule.id} has no steps`,
         client_id: clientId,
         filing_type_id: filingTypeId,
@@ -637,7 +671,7 @@ export async function rebuildQueueForClient(
     for (const step of steps) {
       const template = templateMap.get(step.email_template_id);
       if (!template) {
-        await logQueueWarning(supabase, {
+        await logQueueWarning(supabase, resolvedOrgId, {
           message: `Template ${step.email_template_id} not found for schedule ${schedule.id} step ${step.step_number}`,
           client_id: clientId,
           filing_type_id: filingTypeId,
@@ -652,6 +686,7 @@ export async function rebuildQueueForClient(
       const deadlineDateStr = format(deadlineDate, 'yyyy-MM-dd');
 
       await supabase.from('reminder_queue').insert({
+        org_id: resolvedOrgId,
         client_id: client.id,
         filing_type_id: filingTypeId,
         template_id: schedule.id,
@@ -692,6 +727,7 @@ export async function rebuildQueueForClient(
         const sendDateStr = format(sendDate, 'yyyy-MM-dd');
 
         await supabase.from('reminder_queue').insert({
+          org_id: resolvedOrgId,
           client_id: client.id,
           filing_type_id: null,
           template_id: schedule.id,

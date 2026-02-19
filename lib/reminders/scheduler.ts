@@ -2,7 +2,7 @@ import { SupabaseClient } from '@supabase/supabase-js';
 import { UTCDate } from '@date-fns/utc';
 import { toZonedTime } from 'date-fns-tz';
 import { format, addMinutes } from 'date-fns';
-import { buildReminderQueue, buildCustomScheduleQueue } from './queue-builder';
+import { buildReminderQueue, buildCustomScheduleQueue, Org } from './queue-builder';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { rolloverDeadline } from '@/lib/deadlines/rollover';
 
@@ -26,15 +26,18 @@ interface FilingType {
 }
 
 /**
- * Process daily reminders (v1.1)
- * - Acquires distributed lock
+ * Process daily reminders for a specific organisation (v3.0 multi-tenant)
+ * - Acquires org-scoped distributed lock
  * - Checks if it's 9am UK time
- * - Builds/updates queue
+ * - Builds/updates queue for the org
  * - Marks due reminders as pending
  * - Resolves template variables using v1.1 TipTap rendering
  * - Handles deadline rollover
  */
-export async function processReminders(supabase: SupabaseClient): Promise<ProcessResult> {
+export async function processReminders(
+  supabase: SupabaseClient,
+  org: Org
+): Promise<ProcessResult> {
   const result: ProcessResult = {
     queued: 0,
     rolled_over: 0,
@@ -42,33 +45,34 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
     skipped_wrong_hour: false,
   };
 
-  // Step 1: Acquire distributed lock
-  const lockId = 'cron_reminders';
+  // Step 1: Acquire org-scoped distributed lock
+  const lockId = `cron_reminders_${org.id}`;
   const expiresAt = addMinutes(new Date(), 5);
 
   try {
     const { error: lockError } = await supabase
       .from('locks')
-      .insert({ id: lockId, expires_at: expiresAt.toISOString() });
+      .insert({ id: lockId, org_id: org.id, expires_at: expiresAt.toISOString() });
 
     if (lockError) {
       // Lock already held
-      result.errors.push('Lock already held by another process');
+      result.errors.push(`[${org.name}] Lock already held by another process`);
       return result;
     }
   } catch (error) {
-    result.errors.push('Failed to acquire lock');
+    result.errors.push(`[${org.name}] Failed to acquire lock`);
     return result;
   }
 
   try {
-    // Step 2: Get current UK hour and global send hour
+    // Step 2: Get current UK hour and global send hour for this org
     const ukTime = toZonedTime(new Date(), 'Europe/London');
     const ukHour = ukTime.getHours();
 
     const { data: sendHourRow } = await supabase
       .from('app_settings')
       .select('value')
+      .eq('org_id', org.id)
       .eq('key', 'reminder_send_hour')
       .single();
     const globalSendHour = sendHourRow ? parseInt(sendHourRow.value, 10) : 9;
@@ -77,6 +81,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
     const { data: customHourSchedules } = await supabase
       .from('schedules')
       .select('id')
+      .eq('org_id', org.id)
       .eq('schedule_type', 'custom')
       .eq('is_active', true)
       .eq('send_hour', ukHour);
@@ -91,21 +96,22 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
     }
 
     // Step 3: Build/update queue for any new reminders (filing + custom) — idempotent
-    const buildResult = await buildReminderQueue(supabase);
-    const customBuildResult = await buildCustomScheduleQueue(supabase);
+    const buildResult = await buildReminderQueue(supabase, org);
+    const customBuildResult = await buildCustomScheduleQueue(supabase, org);
 
     // Step 4: Find due reminders, split by hour matching
     const today = format(new UTCDate(), 'yyyy-MM-dd');
 
-    // Fetch all due reminders for today
+    // Fetch all due reminders for today for this org
     const { data: allDueReminders, error: fetchError } = await supabase
       .from('reminder_queue')
       .select('*, clients!inner(*), filing_types(*)')
+      .eq('org_id', org.id)
       .eq('send_date', today)
       .eq('status', 'scheduled');
 
     if (fetchError) {
-      result.errors.push(`Failed to fetch due reminders: ${fetchError.message}`);
+      result.errors.push(`[${org.name}] Failed to fetch due reminders: ${fetchError.message}`);
       return result;
     }
 
@@ -150,7 +156,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
       .in('id', reminderIds);
 
     if (updateError) {
-      result.errors.push(`Failed to update reminder status: ${updateError.message}`);
+      result.errors.push(`[${org.name}] Failed to update reminder status: ${updateError.message}`);
       return result;
     }
 
@@ -169,12 +175,13 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
           const { data, error: scheduleError } = await supabase
             .from('schedules')
             .select('*')
+            .eq('org_id', org.id)
             .eq('filing_type_id', reminder.filing_type_id)
             .eq('is_active', true)
             .single();
 
           if (scheduleError || !data) {
-            result.errors.push(`Failed to fetch schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
+            result.errors.push(`[${org.name}] Failed to fetch schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
             continue;
           }
           schedule = data;
@@ -183,12 +190,13 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
           const { data, error: scheduleError } = await supabase
             .from('schedules')
             .select('*')
+            .eq('org_id', org.id)
             .eq('id', reminder.template_id)
             .eq('is_active', true)
             .single();
 
           if (scheduleError || !data) {
-            result.errors.push(`Failed to fetch custom schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
+            result.errors.push(`[${org.name}] Failed to fetch custom schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
             continue;
           }
           schedule = data;
@@ -198,18 +206,19 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
         const { data: steps, error: stepsError } = await supabase
           .from('schedule_steps')
           .select('*')
+          .eq('org_id', org.id)
           .eq('schedule_id', schedule.id)
           .order('step_number', { ascending: true });
 
         if (stepsError || !steps) {
-          result.errors.push(`Failed to fetch schedule steps for reminder ${reminder.id}: ${stepsError?.message || 'No steps found'}`);
+          result.errors.push(`[${org.name}] Failed to fetch schedule steps for reminder ${reminder.id}: ${stepsError?.message || 'No steps found'}`);
           continue;
         }
 
         // Find the step matching reminder.step_index
         const step = steps.find((s) => s.step_number === reminder.step_index);
         if (!step) {
-          result.errors.push(`Step ${reminder.step_index} not found in schedule ${schedule.id} for reminder ${reminder.id}`);
+          result.errors.push(`[${org.name}] Step ${reminder.step_index} not found in schedule ${schedule.id} for reminder ${reminder.id}`);
           continue;
         }
 
@@ -217,11 +226,12 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
         const { data: template, error: templateError } = await supabase
           .from('email_templates')
           .select('*')
+          .eq('org_id', org.id)
           .eq('id', step.email_template_id)
           .single();
 
         if (templateError || !template) {
-          result.errors.push(`Failed to fetch template for reminder ${reminder.id}: ${templateError?.message || 'No template found'}`);
+          result.errors.push(`[${org.name}] Failed to fetch template for reminder ${reminder.id}: ${templateError?.message || 'No template found'}`);
           continue;
         }
 
@@ -253,14 +263,15 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
             .eq('id', reminder.id);
 
           if (resolveError) {
-            result.errors.push(`Failed to update resolved content for reminder ${reminder.id}: ${resolveError.message}`);
+            result.errors.push(`[${org.name}] Failed to update resolved content for reminder ${reminder.id}: ${resolveError.message}`);
           }
         } catch (renderError) {
           const message = renderError instanceof Error ? renderError.message : 'Unknown rendering error';
-          result.errors.push(`Failed to render template for reminder ${reminder.id}: ${message}`);
+          result.errors.push(`[${org.name}] Failed to render template for reminder ${reminder.id}: ${message}`);
 
           // Log rendering failure to email_log
           await supabase.from('email_log').insert({
+            org_id: org.id,
             client_id: reminder.client_id,
             filing_type_id: reminder.filing_type_id,
             delivery_status: 'failed',
@@ -271,7 +282,7 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        result.errors.push(`Error processing reminder ${reminder.id}: ${message}`);
+        result.errors.push(`[${org.name}] Error processing reminder ${reminder.id}: ${message}`);
       }
     }
 
@@ -280,13 +291,14 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
     const { data: pastDeadlines, error: pastError } = await supabase
       .from('reminder_queue')
       .select('*, clients!inner(*)')
+      .eq('org_id', org.id)
       .lt('deadline_date', today)
       .eq('status', 'sent')
       .not('filing_type_id', 'is', null)
       .order('deadline_date', { ascending: false });
 
     if (pastError) {
-      result.errors.push(`Failed to fetch past deadlines: ${pastError.message}`);
+      result.errors.push(`[${org.name}] Failed to fetch past deadlines: ${pastError.message}`);
     } else if (pastDeadlines && pastDeadlines.length > 0) {
       // Group by client + filing type to get the most recent deadline for each
       const deadlineMap = new Map<string, typeof pastDeadlines[0]>();
@@ -321,21 +333,21 @@ export async function processReminders(supabase: SupabaseClient): Promise<Proces
               .eq('id', client.id);
 
             if (updateClientError) {
-              result.errors.push(`Failed to update client year_end_date: ${updateClientError.message}`);
+              result.errors.push(`[${org.name}] Failed to update client year_end_date: ${updateClientError.message}`);
             }
           }
 
           result.rolled_over++;
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unknown error';
-          result.errors.push(`Failed to rollover deadline for ${key}: ${message}`);
+          result.errors.push(`[${org.name}] Failed to rollover deadline for ${key}: ${message}`);
         }
       }
     }
 
     return result;
   } finally {
-    // Step 8: Release lock
+    // Step 8: Release org-scoped lock
     await supabase.from('locks').delete().eq('id', lockId);
   }
 }
