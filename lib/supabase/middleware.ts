@@ -1,6 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Phase 12 will add subdomain-based org resolution here.
+// For now, the JWT claims (set by the auth hook in Plan 10-02) carry org_id/org_role,
+// and RLS policies use auth_org_id() to filter data automatically.
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
