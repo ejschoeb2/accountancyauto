@@ -104,10 +104,14 @@
 4. A manual test run of both cron jobs (reminders + send-emails) against a two-org dataset sends each org's emails only to that org's clients; no cross-tenant delivery occurs.
 5. The `app_settings` table rejects a duplicate `(org_id, key)` pair with a unique constraint violation; the old single-key uniqueness is gone.
 
-**Plans:** TBD
+**Plans:** 5 plans in 4 waves
 
 Plans:
-- [ ] 10-01: TBD
+- [ ] 10-01-PLAN.md — Database schema: organisations, user_organisations, invitations tables + org_id on all data tables + backfill
+- [ ] 10-02-PLAN.md — JWT Custom Access Token Hook + org-scoped RLS policies
+- [ ] 10-03-PLAN.md — Cron job org-scoping (reminders + send-emails) + per-org Postmark
+- [ ] 10-04-PLAN.md — Server action updates for org-scoped operations
+- [ ] 10-05-PLAN.md — Integration verification with test org + human verification checkpoint
 
 ---
 
