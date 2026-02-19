@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 ## Current Position
 
-Phase: Phase 10 — Org Data Model & RLS Foundation (3 of 5 plans complete)
-Plan: 02 of 5 (JWT Hook & RLS Policies) — just completed
+Phase: Phase 10 — Org Data Model & RLS Foundation (4 of 5 plans complete)
+Plan: 04 of 5 (Server Action & API Route Org Scoping) — just completed
 Status: In progress
-Last activity: 2026-02-19 — Completed 10-02-PLAN.md (JWT hook and RLS policies)
+Last activity: 2026-02-19 — Completed 10-04-PLAN.md (server action org scoping)
 
-Progress: [███░░░░░░░░░░░░░░░░░] 3/5 Phase 10 plans complete
+Progress: [████░░░░░░░░░░░░░░░░] 4/5 Phase 10 plans complete
 
 ## Performance Metrics
 
@@ -39,10 +39,10 @@ Progress: [███░░░░░░░░░░░░░░░░░] 3/5 Pha
 - Status: Shipped
 
 **v3.0 Velocity:**
-- Total plans completed: 3
+- Total plans completed: 4
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 in progress (Plans 01, 02, 03 complete)
+- Status: Phase 10 in progress (Plans 01, 02, 03, 04 complete)
 
 ## Accumulated Context
 
@@ -75,6 +75,10 @@ Recent decisions affecting v3.0:
 - [D-10-03-02] rebuildQueueForClient takes optional orgId (falls back to client.org_id)
 - [D-10-03-03] cancel/restore/unpause helpers unchanged (client_id already scopes to one org)
 - [D-10-03-04] sendRichEmail kept unchanged; new sendRichEmailForOrg for cron jobs
+- [D-10-04-01] getOrgId() extracts org_id from JWT app_metadata for server actions
+- [D-10-04-02] API routes with INSERT/upsert also updated (not just server actions) — all tables have org_id NOT NULL
+- [D-10-04-03] Postmark inbound webhook resolves org_id from matched client, falls back to founding org
+- [D-10-04-04] Server actions with only SELECT/UPDATE/DELETE unchanged (RLS handles filtering)
 
 ### Known Risks
 
@@ -133,11 +137,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-19 22:49 UTC
-Stopped at: Completed 10-02-PLAN.md (JWT hook and RLS policies)
+Last session: 2026-02-19 23:02 UTC
+Stopped at: Completed 10-04-PLAN.md (server action org scoping)
 Resume file: None
-Next step: Execute 10-04-PLAN.md (server action org scoping)
+Next step: Execute 10-05-PLAN.md (verification and activation)
 Note: JWT hook must be enabled in Supabase Dashboard before testing authenticated access
 
 ---
-*Phase 10 Plans 01, 02, 03 complete — database schema, RLS policies, cron scoping (2026-02-19)*
+*Phase 10 Plans 01, 02, 03, 04 complete — database schema, RLS policies, cron scoping, server action org scoping (2026-02-19)*
