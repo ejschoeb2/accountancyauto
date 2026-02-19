@@ -1,15 +1,19 @@
 /**
  * Email sender for reminder emails via Postmark
  *
- * Supports both v1.0 (plain text) and v1.1 (rich HTML) email sending
+ * Supports both v1.0 (plain text) and v1.1 (rich HTML) email sending.
+ * v3.0 adds org-aware sending for multi-tenant cron jobs.
  */
 
 import { render } from '@react-email/render';
+import { ServerClient } from 'postmark';
 import { postmarkClient } from './client';
 import ReminderEmail from './templates/reminder';
 import { getEmailSettings, type EmailSettings } from '@/app/actions/settings';
+import { SupabaseClient } from '@supabase/supabase-js';
 
-// Module-level cache for email settings (avoids repeated DB queries in batch sends)
+// Module-level cache for email settings (used by single-tenant server actions)
+// Multi-tenant cron jobs use getEmailFromForOrg() instead
 let cachedSettings: { data: EmailSettings; fetchedAt: number } | null = null;
 const CACHE_TTL_MS = 60_000; // 1 minute
 
@@ -23,6 +27,34 @@ async function getEmailFrom(): Promise<{ from: string; replyTo: string }> {
     from: `${s.senderName} <${s.senderAddress}>`,
     replyTo: s.replyTo,
   };
+}
+
+/**
+ * Get email from/replyTo settings for a specific org (for cron jobs)
+ * Reads directly from app_settings using admin client — no session needed
+ */
+async function getEmailFromForOrg(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<{ from: string; replyTo: string }> {
+  const { data } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .eq('org_id', orgId)
+    .in('key', ['email_sender_name', 'email_sender_address', 'email_reply_to']);
+
+  const map = new Map(data?.map(r => [r.key, r.value]) ?? []);
+  return {
+    from: `${map.get('email_sender_name') || 'PhaseTwo'} <${map.get('email_sender_address') || 'hello@phasetwo.uk'}>`,
+    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@phasetwo.uk',
+  };
+}
+
+/**
+ * Create a Postmark ServerClient for a specific org's token
+ */
+function getOrgPostmarkClient(token: string): ServerClient {
+  return new ServerClient(token);
 }
 
 interface SendReminderEmailParams {
@@ -39,6 +71,12 @@ interface SendRichEmailParams {
   html: string;  // Pre-rendered HTML from renderTipTapEmail
   text: string;  // Plain text fallback from renderTipTapEmail
   clientId?: string;  // Optional: for List-Unsubscribe header
+}
+
+interface SendRichEmailForOrgParams extends SendRichEmailParams {
+  orgPostmarkToken: string | null;
+  supabase: SupabaseClient;
+  orgId: string;
 }
 
 interface SendReminderEmailResult {
@@ -108,6 +146,9 @@ export async function sendReminderEmail(
  * No additional rendering needed - content is already inline-styled.
  * Includes List-Unsubscribe headers for better deliverability.
  *
+ * Uses the default env var Postmark client (for server actions / ad-hoc sends).
+ * For cron jobs, use sendRichEmailForOrg() instead.
+ *
  * @param params - Pre-rendered email content
  * @returns Postmark message details
  * @throws Error if email send fails
@@ -154,6 +195,74 @@ export async function sendRichEmail(
     };
   } catch (error) {
     console.error('Failed to send rich email:', error);
+    throw new Error(
+      `Failed to send rich email to ${params.to}: ${
+        error instanceof Error ? error.message : 'Unknown error'
+      }`
+    );
+  }
+}
+
+/**
+ * Send a rich HTML email using org-specific Postmark credentials (v3.0 multi-tenant)
+ *
+ * Used by cron jobs that iterate over organisations. Each org may have its own
+ * Postmark server token. Falls back to the env var token if the org has no token set.
+ *
+ * Email from/replyTo settings are read from the org's app_settings rows.
+ *
+ * @param params - Pre-rendered email content + org context
+ * @returns Postmark message details
+ * @throws Error if no Postmark token available or email send fails
+ */
+export async function sendRichEmailForOrg(
+  params: SendRichEmailForOrgParams
+): Promise<SendReminderEmailResult> {
+  try {
+    // Use org token if available, fall back to env var
+    const token = params.orgPostmarkToken || process.env.POSTMARK_SERVER_TOKEN;
+    if (!token) {
+      throw new Error('No Postmark token available (neither org nor env var)');
+    }
+
+    const client = getOrgPostmarkClient(token);
+
+    // Get org-specific email settings
+    const emailFrom = await getEmailFromForOrg(params.supabase, params.orgId);
+
+    // Build List-Unsubscribe headers if clientId provided
+    const headers: Record<string, string> = {};
+    if (params.clientId) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const unsubscribeUrl = `${baseUrl}/api/unsubscribe?client_id=${params.clientId}`;
+
+      headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`;
+      headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    }
+
+    // Send via org-specific Postmark client
+    const result = await client.sendEmail({
+      From: emailFrom.from,
+      To: params.to,
+      ReplyTo: emailFrom.replyTo,
+      Subject: params.subject,
+      HtmlBody: params.html,
+      TextBody: params.text,
+      MessageStream: 'outbound',
+      TrackOpens: false,
+      TrackLinks: 'None' as any,
+      Headers: Object.keys(headers).length > 0
+        ? Object.entries(headers).map(([Name, Value]) => ({ Name, Value }))
+        : undefined,
+    });
+
+    return {
+      messageId: result.MessageID,
+      submittedAt: result.SubmittedAt,
+      to: result.To || params.to,
+    };
+  } catch (error) {
+    console.error('Failed to send rich email for org:', error);
     throw new Error(
       `Failed to send rich email to ${params.to}: ${
         error instanceof Error ? error.message : 'Unknown error'
