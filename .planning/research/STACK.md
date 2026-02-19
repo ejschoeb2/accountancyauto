@@ -1,235 +1,507 @@
-# Stack Research: Inbound Email Processing + AI Classification
+# Technology Stack: v3.0 Multi-Tenancy & SaaS Platform
 
-**Project:** Peninsula Accounting Client Reminder System v3.0
-**Researched:** 2026-02-13
-**Confidence:** HIGH
+**Project:** Peninsula Accounting — v3.0 Multi-Tenancy
+**Researched:** 2026-02-19
+**Scope:** New dependencies and integration patterns for Stripe billing, Supabase multi-tenant RLS, and Next.js subdomain routing. Does NOT re-research existing stack.
+**Overall confidence:** HIGH (all critical claims verified with official sources or npm registry)
 
-## Executive Summary
+---
 
-v3.0 adds **inbound email processing** and **AI-powered reply classification** to the existing reminder system. This research focuses exclusively on NEW stack additions needed for receiving client email replies, classifying them with Claude API, and enabling reply-from-dashboard capability.
+## Existing Stack (Unchanged)
 
-**Core additions:** Postmark Inbound API (webhook receiver), Anthropic SDK (Claude 4.5 Haiku for classification), structured output validation (Zod + Claude structured outputs), plus-addressing pattern for reply tracking.
+Do not re-research or alter these:
 
-**Key integration points:** Webhook runs as Vercel API route, writes to existing `email_log` table + new `client_replies` table, uses existing Postmark client for reply-from-dashboard sends.
+| Technology | Version | Notes |
+|------------|---------|-------|
+| Next.js | 16.1.6 | App Router, confirmed in package.json |
+| React | 19.2.3 | confirmed in package.json |
+| Supabase JS | @supabase/supabase-js ^2.95.3 | Auth + DB client |
+| @supabase/ssr | ^0.8.0 | Server-side auth helpers |
+| Postmark | ^4.0.5 | Transactional email (per-org credentials now stored in DB) |
+| TipTap | ^3.19.0 | Rich text editor |
+| Vercel Pro | — | Cron jobs, wildcard domains |
+| Zod | ^4.3.6 | Validation (already in project) |
 
-## New Stack Requirements
+---
 
-### AI Classification
+## New Dependencies
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `@anthropic-ai/sdk` | ^0.74.0 | Claude API client for TypeScript | Official Anthropic SDK with structured outputs support (released Nov 2025). Provides type-safe API calls with guaranteed JSON schema compliance. |
-| Claude Haiku 4.5 | (model ID) | Email reply classification | **Best fit for classification tasks**: 4-5x faster than Sonnet 4.5 at fraction of cost ($0.80/$4.00 per MTok vs $3/$15). Achieves 90% of Sonnet performance for agentic tasks. Handles simple classification with high confidence at scale. |
-| Claude Sonnet 4.5 | (fallback) | Complex reply classification | For edge cases where Haiku confidence is LOW, Sonnet provides deeper reasoning at moderate cost. Use 2-stage pipeline: Haiku classifies complexity, routes ambiguous cases to Sonnet. |
+### Stripe Billing
 
-**Cost estimates (February 2026):**
-- Haiku 4.5: $0.80 input / $4.00 output per million tokens
-- Sonnet 4.5: $3.00 input / $15.00 output per million tokens
-- Expected reply size: ~500 tokens input (email body + context), ~100 tokens output (classification JSON)
-- **Per-reply cost**: $0.0004 (Haiku) vs $0.0019 (Sonnet)
-- At 1000 replies/month: **$0.40/month (Haiku only)**, $1.90/month (Sonnet only)
+| Package | Version | Purpose | Install as |
+|---------|---------|---------|-----------|
+| `stripe` | ^20.3.1 | Server-side Stripe SDK (checkout sessions, webhooks, billing portal, subscription management) | production |
+| `@stripe/stripe-js` | ^8.7.0 | Client-side Stripe.js loader (needed ONLY if using Embedded Checkout; NOT needed for Stripe-Hosted Checkout redirect flow) | production |
 
-**Rate limits:** Anthropic uses 4-tier system. Tier 1 ($5 deposit): 40 RPM, 40K ITPM, 8K OTPM. Tier 4 ($400+ spend): 4000 RPM, 2M ITPM, 400K OTPM. For Peninsula's expected volume (~50 replies/day), Tier 1 is sufficient.
+**Recommendation: Use Stripe-Hosted Checkout (redirect), NOT Embedded Checkout.**
 
-### Inbound Email Processing
+Rationale: Hosted Checkout is simpler — no client-side Stripe.js required, no PCI scope beyond redirect, works from a plain Next.js Server Action. For a B2B SaaS onboarding flow at Peninsula's volume, the UX difference is negligible. Embed only if there is a hard UX requirement to stay on-page.
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Postmark Inbound API | (existing account) | Receive client email replies as webhook | Already using Postmark for outbound. Inbound requires MX record setup + webhook URL configuration. **No additional library needed** — webhook delivers JSON payload to Next.js API route. |
-| Plus-addressing | (pattern) | Reply tracking via MailboxHash | Postmark extracts `user+hash@domain.com` into `MailboxHash` field. Use format `replies+{clientId}-{filingTypeId}@{domain}` to route replies to correct context. **No library needed** — built into email standard. |
+This means `@stripe/stripe-js` is NOT required for the initial implementation. Add it only if the team later decides to embed payment UI inline.
 
-**Postmark Inbound Setup Requirements:**
-1. **MX Record:** Point subdomain (e.g., `replies.peninsula.com`) to `inbound.postmarkapp.com` with priority 10
-2. **Inbound Server:** Configure in Postmark dashboard with webhook URL pointing to `/api/webhooks/inbound`
-3. **Webhook Authentication:** Postmark **does NOT support HMAC signatures**. Instead: Basic HTTP Auth in URL (`https://user:pass@domain.com/webhook`) + IP allowlisting + HTTPS required. Validate Postmark-specific headers (`MessageStream`, `From`, `To`) to confirm origin.
+**API Version:** `2026-01-28.clover` — pin this in the Stripe constructor to prevent breaking API changes.
 
-**Payload format:** JSON POST to webhook URL with fields:
-- `FromFull`: Sender details (`Email`, `Name`, `MailboxHash`)
-- `ToFull`: Array of recipients with `MailboxHash` extracted
-- `MailboxHash`: Extracted from `+hash` in email address (e.g., `replies+abc123@domain.com` → `abc123`)
-- `Subject`, `HtmlBody`, `TextBody`, `StrippedTextReply` (body without quoted text)
-- `MessageID`: Unique ID for email (for threading)
-
-**Retry behavior:** Postmark retries webhook 10 times with growing intervals if non-200 response. Returns 403 to stop retries.
-
-### Validation & Type Safety
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `zod` | ^4.3.6 | Schema validation for inbound webhooks + Claude responses | **Already in project** (v4.3.6 in package.json). Use for: (1) Validating Postmark webhook payload structure, (2) Defining classification response schema, (3) Type-safe parsing with `z.email()` for sender validation. |
-
-**Claude Structured Outputs:** Claude API now supports `output_format` parameter with JSON schema (public beta, released Nov 2025). Requires `anthropic-beta: structured-outputs-2025-11-13` header. Works with Sonnet 4.5 and Haiku 4.5. **Use this instead of prompting for JSON** — guarantees schema compliance via constrained decoding.
-
-Example classification schema:
 ```typescript
-const ClassificationSchema = z.object({
-  intent: z.enum(['paperwork_sent', 'request_extension', 'question', 'out_of_office', 'unsubscribe', 'unclear']),
-  confidence: z.enum(['HIGH', 'MEDIUM', 'LOW']),
-  reasoning: z.string().max(200),
-  suggestedAction: z.enum(['auto_update_status', 'flag_for_review', 'no_action']),
+// lib/stripe.ts
+import Stripe from 'stripe';
+
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2026-01-28.clover',
+  typescript: true,
 });
 ```
 
-Pass Zod schema to Claude as JSON Schema via `zodToJsonSchema()` utility (from `zod-to-json-schema` package).
+### No Other New Runtime Packages Required
 
-### Vercel Serverless Function Considerations
+The subdomain routing and Supabase multi-tenant RLS work entirely with existing dependencies. No extra npm packages are needed for:
+- Subdomain parsing (use `request.headers.get('host')` in middleware)
+- RLS policies (SQL in Supabase migrations)
+- JWT org_id injection (Postgres function in Supabase, no npm package)
 
-| Configuration | Value | Rationale |
-|---------------|-------|-----------|
-| Body size limit | 4.5 MB (default) | Postmark emails typically <1 MB. If attachments needed later, use streaming functions (no limit). |
-| Timeout (Pro) | 15s default, 300s max | Webhook processing (parse + classify + DB write) should complete in <5s. Set `maxDuration = 30` for safety margin. Existing cron uses 300s — keep that for batch sends. |
-| `force-dynamic` | Required | Webhook route MUST be dynamic (not static). Add `export const dynamic = 'force-dynamic'` to `/api/webhooks/inbound/route.ts`. |
+---
 
-**Integration note:** Existing `/api/cron/send-emails/route.ts` already uses `maxDuration = 300` and `force-dynamic`. Follow same pattern for webhook route.
+## Stripe Integration Patterns
 
-## Supporting Libraries
+### Checkout Flow (Server Action)
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `date-fns` | ^4.1.0 | Date parsing for email timestamps | **Already in project**. Use for parsing Postmark `Date` field (format varies by sending mailserver). |
-| `@tiptap/html` | ^3.19.0 | Convert plain text to TipTap JSON | **Already in project**. Use for reply-from-dashboard: convert accountant's plain text reply to TipTap format for storage consistency. |
-| `zod-to-json-schema` | ^3.24.1 | Convert Zod schemas to JSON Schema for Claude structured outputs | **NEW DEPENDENCY**. Required for passing Zod schemas to Claude API `output_format` parameter. |
+Use Next.js Server Actions to create Stripe Checkout sessions server-side and redirect. No API route needed.
+
+```typescript
+// app/actions/create-checkout.ts
+'use server';
+import { stripe } from '@/lib/stripe';
+import { redirect } from 'next/navigation';
+
+export async function createCheckoutSession(orgId: string, priceId: string) {
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    currency: 'gbp',                    // CRITICAL: UK pricing in GBP
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/plan`,
+    subscription_data: {
+      trial_period_days: 14,            // 14-day free trial
+      metadata: { org_id: orgId },
+    },
+    metadata: { org_id: orgId },        // also on session for webhook lookup
+  });
+  redirect(session.url!);
+}
+```
+
+### Webhook Handler (Route Handler)
+
+Stripe webhooks MUST use a Route Handler (`/app/api/webhooks/stripe/route.ts`), not a Server Action. The raw body must be preserved for signature verification.
+
+```typescript
+// app/api/webhooks/stripe/route.ts
+import { headers } from 'next/headers';
+import { stripe } from '@/lib/stripe';
+import { createAdminClient } from '@/lib/supabase/admin';
+
+export const dynamic = 'force-dynamic';
+
+export async function POST(request: Request) {
+  const body = await request.text();              // raw body — do NOT use .json()
+  const sig = (await headers()).get('stripe-signature')!;
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+  } catch (err) {
+    return new Response(`Webhook Error: ${err}`, { status: 400 });
+  }
+
+  // handle event...
+  return new Response('ok', { status: 200 });
+}
+```
+
+### Required Webhook Events
+
+Subscribe to exactly these events in the Stripe Dashboard. Do not subscribe to more — unnecessary events add noise.
+
+| Event | Why Required |
+|-------|-------------|
+| `checkout.session.completed` | New subscription activated; write `stripe_subscription_id`, `stripe_customer_id`, `plan_tier`, `trial_ends_at` to `organisations` table |
+| `customer.subscription.updated` | Plan change, trial→active transition, payment method change; sync `plan_tier` and `subscription_status` |
+| `customer.subscription.deleted` | Subscription cancelled or payment failed → downgrade org to `inactive`; block new email sends |
+| `invoice.payment_succeeded` | Monthly renewal confirmed; optional (for audit log) |
+| `invoice.payment_failed` | First payment failure; send dunning email to admin user, set `subscription_status = 'past_due'` |
+
+### Billing Portal
+
+Generate a Stripe Customer Portal session server-side (Server Action). No new library needed.
+
+```typescript
+export async function createBillingPortalSession(stripeCustomerId: string) {
+  const session = await stripe.billingPortal.sessions.create({
+    customer: stripeCustomerId,
+    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing`,
+  });
+  redirect(session.url);
+}
+```
+
+### UK/GBP Considerations (HIGH confidence)
+
+- Set `currency: 'gbp'` explicitly on every Checkout Session creation. Stripe defaults to the account currency if omitted, which may not be GBP.
+- Configure Stripe Products and Prices in GBP in the Stripe Dashboard. Prices are currency-specific; you cannot reuse a USD price for a GBP charge.
+- UK VAT: Peninsula's plan prices (£20/£39/£89/£159) should be defined as **VAT-exclusive** in Stripe if Peninsula is VAT-registered and will add VAT at checkout. Configure Stripe Tax (automatic tax) or add VAT manually. This is a business decision, not a code decision — flag for the client.
+- Stripe account must have GBP as a supported payout currency and a UK bank account for GBP payouts.
+
+### Stripe Price IDs
+
+Create prices in the Stripe Dashboard. Store price IDs in environment variables, not hardcoded.
+
+```bash
+STRIPE_PRICE_LITE=price_xxx          # £20/month
+STRIPE_PRICE_SOLE_TRADER=price_xxx   # £39/month
+STRIPE_PRICE_PRACTICE=price_xxx      # £89/month
+STRIPE_PRICE_FIRM=price_xxx          # £159/month
+```
+
+---
+
+## Supabase Multi-Tenant RLS Patterns
+
+### The Core Pattern: JWT Claims via Custom Access Token Hook
+
+**Recommendation: Store `org_id` in JWT `app_metadata` via a Supabase Custom Access Token Hook.**
+
+This is the performance-correct approach. The alternative — querying a `user_organisations` join table inside each RLS policy — works but executes an extra SELECT per row per query. With JWT claims, the `org_id` is in the token: zero additional queries.
+
+**Step 1: Postgres hook function**
+
+```sql
+-- Run in Supabase SQL Editor (or migration file)
+CREATE OR REPLACE FUNCTION public.custom_access_token_hook(event jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  claims jsonb;
+  user_org_id uuid;
+BEGIN
+  -- Get the org_id for this user from user_organisations table
+  SELECT o.id INTO user_org_id
+  FROM public.user_organisations uo
+  JOIN public.organisations o ON o.id = uo.organisation_id
+  WHERE uo.user_id = (event->>'user_id')::uuid
+  LIMIT 1;  -- users belong to exactly one org in Peninsula's model
+
+  claims := event->'claims';
+
+  IF user_org_id IS NOT NULL THEN
+    claims := jsonb_set(
+      claims,
+      '{app_metadata, org_id}',
+      to_jsonb(user_org_id::text)
+    );
+  END IF;
+
+  RETURN jsonb_set(event, '{claims}', claims);
+END;
+$$;
+
+-- Grant required permissions
+GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
+GRANT EXECUTE ON FUNCTION public.custom_access_token_hook TO supabase_auth_admin;
+REVOKE EXECUTE ON FUNCTION public.custom_access_token_hook FROM authenticated, anon, public;
+```
+
+**Step 2: Register the hook in Supabase Dashboard**
+
+Authentication → Hooks → Custom Access Token → select `public.custom_access_token_hook`.
+
+(For local dev: add to `supabase/config.toml` under `[auth.hook.custom_access_token]`.)
+
+**Step 3: RLS policies using the JWT claim**
+
+```sql
+-- Helper function (call once, reuse across all policies)
+CREATE OR REPLACE FUNCTION public.get_org_id()
+RETURNS uuid
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT (auth.jwt()->'app_metadata'->>'org_id')::uuid;
+$$;
+
+-- Example policy (apply same pattern to ALL tables with org_id)
+ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "org_isolation" ON public.clients
+  AS RESTRICTIVE
+  FOR ALL
+  TO authenticated
+  USING (org_id = public.get_org_id())
+  WITH CHECK (org_id = public.get_org_id());
+```
+
+**Why `RESTRICTIVE` not `PERMISSIVE`:** A `RESTRICTIVE` policy acts as a mandatory filter — it cannot be bypassed by other permissive policies. This is the correct security posture for tenant isolation. Without it, a future permissive policy could accidentally leak cross-tenant data.
+
+**Performance note:** Wrap `auth.jwt()` in a `STABLE` function (`get_org_id()`). Postgres optimizer caches `STABLE` function results within a statement, so the JWT is parsed once per query, not once per row. This matters at scale.
+
+**Index requirement:** Every table with `org_id` must have an index on `org_id`. Without it, Postgres scans all rows then filters — RLS becomes a full table scan.
+
+```sql
+CREATE INDEX idx_clients_org_id ON public.clients(org_id);
+-- Repeat for every table with org_id
+```
+
+### Service-Role Bypass (for cron and webhooks)
+
+Supabase `service_role` key bypasses RLS entirely. Use it for:
+- The two-stage cron (queue builder + email sender) — these need cross-org access for scheduling
+- Stripe webhook handler — needs to update `organisations` table without an authenticated user
+- Migration scripts
+
+```typescript
+// lib/supabase/admin.ts (service role client — NEVER expose to browser)
+import { createClient } from '@supabase/supabase-js';
+
+export function createAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,  // NOT the anon key
+  );
+}
+```
+
+### Cron Update: Per-Org Postmark Credentials
+
+The existing cron (`/api/cron/send-emails`) currently uses a single global Postmark token. After multi-tenancy:
+- Query `organisations` for each org's `postmark_server_token` before sending
+- Use service_role client (bypasses RLS) to access all organisations
+- No new package needed — existing `postmark` package supports multiple client instances
+
+```typescript
+// lib/email/sender.ts — updated pattern
+import { ServerClient } from 'postmark';
+
+export function getPostmarkClient(serverToken: string): ServerClient {
+  return new ServerClient(serverToken);  // one instance per org, per send batch
+}
+```
+
+### user_organisations Table Pattern
+
+Store org membership in a junction table. Keep it simple: one role column (`admin` or `member`).
+
+```sql
+CREATE TABLE public.user_organisations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  organisation_id uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
+  role text NOT NULL CHECK (role IN ('admin', 'member')),
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, organisation_id)
+);
+
+-- RLS: users can only see their own membership rows
+ALTER TABLE public.user_organisations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "own_membership" ON public.user_organisations
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+```
+
+---
+
+## Next.js Subdomain Routing
+
+### Pattern: Middleware + NextResponse.rewrite()
+
+No new package is needed. Next.js middleware runs at the edge and has access to `request.headers` including `host`. Use `NextResponse.rewrite()` to map `orgslug.app.domain.com` to a dynamic route without changing the URL the user sees.
+
+```typescript
+// middleware.ts (project root)
+import { NextRequest, NextResponse } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';  // existing auth session refresh
+
+export async function middleware(request: NextRequest) {
+  const hostname = request.headers.get('host') ?? '';
+
+  // Strip port for local dev (localhost:3000)
+  const hostWithoutPort = hostname.replace(/:\d+$/, '');
+
+  // Detect subdomain pattern: orgslug.app.domain.com
+  // In local dev: orgslug.localhost
+  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'app.yourdomain.com';
+  const isSubdomain =
+    hostWithoutPort.endsWith(`.${appDomain}`) ||
+    (process.env.NODE_ENV === 'development' && hostWithoutPort.endsWith('.localhost'));
+
+  if (isSubdomain) {
+    const orgSlug = hostWithoutPort.split('.')[0];
+
+    // Rewrite to /[orgSlug]/... route group without changing browser URL
+    const url = request.nextUrl.clone();
+    url.pathname = `/${orgSlug}${request.nextUrl.pathname}`;
+
+    // Pass orgSlug via header so layout/pages can read it without parsing hostname again
+    const response = NextResponse.rewrite(url);
+    response.headers.set('x-org-slug', orgSlug);
+    return response;
+  }
+
+  // Main domain: onboarding, marketing, super-admin
+  return await updateSession(request);  // existing Supabase session refresh
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+};
+```
+
+**Route structure:**
+
+```
+app/
+  (marketing)/           # Main domain: app.yourdomain.com — onboarding, pricing
+    page.tsx
+    onboarding/
+  [orgSlug]/             # Subdomain: orgslug.app.yourdomain.com — tenant app
+    layout.tsx           # Resolves org from URL segment, verifies membership
+    dashboard/
+    clients/
+    ...
+  (admin)/               # app.yourdomain.com/admin — super-admin only
+    dashboard/
+```
+
+**Reading orgSlug in layout:**
+
+```typescript
+// app/[orgSlug]/layout.tsx
+import { headers } from 'next/headers';
+
+export default async function OrgLayout({ params }: { params: { orgSlug: string } }) {
+  // orgSlug comes from the rewritten path segment
+  const orgSlug = params.orgSlug;
+
+  // Fetch org from DB, verify user is a member
+  // ...
+}
+```
+
+### Vercel Configuration (HIGH confidence)
+
+Wildcard subdomains on Vercel require the **nameserver method** — you must delegate your domain's DNS to Vercel's nameservers (`ns1.vercel-dns.com`, `ns2.vercel-dns.com`). The A record method does NOT support wildcard SSL.
+
+Steps:
+1. Update your domain registrar to use Vercel nameservers
+2. In Vercel Dashboard → Project → Settings → Domains → Add `*.app.yourdomain.com`
+3. Vercel automatically issues SSL certificates for each new subdomain via Let's Encrypt
+
+**Local development:** Use `*.localhost` subdomains. Chrome resolves `*.localhost` natively. Add to `/etc/hosts` (macOS/Linux) or test with `app.localhost:3000`.
+
+---
+
+## Environment Variables Required for v3.0
+
+Add these to `.env.local` (dev) and Vercel project environment variables (production):
+
+```bash
+# Stripe — Server Side (NEVER expose to browser)
+STRIPE_SECRET_KEY=sk_live_...            # or sk_test_... for dev
+STRIPE_WEBHOOK_SECRET=whsec_...          # from Stripe Dashboard → Webhooks → Signing Secret
+STRIPE_PRICE_LITE=price_xxx
+STRIPE_PRICE_SOLE_TRADER=price_xxx
+STRIPE_PRICE_PRACTICE=price_xxx
+STRIPE_PRICE_FIRM=price_xxx
+
+# Stripe — Client Side (safe to expose, prefixed NEXT_PUBLIC_)
+# Only needed if using Embedded Checkout (NOT recommended initially)
+# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+
+# App Domain — used in middleware subdomain detection and Stripe success/cancel URLs
+NEXT_PUBLIC_APP_DOMAIN=app.yourdomain.com
+NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
+
+# Supabase — unchanged from v2.0
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...            # for cron, webhooks, admin operations
+```
+
+---
+
+## Alternatives Considered
+
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Checkout UI | Stripe-Hosted Checkout | Embedded Checkout | Embedded requires `@stripe/stripe-js` + client setup. No UX benefit for B2B onboarding at this scale. |
+| Org resolution | Subdomain + middleware rewrite | Custom domain per tenant | Custom domains need DNS verification flow (weeks of UX work). Subdomains work on day one. |
+| JWT org_id injection | Custom Access Token Hook | Query join table in every RLS policy | Join table in RLS = extra SELECT per row per query. JWT claim = zero extra queries. JWT is the right tool. |
+| RLS USING clause | `org_id = get_org_id()` | `org_id IN (SELECT org_id FROM user_organisations WHERE user_id = auth.uid())` | Subquery form is slower and risks N+1 at the Postgres level. JWT claim avoids the join entirely. |
+| Stripe overage enforcement | Application-layer check (count clients before add) | Stripe metered billing | Metered billing adds significant complexity (usage records, metered prices, invoice line items). Application-layer count check is simpler, transparent to users, and sufficient at Peninsula's expected tenant scale. |
+| Billing portal | Stripe Customer Portal | Custom billing UI | Portal is maintained by Stripe (handles card updates, invoice history, cancellation). Building custom is 2-4 weeks of work for no user-facing benefit. |
+
+---
+
+## What NOT to Add
+
+| Do Not Add | Why |
+|------------|-----|
+| `@stripe/react-stripe-js` | Not needed for Hosted Checkout. Only add if switching to Embedded Checkout later. |
+| `next-auth` or `clerk` for auth | Already using Supabase Auth. Adding a second auth layer creates session conflicts and doubles complexity. |
+| Separate Supabase project per tenant | Architectural decision already made: single project, org_id isolation. Separate projects = separate API keys, separate migrations, separate cron configuration for each tenant. Not viable. |
+| Stripe metered billing | Overage checking at application layer is sufficient (count clients before adding, return 402 if at limit). Metered billing requires usage record APIs and complicates invoicing. |
+| Redis / Upstash for session caching | No evidence of session performance problems at current or expected scale. Premature. |
+| `stripe-event-types` npm package | The official `stripe` package (v20+) ships full TypeScript types for all webhook events. No supplemental type package needed. |
+
+---
 
 ## Installation
 
 ```bash
-# New dependencies for v3.0
-npm install @anthropic-ai/sdk zod-to-json-schema
+# New dependency (only one new package for the entire multi-tenancy milestone)
+npm install stripe@^20.3.1
 
-# Verify existing dependencies (already in package.json)
-# - zod ^4.3.6
-# - postmark ^4.0.5
-# - date-fns ^4.1.0
-# - @tiptap/html ^3.19.0
+# Only add if switching to Embedded Checkout (not recommended for initial implementation)
+# npm install @stripe/stripe-js@^8.7.0
 ```
-
-## Alternatives Considered
-
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Postmark Inbound | SendGrid Inbound Parse, AWS SES + Lambda | Only if migrating entire email stack. Postmark simplest since already using for outbound. |
-| Claude Haiku 4.5 | GPT-4o-mini, Gemini 2.0 Flash | If Anthropic rate limits hit or cost optimization needed. GPT-4o-mini is $0.15/$0.60 per MTok (cheaper but requires OpenAI account). |
-| Vercel API Route | Supabase Edge Function | If webhook needs direct DB access without app-level auth. Edge Functions run on Deno (closer to Supabase DB), but Vercel API routes sufficient for 50 replies/day. |
-| Plus-addressing | Custom domain routing | If subdomain setup not feasible. Use Postmark's default `{hash}@inbound.postmarkapp.com` instead. Less professional but works. |
-
-## What NOT to Use
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| Claude Opus 4.6 for classification | **5x cost** ($5/$25 per MTok) for negligible accuracy gain on simple classification tasks. Opus is for complex reasoning, not pattern matching. | Haiku 4.5 for 99% of replies, Sonnet 4.5 for edge cases |
-| HMAC signature verification | Postmark **does not provide** HMAC signatures for webhooks. Attempting to implement will fail. | Basic HTTP Auth + IP allowlisting + header validation |
-| Batch API for classification | 50% cheaper ($0.40/$2.00 per MTok) but **not real-time**. Emails queued for processing, responses in ~10 minutes. Users expect immediate classification. | Standard Haiku 4.5 API (real-time) |
-| Fast Mode Claude | 6x cost premium ($18/$90 per MTok for Haiku) for speed. Classification already completes in <2s with standard API. | Standard Haiku 4.5 (fast enough) |
-| Custom email parser | Postmark delivers pre-parsed JSON with `StrippedTextReply` (removes quoted text). No need for regex parsing. | Use `StrippedTextReply` field from Postmark |
-| OpenAI moderation API | Not needed — client replies are low-risk (business context). Adds latency + cost for negligible benefit. | Skip moderation, rely on Claude classification |
-
-## Stack Patterns by Variant
-
-**If reply volume exceeds 1000/day:**
-- Switch to Batch API for classification (50% cost savings)
-- Add queue table for async processing
-- Acceptable for non-urgent classifications (e.g., overnight batch)
-
-**If attachments needed in replies:**
-- Postmark inbound includes `Attachments` array with base64 content
-- Store in Supabase Storage (not DB — files can be large)
-- Add `attachment_urls` JSON column to `client_replies` table
-
-**If multi-practice isolation required:**
-- Add `practice_id` to webhook URL as query param: `/api/webhooks/inbound?practice_id={id}`
-- Validate practice ownership before writing to DB
-- Use separate Reply-To addresses per practice (e.g., `replies+practice1-{context}@domain.com`)
-
-**If email threading needed:**
-- Use Postmark's `MessageID` and `References` headers to build thread
-- Store `in_reply_to_message_id` in `client_replies` table
-- Query by `reminder_queue_id` to see all replies for a filing
-
-## Version Compatibility
-
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `@anthropic-ai/sdk@0.74.0` | Node.js ≥18, TypeScript ≥4.5 | Structured outputs require `anthropic-beta: structured-outputs-2025-11-13` header |
-| `zod-to-json-schema@3.24.1` | `zod@^4.0.0` | Works with Zod v4.3.6 (in package.json) |
-| Postmark Inbound API | Postmark client `^4.0.5` | Inbound uses webhooks (no client library needed), outbound uses existing client |
-| Claude Haiku 4.5 | Anthropic SDK `≥0.74.0` | Model ID: `claude-haiku-4-5` (released Dec 2025) |
-
-## Integration Points with Existing Stack
-
-### Postmark
-- **Outbound (existing):** `postmark` package (v4.0.5) in `lib/email/sender.ts`, `sendRichEmail()` function
-- **Inbound (new):** Webhook receiver at `/api/webhooks/inbound/route.ts`, no package needed (JSON payload)
-- **Reply-from-dashboard (new):** Reuse `sendRichEmail()` with `ReplyTo` header set to client's original email
-
-### Supabase
-- **Email log (existing):** `email_log` table tracks outbound emails (created in `20260207020738_add_email_log_table.sql`)
-- **Client replies (new):** New `client_replies` table stores inbound emails + classification results
-- **Foreign keys:** `client_replies.email_log_id` → `email_log.id` (links reply to original outbound email)
-- **RLS policies:** Follow existing pattern (authenticated users read/write, service_role full access)
-
-### Next.js / Vercel
-- **Webhook route:** `/app/api/webhooks/inbound/route.ts` (POST handler, `force-dynamic`, `maxDuration = 30`)
-- **Classification service:** `lib/ai/classify-reply.ts` (Anthropic SDK client, structured outputs)
-- **Reply sender:** `app/actions/send-reply.ts` (server action, reuses `sendRichEmail()`)
-
-### Zod
-- **Webhook validation (new):** `lib/schemas/postmark-inbound.ts` validates incoming JSON payload
-- **Classification schema (new):** `lib/schemas/reply-classification.ts` defines Claude response structure
-- **Form validation (existing):** `react-hook-form` + Zod already used in templates/schedules
-
-## Environment Variables
-
-```bash
-# Anthropic API (NEW)
-ANTHROPIC_API_KEY=sk-ant-... # From console.anthropic.com
-
-# Postmark (EXISTING)
-POSTMARK_API_TOKEN=... # Already configured for outbound
-
-# Webhook Auth (NEW)
-WEBHOOK_SECRET=... # For Basic HTTP Auth on inbound webhook URL
-# Format: https://{user}:{WEBHOOK_SECRET}@{domain}/api/webhooks/inbound
-
-# Inbound Domain (NEW)
-INBOUND_EMAIL_DOMAIN=replies.peninsula.com # Subdomain for MX record
-```
-
-## Sources
-
-### Postmark Inbound
-- [Inbound webhook documentation](https://postmarkapp.com/developer/webhooks/inbound-webhook) — Payload format, MailboxHash field
-- [Postmark webhook overview](https://postmarkapp.com/developer/webhooks/webhooks-overview) — Authentication, retry behavior
-- [Parse an email guide](https://postmarkapp.com/developer/user-guide/inbound/parse-an-email) — MailboxHash context tracking pattern
-- [Sample inbound workflow](https://postmarkapp.com/developer/user-guide/inbound/sample-inbound-workflow) — End-to-end implementation example
-- [Inbound domain forwarding](https://postmarkapp.com/developer/user-guide/inbound/inbound-domain-forwarding) — MX record setup
-- [Hookdeck Postmark guide](https://hookdeck.com/webhooks/platforms/guide-to-postmark-webhooks-features-and-best-practices) — Webhook authentication limitations (no HMAC)
-
-### Claude API
-- [Claude AI Pricing 2026 Guide](https://www.glbgpt.com/hub/claude-ai-pricing-2026-the-ultimate-guide-to-plans-api-costs-and-limits/) — Pricing verified for Haiku 4.5, Sonnet 4.5
-- [Claude API pricing page](https://platform.claude.com/docs/en/about-claude/pricing) — Official February 2026 pricing
-- [Claude Haiku 4.5 deep dive](https://caylent.com/blog/claude-haiku-4-5-deep-dive-cost-capabilities-and-the-multi-agent-opportunity) — Performance metrics for classification tasks
-- [Models overview](https://platform.claude.com/docs/en/about-claude/models/overview) — Model comparison (Opus, Sonnet, Haiku)
-- [Structured outputs documentation](https://platform.claude.com/docs/en/build-with-claude/structured-outputs) — JSON schema mode (beta, released Nov 2025)
-- [Claude API rate limits](https://platform.claude.com/docs/en/api/rate-limits) — Tier system (Tier 1-4 limits)
-
-### Anthropic SDK
-- [@anthropic-ai/sdk npm package](https://www.npmjs.com/package/@anthropic-ai/sdk) — Latest version 0.74.0 (published Feb 2026)
-- [anthropic-sdk-typescript GitHub](https://github.com/anthropics/anthropic-sdk-typescript) — TypeScript SDK releases
-
-### Vercel
-- [Vercel Functions Limits](https://vercel.com/docs/functions/limitations) — Body size (4.5 MB), timeout (Pro: 15s default, 300s max)
-- [How to bypass 4.5MB body size limit](https://vercel.com/kb/guide/how-to-bypass-vercel-body-size-limit-serverless-functions) — Streaming functions for large payloads
-
-### Email Standards
-- [Plus addressing and subaddressing](https://verifalia.com/help/email-validations/what-is-plus-addressing-subaddressing) — Email +hash syntax for context tracking
-- [Fastmail plus addressing guide](https://www.fastmail.help/hc/en-us/articles/360060591053-Plus-addressing-and-subdomain-addressing) — Plus addressing behavior
-
-### Zod
-- [Zod npm package](https://www.npmjs.com/package/zod) — TypeScript-first validation (v4.3.6 in project)
-- [Zod email validation](https://www.answeroverflow.com/m/1400374318634107022) — `z.email()` validation patterns
 
 ---
 
-*Stack research for: Peninsula Accounting v3.0 — Inbound Email Processing + AI Classification*
-*Researched: 2026-02-13*
-*Confidence: HIGH (verified with official docs and WebSearch sources)*
+## Integration Points with Existing Code
+
+| Existing File | Change for v3.0 |
+|---------------|----------------|
+| `middleware.ts` | Add subdomain detection + `NextResponse.rewrite()` to `[orgSlug]` route; keep existing `updateSession()` call |
+| `lib/supabase/client.ts` | No change — anon key client unchanged |
+| `lib/supabase/server.ts` | No change — SSR client unchanged; RLS enforcement is transparent |
+| `lib/email/sender.ts` | Accept `serverToken` parameter; remove hardcoded env var token; query per-org token before send |
+| `/api/cron/send-emails/route.ts` | Use service_role client; fetch per-org Postmark tokens; loop by org |
+| `/api/cron/build-queue/route.ts` | Use service_role client; no other changes (queue builder already operates on all rows) |
+| All Supabase DB operations | No change in application code — RLS handles isolation transparently once policies are in place |
+
+---
+
+## Sources
+
+- [stripe npm package](https://www.npmjs.com/package/stripe) — latest version 20.3.1 (verified Feb 2026)
+- [@stripe/stripe-js npm package](https://www.npmjs.com/package/@stripe/stripe-js) — latest version 8.7.0 (verified Feb 2026)
+- [stripe-node GitHub releases](https://github.com/stripe/stripe-node/releases) — API version 2026-01-28.clover
+- [Stripe webhooks for subscriptions](https://docs.stripe.com/billing/subscriptions/webhooks) — required events
+- [Stripe webhook signature verification](https://docs.stripe.com/webhooks/signature) — raw body requirement
+- [Stripe build subscriptions guide](https://docs.stripe.com/billing/subscriptions/build-subscriptions) — checkout + webhook flow
+- [Supabase Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook) — JWT claim injection pattern
+- [Supabase Auth Hooks](https://supabase.com/docs/guides/auth/auth-hooks) — hook types and configuration
+- [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security) — policy patterns
+- [Supabase RLS Performance](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv) — STABLE function caching, indexing
+- [Next.js Middleware docs](https://nextjs.org/docs/15/app/getting-started/route-handlers-and-middleware) — middleware pattern
+- [Vercel wildcard domains](https://vercel.com/blog/wildcard-domains) — nameserver requirement for wildcard SSL
+- [Vercel multi-tenant domain management](https://vercel.com/docs/multi-tenant/domain-management) — configuration steps
+- [Next.js App Router Stripe webhook](https://kitson-broadhurst.medium.com/next-js-app-router-stripe-webhook-signature-verification-ea9d59f3593f) — `request.text()` for raw body
+
+---
+
+*Stack research for: Peninsula Accounting v3.0 — Multi-Tenancy & SaaS Platform*
+*Researched: 2026-02-19*
+*Confidence: HIGH — all package versions verified against npm registry; Supabase hook pattern verified against official docs; Stripe webhook pattern verified against official docs*

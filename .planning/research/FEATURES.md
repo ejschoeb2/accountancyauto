@@ -1,297 +1,432 @@
-# Feature Research
+# Feature Landscape: v3.0 Multi-Tenancy & SaaS Platform
 
-**Domain:** Inbound Email Processing + AI Classification for Accounting Practice
-**Researched:** 2026-02-13
-**Confidence:** MEDIUM-HIGH
+**Domain:** B2B SaaS platform features for accounting practice management — onboarding, billing, team management, super-admin
+**Researched:** 2026-02-19
+**Confidence:** HIGH (onboarding/billing patterns well-established; UK-specific requirements verified against Stripe and HMRC sources)
 
-## Feature Landscape
+---
 
-### Table Stakes (Users Expect These)
+## Context
 
-Features users assume exist. Missing these = product feels incomplete.
+This document covers the SaaS *platform* features being added in v3.0. The core product (client management, deadline tracking, reminder engine, email templates) is already built and validated. This research focuses entirely on the new infrastructure layer:
+
+1. Onboarding flow (account creation → org setup → plan selection → trial)
+2. Billing management page (plan display, usage meters, upgrade/downgrade)
+3. Team invite system (email-based invites, role assignment, accept flow)
+4. Super-admin dashboard (tenant list, subscription status, usage monitoring)
+
+---
+
+## Table Stakes
+
+Features users expect. Missing = product feels broken or untrustworthy.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Inbound email receipt via webhook | Standard in email automation systems | LOW | Postmark provides structured JSON with parsed email content, headers, recipients |
-| AI classification of reply intent | Expected in 2026 customer service tools | MEDIUM | Industry standard uses 50-70% confidence threshold; 90%+ is high confidence |
-| Confidence score display | Users need to know AI certainty | LOW | Show percentage or HIGH/MEDIUM/LOW labels; critical for trust |
-| Human review queue for low-confidence replies | Standard safety pattern in AI systems | MEDIUM | Queue interface to show ambiguous replies requiring manual classification |
-| Auto-update filing status on high-confidence "sent" replies | Core value proposition of AI classification | MEDIUM | When AI is 90%+ confident client sent paperwork, mark filing as received |
-| Reply log/timeline view | Expected in all practice management tools | MEDIUM | Chronological view of all client replies per filing type; supports conversation context |
-| Out-of-office detection | Standard in email automation platforms | LOW | Separate OOO from actionable replies; pause reminder sequences |
-| Manual override of AI classification | Users must be able to correct mistakes | LOW | Click to reclassify; trains system and fixes errors |
-| Email threading/conversation grouping | Expected in customer service email tools | MEDIUM | Group related emails by In-Reply-To and References headers; show conversation history |
-| Full email content visibility | Accountants need complete context | LOW | Show plain text body, HTML if available, from/to/subject/date |
+| **Multi-step onboarding wizard** | Standard SaaS pattern; single form creates too much friction | MEDIUM | Account → Org details → Plan → Trial. Max 4 steps — completion rates drop significantly beyond this (verified: product tours with >4 steps have below-average completion). |
+| **14-day trial, no card required** | Opt-in trials are now baseline expectation for B2B SaaS; card-required creates abandonment | LOW | Conversion rate 18-25% for no-card trials (benchmarked 2025). Requires trial expiry logic and conversion email sequence. |
+| **Trial countdown + expiry banner** | Users need constant awareness of trial status to motivate conversion | LOW | Show days remaining prominently. Show "Trial expired — choose a plan" gate on expiry. |
+| **Stripe checkout for plan selection** | Industry standard; users expect Stripe-hosted checkout, not custom payment forms | MEDIUM | Use Stripe Checkout (hosted page) or Payment Element. Handles PCI compliance, 3DS2 (required in UK), card storage. |
+| **Current plan display on billing page** | Users need to know what they're on at a glance | LOW | Show: plan name, price, renewal date, included limits (seats, clients). |
+| **Usage meters on billing page** | Users on seat/client limited plans expect to see how much of their limit they've used | LOW | "3 of 5 users", "247 of 300 clients". Progress bar UI. Critical for plans with overages. |
+| **Upgrade / downgrade self-service** | Users expect to change plans without contacting support | MEDIUM | Link to Stripe customer portal or custom plan change flow. Proration must be handled correctly. |
+| **Invoice history** | B2B users need invoices for their own bookkeeping (especially accountants — they will notice if this is missing) | LOW | Stripe customer portal provides this out of the box. |
+| **Cancel subscription self-service** | GDPR and UK consumer expectations require accessible cancellation | LOW | Stripe customer portal handles this. Optional: cancellation survey. |
+| **Email invite for team members** | Standard since Slack popularised it — invite by email, recipient clicks link to join | LOW | Invite includes org name, sender name, role. Token-based accept link with expiry (72h recommended). |
+| **Role-based access (Admin / Member)** | B2B tools need at least two roles; without this, all users have destructive permissions | LOW | Admin: manage team, billing, settings. Member: client/reminder work only. |
+| **Pending invite management** | Admin needs to see who's been invited but hasn't accepted; resend or cancel | LOW | Invite list with status: Pending / Accepted / Expired. |
+| **Org settings page** | Every SaaS has this — firm name, timezone, notification preferences | LOW | Firm name, email domain, VAT number field (for their own invoicing needs), timezone. |
+| **User profile / password management** | Basic account hygiene — change password, update name/email | LOW | Handled largely by Supabase Auth. |
+| **VAT number collection on checkout** | UK B2B accountants are VAT-registered; they need their VAT number on invoices | LOW | Stripe supports GB VAT number collection. HMRC auto-validates. Include in Stripe Tax config. |
+| **VAT on SaaS subscription invoices** | UK law requires 20% VAT charged on SaaS subscriptions to UK B2B customers | LOW | Standard rate 20%. Stripe Tax handles calculation. Reverse charge applies only for non-UK B2B. |
+| **Super-admin tenant list** | Internal tool to monitor all orgs | LOW | Table: org name, plan tier, subscription status, client count, user count, signup date. |
+| **Super-admin subscription status** | Need to know which orgs are trialling, active, past-due, cancelled | LOW | Sync from Stripe webhooks. Statuses: trialing / active / past_due / canceled. |
 
-### Differentiators (Competitive Advantage)
+---
 
-Features that set the product apart. Not required, but valuable.
+## Differentiators
+
+Features that are not universally expected but create competitive advantage for this product and audience. UK accounting practices are the target — they are detail-oriented, compliance-conscious, and will compare Peninsula to TaxDome, Karbon, Pixie.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Accounting-specific intent categories | Generic "interested/not interested" doesn't fit accounting workflows | LOW | Categories: Paperwork Sent, Question, Extension Request, Can't Find Records, Accountant Not Needed, Out of Office, Unclear/Other |
-| Reply-from-dashboard (two-way email) | Keeps all communication in one place, no context switching to email client | HIGH | Send replies from app; maintains threading; tracks in conversation log |
-| Contextual AI prompts based on filing type | More accurate classification when AI knows it's Corp Tax vs VAT | MEDIUM | Pass filing type, deadline, client history to LLM for better context |
-| Suggested response drafts for common scenarios | 80% AI draft + 20% human personalization | MEDIUM | AI generates reply for "Can't find records" → accountant edits → sends |
-| Automatic reminder pause on certain intents | Stop reminders when client says "already sent" or "accountant not needed" | MEDIUM | Pause sequence when high-confidence "sent" or "not needed" detected |
-| Reply statistics per filing type | Data-driven insights on which deadlines cause most questions | LOW | Track response rates, intent distribution, time-to-reply by filing type |
-| Batch review for ambiguous replies | Review multiple low-confidence items at once | MEDIUM | Checkbox interface to classify 10 items in one session; efficient for accountants |
+| **Contextual upgrade prompts at the right moment** | Upgrade shown when user hits 80% of client or user limit, not at random — feels helpful not pushy | LOW | "You've added 32 of 40 clients — upgrade to Sole Trader for 100." Timing: 80% threshold triggers in-app banner. Evidence: usage milestone prompts increase upgrade rates 32% (Mixpanel data, cited in 2025 research). |
+| **Soft limit enforcement with grace period** | Blocking users the moment they hit a limit causes frustration; soft limits allow overage with a clear upgrade prompt | LOW | Allow adding 1-3 clients/users over limit before hard block. Show persistent warning. Evidence: soft-limit SaaS companies see 12% upsell revenue increase with zero access complaints. |
+| **Onboarding checklist / progress bar** | Guides new accounts to their first value moment (adding a client, setting up a reminder) within trial | MEDIUM | Checklist: Add first client → Set reminder schedule → Preview email template → Send test reminder. Completion drives activation. Target: value moment within 10 minutes of signup. |
+| **Welcome email with next steps** | Trial users who don't activate within 24h are at highest churn risk | LOW | Automated Postmark email: personalised to firm name, links to checklist items. Sequence: Day 0 welcome, Day 3 "have you added clients?", Day 10 trial expiry warning. |
+| **Firm name on all outbound reminder emails** | Accountants are sending reminders to their clients; the email must represent the firm, not "Peninsula Accounting" | LOW | Onboarding step captures firm name, email sender name, reply-to address. Used in Postmark sender config per org. |
+| **Plan comparison table in upgrade flow** | Accountants evaluate cost carefully; showing plan features side-by-side reduces upgrade abandonment | LOW | Show all 4 plans with feature highlights. Highlight current plan. Recommend upgrade based on current usage. |
+| **Seat/client overage pricing transparency** | Overage charges cause bill shock and churn; transparent pricing builds trust | LOW | Show overage rate on billing page: "£15 per 50 clients over your plan limit." This is unusual clarity — most SaaS buries this. |
+| **Super-admin impersonation / act-as** | When a customer has a support issue, fastest resolution is viewing their account as them | HIGH | Difficult to implement securely with RLS. Defer to v3.x but design tenant isolation with this in mind. Note in PITFALLS. |
+| **Trial-to-paid conversion email sequence** | Most SaaS tools rely on in-app only; email sequence significantly improves no-card trial conversion | MEDIUM | Day 0, 3, 10, 13, 14 (expiry). Content: value reminder, feature spotlight, urgency. Use Postmark. |
+| **UK-specific plan naming** | "Sole Trader" and "Practice" resonate with UK accounting market; generic "Starter/Pro/Business" does not | LOW | Already in spec. Reinforce: these names signal the product understands the UK market. Pixie and other UK tools use similar naming. |
+| **VAT invoice download on billing page** | Accountants will want proper UK VAT invoices for their own accounts; this audience will notice if they're wrong | LOW | Stripe generates compliant VAT invoices automatically when VAT number is collected and Stripe Tax is configured. Surface this prominently — accountants care about this more than typical SaaS customers. |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+---
 
-Features that seem good but create problems.
+## Anti-Features
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Attachment processing/OCR | "AI should read their uploaded docs" | Postmark free tier doesn't include attachments; OCR is complex and error-prone; adds scope creep | Show "attachment received" indicator; link to Postmark inbox for download; focus on text classification first |
-| Fully automated replies (no human review) | "Let AI handle everything" | Accounting is regulated; mistakes damage client relationships; industry best practice is human-in-loop | Suggested drafts that require one-click review before sending |
-| Training custom ML model on historical emails | "Our emails are unique, train on our data" | Requires 1000+ labeled examples; maintenance burden; modern LLMs already understand accounting context | Use GPT/Claude with few-shot prompting and domain context |
-| Complex branching conversation flows | "Build a chatbot for every scenario" | Clients prefer human contact for accounting; over-automation feels impersonal | Focus on classification + suggested replies; keep humans central |
-| Real-time AI classification on every page load | "Always show fresh AI analysis" | Expensive API calls; unnecessary when classification happens once on receipt | Classify on webhook receipt; store result; only re-classify on manual request |
-| Sentiment analysis | "Detect angry clients" | Adds complexity without clear action; accountants already read tone from content | Show full email text; let humans assess tone |
+Features to explicitly NOT build in v3.0. These are commonly built prematurely, creating scope creep, complexity, or a poor product.
+
+| Anti-Feature | Why Requested | Why to Avoid in v3.0 | What to Do Instead |
+|--------------|---------------|----------------------|-------------------|
+| **Usage-based / metered billing (per-email)** | "Charge per reminder sent feels fairer" | Adds billing complexity with Stripe metered billing; accountants on fixed pricing prefer predictability; creates anxiety about sending reminders | Flat-rate tiers with seat+client limits. Overage only on clients/seats. |
+| **In-app subscription management UI (custom-built)** | "More control than Stripe portal" | Stripe Customer Portal already handles plan changes, invoices, payment methods, cancellation with proper 3DS2/SCA compliance. Building this from scratch is a security and maintenance burden. | Redirect to Stripe Customer Portal for all billing self-service. Build a thin wrapper page that shows current plan + links to portal. |
+| **Single sign-on (SSO / SAML)** | Larger firms want SSO | Enterprise feature; adds significant complexity; not needed for sole trader to 15-person target market | Supabase email/password + magic link covers the market. Document SSO as v4+ roadmap item. |
+| **Fine-grained permissions (beyond Admin/Member)** | "We want view-only for junior staff" | Complex RBAC with role editor creates confusion; most small firms don't need it; support burden | Two roles (Admin, Member) cover 95% of use cases for 1-15 person firms. |
+| **Public API / webhooks for customers** | "We want to integrate with our other tools" | Significant API surface area, versioning, documentation, API key management — months of work | Not needed for initial SaaS launch. Document as future milestone. |
+| **White-labelling / custom domain** | "Our firm wants clients to see our domain" | Complex multi-domain routing; SSL cert management; outside current scope | This is a product extension, not a platform feature. Defer post product-market fit. |
+| **Automated dunning / recovery emails** | "Chase failed payments automatically" | Stripe Billing already handles dunning (smart retries, failed payment emails). Don't duplicate. | Configure Stripe Billing dunning settings. Enable "Customer emails" for failed payment events. |
+| **Referral / affiliate program** | "Give discounts for referrals" | Growth mechanism, not a core platform feature; distracts from v3.0 scope | Post-launch, when MRR is established. |
+| **Reseller / agency accounts** | "Allow accountants to manage multiple firms" | Multi-level multi-tenancy is complex; different product than B2B SaaS | Out of scope. Current model is one org per subscription. |
+| **Mobile app** | "Accountants want to check on their phone" | Web-first; responsive design covers mobile use; native app is a separate product | Ensure dashboard is mobile-responsive. No native app in v3.0. |
+| **Super-admin impersonation in v3.0** | Essential for support | True impersonation with Supabase RLS requires careful implementation to avoid tenant isolation breaks | Build "view as" read-only mode in v3.x after RLS architecture is validated. |
+
+---
 
 ## Feature Dependencies
 
 ```
-[Inbound webhook receipt]
-    └──requires──> [Postmark inbound setup]
-                       └──requires──> [MX record or forwarding domain]
+[Account creation (Supabase Auth)]
+    └──required by──> [Organisation creation]
+                          └──required by──> [All tenant-scoped features]
 
-[AI classification]
-    └──requires──> [Inbound webhook receipt]
-    └──requires──> [LLM API access (Claude/GPT)]
-    └──requires──> [Classification schema (intent categories)]
+[Organisation creation]
+    └──required by──> [Team invites]
+    └──required by──> [Billing page]
+    └──required by──> [Trial logic]
 
-[Auto-update filing status]
-    └──requires──> [AI classification]
-    └──requires──> [Confidence threshold logic]
-    └──requires──> [Existing filing status tracking]
+[Stripe customer creation]
+    └──required by──> [Checkout / plan selection]
+    └──required by──> [Billing management page]
+    └──required by──> [Invoice history]
+    └──created at──> [Onboarding step: choose plan]
 
-[Reply-from-dashboard]
-    └──requires──> [Email threading]
-    └──requires──> [Postmark outbound API]
-    └──requires──> [Reply log]
-    └──enhances──> [Suggested response drafts]
+[Trial logic (14-day, no card)]
+    └──requires──> [trial_ends_at field on organisations table]
+    └──requires──> [Stripe trial period configuration on subscription]
+    └──drives──> [Trial conversion email sequence]
+    └──drives──> [Trial expiry gate]
 
-[Human review queue]
-    └──requires──> [AI classification with confidence scores]
-    └──requires──> [Manual override]
+[Plan limits enforcement]
+    └──requires──> [plan tier stored on organisation]
+    └──requires──> [client count query]
+    └──requires──> [user count query]
+    └──drives──> [Upgrade prompts at 80% threshold]
+    └──drives──> [Hard block at limit + grace]
 
-[Suggested response drafts]
-    └──requires──> [AI classification]
-    └──requires──> [LLM API access]
-    └──requires──> [Reply-from-dashboard]
+[Team invites]
+    └──requires──> [Organisation exists]
+    └──requires──> [Postmark transactional email]
+    └──requires──> [invite_tokens table with expiry]
+    └──drives──> [Role assignment (Admin/Member)]
 
-[Automatic reminder pause]
-    └──requires──> [AI classification]
-    └──requires──> [Existing reminder scheduler]
-    └──conflicts──> [Fully manual reminder control] (need to decide if AI or user has priority)
+[Stripe Customer Portal]
+    └──requires──> [Stripe customer ID on organisation]
+    └──provides──> [Plan upgrade/downgrade, invoice history, cancel, payment methods]
+    └──replaces──> [Custom billing management UI]
+
+[Super-admin dashboard]
+    └──requires──> [Stripe webhook sync to organisations table]
+    └──requires──> [Super-admin role separate from org Admin role]
+    └──reads──> [All organisations (bypasses RLS)]
 ```
 
-### Dependency Notes
+---
 
-- **Inbound webhook receipt requires Postmark setup:** DNS MX records or forwarding domain must be configured before emails can be received
-- **AI classification requires classification schema:** Intent categories must be defined before classification can happen; this is domain-specific design work
-- **Auto-update filing status requires confidence threshold logic:** Must define HIGH (90%+), MEDIUM (60-90%), LOW (<60%) thresholds before auto-actions can trigger
-- **Reply-from-dashboard enhances suggested response drafts:** Two-way email unlocks AI-drafted replies; without it, suggested drafts are just clipboard text
-- **Automatic reminder pause conflicts with fully manual reminder control:** Need UI to show "AI paused this reminder" with option to un-pause
+## MVP Definition (v3.0 Launch)
 
-## MVP Definition
+### Must Ship (SaaS Platform Viable)
 
-### Launch With (v1)
+These features are required before any external customer can use the product as a multi-tenant SaaS.
 
-Minimum viable product for inbound email + AI classification.
+| Feature | Why It's Required |
+|---------|------------------|
+| Multi-step onboarding wizard | Entry point; without it, no one can create an account |
+| Organisation creation with tenant isolation | Data isolation is a safety requirement, not a feature |
+| 14-day trial logic (no card) | Differentiator from competitors; conversion baseline |
+| Trial expiry gate + conversion prompt | Without this, trials are free forever |
+| Stripe subscription creation | Revenue collection; required for commercial launch |
+| Plan limit enforcement (soft + hard) | Without limits, Lite plan holders consume unlimited resources |
+| Billing management page (current plan + usage) | Users need to see what they're paying for |
+| Stripe Customer Portal link | Self-service billing; reduces support burden |
+| UK VAT on subscription invoices | Legal requirement for UK SaaS selling to UK businesses |
+| VAT number collection at checkout | Required for proper B2B invoices (accountants will notice) |
+| Team invite by email | Multi-user plans (Sole Trader, Practice, Firm) require this |
+| Role-based access (Admin / Member) | Without roles, all invited users are admins by default |
+| Super-admin tenant list | Minimum internal visibility for operations |
+| Super-admin subscription status | Need to know who's trialling vs paying vs lapsed |
 
-- [ ] **Inbound webhook receipt** — Must receive emails before anything else works
-- [ ] **AI classification with accounting-specific intents** — Core value; differentiates from generic tools
-- [ ] **Confidence score display** — Transparency builds trust in AI
-- [ ] **Auto-update filing status on high-confidence "sent" replies** — Reduces manual data entry; proves AI value
-- [ ] **Reply log/timeline view** — Context for accountants to understand client communication history
-- [ ] **Human review queue for low-confidence replies** — Safety valve; prevents AI mistakes
-- [ ] **Manual override of AI classification** — Accountants must be able to correct errors
-- [ ] **Out-of-office detection** — Prevents false positives in classification
-- [ ] **Full email content visibility** — Accountants need to read full context
+### Defer to v3.x (Post-Launch)
 
-### Add After Validation (v1.x)
+| Feature | Why to Defer | Trigger to Build |
+|---------|-------------|------------------|
+| Trial conversion email sequence | Valuable but not blocking; can do manual outreach initially | When trial-to-paid conversion <15% |
+| Onboarding checklist / progress bar | Nice to have; track activation metric first | When 14-day activation rate <60% |
+| Upgrade prompt at 80% threshold | Build after usage patterns are observed | When upgrade requests come in via support |
+| Plan comparison table in upgrade flow | Can be simple redirect to pricing page initially | When users ask "which plan should I choose?" |
+| Invite link (shareable, not email-based) | Email invite covers most cases; link needed for bulk invites | When org admins invite >5 people at once |
+| Pending invite resend/cancel UI | Basic invite list first; resend can be manual initially | When support gets "I didn't get my invite" tickets |
+| Super-admin impersonation | Complex RLS implications | When support burden exceeds 2h/week on account issues |
 
-Features to add once core is working and users validate AI accuracy.
+---
 
-- [ ] **Email threading/conversation grouping** — Trigger: When users complain about losing conversation context
-- [ ] **Reply statistics per filing type** — Trigger: When accountants ask "which deadline causes most questions?"
-- [ ] **Automatic reminder pause on certain intents** — Trigger: When users manually pause reminders after seeing "sent" replies
-- [ ] **Batch review for ambiguous replies** — Trigger: When review queue grows beyond 10 items regularly
+## Onboarding Flow Detail
 
-### Future Consideration (v2+)
+### Step Sequence (Evidence-Based)
 
-Features to defer until product-market fit is established.
+Research confirms: max 4 steps to complete onboarding; users abandon longer flows. Each step should take under 60 seconds.
 
-- [ ] **Reply-from-dashboard (two-way email)** — Why defer: Complex threading, deliverability concerns; validate classification first
-- [ ] **Suggested response drafts** — Why defer: Requires reply-from-dashboard; focus on inbound classification before outbound automation
-- [ ] **Contextual AI prompts based on filing type** — Why defer: Test if generic classification works first; add context if accuracy is insufficient
-- [ ] **Attachment indicator** — Why defer: Non-critical; users can check Postmark inbox manually
+```
+Step 1: Create Account
+  - Email + password (or magic link option)
+  - "By signing up, you agree to Terms of Service and Privacy Policy"
+  - No firm details yet — reduce friction to get past step 1
+
+Step 2: Firm Details
+  - Firm/practice name (required — used in reminder email sender)
+  - Your name (required)
+  - Phone (optional)
+  - Time zone (defaulted to Europe/London, editable)
+
+Step 3: Choose Plan
+  - Show all 4 plans in comparison layout
+  - Pre-select Sole Trader (most common profile)
+  - "Start 14-day free trial" CTA — no card required
+  - Note: Stripe subscription created with trial period; no charge until day 15
+
+Step 4: You're in
+  - "Your trial has started. 14 days free."
+  - Show the checklist: Add first client / Set reminder schedule / Preview template
+  - Primary CTA: "Add your first client" → goes to clients page
+```
+
+### Conversion: Trial to Paid
+
+The "aha moment" for an accounting practice tool is **sending their first automated reminder and seeing a client reply handled**. Onboarding should route users to that outcome as fast as possible.
+
+- Day 0: Welcome email from Postmark ("Your 14-day trial has started")
+- Day 3: Nudge email ("Have you added your clients yet?")
+- Day 10: Feature spotlight ("Here's what happened for firms like yours in their trial")
+- Day 13: Urgency email ("1 day left — choose your plan to keep going")
+- Day 14 (expiry): Gate — cannot access app until plan chosen
+
+No-card trial conversion benchmark: 18-25%. With activation (user completes core workflow during trial), conversion rises to 35-45%.
+
+---
+
+## Billing Page UX Patterns
+
+### What to Show
+
+```
+Current Plan: Practice — £89/month
+Renewal: 15 March 2026
+Next invoice: £106.80 (includes VAT at 20%)
+
+Usage:
+  Users:   ████████░░  4 of 5 included
+  Clients: ████░░░░░░  147 of 300 included
+
+[Manage Billing →]  (opens Stripe Customer Portal)
+[View Invoices →]   (opens Stripe Customer Portal — invoice list)
+```
+
+### Upgrade Prompt (at 80% threshold)
+
+```
+[Warning banner, amber]
+You've added 241 of 300 clients on your Practice plan.
+When you reach 300, you'll be charged £15 per 50 additional clients.
+[Upgrade to Firm — 750 clients, £159/mo →]
+```
+
+### Plan Change Handling
+
+- Upgrades: Immediate, prorated. User pays difference for remaining days.
+- Downgrades: Effective at end of billing period. Show "Downgrade scheduled" state.
+- Cancellation: Effective at end of billing period. Data retained for 30 days post-cancellation.
+
+These are all handled by Stripe Billing with correct UK SCA/3DS2 compliance.
+
+---
+
+## Team Invite UX Patterns
+
+### Admin Invite Flow
+
+```
+Settings → Team → Invite Member
+
+[Email address field]      [Role: Admin / Member ▼]      [Send Invite]
+
+Pending Invites:
+  jane@smithaccounting.co.uk    Member    Sent 2h ago    [Resend] [Cancel]
+
+Active Members:
+  john@smithaccounting.co.uk    Admin    Since Jan 2026
+  kate@smithaccounting.co.uk    Member   Since Feb 2026
+```
+
+### Invite Email (Postmark)
+
+Sender name: "John Smith via Peninsula Accounting" (not just "Peninsula Accounting")
+Subject: "John Smith invited you to join Smith Accounting on Peninsula"
+Body: Clear CTA button "Accept Invite", expiry notice ("Link expires in 72 hours"), brief description of what the platform does.
+
+### Invited User Onboarding
+
+When an invited user clicks the accept link:
+- If they have no account: Set password screen, then lands directly in the org.
+- If they already have an account: Confirmation screen "Join [Firm Name]?", then join.
+- Do NOT show invited users the full onboarding wizard (plan selection, org setup). They are joining an existing org.
+
+### Security
+
+- Invite tokens: UUID v4, stored in `invite_tokens` table, expires 72h.
+- One token per email per org (re-sending cancels previous token).
+- Token is single-use (deleted on accept).
+- Invites cannot exceed plan seat limit (check at send time, not just accept time).
+
+---
+
+## Super-Admin Dashboard Requirements
+
+### Tenant List View
+
+| Column | Source | Notes |
+|--------|--------|-------|
+| Org name | organisations table | |
+| Plan tier | organisations.plan_tier | Lite / Sole Trader / Practice / Firm |
+| Status | Stripe subscription.status | trialing / active / past_due / canceled |
+| Clients | COUNT(clients) per org | Query across tenants — admin bypasses RLS |
+| Users | COUNT(profiles) per org | |
+| Trial ends / renewal | organisations.trial_ends_at or Stripe period_end | |
+| Signed up | organisations.created_at | |
+
+### Filters / Search
+
+- Filter by plan tier
+- Filter by subscription status (especially: past_due — these need attention)
+- Search by org name
+
+### Actions (Minimal for v3.0)
+
+- View org details (read-only)
+- Link to Stripe dashboard for that customer (use Stripe customer ID)
+- No impersonation in v3.0 (see anti-features)
+
+### Access Control
+
+Super-admin is a platform-level role, not an org-level role. Implemented as a flag on the user profile (`is_super_admin: boolean`). Super-admin queries bypass Supabase RLS via service role key (server-side only). Never expose service role key to client.
+
+---
+
+## UK-Specific Considerations
+
+| Consideration | Detail | Confidence |
+|---------------|--------|------------|
+| **20% VAT on SaaS subscriptions** | UK B2B: charge 20% VAT. Stripe Tax auto-calculates. Non-UK B2B: reverse charge applies (no UK VAT). | HIGH — verified against Stripe UK docs and HMRC guidance |
+| **GB VAT number collection** | Stripe validates GB VAT numbers with HMRC automatically. Collect at checkout for B2B. Show on invoices. | HIGH — verified against Stripe Tax/Invoicing docs |
+| **HMRC e-invoicing mandate (2029)** | UK mandatory B2B e-invoicing from April 2029. Stripe-generated invoices are electronic. Not an immediate concern, but Stripe compliance is future-proof. | MEDIUM — verified from vatcalc.com and vatupdate.com |
+| **Strong Customer Authentication (SCA/3DS2)** | UK requires SCA for card payments. Stripe Checkout and Payment Element handle this automatically. Custom card forms without Stripe JS will fail. | HIGH — Stripe documentation |
+| **ICO / GDPR for tenant data** | UK GDPR (retained post-Brexit). Data retention policies, privacy policy, right to erasure. Cancellation → 30-day data retention before deletion is standard practice. | MEDIUM — standard UK GDPR practice |
+| **Trial duration norms** | UK accounting SaaS: 14-day trials are standard (verified: Accountancy Manager, Finexer, others). 30-day trials also exist but 14-day is common. | MEDIUM — from UK accounting SaaS competitor research |
+| **Pricing in GBP** | Obvious but worth stating: all pricing in GBP, all invoices in GBP. Stripe supports GBP natively. | HIGH |
+| **Plan naming resonance** | "Sole Trader" and "Practice" are UK business structure terms that resonate. Confirmed: Pixie, Cone, and other UK tools use similar terminology. | MEDIUM — confirmed via competitor research |
+
+---
+
+## Competitor Gap Analysis
+
+What Peninsula v3.0 does that competitors don't:
+
+| Capability | Karbon | TaxDome | Pixie | Peninsula v3.0 |
+|------------|--------|---------|-------|----------------|
+| UK-focused pricing names | No | No | Yes | Yes |
+| Self-serve trial (no card) | No (demo required) | Demo | Yes | Yes |
+| Transparent overage pricing | No | No | No | Yes (£15/50 clients) |
+| VAT-compliant invoicing | Via integration | No | No | Yes (Stripe Tax) |
+| Price point for sole traders | Not viable (£49+/user) | Not ideal | Yes (£19/mo) | Yes (£20 Lite) |
+
+Key insight from competitor analysis: Karbon targets 5+ person firms. TaxDome is US-first with UK presence. Pixie is the closest UK competitor for small firms but lacks billing sophistication. Peninsula can differentiate on transparent pricing and self-serve trial.
+
+---
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Inbound webhook receipt | HIGH | LOW | P1 |
-| AI classification | HIGH | MEDIUM | P1 |
-| Confidence score display | HIGH | LOW | P1 |
-| Auto-update filing status | HIGH | MEDIUM | P1 |
-| Reply log | HIGH | MEDIUM | P1 |
-| Human review queue | HIGH | MEDIUM | P1 |
-| Manual override | HIGH | LOW | P1 |
-| Out-of-office detection | MEDIUM | LOW | P1 |
-| Full email content visibility | HIGH | LOW | P1 |
-| Email threading | MEDIUM | MEDIUM | P2 |
-| Reply statistics | MEDIUM | LOW | P2 |
-| Automatic reminder pause | MEDIUM | MEDIUM | P2 |
-| Batch review | LOW | MEDIUM | P2 |
-| Reply-from-dashboard | HIGH | HIGH | P3 |
-| Suggested response drafts | MEDIUM | MEDIUM | P3 |
-| Contextual AI prompts | MEDIUM | MEDIUM | P3 |
-| Attachment indicator | LOW | LOW | P3 |
+| Onboarding wizard | HIGH | MEDIUM | P1 — v3.0 |
+| Tenant isolation (org creation) | HIGH | MEDIUM | P1 — v3.0 |
+| Trial logic (14-day, no card) | HIGH | LOW | P1 — v3.0 |
+| Trial expiry gate | HIGH | LOW | P1 — v3.0 |
+| Stripe subscription creation | HIGH | MEDIUM | P1 — v3.0 |
+| Plan limit enforcement | HIGH | MEDIUM | P1 — v3.0 |
+| Billing management page | HIGH | LOW | P1 — v3.0 |
+| Stripe Customer Portal link | HIGH | LOW | P1 — v3.0 |
+| UK VAT (Stripe Tax) | HIGH | LOW | P1 — v3.0 |
+| VAT number collection | MEDIUM | LOW | P1 — v3.0 |
+| Team invite by email | HIGH | MEDIUM | P1 — v3.0 |
+| Role-based access | HIGH | MEDIUM | P1 — v3.0 |
+| Super-admin tenant list | MEDIUM | LOW | P1 — v3.0 |
+| Super-admin subscription status | MEDIUM | LOW | P1 — v3.0 |
+| Trial conversion email sequence | HIGH | MEDIUM | P2 — v3.x |
+| Onboarding checklist | MEDIUM | MEDIUM | P2 — v3.x |
+| Upgrade prompt at 80% | HIGH | LOW | P2 — v3.x |
+| Plan comparison table | MEDIUM | LOW | P2 — v3.x |
+| Pending invite management | MEDIUM | LOW | P2 — v3.x |
+| Super-admin impersonation | HIGH | HIGH | P3 — v4+ |
+| SSO/SAML | LOW (for target market) | HIGH | Out of scope |
+| Public API | LOW | HIGH | Out of scope |
 
 **Priority key:**
-- P1: Must have for launch (v1)
-- P2: Should have, add when possible (v1.x)
-- P3: Nice to have, future consideration (v2+)
+- P1: Required for v3.0 SaaS launch
+- P2: Add in v3.x after validating launch
+- P3: Future milestone
+- Out of scope: Explicitly not building
 
-## Intent Classification Schema (Accounting-Specific)
-
-Core differentiator: tailored categories for accounting practice workflows.
-
-| Intent Category | Description | Example Phrases | Auto-Action |
-|----------------|-------------|-----------------|-------------|
-| **Paperwork Sent** | Client confirms they've sent records/docs | "Sent the invoices", "Uploaded to portal", "Emailed last week" | Auto-update filing status to "received" if confidence >90% |
-| **Question** | Client has a question about the filing | "What documents do you need?", "When is the deadline?", "How much will it cost?" | No auto-action; flag for reply |
-| **Extension Request** | Client asks for more time | "Can I have another week?", "Running behind", "Need extension" | No auto-action; flag for reply |
-| **Can't Find Records** | Client is missing documents | "Can't find my receipts", "Lost the invoice", "Don't have Q3 records" | No auto-action; flag for reply |
-| **Accountant Not Needed** | Client says they'll handle it themselves or use another accountant | "I'll file myself", "Using a different accountant", "Don't need your services" | Auto-pause reminder sequence if confidence >90% |
-| **Out of Office** | Auto-reply indicating absence | "Out of office", "On holiday until", "Currently unavailable" | Ignore; don't show in review queue |
-| **Unclear/Other** | Reply doesn't fit above categories or AI is uncertain | Ambiguous text, multiple topics | Show in review queue for manual classification |
-
-**Confidence threshold strategy:**
-- **90%+** (HIGH): Auto-action allowed (update status, pause reminders)
-- **60-89%** (MEDIUM): Show in review queue with AI suggestion
-- **<60%** (LOW): Show in review queue without suggestion; likely misclassification
-
-Based on industry research, 60% is standard threshold for "Undefined" intent, while 90%+ indicates high likelihood of correct classification.
-
-## Competitor Feature Analysis
-
-| Feature | Generic Email Automation (Instantly.ai) | Practice Management Tools (TaxDome, Client Hub) | Our Approach |
-|---------|--------------|--------------|--------------|
-| AI Classification | Interested / Not Interested / OOO / Objection | None (manual client status updates) | Accounting-specific intents (Paperwork Sent, Question, Extension, etc.) |
-| Confidence Thresholds | 50-70% standard; configurable | N/A | 90%+ for auto-action, 60-89% for review queue |
-| Review Queue | Human-in-loop or full autopilot mode | N/A | Always human-in-loop; batch review for efficiency |
-| Auto-Update Status | Auto-schedule follow-ups based on intent | Manual updates only | Auto-update filing status on high-confidence "sent" replies |
-| Reply-from-Dashboard | No (separate email client) | Yes (integrated two-way email) | v2 feature; focus on classification first |
-| Email Threading | Basic conversation grouping | Full timeline view with all interactions | Standard threading by In-Reply-To/References headers |
-| Out-of-Office Detection | Yes (separate from interested replies) | No | Yes; ignore OOO in review queue |
-
-**Key insight:** Generic email tools focus on sales workflows (interested/not interested); practice management tools lack AI classification. Our differentiator is **AI classification tailored to accounting workflows**.
-
-## UX Patterns for Review Queue
-
-Based on customer service email management research:
-
-**Dashboard Integration:**
-- Show review queue count in navigation (e.g., "Review (3)" badge)
-- Display high-priority items (extension requests, questions) at top
-- Low-priority items (unclear replies) at bottom
-
-**Individual Reply Card:**
-```
-[Client Name] - [Filing Type: Corp Tax 2025]
-AI Classification: "Question" (72% confidence)
-
-Email excerpt:
-"What documents do you need for the corp tax return?"
-
-Actions:
-[Confirm Classification ✓] [Change to: ▼] [View Full Email] [Reply]
-```
-
-**Batch Review:**
-```
-☑ Client A - "Paperwork Sent" (85%) → Confirm as Sent
-☑ Client B - "Question" (68%) → Confirm as Question
-☐ Client C - "Unclear" (45%) → Reclassify as Extension Request
-
-[Apply Changes (2 selected)]
-```
-
-**Statistics Dashboard:**
-```
-Last 7 days:
-- 24 replies received
-- 18 auto-classified (75%)
-- 6 requiring review (25%)
-
-Intent breakdown:
-- Paperwork Sent: 12 (50%)
-- Questions: 8 (33%)
-- Extension Requests: 3 (13%)
-- Out of Office: 1 (4%)
-```
-
-## Edge Cases & Handling
-
-| Edge Case | How to Handle |
-|-----------|---------------|
-| Email with multiple intents (e.g., "Sent invoices but have a question") | Classify as "Unclear" → human reviews → manual split or prioritize primary intent |
-| Reply to wrong reminder (client replies to VAT email about Corp Tax) | Show original email context in review; allow manual reassignment to correct filing |
-| Forwarded email from client's assistant | Detect "Fwd:" in subject; treat as new conversation; classify content normally |
-| Reply in language other than English | LLMs handle multi-language; confidence score will be lower for non-English; flag for review |
-| Email thread with 10+ back-and-forth replies | Show most recent reply with "View Thread (10 messages)" link; classify latest message only |
-| Client replies to old reminder from 6 months ago | Show date gap warning; likely outdated; flag for manual review |
-| Bounced email notification from Postmark | Detect bounce webhook separately; don't classify as reply; update client email status |
+---
 
 ## Sources
 
-**AI Email Classification & Automation:**
-- [How to automate email reply classification using AI (triage)](https://instantly.ai/blog/automate-email-triage-classification-ai/)
-- [Building an AI Agent-Powered Email Classification & Auto-Reply System Using n8n | Medium](https://medium.com/@TechSnazAI/building-an-ai-agent-powered-email-classification-auto-reply-system-using-n8n-0229adf8f6e7)
-- [How to Automatically Classify, Tag, and Route Incoming Email Using AI - Cobbai Blog](https://cobbai.com/blog/email-classification-ai-support)
-- [Cold Email Benchmark Report 2026: Reply Rates, Deliverability and Trends](https://instantly.ai/cold-email-benchmark-report-2026)
+**Onboarding UX & Conversion:**
+- [B2B SaaS Onboarding - Complete Product Manager's Guide](https://productfruits.com/blog/b2b-saas-onboarding)
+- [User Onboarding Strategies in B2B SaaS — WorkOS](https://workos.com/blog/b2b-saas-onboarding-organizations-users)
+- [SaaS Onboarding: Get Users to Aha Moment in 3 Minutes](https://www.sanjaydey.com/saas-onboarding-get-users-to-aha-moment-in-3-minutes/)
+- [Free Trial Conversion Benchmarks 2025 — 1Capture](https://www.1capture.io/blog/free-trial-conversion-benchmarks-2025)
+- [SaaS Free Trial Conversion Rate Benchmarks — First Page Sage](https://firstpagesage.com/seo-blog/saas-free-trial-conversion-rate-benchmarks/)
 
-**Confidence Thresholds & Best Practices:**
-- [About confidence thresholds for advanced AI agents - Zendesk help](https://support.zendesk.com/hc/en-us/articles/8357749625498-About-confidence-thresholds-for-advanced-AI-agents)
-- [Intent Classification in 2026: What it is & How it Works](https://research.aimultiple.com/intent-classification/)
-- [A practical guide to setting confidence thresholds for AI responses](https://www.eesel.ai/blog/setting-confidence-thresholds-for-ai-responses)
+**Team Invites & User Flows:**
+- [How to Onboard Invited Users to your SaaS Product — Userpilot](https://userpilot.com/blog/onboard-invited-users-saas/)
+- [Designing an intuitive user flow for inviting teammates — PageFlows](https://pageflows.com/resources/invite-teammates-user-flow/)
+- [User Onboarding Strategies in a B2B SaaS Application — Auth0](https://auth0.com/blog/user-onboarding-strategies-b2b-saas/)
 
-**Accounting Practice Management & Client Communication:**
-- [Improve Client Responsiveness Without Constant Chasing](https://www.clienthub.app/blog/improve-client-responsiveness-accountants-bookkeepers)
-- [The 5 best accounting practice management solutions with email integrations | Karbon](https://karbonhq.com/resources/accounting-practice-management-software-with-email-integration/)
-- [8 Best Accounting Practice Management Software of 2026 - Uku](https://getuku.com/articles/uks-best-accounting-practice-management-software)
+**Billing, Plan Limits, Upgrade Prompts:**
+- [Integrate the Stripe Customer Portal](https://docs.stripe.com/customer-management/integrate-customer-portal)
+- [Best practices for SaaS billing — Stripe](https://stripe.com/resources/more/best-practices-for-saas-billing)
+- [Soft Limits in Software Licensing — 10Duke](https://www.10duke.com/blog/soft-limits-software-licensing/)
+- [How freemium SaaS products convert users with upgrade prompts — Appcues](https://www.appcues.com/blog/best-freemium-upgrade-prompts)
+- [Dealing with plan limits in Vue.js SaaS frontend — Checkly](https://www.checklyhq.com/blog/how-we-deal-with-plan-limits-in-the-frontend-of-our-saas-app/)
 
-**Customer Service Email Queue & Workflow:**
-- [Boost customer service with Amazon Connect AI-enhanced email workflows | AWS](https://aws.amazon.com/blogs/contact-center/boost-customer-service-with-amazon-connect-ai-enhanced-email-workflows/)
-- [10 best customer service email management solutions in 2026 | Jotform](https://www.jotform.com/ai/agents/customer-service-email-management/)
-- [Customer email management: Definition, Strategies and Tools](https://hiverhq.com/blog/customer-email-management)
+**UK VAT & Invoicing Requirements:**
+- [VAT On Software And SaaS In The UK — Sprintlaw UK](https://sprintlaw.co.uk/articles/vat-on-software-and-saas-in-the-uk/)
+- [HMRC Invoicing Requirements for UK — Stripe](https://stripe.com/guides/invoicing-best-practices-for-the-united-kingdom)
+- [Customer Tax IDs — Stripe Documentation](https://docs.stripe.com/billing/customer/tax-ids)
+- [Collect tax in the United Kingdom — Stripe Documentation](https://docs.stripe.com/tax/supported-countries/europe/united-kingdom)
+- [UK April 2029 Mandatory B2B E-Invoicing — vatcalc.com](https://www.vatcalc.com/united-kingdom/uk-2029-mandatory-b2b-e-invoicing/)
 
-**Postmark Inbound Email Processing:**
-- [Inbound webhook | Postmark Developer Documentation](https://postmarkapp.com/developer/webhooks/inbound-webhook)
-- [What is inbound processing? | Postmark Developer Documentation](https://postmarkapp.com/developer/user-guide/inbound)
-- [Sample inbound workflow | Postmark Developer Documentation](https://postmarkapp.com/developer/user-guide/inbound/sample-inbound-workflow)
+**Competitor Research:**
+- [Best accounting practice management software UK — Karbon](https://karbonhq.com/resources/best-accounting-practice-management-software-uk/)
+- [Best accounting practice management software UK — Cone](https://www.getcone.io/blog/best-accounting-practice-management-software-uk)
+- [Digital Onboarding Software for UK Accounting Firms — Finexer](https://blog.finexer.com/digital-onboarding-software/)
+- [Top Practice Management Software for UK Accountants — LinkMyBooks](https://linkmybooks.com/blog/practice-management-softwares-for-uk-accountants)
 
-**Email Threading & Conversation Views:**
-- [20 Best Customer Service Email Management Software For 2026](https://thecxlead.com/tools/best-customer-service-email-management-software/)
-- [Understanding simplified email threading - Zendesk help](https://support.zendesk.com/hc/en-us/articles/4565992897562-Understanding-simplified-email-threading)
-- [Configure email threading settings - Genesys Cloud](https://help.genesys.cloud/articles/configure-organization-level-email-threading-timeline/)
-
-**AI-Suggested Responses & Human Review:**
-- [11 Use Cases for Suggest Reply AI That Drive Results (2026)](https://bluetweak.com/blog/ai-suggested-replies/)
-- [Revolutionizing Support: Top AI in Customer Service Examples in 2026](https://www.myaifrontdesk.com/blogs/revolutionizing-support-top-ai-in-customer-service-examples-in-2026)
-- [8 Strategies for Using AI for Customer Service in 2026 | Sprout Social](https://sproutsocial.com/insights/ai-customer-service/)
-
-**Client Portal & Document Workflow:**
-- [Client Hub | Modern Accounting Practice Management & Client Portal Software](https://www.clienthub.app/)
-- [Client portal software for accountants - TaxDome](https://taxdome.com/client-portal)
-- [Practice management software for accounting and tax firms - TaxDome](https://taxdome.com/)
+**Super-Admin & Multi-Tenancy Patterns:**
+- [Developer's Guide to SaaS Multi-Tenant Architecture — WorkOS](https://workos.com/blog/developers-guide-saas-multi-tenant-architecture)
+- [How to Design a Multi-Tenant SaaS Architecture — Clerk](https://clerk.com/blog/how-to-design-multitenant-saas-architecture)
 
 ---
-*Feature research for: Inbound Email Processing + AI Classification for Accounting Practice*
-*Researched: 2026-02-13*
-*Confidence: MEDIUM-HIGH (verified with current industry sources, confidence thresholds from authoritative platforms, accounting-specific patterns from practice management tools)*
+*Feature research for: v3.0 Multi-Tenancy & SaaS Platform — Peninsula Accounting*
+*Researched: 2026-02-19*
+*Confidence: HIGH for table stakes and UK-specific requirements (verified against Stripe docs, HMRC guidance); MEDIUM for competitor analysis and conversion benchmarks (WebSearch with multiple corroborating sources)*
