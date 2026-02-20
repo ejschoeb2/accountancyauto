@@ -42,7 +42,7 @@ Progress: [████████████░░░░░░░░] 3/5 Pha
 - Total plans completed: 6
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (2/5)
+- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (3/5)
 
 ## Accumulated Context
 
@@ -91,6 +91,10 @@ Recent decisions affecting v3.0:
 - [D-11-02-02] Return 200 even on handler errors to prevent Stripe retries (event already marked processed)
 - [D-11-02-03] Auth admin API (getUserById) for admin email resolution, avoids PostgREST FK join issues
 - [D-11-02-04] Payment-failed email uses platform Postmark token (system notification, not org-specific)
+- [D-11-03-01] Checkout route reuses existing stripe_customer_id or falls back to customer_email for new customers
+- [D-11-03-02] Practice tier highlighted as "Popular" on pricing page with primary ring indicator
+- [D-11-03-03] Pricing page is a client component using browser Supabase client for auth state
+- [D-11-03-04] Trial-expiry cron uses batch .in() update rather than sequential per-org updates
 
 ### Known Risks
 
@@ -149,11 +153,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-20 23:52 UTC
-Stopped at: Completed 11-02-PLAN.md (Stripe Webhook Handler)
+Last session: 2026-02-20 23:53 UTC
+Stopped at: Completed 11-03-PLAN.md (Checkout, Portal, Pricing & Trial)
 Resume file: None
-Next step: Execute 11-03-PLAN.md (Checkout & Customer Portal)
-Note: Webhook endpoint ready, 4 event handlers implemented, payment-failed email notification created
+Next step: Execute 11-04-PLAN.md (Billing Dashboard Page)
+Note: Checkout + portal API routes, pricing page, trial helper, trial-expiry cron all created
 
 ---
-*Phase 11 plan 02 complete — Stripe webhook handler with idempotency, subscription lifecycle handlers, payment-failed email (2026-02-20)*
+*Phase 11 plan 03 complete — Stripe Checkout + Portal routes, pricing page with 4 tiers, 14-day trial helper, daily trial-expiry cron (2026-02-20)*
