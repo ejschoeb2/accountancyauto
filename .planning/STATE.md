@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 11 of 14 (Stripe Billing)
-Plan: 1 of 5 (Billing Foundation)
+Plan: 3 of 5 (Checkout, Portal, Pricing & Trial)
 Status: In progress
-Last activity: 2026-02-20 — Completed 11-01-PLAN.md (Stripe SDK, migration, plan config, billing utilities)
+Last activity: 2026-02-20 — Completed 11-03-PLAN.md (Checkout + Portal routes, pricing page, trial logic, trial-expiry cron)
 
-Progress: [████░░░░░░░░░░░░░░░░] 1/5 Phase 11 plans complete
+Progress: [████████████░░░░░░░░] 3/5 Phase 11 plans complete
 
 ## Performance Metrics
 
@@ -42,7 +42,7 @@ Progress: [████░░░░░░░░░░░░░░░░] 1/5 Pha
 - Total plans completed: 6
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (1/5)
+- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (2/5)
 
 ## Accumulated Context
 
@@ -87,6 +87,10 @@ Recent decisions affecting v3.0:
 - [D-11-01-03] processed_webhook_events: service_role-only RLS (webhook handler uses admin client)
 - [D-11-01-04] isOrgReadOnly defaults to true (read-only) for unknown/missing orgs (safe default)
 - [D-11-01-05] Placeholder prices: Lite £20, Sole Trader £39, Practice £89, Firm £159/mo
+- [D-11-02-01] Insert-before-handle idempotency: mark event processed before handler dispatch, unique constraint fallback for race conditions
+- [D-11-02-02] Return 200 even on handler errors to prevent Stripe retries (event already marked processed)
+- [D-11-02-03] Auth admin API (getUserById) for admin email resolution, avoids PostgREST FK join issues
+- [D-11-02-04] Payment-failed email uses platform Postmark token (system notification, not org-specific)
 
 ### Known Risks
 
@@ -145,11 +149,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-20 23:44 UTC
-Stopped at: Completed 11-01-PLAN.md (Stripe Billing Foundation)
+Last session: 2026-02-20 23:52 UTC
+Stopped at: Completed 11-02-PLAN.md (Stripe Webhook Handler)
 Resume file: None
-Next step: Execute 11-02-PLAN.md (Webhook Handler)
-Note: Stripe SDK installed, migration ready, plan config and billing utilities created
+Next step: Execute 11-03-PLAN.md (Checkout & Customer Portal)
+Note: Webhook endpoint ready, 4 event handlers implemented, payment-failed email notification created
 
 ---
-*Phase 11 plan 01 complete — Stripe SDK, migration, plan tier config, usage limits, read-only mode (2026-02-20)*
+*Phase 11 plan 02 complete — Stripe webhook handler with idempotency, subscription lifecycle handlers, payment-failed email (2026-02-20)*
