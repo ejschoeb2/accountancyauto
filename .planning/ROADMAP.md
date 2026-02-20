@@ -107,11 +107,11 @@
 **Plans:** 5 plans in 4 waves
 
 Plans:
-- [ ] 10-01-PLAN.md — Database schema: organisations, user_organisations, invitations tables + org_id on all data tables + backfill
-- [ ] 10-02-PLAN.md — JWT Custom Access Token Hook + org-scoped RLS policies
-- [ ] 10-03-PLAN.md — Cron job org-scoping (reminders + send-emails) + per-org Postmark
-- [ ] 10-04-PLAN.md — Server action updates for org-scoped operations
-- [ ] 10-05-PLAN.md — Integration verification with test org + human verification checkpoint
+- [x] 10-01-PLAN.md — Database schema: organisations, user_organisations, invitations tables + org_id on all data tables + backfill
+- [x] 10-02-PLAN.md — JWT Custom Access Token Hook + org-scoped RLS policies
+- [x] 10-03-PLAN.md — Cron job org-scoping (reminders + send-emails) + per-org Postmark
+- [x] 10-04-PLAN.md — Server action updates for org-scoped operations
+- [x] 10-05-PLAN.md — Integration verification with test org + human verification checkpoint
 
 ---
 
@@ -130,10 +130,14 @@ Plans:
 4. An `invoice.payment_failed` Stripe webhook event results in a payment-failed email to the org admin containing a link to the Stripe Customer Portal; re-delivering the same webhook event does not send a second email (idempotency enforced).
 5. An org created with the "Start free trial" option has `trial_ends_at` set 14 days in the future; the org can create clients and send emails immediately without entering payment details.
 
-**Plans:** TBD
+**Plans:** 5 plans in 4 waves
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Database migration + Stripe SDK + plan config + billing utilities
+- [ ] 11-02-PLAN.md — Webhook handler with idempotency + payment-failed email (NOTF-02)
+- [ ] 11-03-PLAN.md — Checkout + portal API routes + pricing page + trial logic + trial-expiry cron
+- [ ] 11-04-PLAN.md — Billing management page with status overview, usage bars, manage button
+- [ ] 11-05-PLAN.md — Usage enforcement + read-only mode integration + dashboard banner + verification
 
 ---
 
@@ -205,7 +209,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 (Phase 12 can begin in parallel with Phase 11 if needed; both must complete before Phase 13)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -219,9 +223,9 @@ Phases execute in numeric order: 10 → 11 → 12 → 13 → 14
 | 7. Schedule Management | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 8. Ad-Hoc Sending | v1.1 | 2/2 | Complete | 2026-02-08 |
 | 9. Queue Integration | v1.1 | 2/2 | Complete | 2026-02-08 |
-| — v2.0 QOL & Platform Hardening | v2.0 | n/a | Complete | 2026-02-14 |
-| 10. Org Data Model & RLS Foundation | v3.0 | 0/? | Not started | - |
-| 11. Stripe Billing | v3.0 | 0/? | Not started | - |
+| -- v2.0 QOL & Platform Hardening | v2.0 | n/a | Complete | 2026-02-14 |
+| 10. Org Data Model & RLS Foundation | v3.0 | 5/5 | Complete | 2026-02-20 |
+| 11. Stripe Billing | v3.0 | 0/5 | Not started | - |
 | 12. Subdomain Routing & Access Gating | v3.0 | 0/? | Not started | - |
 | 13. Onboarding Flow & Team Management | v3.0 | 0/? | Not started | - |
 | 14. Super-Admin Dashboard | v3.0 | 0/? | Not started | - |
