@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 10 in progress
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 11 in progress
 
 ## Current Position
 
-Phase: Phase 10 — Org Data Model & RLS Foundation (4 of 5 plans complete)
-Plan: 04 of 5 (Server Action & API Route Org Scoping) — just completed
+Phase: 11 of 14 (Stripe Billing)
+Plan: 1 of 5 (Billing Foundation)
 Status: In progress
-Last activity: 2026-02-19 — Completed 10-04-PLAN.md (server action org scoping)
+Last activity: 2026-02-20 — Completed 11-01-PLAN.md (Stripe SDK, migration, plan config, billing utilities)
 
-Progress: [████░░░░░░░░░░░░░░░░] 4/5 Phase 10 plans complete
+Progress: [████░░░░░░░░░░░░░░░░] 1/5 Phase 11 plans complete
 
 ## Performance Metrics
 
@@ -39,10 +39,10 @@ Progress: [████░░░░░░░░░░░░░░░░] 4/5 Pha
 - Status: Shipped
 
 **v3.0 Velocity:**
-- Total plans completed: 4
+- Total plans completed: 6
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 in progress (Plans 01, 02, 03, 04 complete)
+- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (1/5)
 
 ## Accumulated Context
 
@@ -79,6 +79,14 @@ Recent decisions affecting v3.0:
 - [D-10-04-02] API routes with INSERT/upsert also updated (not just server actions) — all tables have org_id NOT NULL
 - [D-10-04-03] Postmark inbound webhook resolves org_id from matched client, falls back to founding org
 - [D-10-04-04] Server actions with only SELECT/UPDATE/DELETE unchanged (RLS handles filtering)
+- [D-10-05-01] supabase_auth_admin needs explicit RLS policy (not just GRANT SELECT) to read user_organisations in JWT hook
+- [D-10-05-02] Demo user linked to Acme test org; Peninsula reserved for real accounts (phases 12/13)
+- [D-10-05-03] Sign-out card added to settings page for accessible logout
+- [D-11-01-01] Stripe API version pinned to 2026-01-28.clover
+- [D-11-01-02] Price IDs from env vars (STRIPE_PRICE_LITE etc.) for test/prod flexibility
+- [D-11-01-03] processed_webhook_events: service_role-only RLS (webhook handler uses admin client)
+- [D-11-01-04] isOrgReadOnly defaults to true (read-only) for unknown/missing orgs (safe default)
+- [D-11-01-05] Placeholder prices: Lite £20, Sole Trader £39, Practice £89, Firm £159/mo
 
 ### Known Risks
 
@@ -137,11 +145,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-19 23:02 UTC
-Stopped at: Completed 10-04-PLAN.md (server action org scoping)
+Last session: 2026-02-20 23:44 UTC
+Stopped at: Completed 11-01-PLAN.md (Stripe Billing Foundation)
 Resume file: None
-Next step: Execute 10-05-PLAN.md (verification and activation)
-Note: JWT hook must be enabled in Supabase Dashboard before testing authenticated access
+Next step: Execute 11-02-PLAN.md (Webhook Handler)
+Note: Stripe SDK installed, migration ready, plan config and billing utilities created
 
 ---
-*Phase 10 Plans 01, 02, 03, 04 complete — database schema, RLS policies, cron scoping, server action org scoping (2026-02-19)*
+*Phase 11 plan 01 complete — Stripe SDK, migration, plan tier config, usage limits, read-only mode (2026-02-20)*
