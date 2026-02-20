@@ -1,18 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
- * Get the current user's org_id from JWT session claims (app_metadata).
+ * Get the current user's org_id.
  *
- * Uses getSession() (not getUser()) because the Custom Access Token Hook
- * injects org_id into the JWT token claims — getUser() returns the stored
- * user record which doesn't include hook-injected claims.
+ * Resolution order:
+ * 1. JWT session claims (app_metadata.org_id) — fast path when hook is active
+ * 2. Direct user_organisations lookup via admin client — fallback for stale
+ *    sessions issued before the Custom Access Token Hook was enabled
  *
- * Used by server actions that need to explicitly pass org_id:
- * - INSERT operations (RLS WITH CHECK validates but doesn't auto-set)
- * - app_settings queries (unique constraint is now (org_id, key))
- * - Upserts that target the (org_id, key) conflict
- *
- * @throws Error if not authenticated or no org_id in claims
+ * @throws Error if not authenticated or user has no org assignment
  */
 export async function getOrgId(): Promise<string> {
   const supabase = await createClient();
@@ -22,20 +19,35 @@ export async function getOrgId(): Promise<string> {
     throw new Error('Not authenticated');
   }
 
+  // Fast path: JWT hook has injected org_id
   const orgId = session.user.app_metadata?.org_id;
-  if (!orgId) {
+  if (orgId) {
+    return orgId;
+  }
+
+  // Fallback: query user_organisations directly (bypasses RLS via admin client)
+  const admin = createAdminClient();
+  const { data: userOrg } = await admin
+    .from('user_organisations')
+    .select('org_id')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (!userOrg?.org_id) {
     throw new Error('No org_id in user session — user may not be assigned to an organisation');
   }
 
-  return orgId;
+  return userOrg.org_id;
 }
 
 /**
- * Get both org_id and org_role from the current user's JWT session claims.
+ * Get both org_id and org_role from the current user's session.
  *
- * org_role defaults to 'member' if not set in app_metadata.
+ * Same resolution order as getOrgId() with role fallback to 'member'.
  *
- * @throws Error if not authenticated or no org_id in claims
+ * @throws Error if not authenticated or user has no org assignment
  */
 export async function getOrgContext(): Promise<{ orgId: string; orgRole: string }> {
   const supabase = await createClient();
@@ -45,12 +57,26 @@ export async function getOrgContext(): Promise<{ orgId: string; orgRole: string 
     throw new Error('Not authenticated');
   }
 
+  // Fast path: JWT hook claims
   const orgId = session.user.app_metadata?.org_id;
   const orgRole = session.user.app_metadata?.org_role;
+  if (orgId) {
+    return { orgId, orgRole: orgRole || 'member' };
+  }
 
-  if (!orgId) {
+  // Fallback: direct lookup
+  const admin = createAdminClient();
+  const { data: userOrg } = await admin
+    .from('user_organisations')
+    .select('org_id, role')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  if (!userOrg?.org_id) {
     throw new Error('No org_id in user session');
   }
 
-  return { orgId, orgRole: orgRole || 'member' };
+  return { orgId: userOrg.org_id, orgRole: userOrg.role || 'member' };
 }
