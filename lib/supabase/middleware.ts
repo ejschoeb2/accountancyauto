@@ -135,8 +135,11 @@ export async function updateSession(request: NextRequest) {
         }
       }
 
-      // Fallback: no org found — redirect to marketing site (shouldn't happen in normal flow)
-      return NextResponse.redirect(new URL("https://phasetwo.uk"), 307);
+      // Fallback: no org found — redirect to onboarding so user can create an org
+      const onboardingUrl = new URL("/onboarding", request.url);
+      const onboardingRedirect = NextResponse.redirect(onboardingUrl, 307);
+      copyCookies(supabaseResponse, onboardingRedirect);
+      return onboardingRedirect;
     } else {
       // Not authenticated, no slug:
       // In dev with no ?org=, redirect to /login
