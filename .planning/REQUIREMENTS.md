@@ -45,7 +45,7 @@
 
 - [x] **ONBD-01**: Sign-up page: new user creates a Supabase Auth account (email + password); no existing account required
 - [x] **ONBD-02**: Org creation step: user enters firm name and org slug (auto-suggested, editable, unique, validated against reserved slug list); creates `organisations` and `user_organisations` (admin) rows
-- [ ] **ONBD-03**: Firm details step: sender name and email (pre-fills Postmark per-org config); Postmark server token field (optional — can be configured later in Settings)
+- [x] **ONBD-03**: Firm details step: sender name and email (pre-fills Postmark per-org config); Postmark server token field (optional — can be configured later in Settings)
 - [x] **ONBD-04**: Plan selection step: all 4 tiers shown with feature comparison and pricing; selecting a paid plan launches Stripe Checkout; "Start free trial" option begins 14-day trial and skips Stripe Checkout
 - [x] **ONBD-05**: After completing onboarding, user is redirected to their org subdomain dashboard (`orgslug.app.domain.com/dashboard`)
 - [x] **ONBD-06**: Already-onboarded orgs cannot re-enter the onboarding flow; `setup_complete` flag in `app_settings` prevents this
@@ -148,7 +148,7 @@
 | BILL-10 | Phase 11 | Complete |
 | ONBD-01 | Phase 13 | Complete |
 | ONBD-02 | Phase 13 | Complete |
-| ONBD-03 | Phase 13 | Pending |
+| ONBD-03 | Phase 13 | Complete |
 | ONBD-04 | Phase 13 | Complete |
 | ONBD-05 | Phase 13 | Complete |
 | ONBD-06 | Phase 13 | Complete |
