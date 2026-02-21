@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 12 complete (3/3 plans complete). Phase 13 next.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 13 in progress (1/4 plans complete). Phase 13-02 next.
 
 ## Current Position
 
-Phase: 12 of 14 (Subdomain Routing & Access Gating)
-Plan: 3 of 3 (Subdomain-Aware Auth Flow + Verification)
-Status: Phase 12 complete
-Last activity: 2026-02-21 — Completed 12-03-PLAN.md (Subdomain-aware auth flow, reminders cron token check, full phase verification)
+Phase: 13 of 14 (Onboarding Flow & Team Management)
+Plan: 1 of 4 (4-step Onboarding Wizard)
+Status: Phase 13 plan 01 complete
+Last activity: 2026-02-21 — Completed 13-01-PLAN.md (4-step onboarding wizard, magic link auth, org creation, trial provisioning)
 
-Progress: [████████████████████] 3/3 Phase 12 plans complete
+Progress: [█████░░░░░░░░░░░░░░░] 1/4 Phase 13 plans complete
 
 ## Performance Metrics
 
@@ -110,6 +110,10 @@ Recent decisions affecting v3.0:
 - [Phase 12-03]: [D-12-03-01] Magic link emailRedirectTo uses org subdomain URL in production; falls back to NEXT_PUBLIC_APP_URL/auth/callback in dev — cookie scoping correct for both environments
 - [Phase 12-03]: [D-12-03-02] Auth callback resolves org slug from JWT app_metadata.org_id (fast path) to avoid extra DB query for post-hook sessions
 - [Phase 12-03]: [D-12-03-03] Dev redirect from callback appends ?org= param (consistent with middleware dev pattern from 12-01)
+- [Phase 13-01]: [D-13-01-01] emailRedirectTo for onboarding magic link goes to /auth/callback; middleware no-org fallback redirects to /onboarding to complete the loop (avoids client-side code exchange)
+- [Phase 13-01]: [D-13-01-02] Already-onboarded redirect lives in onboarding layout.tsx (server component), not middleware — avoids extra DB query per request
+- [Phase 13-01]: [D-13-01-03] Admin client used for all org/user_org INSERT during onboarding — user has no org_id in JWT until after createOrgAndJoinAsAdmin + refreshSession()
+- [Phase 13-01]: [D-13-01-04] createOrgAndJoinAsAdmin idempotency: checks existing user_organisations row before creating to prevent double-create
 
 ### Known Risks
 
@@ -169,11 +173,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 09:30 UTC
-Stopped at: Completed 12-03-PLAN.md (Subdomain-Aware Auth Flow + Full Phase 12 Verification)
+Last session: 2026-02-21 10:33 UTC
+Stopped at: Completed 13-01-PLAN.md (4-step Onboarding Wizard — magic link auth, org creation, trial provisioning, subdomain redirect)
 Resume file: None
-Next step: Execute Phase 13 (Onboarding Flow & Team Management)
-Note: Phase 12 complete -- subdomain-aware magic link emailRedirectTo, auth callback org redirect, reminders cron token skip guard. Full subdomain routing system operational.
+Next step: Execute Phase 13-02 (Invite Flow & Accept)
+Note: Phase 13 plan 01 complete -- 4-step onboarding wizard at /onboarding, checkSlugAvailable + createOrgAndJoinAsAdmin server actions, middleware updated with /onboarding + /invite/accept in PUBLIC_ROUTES, no-org authenticated fallback redirects to /onboarding.
 
 ---
-*Phase 12 plan 01 complete -- Next.js middleware with subdomain org routing, membership validation, and access gating (2026-02-21)*
+*Phase 13 plan 01 complete -- 4-step onboarding wizard with magic link auth, org creation using admin client, 14-day trial provisioning, JWT refresh before subdomain redirect (2026-02-21)*
