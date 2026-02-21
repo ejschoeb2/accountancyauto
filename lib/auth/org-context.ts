@@ -1,5 +1,37 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+
+export interface OrgRow {
+  id: string;
+  slug: string;
+  name: string;
+  subscription_status: string;
+  trial_ends_at: string | null;
+  postmark_server_token: string | null;
+  postmark_sender_domain: string | null;
+}
+
+/**
+ * Get organisation by slug with React.cache deduplication.
+ *
+ * Used by middleware and server components to resolve org context.
+ * Wrapped in React cache() to deduplicate requests within a single render.
+ */
+export const getCurrentOrg = cache(async (slug: string): Promise<OrgRow | null> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('organisations')
+    .select('id, slug, name, subscription_status, trial_ends_at, postmark_server_token, postmark_sender_domain')
+    .eq('slug', slug)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data;
+});
 
 /**
  * Get the current user's org_id.
