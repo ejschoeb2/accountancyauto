@@ -4,7 +4,7 @@ import { getOrgSlug, resolveOrgFromSlug } from "@/lib/middleware/subdomain";
 import { enforceSubscription } from "@/lib/middleware/access-gating";
 
 // Routes that don't require org context or authentication
-const PUBLIC_ROUTES = ["/login", "/auth/callback", "/auth/signout", "/pricing"];
+const PUBLIC_ROUTES = ["/login", "/auth/callback", "/auth/signout", "/pricing", "/onboarding", "/invite/accept"];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
@@ -12,6 +12,10 @@ function isPublicRoute(pathname: string): boolean {
 
 function isApiRoute(pathname: string): boolean {
   return pathname.startsWith("/api/");
+}
+
+function isAdminRoute(pathname: string): boolean {
+  return pathname.startsWith("/admin");
 }
 
 /**
@@ -73,6 +77,20 @@ export async function updateSession(request: NextRequest) {
         return redirect;
       }
     }
+    return supabaseResponse;
+  }
+
+  // Step 3.5: Admin route bypass — skip org membership and subscription enforcement
+  if (isAdminRoute(pathname)) {
+    // Unauthenticated users navigating to /admin are redirected to /login
+    if (!user) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      const redirect = NextResponse.redirect(loginUrl, 307);
+      copyCookies(supabaseResponse, redirect);
+      return redirect;
+    }
+    // Authenticated users pass through — page-level guard enforces is_super_admin check
     return supabaseResponse;
   }
 
