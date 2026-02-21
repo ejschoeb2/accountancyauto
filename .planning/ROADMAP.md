@@ -155,10 +155,12 @@ Plans:
 3. An org whose trial has expired is redirected to `/billing` on every route except `/billing` itself; once a valid subscription is activated, all routes become accessible again.
 4. Each org's outbound reminder emails are sent using that org's `postmark_server_token` and `postmark_sender_domain` from the `organisations` table; no org's emails use another org's Postmark credentials or the global environment variable.
 
-**Plans:** TBD
+**Plans:** 3 plans in 2 waves
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — Middleware subdomain routing with org validation and access gating
+- [ ] 12-02-PLAN.md — Per-org Postmark configuration, email sender updates, org name in header
+- [ ] 12-03-PLAN.md — Subdomain-aware auth flow (login + callback) + verification checkpoint
 
 ---
 
