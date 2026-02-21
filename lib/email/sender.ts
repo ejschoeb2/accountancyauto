@@ -71,6 +71,7 @@ interface SendRichEmailParams {
   html: string;  // Pre-rendered HTML from renderTipTapEmail
   text: string;  // Plain text fallback from renderTipTapEmail
   clientId?: string;  // Optional: for List-Unsubscribe header
+  orgPostmarkToken?: string | null;  // Optional: use org's Postmark token instead of env var
 }
 
 interface SendRichEmailForOrgParams extends SendRichEmailParams {
@@ -159,6 +160,11 @@ export async function sendRichEmail(
   try {
     const emailFrom = await getEmailFrom();
 
+    // Use org-specific client if token provided, otherwise fall back to module-level env var client
+    const client = params.orgPostmarkToken
+      ? getOrgPostmarkClient(params.orgPostmarkToken)
+      : postmarkClient;
+
     // Build List-Unsubscribe headers if clientId provided
     const headers: Record<string, string> = {};
     if (params.clientId) {
@@ -173,7 +179,7 @@ export async function sendRichEmail(
     }
 
     // Send via Postmark (no React Email rendering needed - already done)
-    const result = await postmarkClient.sendEmail({
+    const result = await client.sendEmail({
       From: emailFrom.from,
       To: params.to,
       ReplyTo: emailFrom.replyTo,
@@ -219,10 +225,10 @@ export async function sendRichEmailForOrg(
   params: SendRichEmailForOrgParams
 ): Promise<SendReminderEmailResult> {
   try {
-    // Use org token if available, fall back to env var
-    const token = params.orgPostmarkToken || process.env.POSTMARK_SERVER_TOKEN;
+    // Use org token only — no fallback to env var (prevents cross-org email leakage)
+    const token = params.orgPostmarkToken;
     if (!token) {
-      throw new Error('No Postmark token available (neither org nor env var)');
+      throw new Error('No Postmark token configured for this organisation');
     }
 
     const client = getOrgPostmarkClient(token);
