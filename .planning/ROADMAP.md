@@ -184,7 +184,7 @@ Plans:
 
 Plans:
 - [x] 13-01-PLAN.md — Onboarding wizard (4-step signup: Account, Firm Details, Plan Selection, Trial Started) + middleware updates
-- [ ] 13-02-PLAN.md — Invite send + accept flow with cryptographic token security and seat limit enforcement
+- [x] 13-02-PLAN.md — Invite send + accept flow with cryptographic token security and seat limit enforcement
 - [ ] 13-03-PLAN.md — Role-based navigation filtering and admin-only route protection
 - [ ] 13-04-PLAN.md — Team management UI card on settings page + trial-ending-soon cron notification
 

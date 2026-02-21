@@ -114,6 +114,10 @@ Recent decisions affecting v3.0:
 - [Phase 13-01]: [D-13-01-02] Already-onboarded redirect lives in onboarding layout.tsx (server component), not middleware — avoids extra DB query per request
 - [Phase 13-01]: [D-13-01-03] Admin client used for all org/user_org INSERT during onboarding — user has no org_id in JWT until after createOrgAndJoinAsAdmin + refreshSession()
 - [Phase 13-01]: [D-13-01-04] createOrgAndJoinAsAdmin idempotency: checks existing user_organisations row before creating to prevent double-create
+- [Phase 13-02]: [D-13-02-01] Admin client used for validateInviteToken and acceptInvite — invitee has no org_id in JWT so RLS on invitations would block SELECT queries
+- [Phase 13-02]: [D-13-02-02] Email-as-member check uses getUserById loop over memberships (not listUsers filter) — avoids reliance on SDK method availability
+- [Phase 13-02]: [D-13-02-03] Unauthenticated invitees shown invite details + Sign In link; user re-clicks invite link after signing in
+- [Phase 13-02]: [D-13-02-04] sendInviteEmail uses platform POSTMARK_SERVER_TOKEN — invitee org may not have Postmark configured; these are system notifications
 - [Phase 13-03]: [D-13-03-01] orgRole defaults to 'member' in NavLinks and SettingsLink client components — safe default restricts access if prop is missing
 - [Phase 13-03]: [D-13-03-02] /schedules and /templates hidden from member nav but no server-side redirect — nav hiding is primary UX control; only /settings and /billing get server-side protection
 - [Phase 13-03]: [D-13-03-03] layout.tsx catches getOrgContext() errors and defaults orgRole to 'member' — prevents crash for users mid-onboarding with no org
@@ -185,8 +189,8 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 10:42 UTC
-Stopped at: Completed 14-02-PLAN.md (Org Detail Page at /admin/[slug])
+Last session: 2026-02-21 10:45 UTC
+Stopped at: Completed 13-02-PLAN.md (Invite & Accept Flow — team server actions, crypto tokens, sendInviteEmail, accept page)
 Resume file: None
 Next step: All phases complete — v3.0 shipped
 Note: Phase 14 plan 02 complete -- /admin/[slug] org detail with super-admin guard, Organisation Settings (dl grid), Team Members (shadcn Table via auth.admin.getUserById), and Stripe section with CopyableText component for customer/subscription IDs.
