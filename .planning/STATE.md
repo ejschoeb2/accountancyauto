@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 13 in progress (3/4 plans complete). Phase 13-04 next.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 14 complete (2/2 plans). All phases complete.
 
 ## Current Position
 
-Phase: 13 of 14 (Onboarding Flow & Team Management)
-Plan: 3 of 4 (Role-Based Navigation and Route Protection)
-Status: Phase 13 plan 03 complete
-Last activity: 2026-02-21 — Completed 13-03-PLAN.md (Role-filtered nav for members, SettingsLink hidden for members, /settings and /billing redirect guards)
+Phase: 14 of 14 (Super-Admin Dashboard)
+Plan: 2 of 2 (Org Detail Page at /admin/[slug])
+Status: Phase 14 plan 02 complete — ALL PHASES COMPLETE
+Last activity: 2026-02-21 — Completed 14-02-PLAN.md (Org detail page at /admin/[slug] with settings, members, and Stripe info)
 
-Progress: [███░░░░░░░░░░░░░░░░░] 3/4 Phase 13 plans complete
+Progress: [████████████████████] 2/2 Phase 14 plans complete
 
 ## Performance Metrics
 
@@ -121,6 +121,9 @@ Recent decisions affecting v3.0:
 - [Phase 14-super-admin-dashboard]: isSuperAdmin extracted from user.app_metadata in dashboard layout, passed as prop to NavLinks — no extra DB query
 - [Phase 14-super-admin-dashboard]: Client/user counts fetched via Promise.all() with head:true count queries per org in admin page
 - [Phase 14-super-admin-dashboard]: STATUS_CONFIG in OrgTable matches billing-status-card.tsx exactly for consistent visual language
+- [Phase 14]: STATUS_CONFIG duplicated inline in /admin/[slug] page (not extracted to shared file) — 5 lines not worth adding shared module complexity
+- [Phase 14]: Postmark token shown as Configured/Not configured badge in org detail page — never reveal token value even to super-admins via UI
+- [Phase 14]: generateMetadata uses async params (Promise) — required pattern in Next.js 16 for dynamic segment params
 
 ### Known Risks
 
@@ -145,6 +148,7 @@ All v1.0 and v1.1 risks resolved.
 | Data retention policy for cancelled orgs (30 days mentioned; confirm before Phase 14) | Phase 14 plan |
 | Phase 12-subdomain-routing-access-gating P02 | 15 | 2 tasks | 6 files |
 | Phase 14-super-admin-dashboard P01 | 10 | 2 tasks | 6 files |
+| Phase 14 P02 | 3 | 1 tasks | 3 files |
 
 ### Tech Debt
 
@@ -181,11 +185,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 10:39 UTC
-Stopped at: Completed 13-03-PLAN.md (Role-Based Navigation and Route Protection)
+Last session: 2026-02-21 10:42 UTC
+Stopped at: Completed 14-02-PLAN.md (Org Detail Page at /admin/[slug])
 Resume file: None
-Next step: Execute Phase 13-04 (Trial-Ending Email Reminder Cron)
-Note: Phase 13 plan 03 complete -- member-role users see only Dashboard, Clients, Email Activity; admin-only nav items (/schedules, /templates, /billing) filtered; /settings and /billing redirect members to dashboard. Phase 14 agent had already applied layout.tsx + nav-links.tsx changes; 13-03 added settings-link.tsx + settings/page.tsx guards.
+Next step: All phases complete — v3.0 shipped
+Note: Phase 14 plan 02 complete -- /admin/[slug] org detail with super-admin guard, Organisation Settings (dl grid), Team Members (shadcn Table via auth.admin.getUserById), and Stripe section with CopyableText component for customer/subscription IDs.
 
 ---
 *Phase 13 plan 03 complete -- role-based navigation filtering and route protection for member vs admin roles (2026-02-21)*

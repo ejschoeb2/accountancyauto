@@ -64,7 +64,7 @@
 - [x] **ADMN-01**: Super-admin flag stored in Supabase Auth `app_metadata.is_super_admin`; writable only via service role (not by any user action)
 - [x] **ADMN-02**: `/admin` route requires `is_super_admin = true`; non-super-admin users are redirected to their dashboard
 - [x] **ADMN-03**: Super-admin org list shows: org name, slug, plan_tier, subscription_status, trial_ends_at, client count, user count — sortable by plan and status
-- [ ] **ADMN-04**: Clicking an org shows its detail: full org settings, member list, Stripe subscription ID for manual lookup
+- [x] **ADMN-04**: Clicking an org shows its detail: full org settings, member list, Stripe subscription ID for manual lookup
 
 ### NOTF — System Notification Emails
 
@@ -161,7 +161,7 @@
 | ADMN-01 | Phase 14 | Complete |
 | ADMN-02 | Phase 14 | Complete |
 | ADMN-03 | Phase 14 | Complete |
-| ADMN-04 | Phase 14 | Pending |
+| ADMN-04 | Phase 14 | Complete |
 | NOTF-01 | Phase 13 | Pending |
 | NOTF-02 | Phase 11 | Complete |
 

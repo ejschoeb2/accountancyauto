@@ -204,7 +204,7 @@ Plans:
 3. Clicking any org in the list opens a detail view showing its full settings, member list with roles, and Stripe subscription ID; no data modification actions are exposed in this view.
 4. The `is_super_admin` flag cannot be set by any user action through the application UI or client-callable API; setting it requires direct service-role access to Supabase Auth `app_metadata`.
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 14-01-PLAN.md — Middleware admin bypass, nav link, super-admin guard, org list page with sortable table
@@ -234,4 +234,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 11. Stripe Billing | v3.0 | 5/5 | Complete | 2026-02-21 |
 | 12. Subdomain Routing & Access Gating | v3.0 | 3/3 | Complete | 2026-02-21 |
 | 13. Onboarding Flow & Team Management | 2/4 | In Progress|  | - |
-| 14. Super-Admin Dashboard | 1/2 | In Progress|  | - |
+| 14. Super-Admin Dashboard | 2/2 | Complete   | 2026-02-21 | - |
