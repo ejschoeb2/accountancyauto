@@ -20,14 +20,21 @@ const ADMIN_ITEM: { href: string; icon: LucideIcon; label: string } = {
   label: "Admin",
 };
 
+// Nav items hidden from member-role users
+const ADMIN_ONLY_HREFS = new Set(["/schedules", "/templates", "/billing"]);
+
 interface NavLinksProps {
   isSuperAdmin?: boolean;
+  orgRole?: string;
 }
 
-export function NavLinks({ isSuperAdmin }: NavLinksProps) {
+export function NavLinks({ isSuperAdmin, orgRole = "member" }: NavLinksProps) {
   const pathname = usePathname();
 
-  const items = isSuperAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
+  const baseItems = NAV_ITEMS.filter(
+    item => orgRole === "admin" || !ADMIN_ONLY_HREFS.has(item.href)
+  );
+  const items = isSuperAdmin ? [...baseItems, ADMIN_ITEM] : baseItems;
 
   return (
     <nav className="flex items-center gap-2">

@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 13 in progress (1/4 plans complete). Phase 13-02 next.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 14 in progress (1/2 plans complete). Phase 14-02 next.
 
 ## Current Position
 
-Phase: 13 of 14 (Onboarding Flow & Team Management)
-Plan: 1 of 4 (4-step Onboarding Wizard)
-Status: Phase 13 plan 01 complete
-Last activity: 2026-02-21 — Completed 13-01-PLAN.md (4-step onboarding wizard, magic link auth, org creation, trial provisioning)
+Phase: 14 of 14 (Super-Admin Dashboard)
+Plan: 1 of 2 (Super-Admin Route Infrastructure and Org List Dashboard)
+Status: Phase 14 plan 01 complete
+Last activity: 2026-02-21 — Completed 14-01-PLAN.md (Super-admin route bypass, NavLinks conditional Admin link, /admin org list with sortable TanStack Table)
 
-Progress: [█████░░░░░░░░░░░░░░░] 1/4 Phase 13 plans complete
+Progress: [█████████░░░░░░░░░░░] 1/2 Phase 14 plans complete
 
 ## Performance Metrics
 
@@ -114,6 +114,10 @@ Recent decisions affecting v3.0:
 - [Phase 13-01]: [D-13-01-02] Already-onboarded redirect lives in onboarding layout.tsx (server component), not middleware — avoids extra DB query per request
 - [Phase 13-01]: [D-13-01-03] Admin client used for all org/user_org INSERT during onboarding — user has no org_id in JWT until after createOrgAndJoinAsAdmin + refreshSession()
 - [Phase 13-01]: [D-13-01-04] createOrgAndJoinAsAdmin idempotency: checks existing user_organisations row before creating to prevent double-create
+- [Phase 14-super-admin-dashboard]: Admin route middleware bypass: isAdminRoute() inserted at Step 3.5; unauthenticated users redirected to /login; page-level guard enforces is_super_admin
+- [Phase 14-super-admin-dashboard]: isSuperAdmin extracted from user.app_metadata in dashboard layout, passed as prop to NavLinks — no extra DB query
+- [Phase 14-super-admin-dashboard]: Client/user counts fetched via Promise.all() with head:true count queries per org in admin page
+- [Phase 14-super-admin-dashboard]: STATUS_CONFIG in OrgTable matches billing-status-card.tsx exactly for consistent visual language
 
 ### Known Risks
 
@@ -137,6 +141,7 @@ All v1.0 and v1.1 risks resolved.
 | Where do per-org Postmark server tokens come from for new tenants? (admin enters own token vs programmatic via API vs shared account) | Phase 13 plan |
 | Data retention policy for cancelled orgs (30 days mentioned; confirm before Phase 14) | Phase 14 plan |
 | Phase 12-subdomain-routing-access-gating P02 | 15 | 2 tasks | 6 files |
+| Phase 14-super-admin-dashboard P01 | 10 | 2 tasks | 6 files |
 
 ### Tech Debt
 
@@ -173,11 +178,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 10:33 UTC
-Stopped at: Completed 13-01-PLAN.md (4-step Onboarding Wizard — magic link auth, org creation, trial provisioning, subdomain redirect)
+Last session: 2026-02-21 10:35 UTC
+Stopped at: Completed 14-01-PLAN.md (Super-Admin Route Infrastructure and Org List Dashboard)
 Resume file: None
-Next step: Execute Phase 13-02 (Invite Flow & Accept)
-Note: Phase 13 plan 01 complete -- 4-step onboarding wizard at /onboarding, checkSlugAvailable + createOrgAndJoinAsAdmin server actions, middleware updated with /onboarding + /invite/accept in PUBLIC_ROUTES, no-org authenticated fallback redirects to /onboarding.
+Next step: Execute Phase 14-02 (Org Detail Page)
+Note: Phase 14 plan 01 complete -- /admin route with middleware bypass, NavLinks conditional Admin link (Shield icon), server page with is_super_admin guard, sortable OrgTable using TanStack Table with STATUS_CONFIG badges.
 
 ---
-*Phase 13 plan 01 complete -- 4-step onboarding wizard with magic link auth, org creation using admin client, 14-day trial provisioning, JWT refresh before subdomain redirect (2026-02-21)*
+*Phase 14 plan 01 complete -- Super-admin /admin org list with middleware bypass, conditional nav link, sortable TanStack Table with status badges and trial expiry (2026-02-21)*

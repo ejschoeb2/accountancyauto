@@ -3,7 +3,7 @@ import Image from "next/image";
 import { NavLinks } from "@/components/nav-links";
 import { SettingsLink } from "@/components/settings-link";
 import { createClient } from "@/lib/supabase/server";
-import { getOrgId } from "@/lib/auth/org-context";
+import { getOrgContext } from "@/lib/auth/org-context";
 import { isOrgReadOnly } from "@/lib/billing/read-only-mode";
 
 export default async function DashboardLayout({
@@ -26,8 +26,10 @@ export default async function DashboardLayout({
   // Check if org is in read-only mode (lapsed subscription) and fetch org name
   let readOnly = false;
   let orgName = '';
+  let orgRole = 'member';
   try {
-    const orgId = await getOrgId();
+    const { orgId, orgRole: role } = await getOrgContext();
+    orgRole = role;
     readOnly = await isOrgReadOnly(orgId);
     const { data: org } = await supabase
       .from('organisations')
@@ -57,8 +59,8 @@ export default async function DashboardLayout({
 
           {/* Navigation Links & Settings */}
           <div className="flex items-center gap-4">
-            <NavLinks isSuperAdmin={isSuperAdmin} />
-            <SettingsLink />
+            <NavLinks isSuperAdmin={isSuperAdmin} orgRole={orgRole} />
+            <SettingsLink orgRole={orgRole} />
           </div>
         </div>
       </header>
