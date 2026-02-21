@@ -133,11 +133,11 @@ Plans:
 **Plans:** 5 plans in 4 waves
 
 Plans:
-- [ ] 11-01-PLAN.md — Database migration + Stripe SDK + plan config + billing utilities
-- [ ] 11-02-PLAN.md — Webhook handler with idempotency + payment-failed email (NOTF-02)
-- [ ] 11-03-PLAN.md — Checkout + portal API routes + pricing page + trial logic + trial-expiry cron
-- [ ] 11-04-PLAN.md — Billing management page with status overview, usage bars, manage button
-- [ ] 11-05-PLAN.md — Usage enforcement + read-only mode integration + dashboard banner + verification
+- [x] 11-01-PLAN.md — Database migration + Stripe SDK + plan config + billing utilities
+- [x] 11-02-PLAN.md — Webhook handler with idempotency + payment-failed email (NOTF-02)
+- [x] 11-03-PLAN.md — Checkout + portal API routes + pricing page + trial logic + trial-expiry cron
+- [x] 11-04-PLAN.md — Billing management page with status overview, usage bars, manage button
+- [x] 11-05-PLAN.md — Usage enforcement + read-only mode integration + dashboard banner + verification
 
 ---
 
@@ -225,7 +225,7 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 9. Queue Integration | v1.1 | 2/2 | Complete | 2026-02-08 |
 | -- v2.0 QOL & Platform Hardening | v2.0 | n/a | Complete | 2026-02-14 |
 | 10. Org Data Model & RLS Foundation | v3.0 | 5/5 | Complete | 2026-02-20 |
-| 11. Stripe Billing | v3.0 | 0/5 | Not started | - |
+| 11. Stripe Billing | v3.0 | 5/5 | Complete | 2026-02-21 |
 | 12. Subdomain Routing & Access Gating | v3.0 | 0/? | Not started | - |
 | 13. Onboarding Flow & Team Management | v3.0 | 0/? | Not started | - |
 | 14. Super-Admin Dashboard | v3.0 | 0/? | Not started | - |

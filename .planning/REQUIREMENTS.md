@@ -121,31 +121,31 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ORG-01 | Phase 10 | Pending |
-| ORG-02 | Phase 10 | Pending |
-| ORG-03 | Phase 10 | Pending |
-| ORG-04 | Phase 10 | Pending |
-| ORG-05 | Phase 10 | Pending |
-| ORG-06 | Phase 10 | Pending |
-| ORG-07 | Phase 10 | Pending |
-| ORG-08 | Phase 10 | Pending |
-| ORG-09 | Phase 10 | Pending |
-| ORG-10 | Phase 10 | Pending |
+| ORG-01 | Phase 10 | Complete |
+| ORG-02 | Phase 10 | Complete |
+| ORG-03 | Phase 10 | Complete |
+| ORG-04 | Phase 10 | Complete |
+| ORG-05 | Phase 10 | Complete |
+| ORG-06 | Phase 10 | Complete |
+| ORG-07 | Phase 10 | Complete |
+| ORG-08 | Phase 10 | Complete |
+| ORG-09 | Phase 10 | Complete |
+| ORG-10 | Phase 10 | Complete |
 | AUTH-01 | Phase 12 | Pending |
 | AUTH-02 | Phase 12 | Pending |
 | AUTH-03 | Phase 12 | Pending |
 | AUTH-04 | Phase 12 | Pending |
 | AUTH-05 | Phase 12 | Pending |
-| BILL-01 | Phase 11 | Pending |
-| BILL-02 | Phase 11 | Pending |
-| BILL-03 | Phase 11 | Pending |
-| BILL-04 | Phase 11 | Pending |
-| BILL-05 | Phase 11 | Pending |
-| BILL-06 | Phase 11 | Pending |
-| BILL-07 | Phase 11 | Pending |
-| BILL-08 | Phase 11 | Pending |
-| BILL-09 | Phase 11 | Pending |
-| BILL-10 | Phase 11 | Pending |
+| BILL-01 | Phase 11 | Complete |
+| BILL-02 | Phase 11 | Complete |
+| BILL-03 | Phase 11 | Complete |
+| BILL-04 | Phase 11 | Complete |
+| BILL-05 | Phase 11 | Complete |
+| BILL-06 | Phase 11 | Complete |
+| BILL-07 | Phase 11 | Complete |
+| BILL-08 | Phase 11 | Complete |
+| BILL-09 | Phase 11 | Complete |
+| BILL-10 | Phase 11 | Complete |
 | ONBD-01 | Phase 13 | Pending |
 | ONBD-02 | Phase 13 | Pending |
 | ONBD-03 | Phase 13 | Pending |
@@ -163,7 +163,7 @@
 | ADMN-03 | Phase 14 | Pending |
 | ADMN-04 | Phase 14 | Pending |
 | NOTF-01 | Phase 13 | Pending |
-| NOTF-02 | Phase 11 | Pending |
+| NOTF-02 | Phase 11 | Complete |
 
 **Coverage:**
 - v3.0 requirements: 43 total
