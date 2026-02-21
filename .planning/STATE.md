@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 14 in progress (1/2 plans complete). Phase 14-02 next.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 13 in progress (3/4 plans complete). Phase 13-04 next.
 
 ## Current Position
 
-Phase: 14 of 14 (Super-Admin Dashboard)
-Plan: 1 of 2 (Super-Admin Route Infrastructure and Org List Dashboard)
-Status: Phase 14 plan 01 complete
-Last activity: 2026-02-21 — Completed 14-01-PLAN.md (Super-admin route bypass, NavLinks conditional Admin link, /admin org list with sortable TanStack Table)
+Phase: 13 of 14 (Onboarding Flow & Team Management)
+Plan: 3 of 4 (Role-Based Navigation and Route Protection)
+Status: Phase 13 plan 03 complete
+Last activity: 2026-02-21 — Completed 13-03-PLAN.md (Role-filtered nav for members, SettingsLink hidden for members, /settings and /billing redirect guards)
 
-Progress: [█████████░░░░░░░░░░░] 1/2 Phase 14 plans complete
+Progress: [███░░░░░░░░░░░░░░░░░] 3/4 Phase 13 plans complete
 
 ## Performance Metrics
 
@@ -114,6 +114,9 @@ Recent decisions affecting v3.0:
 - [Phase 13-01]: [D-13-01-02] Already-onboarded redirect lives in onboarding layout.tsx (server component), not middleware — avoids extra DB query per request
 - [Phase 13-01]: [D-13-01-03] Admin client used for all org/user_org INSERT during onboarding — user has no org_id in JWT until after createOrgAndJoinAsAdmin + refreshSession()
 - [Phase 13-01]: [D-13-01-04] createOrgAndJoinAsAdmin idempotency: checks existing user_organisations row before creating to prevent double-create
+- [Phase 13-03]: [D-13-03-01] orgRole defaults to 'member' in NavLinks and SettingsLink client components — safe default restricts access if prop is missing
+- [Phase 13-03]: [D-13-03-02] /schedules and /templates hidden from member nav but no server-side redirect — nav hiding is primary UX control; only /settings and /billing get server-side protection
+- [Phase 13-03]: [D-13-03-03] layout.tsx catches getOrgContext() errors and defaults orgRole to 'member' — prevents crash for users mid-onboarding with no org
 - [Phase 14-super-admin-dashboard]: Admin route middleware bypass: isAdminRoute() inserted at Step 3.5; unauthenticated users redirected to /login; page-level guard enforces is_super_admin
 - [Phase 14-super-admin-dashboard]: isSuperAdmin extracted from user.app_metadata in dashboard layout, passed as prop to NavLinks — no extra DB query
 - [Phase 14-super-admin-dashboard]: Client/user counts fetched via Promise.all() with head:true count queries per org in admin page
@@ -178,11 +181,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 10:35 UTC
-Stopped at: Completed 14-01-PLAN.md (Super-Admin Route Infrastructure and Org List Dashboard)
+Last session: 2026-02-21 10:39 UTC
+Stopped at: Completed 13-03-PLAN.md (Role-Based Navigation and Route Protection)
 Resume file: None
-Next step: Execute Phase 14-02 (Org Detail Page)
-Note: Phase 14 plan 01 complete -- /admin route with middleware bypass, NavLinks conditional Admin link (Shield icon), server page with is_super_admin guard, sortable OrgTable using TanStack Table with STATUS_CONFIG badges.
+Next step: Execute Phase 13-04 (Trial-Ending Email Reminder Cron)
+Note: Phase 13 plan 03 complete -- member-role users see only Dashboard, Clients, Email Activity; admin-only nav items (/schedules, /templates, /billing) filtered; /settings and /billing redirect members to dashboard. Phase 14 agent had already applied layout.tsx + nav-links.tsx changes; 13-03 added settings-link.tsx + settings/page.tsx guards.
 
 ---
-*Phase 14 plan 01 complete -- Super-admin /admin org list with middleware bypass, conditional nav link, sortable TanStack Table with status badges and trial expiry (2026-02-21)*
+*Phase 13 plan 03 complete -- role-based navigation filtering and route protection for member vs admin roles (2026-02-21)*
