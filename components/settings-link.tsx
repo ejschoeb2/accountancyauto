@@ -4,9 +4,18 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-export function SettingsLink() {
+interface SettingsLinkProps {
+  orgRole?: string;
+}
+
+export function SettingsLink({ orgRole = "member" }: SettingsLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === "/settings";
+
+  // Members do not have access to settings
+  if (orgRole !== "admin") {
+    return null;
+  }
 
   return (
     <Link

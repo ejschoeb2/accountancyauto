@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getOrgContext } from "@/lib/auth/org-context";
 import { getSendHour, getEmailSettings, getInboundCheckerMode, getPostmarkSettings } from "@/app/actions/settings";
 import { SendHourPicker } from "./components/send-hour-picker";
 import { EmailSettingsCard } from "./components/email-settings-card";
@@ -6,6 +8,12 @@ import { PostmarkSettingsCard } from "./components/postmark-settings-card";
 import { SignOutCard } from "./components/sign-out-card";
 
 export default async function SettingsPage() {
+  // Admin-only access: members are silently redirected to dashboard
+  const { orgRole } = await getOrgContext();
+  if (orgRole !== "admin") {
+    redirect("/dashboard");
+  }
+
   const [sendHour, emailSettings, inboundCheckerMode, postmarkSettings] = await Promise.all([
     getSendHour(),
     getEmailSettings(),
