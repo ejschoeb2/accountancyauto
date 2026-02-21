@@ -140,7 +140,149 @@ export async function sendPaymentFailedEmail(
   );
 }
 
+// ── Invite email ─────────────────────────────────────────────────────
+
+/**
+ * Send a team invite email to a new team member.
+ *
+ * Uses the platform Postmark token (not the org's token) because the invited
+ * user hasn't set up their org yet and these are system notifications.
+ *
+ * @param recipientEmail - Email address of the person being invited
+ * @param orgName        - Display name of the organisation
+ * @param inviterEmail   - Email of the admin sending the invite
+ * @param role           - Role being assigned ("admin" | "member")
+ * @param acceptUrl      - Full URL with raw invite token for the accept page
+ */
+export async function sendInviteEmail(
+  recipientEmail: string,
+  orgName: string,
+  inviterEmail: string,
+  role: string,
+  acceptUrl: string
+): Promise<void> {
+  const postmarkToken = process.env.POSTMARK_SERVER_TOKEN;
+  if (!postmarkToken) {
+    console.error("sendInviteEmail: POSTMARK_SERVER_TOKEN not configured");
+    throw new Error("Email service not configured.");
+  }
+
+  const postmark = new ServerClient(postmarkToken);
+  const senderDomain = process.env.POSTMARK_SENDER_DOMAIN || "phasetwo.uk";
+
+  await postmark.sendEmail({
+    From: `Peninsula Accounting <noreply@${senderDomain}>`,
+    To: recipientEmail,
+    Subject: `You've been invited to join ${orgName} on Peninsula Accounting`,
+    HtmlBody: buildInviteHtml(orgName, inviterEmail, role, acceptUrl),
+    TextBody: buildInviteText(orgName, inviterEmail, role, acceptUrl),
+    MessageStream: "outbound",
+    TrackOpens: false,
+    TrackLinks: "None" as never,
+  });
+
+  console.log(
+    `sendInviteEmail: invite sent to ${recipientEmail} for org ${orgName}`
+  );
+}
+
 // ── Email templates ──────────────────────────────────────────────────
+
+function buildInviteHtml(
+  orgName: string,
+  inviterEmail: string,
+  role: string,
+  acceptUrl: string
+): string {
+  const roleLabel = role === "admin" ? "Admin" : "Member";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You've been invited to join ${escapeHtml(orgName)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#18181b;padding:24px 32px;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">You've been invited</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 16px;color:#18181b;font-size:15px;line-height:1.6;">Hi,</p>
+              <p style="margin:0 0 16px;color:#18181b;font-size:15px;line-height:1.6;">
+                <strong>${escapeHtml(inviterEmail)}</strong> has invited you to join
+                <strong>${escapeHtml(orgName)}</strong> on Peninsula Accounting as a <strong>${escapeHtml(roleLabel)}</strong>.
+              </p>
+              <p style="margin:0 0 24px;color:#18181b;font-size:15px;line-height:1.6;">
+                Click the button below to accept the invitation and get started.
+              </p>
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+                <tr>
+                  <td style="background-color:#18181b;border-radius:6px;">
+                    <a href="${escapeHtml(acceptUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+                      Accept Invitation
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 8px;color:#71717a;font-size:13px;line-height:1.5;">
+                Or copy this link into your browser:
+              </p>
+              <p style="margin:0 0 16px;color:#71717a;font-size:12px;line-height:1.5;word-break:break-all;">
+                ${escapeHtml(acceptUrl)}
+              </p>
+              <p style="margin:0;color:#71717a;font-size:13px;line-height:1.5;">
+                This link expires in 7 days. If you weren't expecting this invitation, you can ignore this email.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e4e4e7;">
+              <p style="margin:0;color:#a1a1aa;font-size:12px;text-align:center;">
+                Peninsula Accounting
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildInviteText(
+  orgName: string,
+  inviterEmail: string,
+  role: string,
+  acceptUrl: string
+): string {
+  const roleLabel = role === "admin" ? "Admin" : "Member";
+  return `You've been invited to join ${orgName} on Peninsula Accounting
+
+Hi,
+
+${inviterEmail} has invited you to join ${orgName} on Peninsula Accounting as a ${roleLabel}.
+
+Click the link below to accept the invitation:
+
+${acceptUrl}
+
+This link expires in 7 days. If you weren't expecting this invitation, you can ignore this email.
+
+--
+Peninsula Accounting`;
+}
 
 function buildPaymentFailedHtml(
   orgName: string,
