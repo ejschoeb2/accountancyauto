@@ -1,13 +1,16 @@
-import { getSendHour, getEmailSettings, getInboundCheckerMode } from "@/app/actions/settings";
+import { getSendHour, getEmailSettings, getInboundCheckerMode, getPostmarkSettings } from "@/app/actions/settings";
 import { SendHourPicker } from "./components/send-hour-picker";
 import { EmailSettingsCard } from "./components/email-settings-card";
 import { InboundCheckerCard } from "./components/inbound-checker-card";
+import { PostmarkSettingsCard } from "./components/postmark-settings-card";
+import { SignOutCard } from "./components/sign-out-card";
 
 export default async function SettingsPage() {
-  const [sendHour, emailSettings, inboundCheckerMode] = await Promise.all([
+  const [sendHour, emailSettings, inboundCheckerMode, postmarkSettings] = await Promise.all([
     getSendHour(),
     getEmailSettings(),
     getInboundCheckerMode(),
+    getPostmarkSettings(),
   ]);
 
   return (
@@ -26,8 +29,17 @@ export default async function SettingsPage() {
         senderDomain={process.env.POSTMARK_SENDER_DOMAIN ?? "phasetwo.uk"}
       />
 
+      {/* Postmark Configuration Card */}
+      <PostmarkSettingsCard
+        defaultToken={postmarkSettings.token}
+        defaultSenderDomain={postmarkSettings.senderDomain}
+      />
+
       {/* Inbound Email Checker Card */}
       <InboundCheckerCard defaultMode={inboundCheckerMode} />
+
+      {/* Sign Out */}
+      <SignOutCard />
     </div>
   );
 }
