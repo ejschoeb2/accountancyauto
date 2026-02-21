@@ -234,4 +234,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 11. Stripe Billing | v3.0 | 5/5 | Complete | 2026-02-21 |
 | 12. Subdomain Routing & Access Gating | v3.0 | 3/3 | Complete | 2026-02-21 |
 | 13. Onboarding Flow & Team Management | v3.0 | 0/4 | Planned | - |
-| 14. Super-Admin Dashboard | v3.0 | 0/? | Not started | - |
+| 14. Super-Admin Dashboard | v3.0 | 0/2 | Planned | - |
