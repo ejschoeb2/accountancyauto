@@ -128,6 +128,10 @@ Recent decisions affecting v3.0:
 - [Phase 14]: STATUS_CONFIG duplicated inline in /admin/[slug] page (not extracted to shared file) — 5 lines not worth adding shared module complexity
 - [Phase 14]: Postmark token shown as Configured/Not configured badge in org detail page — never reveal token value even to super-admins via UI
 - [Phase 14]: generateMetadata uses async params (Promise) — required pattern in Next.js 16 for dynamic segment params
+- [Phase 13]: [D-13-04-01] useTransition for invite/role-change/remove server actions — keeps UI responsive during network calls
+- [Phase 13]: [D-13-04-02] pendingAction state per-row for cancel/resend — avoids disabling whole member list
+- [Phase 13]: [D-13-04-03] Trial reminder window gte(now+3d)+lt(now+4d) with idempotency flag prevents double-sends
+- [Phase 13]: [D-13-04-04] trial-expiry cron added to vercel.json — was missing from schedule despite route existing
 
 ### Known Risks
 
@@ -153,6 +157,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 12-subdomain-routing-access-gating P02 | 15 | 2 tasks | 6 files |
 | Phase 14-super-admin-dashboard P01 | 10 | 2 tasks | 6 files |
 | Phase 14 P02 | 3 | 1 tasks | 3 files |
+| Phase 13 P04 | 6 | 2 tasks | 5 files |
 
 ### Tech Debt
 
@@ -189,11 +194,10 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 10:45 UTC
-Stopped at: Completed 13-02-PLAN.md (Invite & Accept Flow — team server actions, crypto tokens, sendInviteEmail, accept page)
+Last session: 2026-02-21 10:55 UTC
+Stopped at: Completed 13-04-PLAN.md (Team management UI card and trial-ending-soon cron)
 Resume file: None
 Next step: All phases complete — v3.0 shipped
-Note: Phase 14 plan 02 complete -- /admin/[slug] org detail with super-admin guard, Organisation Settings (dl grid), Team Members (shadcn Table via auth.admin.getUserById), and Stripe section with CopyableText component for customer/subscription IDs.
 
 ---
-*Phase 13 plan 03 complete -- role-based navigation filtering and route protection for member vs admin roles (2026-02-21)*
+*Phase 13 plan 04 complete -- team management card on settings page + trial-ending-soon cron with idempotency (2026-02-21)*

@@ -180,7 +180,7 @@ Plans:
 5. Attempting to remove the last admin from an org returns an error and leaves the admin assignment unchanged.
 6. A daily cron check sends a "trial ending soon" email to the org admin exactly 3 days before `trial_ends_at`; the email is not re-sent on subsequent cron runs for the same org.
 
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 13-01-PLAN.md — Onboarding wizard (4-step signup: Account, Firm Details, Plan Selection, Trial Started) + middleware updates
@@ -233,5 +233,5 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 10. Org Data Model & RLS Foundation | v3.0 | 5/5 | Complete | 2026-02-20 |
 | 11. Stripe Billing | v3.0 | 5/5 | Complete | 2026-02-21 |
 | 12. Subdomain Routing & Access Gating | v3.0 | 3/3 | Complete | 2026-02-21 |
-| 13. Onboarding Flow & Team Management | 2/4 | In Progress|  | - |
+| 13. Onboarding Flow & Team Management | 4/4 | Complete   | 2026-02-21 | - |
 | 14. Super-Admin Dashboard | 2/2 | Complete    | 2026-02-21 | - |
