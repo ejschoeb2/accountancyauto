@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Zap, Mail, Send, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Users, Zap, Mail, Send, CreditCard, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
@@ -11,6 +11,7 @@ const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: "/schedules", icon: Zap, label: "Reminder Schedules" },
   { href: "/templates", icon: Mail, label: "Email Templates" },
   { href: "/email-logs", icon: Send, label: "Email Activity" },
+  { href: "/billing", icon: CreditCard, label: "Billing" },
 ];
 
 export function NavLinks() {
