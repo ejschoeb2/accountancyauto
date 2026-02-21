@@ -54,10 +54,10 @@
 
 - [x] **TEAM-01**: Admin can invite team members by email from the Settings page; invite email is sent via Postmark with a tokenized accept link (expires 7 days)
 - [x] **TEAM-02**: Accept invite flow: recipient clicks link → creates Supabase Auth account if new, or logs in if existing → is added to the org via `user_organisations`
-- [ ] **TEAM-03**: Settings page shows current team: member name, email, role, joined date; admin can remove members and change roles
+- [x] **TEAM-03**: Settings page shows current team: member name, email, role, joined date; admin can remove members and change roles
 - [x] **TEAM-04**: Admin role has full access: clients, dashboard, templates, schedules, email logs, settings, billing, team management
 - [x] **TEAM-05**: Member role has restricted access: clients and dashboard only; billing and team management tabs are hidden/blocked
-- [ ] **TEAM-06**: An org must always retain at least one admin; removing the last admin is prevented with an error
+- [x] **TEAM-06**: An org must always retain at least one admin; removing the last admin is prevented with an error
 
 ### ADMN — Super-Admin Dashboard
 
@@ -68,7 +68,7 @@
 
 ### NOTF — System Notification Emails
 
-- [ ] **NOTF-01**: Trial-ending-soon email sent to org admin 3 days before `trial_ends_at`; triggered by a daily cron check (not Stripe webhook)
+- [x] **NOTF-01**: Trial-ending-soon email sent to org admin 3 days before `trial_ends_at`; triggered by a daily cron check (not Stripe webhook)
 - [ ] **NOTF-02**: Payment-failed email sent to org admin when `invoice.payment_failed` webhook is received; includes link to Stripe Customer Portal to update payment method
 
 ---
@@ -154,15 +154,15 @@
 | ONBD-06 | Phase 13 | Complete |
 | TEAM-01 | Phase 13 | Complete |
 | TEAM-02 | Phase 13 | Complete |
-| TEAM-03 | Phase 13 | Pending |
+| TEAM-03 | Phase 13 | Complete |
 | TEAM-04 | Phase 13 | Complete |
 | TEAM-05 | Phase 13 | Complete |
-| TEAM-06 | Phase 13 | Pending |
+| TEAM-06 | Phase 13 | Complete |
 | ADMN-01 | Phase 14 | Complete |
 | ADMN-02 | Phase 14 | Complete |
 | ADMN-03 | Phase 14 | Complete |
 | ADMN-04 | Phase 14 | Complete |
-| NOTF-01 | Phase 13 | Pending |
+| NOTF-01 | Phase 13 | Complete |
 | NOTF-02 | Phase 11 | Complete |
 
 **Coverage:**
