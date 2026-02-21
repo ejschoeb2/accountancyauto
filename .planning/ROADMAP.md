@@ -155,7 +155,7 @@ Plans:
 3. An org whose trial has expired is redirected to `/billing` on every route except `/billing` itself; once a valid subscription is activated, all routes become accessible again.
 4. Each org's outbound reminder emails are sent using that org's `postmark_server_token` and `postmark_sender_domain` from the `organisations` table; no org's emails use another org's Postmark credentials or the global environment variable.
 
-**Plans:** 3 plans in 2 waves
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 12-01-PLAN.md — Middleware subdomain routing with org validation and access gating
@@ -228,6 +228,6 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | -- v2.0 QOL & Platform Hardening | v2.0 | n/a | Complete | 2026-02-14 |
 | 10. Org Data Model & RLS Foundation | v3.0 | 5/5 | Complete | 2026-02-20 |
 | 11. Stripe Billing | v3.0 | 5/5 | Complete | 2026-02-21 |
-| 12. Subdomain Routing & Access Gating | v3.0 | 0/? | Not started | - |
+| 12. Subdomain Routing & Access Gating | 2/3 | In Progress|  | - |
 | 13. Onboarding Flow & Team Management | v3.0 | 0/? | Not started | - |
 | 14. Super-Admin Dashboard | v3.0 | 0/? | Not started | - |

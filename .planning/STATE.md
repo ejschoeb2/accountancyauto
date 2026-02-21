@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 11 complete, Phase 12 next
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 12 in progress (2/3 plans complete)
 
 ## Current Position
 
-Phase: 11 of 14 (Stripe Billing)
-Plan: 5 of 5 (Usage Enforcement + Read-Only Mode)
-Status: Phase complete
-Last activity: 2026-02-21 — Completed 11-05-PLAN.md (Usage enforcement, read-only mode, dashboard banner)
+Phase: 12 of 14 (Subdomain Routing & Access Gating)
+Plan: 2 of 3 (Per-Org Postmark Config, Email Pipeline, Org Name in Header)
+Status: Plan 2 complete
+Last activity: 2026-02-21 — Completed 12-02-PLAN.md (Per-org Postmark config, cron skip guard, org name in header)
 
-Progress: [████████████████████] 5/5 Phase 11 plans complete
+Progress: [██████████████░░░░░░] 2/3 Phase 12 plans complete
 
 ## Performance Metrics
 
@@ -99,6 +99,14 @@ Recent decisions affecting v3.0:
 - [D-11-04-02] User count fetched via user_organisations count query (not stored on org table)
 - [D-11-04-03] Usage bars show percentage only when limit is not null (unlimited shows no percentage)
 - [D-11-05-01] Stripe client uses lazy Proxy-based initialization to prevent build failures when STRIPE_SECRET_KEY is not set at build time
+- [D-12-01-01] Subdomain routing: {slug}.app.phasetwo.uk in production, ?org= query param in development
+- [D-12-01-02] Wrong org redirect uses JWT org_id fast path; falls back to user_organisations query for pre-hook sessions
+- [D-12-01-03] copyCookies() helper ensures auth token refresh is preserved on all redirect responses
+- [D-12-01-04] /auth/signout and /pricing added to PUBLIC_ROUTES alongside /login and /auth/callback
+- [D-12-01-05] Unauthenticated on no-slug in dev → /login; in prod → phasetwo.uk (marketing)
+- [Phase 12-02]: [D-12-02-01] sendRichEmail accepts optional orgPostmarkToken; falls back to env var postmarkClient if not provided (backwards compatible)
+- [Phase 12-02]: [D-12-02-02] Cron skips tokenless orgs with console.warn and pushes skip entry to allResults — no exception thrown
+- [Phase 12-02]: [D-12-02-03] Ad-hoc and reply email server actions fetch org token via admin client, pass as optional param — falls back to env var for unconfigured orgs
 
 ### Known Risks
 
@@ -121,6 +129,7 @@ All v1.0 and v1.1 risks resolved.
 | Reserved slug list (admin, www, api, app, billing, etc.) | Phase 10/13 plan |
 | Where do per-org Postmark server tokens come from for new tenants? (admin enters own token vs programmatic via API vs shared account) | Phase 13 plan |
 | Data retention policy for cancelled orgs (30 days mentioned; confirm before Phase 14) | Phase 14 plan |
+| Phase 12-subdomain-routing-access-gating P02 | 15 | 2 tasks | 6 files |
 
 ### Tech Debt
 
@@ -157,11 +166,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 00:15 UTC
-Stopped at: Completed 11-05-PLAN.md (Usage Enforcement + Read-Only Mode)
+Last session: 2026-02-21 09:01 UTC
+Stopped at: Completed 12-02-PLAN.md (Per-Org Postmark Config, Email Pipeline, Org Name in Header)
 Resume file: None
-Next step: Plan Phase 12 (Subdomain Routing)
-Note: Phase 11 complete -- full Stripe billing stack shipped (schema, webhooks, checkout, portal, pricing, billing dashboard, enforcement, read-only mode)
+Next step: Execute Phase 12 Plan 03
+Note: Phase 12 plan 02 complete -- per-org Postmark settings UI with token validation, cron skip guard for tokenless orgs, ad-hoc/reply email org token support, org name in dashboard header
 
 ---
-*Phase 11 complete -- Full Stripe billing integration with usage enforcement and read-only mode (2026-02-21)*
+*Phase 12 plan 01 complete -- Next.js middleware with subdomain org routing, membership validation, and access gating (2026-02-21)*

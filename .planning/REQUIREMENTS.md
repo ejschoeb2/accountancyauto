@@ -22,11 +22,11 @@
 
 ### AUTH — Authentication, Session & Subdomain Routing
 
-- [ ] **AUTH-01**: Next.js middleware extracts `orgSlug` from the `host` header and rewrites requests to org-scoped routes
-- [ ] **AUTH-02**: `getCurrentOrg()` server utility resolves slug → org_id via Supabase with `React.cache()` deduplication (one DB call per request)
-- [ ] **AUTH-03**: Users logging in at the wrong org's subdomain see a clear error and are not granted access to that org's data
-- [ ] **AUTH-04**: Middleware enforces access gating: orgs with expired trial or cancelled subscription are redirected to `/billing` except for the billing page itself
-- [ ] **AUTH-05**: Per-org Postmark credentials (`postmark_server_token`, `postmark_sender_domain`) are read from `organisations` table; `lib/email/sender.ts` accepts a `serverToken` parameter replacing the env var
+- [x] **AUTH-01**: Next.js middleware extracts `orgSlug` from the `host` header and rewrites requests to org-scoped routes
+- [x] **AUTH-02**: `getCurrentOrg()` server utility resolves slug → org_id via Supabase with `React.cache()` deduplication (one DB call per request)
+- [x] **AUTH-03**: Users logging in at the wrong org's subdomain see a clear error and are not granted access to that org's data
+- [x] **AUTH-04**: Middleware enforces access gating: orgs with expired trial or cancelled subscription are redirected to `/billing` except for the billing page itself
+- [x] **AUTH-05**: Per-org Postmark credentials (`postmark_server_token`, `postmark_sender_domain`) are read from `organisations` table; `lib/email/sender.ts` accepts a `serverToken` parameter replacing the env var
 
 ### BILL — Stripe Billing
 
@@ -131,11 +131,11 @@
 | ORG-08 | Phase 10 | Complete |
 | ORG-09 | Phase 10 | Complete |
 | ORG-10 | Phase 10 | Complete |
-| AUTH-01 | Phase 12 | Pending |
-| AUTH-02 | Phase 12 | Pending |
-| AUTH-03 | Phase 12 | Pending |
-| AUTH-04 | Phase 12 | Pending |
-| AUTH-05 | Phase 12 | Pending |
+| AUTH-01 | Phase 12 | Complete |
+| AUTH-02 | Phase 12 | Complete |
+| AUTH-03 | Phase 12 | Complete |
+| AUTH-04 | Phase 12 | Complete |
+| AUTH-05 | Phase 12 | Complete |
 | BILL-01 | Phase 11 | Complete |
 | BILL-02 | Phase 11 | Complete |
 | BILL-03 | Phase 11 | Complete |
