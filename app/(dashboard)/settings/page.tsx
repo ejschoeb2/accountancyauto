@@ -5,6 +5,7 @@ import { SendHourPicker } from "./components/send-hour-picker";
 import { EmailSettingsCard } from "./components/email-settings-card";
 import { InboundCheckerCard } from "./components/inbound-checker-card";
 import { PostmarkSettingsCard } from "./components/postmark-settings-card";
+import { TeamCard } from "./components/team-card";
 import { SignOutCard } from "./components/sign-out-card";
 
 export default async function SettingsPage() {
@@ -42,6 +43,9 @@ export default async function SettingsPage() {
         defaultToken={postmarkSettings.token}
         defaultSenderDomain={postmarkSettings.senderDomain}
       />
+
+      {/* Team Management Card */}
+      <TeamCard />
 
       {/* Inbound Email Checker Card */}
       <InboundCheckerCard defaultMode={inboundCheckerMode} />
