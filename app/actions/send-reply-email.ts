@@ -4,6 +4,7 @@ import { getOrgId } from '@/lib/auth/org-context';
 import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { sendRichEmail } from '@/lib/email/sender';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 interface SendReplyEmailParams {
   to: string;
@@ -22,6 +23,14 @@ export async function sendReplyEmail(params: SendReplyEmailParams): Promise<Send
     const orgId = await getOrgId();
     await requireWriteAccess(orgId);
 
+    // Get org's Postmark token for sending
+    const admin = createAdminClient();
+    const { data: orgData } = await admin
+      .from('organisations')
+      .select('postmark_server_token')
+      .eq('id', orgId)
+      .single();
+
     const { html, text } = await renderTipTapEmail({
       bodyJson: params.bodyJson,
       subject: params.subject,
@@ -33,6 +42,7 @@ export async function sendReplyEmail(params: SendReplyEmailParams): Promise<Send
       subject: params.subject,
       html,
       text,
+      orgPostmarkToken: orgData?.postmark_server_token || undefined,
     });
 
     return { success: true };

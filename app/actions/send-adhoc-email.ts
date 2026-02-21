@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgId } from '@/lib/auth/org-context';
 import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
@@ -54,6 +55,14 @@ export async function sendAdhocEmail(
     await requireWriteAccess(orgId);
 
     const supabase = await createClient();
+
+    // Get org's Postmark token for sending
+    const admin = createAdminClient();
+    const { data: orgData } = await admin
+      .from('organisations')
+      .select('postmark_server_token')
+      .eq('id', orgId)
+      .single();
 
     // Use custom subject/text if provided, otherwise fetch and render the template
     let finalSubject: string;
@@ -117,12 +126,14 @@ export async function sendAdhocEmail(
     }
 
     // Send via Postmark (HTML + plain text with List-Unsubscribe)
+    // Use org's Postmark token if configured
     const sendResult = await sendRichEmail({
       to: validated.clientEmail,
       subject: finalSubject,
       html: finalHtml,
       text: finalText,
       clientId: validated.clientId,
+      orgPostmarkToken: orgData?.postmark_server_token || undefined,
     });
 
     // Log to email_log (org_id required for INSERT — RLS validates but doesn't auto-set)

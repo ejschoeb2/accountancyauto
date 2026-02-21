@@ -21,13 +21,20 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Check if org is in read-only mode (lapsed subscription)
+  // Check if org is in read-only mode (lapsed subscription) and fetch org name
   let readOnly = false;
+  let orgName = '';
   try {
     const orgId = await getOrgId();
     readOnly = await isOrgReadOnly(orgId);
+    const { data: org } = await supabase
+      .from('organisations')
+      .select('name')
+      .eq('id', orgId)
+      .single();
+    orgName = org?.name || '';
   } catch {
-    // If org context fails, don't block the layout — just skip the banner
+    // If org context fails, don't block the layout — just skip the banner and org name
   }
 
   return (
@@ -36,8 +43,14 @@ export default async function DashboardLayout({
       <header className="bg-background">
         <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">
           {/* Branding */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Image src="/logofini.png" alt="Logo" width={32} height={32} className="object-contain" />
+            {orgName && (
+              <>
+                <span className="text-muted-foreground">/</span>
+                <span className="text-sm font-medium">{orgName}</span>
+              </>
+            )}
           </div>
 
           {/* Navigation Links & Settings */}

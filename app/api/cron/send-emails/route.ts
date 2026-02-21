@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Fetch all active organisations
     const { data: orgs, error: orgsError } = await adminClient
       .from('organisations')
-      .select('id, name, slug, postmark_server_token')
+      .select('id, name, slug, postmark_server_token, postmark_sender_domain')
       .in('subscription_status', ['active', 'trialing']);
 
     if (orgsError) {
@@ -67,6 +67,20 @@ export async function GET(request: NextRequest) {
     const allErrors: string[] = [];
 
     for (const org of orgs) {
+      // Skip orgs without Postmark token — no fallback to prevent cross-org email leakage
+      if (!org.postmark_server_token) {
+        console.warn(`[Cron:send-emails] Skipping org ${org.name} (${org.slug}) — no Postmark token configured`);
+        allResults.push({
+          org: org.name,
+          org_id: org.id,
+          processed: 0,
+          sent: 0,
+          failed: 0,
+          errors: [`Skipped: no Postmark token configured`],
+        });
+        continue;
+      }
+
       console.log(`[Cron:send-emails] Processing org: ${org.name} (${org.id})`);
 
       try {
@@ -114,7 +128,7 @@ export async function GET(request: NextRequest) {
  */
 async function processOrgEmails(
   adminClient: ReturnType<typeof createAdminClient>,
-  org: { id: string; name: string; slug: string; postmark_server_token: string | null }
+  org: { id: string; name: string; slug: string; postmark_server_token: string | null; postmark_sender_domain: string | null }
 ): Promise<OrgSendResult> {
   const result: OrgSendResult = {
     org: org.name,
