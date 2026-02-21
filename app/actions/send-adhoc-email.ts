@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { getOrgId } from '@/lib/auth/org-context';
+import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { sendRichEmail } from '@/lib/email/sender';
 
@@ -47,6 +48,10 @@ export async function sendAdhocEmail(
   try {
     // Validate input
     const validated = SendAdhocEmailParamsSchema.parse(params);
+
+    // Enforce billing: block email sending when subscription is inactive
+    const orgId = await getOrgId();
+    await requireWriteAccess(orgId);
 
     const supabase = await createClient();
 
@@ -121,7 +126,6 @@ export async function sendAdhocEmail(
     });
 
     // Log to email_log (org_id required for INSERT — RLS validates but doesn't auto-set)
-    const orgId = await getOrgId();
     const { error: logError } = await supabase
       .from('email_log')
       .insert({

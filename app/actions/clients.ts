@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
+import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { updateClientMetadataSchema, clientTypeSchema } from "@/lib/validations/client";
 import { z } from "zod";
 
@@ -65,6 +67,10 @@ export async function updateClientMetadata(
   clientId: string,
   data: Partial<ClientMetadata>
 ): Promise<Client> {
+  // Enforce billing: block mutations when subscription is inactive
+  const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
+
   const supabase = await createClient();
 
   // Validate input with Zod schema
@@ -111,6 +117,10 @@ export async function bulkUpdateClients(
   clientIds: string[],
   updates: BulkUpdateFields
 ): Promise<{ success: boolean; count: number }> {
+  // Enforce billing: block mutations when subscription is inactive
+  const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
+
   const supabase = await createClient();
 
   // Validate that only bulk-editable fields are included
@@ -146,6 +156,10 @@ export async function bulkUpdateClients(
 export async function deleteClients(
   clientIds: string[]
 ): Promise<{ success: boolean; count: number }> {
+  // Enforce billing: block mutations when subscription is inactive
+  const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
+
   const supabase = await createClient();
 
   const { error, count } = await supabase

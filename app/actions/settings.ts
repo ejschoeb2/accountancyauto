@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
+import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 
 export async function getSendHour(): Promise<number> {
   const supabase = await createClient();
@@ -23,6 +24,7 @@ export async function updateSendHour(hour: number): Promise<{ error?: string }> 
 
   const supabase = await createClient();
   const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
   const { error } = await supabase
     .from("app_settings")
     .upsert(
@@ -58,6 +60,7 @@ export async function getSetupMode(): Promise<SetupMode | null> {
 export async function updateSetupMode(mode: SetupMode): Promise<{ error?: string }> {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
   const { error } = await supabase
     .from("app_settings")
     .upsert(
@@ -124,6 +127,7 @@ export async function updateEmailSettings(
 
   const supabase = await createClient();
   const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
 
   const entries: { org_id: string; key: string; value: string }[] = [
     { org_id: orgId, key: EMAIL_KEYS.senderName, value: settings.senderName.trim() },
@@ -162,6 +166,7 @@ export async function getOnboardingComplete(): Promise<boolean> {
 export async function markOnboardingComplete(): Promise<{ error?: string }> {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
   const { error } = await supabase
     .from("app_settings")
     .upsert(
@@ -199,6 +204,7 @@ export async function updateInboundCheckerMode(
 
   const supabase = await createClient();
   const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
   const { error } = await supabase
     .from("app_settings")
     .upsert(

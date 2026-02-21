@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
 import { createClientSchema } from "@/lib/validations/client";
+import { requireWriteAccess } from "@/lib/billing/read-only-mode";
+import { checkClientLimit } from "@/lib/billing/usage-limits";
 
 /**
  * GET /api/clients
@@ -55,6 +57,25 @@ export async function POST(request: NextRequest) {
 
   const supabase = await createClient();
   const orgId = await getOrgId();
+
+  // Enforce billing: block mutations when subscription is inactive
+  try {
+    await requireWriteAccess(orgId);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Subscription inactive" },
+      { status: 403 }
+    );
+  }
+
+  // Enforce plan limit: block creation when at client limit
+  const limitResult = await checkClientLimit(orgId);
+  if (!limitResult.allowed) {
+    return NextResponse.json(
+      { error: limitResult.message },
+      { status: 403 }
+    );
+  }
 
   const { data, error } = await supabase
     .from("clients")
