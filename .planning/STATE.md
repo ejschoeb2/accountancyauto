@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 12 in progress (2/3 plans complete)
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 12 complete (3/3 plans complete). Phase 13 next.
 
 ## Current Position
 
 Phase: 12 of 14 (Subdomain Routing & Access Gating)
-Plan: 2 of 3 (Per-Org Postmark Config, Email Pipeline, Org Name in Header)
-Status: Plan 2 complete
-Last activity: 2026-02-21 — Completed 12-02-PLAN.md (Per-org Postmark config, cron skip guard, org name in header)
+Plan: 3 of 3 (Subdomain-Aware Auth Flow + Verification)
+Status: Phase 12 complete
+Last activity: 2026-02-21 — Completed 12-03-PLAN.md (Subdomain-aware auth flow, reminders cron token check, full phase verification)
 
-Progress: [██████████████░░░░░░] 2/3 Phase 12 plans complete
+Progress: [████████████████████] 3/3 Phase 12 plans complete
 
 ## Performance Metrics
 
@@ -39,10 +39,10 @@ Progress: [██████████████░░░░░░] 2/3 Pha
 - Status: Shipped
 
 **v3.0 Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 complete (all 5 plans), Phase 11 complete (all 5 plans), Phase 12 in progress (2/3 plans)
+- Status: Phase 10 complete (all 5 plans), Phase 11 complete (all 5 plans), Phase 12 complete (all 3 plans), Phase 13 not started
 
 ## Accumulated Context
 
@@ -107,6 +107,9 @@ Recent decisions affecting v3.0:
 - [Phase 12-02]: [D-12-02-01] sendRichEmail accepts optional orgPostmarkToken; falls back to env var postmarkClient if not provided (backwards compatible)
 - [Phase 12-02]: [D-12-02-02] Cron skips tokenless orgs with console.warn and pushes skip entry to allResults — no exception thrown
 - [Phase 12-02]: [D-12-02-03] Ad-hoc and reply email server actions fetch org token via admin client, pass as optional param — falls back to env var for unconfigured orgs
+- [Phase 12-03]: [D-12-03-01] Magic link emailRedirectTo uses org subdomain URL in production; falls back to NEXT_PUBLIC_APP_URL/auth/callback in dev — cookie scoping correct for both environments
+- [Phase 12-03]: [D-12-03-02] Auth callback resolves org slug from JWT app_metadata.org_id (fast path) to avoid extra DB query for post-hook sessions
+- [Phase 12-03]: [D-12-03-03] Dev redirect from callback appends ?org= param (consistent with middleware dev pattern from 12-01)
 
 ### Known Risks
 
@@ -166,11 +169,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 09:01 UTC
-Stopped at: Completed 12-02-PLAN.md (Per-Org Postmark Config, Email Pipeline, Org Name in Header)
+Last session: 2026-02-21 09:30 UTC
+Stopped at: Completed 12-03-PLAN.md (Subdomain-Aware Auth Flow + Full Phase 12 Verification)
 Resume file: None
-Next step: Execute Phase 12 Plan 03
-Note: Phase 12 plan 02 complete -- per-org Postmark settings UI with token validation, cron skip guard for tokenless orgs, ad-hoc/reply email org token support, org name in dashboard header
+Next step: Execute Phase 13 (Onboarding Flow & Team Management)
+Note: Phase 12 complete -- subdomain-aware magic link emailRedirectTo, auth callback org redirect, reminders cron token skip guard. Full subdomain routing system operational.
 
 ---
 *Phase 12 plan 01 complete -- Next.js middleware with subdomain org routing, membership validation, and access gating (2026-02-21)*
