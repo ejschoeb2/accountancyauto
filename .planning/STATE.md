@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 11 in progress
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 11 complete, Phase 12 next
 
 ## Current Position
 
 Phase: 11 of 14 (Stripe Billing)
-Plan: 4 of 5 (Billing Dashboard Page)
-Status: In progress
-Last activity: 2026-02-20 — Completed 11-04-PLAN.md (Billing dashboard page with status, usage bars, portal button)
+Plan: 5 of 5 (Usage Enforcement + Read-Only Mode)
+Status: Phase complete
+Last activity: 2026-02-21 — Completed 11-05-PLAN.md (Usage enforcement, read-only mode, dashboard banner)
 
-Progress: [████████████████░░░░] 4/5 Phase 11 plans complete
+Progress: [████████████████████] 5/5 Phase 11 plans complete
 
 ## Performance Metrics
 
@@ -42,7 +42,7 @@ Progress: [████████████████░░░░] 4/5 Pha
 - Total plans completed: 6
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (4/5)
+- Status: Phase 10 complete (all 5 plans), Phase 11 complete (all 5 plans)
 
 ## Accumulated Context
 
@@ -98,6 +98,7 @@ Recent decisions affecting v3.0:
 - [D-11-04-01] Status badge uses inline div+span pattern from DESIGN.md (not Badge component) for non-interactive display
 - [D-11-04-02] User count fetched via user_organisations count query (not stored on org table)
 - [D-11-04-03] Usage bars show percentage only when limit is not null (unlimited shows no percentage)
+- [D-11-05-01] Stripe client uses lazy Proxy-based initialization to prevent build failures when STRIPE_SECRET_KEY is not set at build time
 
 ### Known Risks
 
@@ -156,11 +157,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 00:00 UTC
-Stopped at: Completed 11-04-PLAN.md (Billing Dashboard Page)
+Last session: 2026-02-21 00:15 UTC
+Stopped at: Completed 11-05-PLAN.md (Usage Enforcement + Read-Only Mode)
 Resume file: None
-Next step: Execute 11-05-PLAN.md (Read-Only Enforcement)
-Note: Billing page with status card, usage bars, and Stripe portal button all created
+Next step: Plan Phase 12 (Subdomain Routing)
+Note: Phase 11 complete -- full Stripe billing stack shipped (schema, webhooks, checkout, portal, pricing, billing dashboard, enforcement, read-only mode)
 
 ---
-*Phase 11 plan 04 complete — Admin-only billing page with subscription status card, color-coded usage bars, and Stripe Customer Portal button (2026-02-20)*
+*Phase 11 complete -- Full Stripe billing integration with usage enforcement and read-only mode (2026-02-21)*
