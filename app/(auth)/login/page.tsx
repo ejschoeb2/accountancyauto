@@ -9,6 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sendMagicLink, signInAsDemo } from "./actions";
 
+/**
+ * Extract the org slug from the current URL.
+ * - Production: parse from subdomain (e.g. acme.app.phasetwo.uk → "acme")
+ * - Development: read ?org= query param from window.location
+ */
+function getOrgSlugFromUrl(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const hostname = window.location.hostname;
+  if (hostname.includes("localhost") || hostname.includes("127.0.0.1")) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("org") || undefined;
+  }
+  // Production subdomain: {slug}.app.phasetwo.uk
+  const parts = hostname.split(".");
+  if (parts.length >= 3 && parts[1] === "app") {
+    return parts[0];
+  }
+  return undefined;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,7 +49,8 @@ function LoginForm() {
     setIsLoading(true);
     setError(null);
 
-    const result = await sendMagicLink(email);
+    // Pass org slug so the magic link emailRedirectTo uses the correct subdomain
+    const result = await sendMagicLink(email, getOrgSlugFromUrl());
 
     if (result?.error) {
       setError(result.error);

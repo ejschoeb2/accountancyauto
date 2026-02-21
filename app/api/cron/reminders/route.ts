@@ -60,6 +60,24 @@ export async function GET(request: NextRequest) {
     const allErrors: string[] = [];
 
     for (const org of orgs) {
+      // Skip orgs without a Postmark token — no point queuing reminders
+      // they cannot send (consistent with send-emails cron behaviour)
+      if (!org.postmark_server_token) {
+        console.warn(
+          `[Cron:reminders] Skipping org ${org.name} (${org.slug}) — no Postmark token configured`
+        );
+        allResults.push({
+          org: org.name,
+          org_id: org.id,
+          queued: 0,
+          rolled_over: 0,
+          errors: [],
+          skipped_wrong_hour: false,
+          error: "Skipped: no Postmark token configured",
+        });
+        continue;
+      }
+
       console.log(`[Cron:reminders] Processing org: ${org.name} (${org.id})`);
       try {
         const result = await processReminders(adminClient, org);

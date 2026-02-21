@@ -5,15 +5,26 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Send a magic link to the provided email address
+ * Send a magic link to the provided email address.
+ * In production, the emailRedirectTo URL uses the org's subdomain so the
+ * auth session cookie is scoped to the correct origin.
+ * In development, falls back to NEXT_PUBLIC_APP_URL (localhost).
  */
-export async function sendMagicLink(email: string) {
+export async function sendMagicLink(email: string, orgSlug?: string) {
   const supabase = await createClient();
+
+  // Determine callback URL based on environment and org context
+  let callbackUrl: string;
+  if (orgSlug && process.env.NODE_ENV === "production") {
+    callbackUrl = `https://${orgSlug}.app.phasetwo.uk/auth/callback`;
+  } else {
+    callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
+  }
 
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      emailRedirectTo: callbackUrl,
     },
   });
 
