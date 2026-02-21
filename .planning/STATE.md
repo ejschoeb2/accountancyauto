@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 11 of 14 (Stripe Billing)
-Plan: 3 of 5 (Checkout, Portal, Pricing & Trial)
+Plan: 4 of 5 (Billing Dashboard Page)
 Status: In progress
-Last activity: 2026-02-20 — Completed 11-03-PLAN.md (Checkout + Portal routes, pricing page, trial logic, trial-expiry cron)
+Last activity: 2026-02-20 — Completed 11-04-PLAN.md (Billing dashboard page with status, usage bars, portal button)
 
-Progress: [████████████░░░░░░░░] 3/5 Phase 11 plans complete
+Progress: [████████████████░░░░] 4/5 Phase 11 plans complete
 
 ## Performance Metrics
 
@@ -42,7 +42,7 @@ Progress: [████████████░░░░░░░░] 3/5 Pha
 - Total plans completed: 6
 - Phases: 5 (Phase 10-14)
 - Requirements: 43 mapped
-- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (3/5)
+- Status: Phase 10 complete (all 5 plans), Phase 11 in progress (4/5)
 
 ## Accumulated Context
 
@@ -95,6 +95,9 @@ Recent decisions affecting v3.0:
 - [D-11-03-02] Practice tier highlighted as "Popular" on pricing page with primary ring indicator
 - [D-11-03-03] Pricing page is a client component using browser Supabase client for auth state
 - [D-11-03-04] Trial-expiry cron uses batch .in() update rather than sequential per-org updates
+- [D-11-04-01] Status badge uses inline div+span pattern from DESIGN.md (not Badge component) for non-interactive display
+- [D-11-04-02] User count fetched via user_organisations count query (not stored on org table)
+- [D-11-04-03] Usage bars show percentage only when limit is not null (unlimited shows no percentage)
 
 ### Known Risks
 
@@ -153,11 +156,11 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-20 23:53 UTC
-Stopped at: Completed 11-03-PLAN.md (Checkout, Portal, Pricing & Trial)
+Last session: 2026-02-21 00:00 UTC
+Stopped at: Completed 11-04-PLAN.md (Billing Dashboard Page)
 Resume file: None
-Next step: Execute 11-04-PLAN.md (Billing Dashboard Page)
-Note: Checkout + portal API routes, pricing page, trial helper, trial-expiry cron all created
+Next step: Execute 11-05-PLAN.md (Read-Only Enforcement)
+Note: Billing page with status card, usage bars, and Stripe portal button all created
 
 ---
-*Phase 11 plan 03 complete — Stripe Checkout + Portal routes, pricing page with 4 tiers, 14-day trial helper, daily trial-expiry cron (2026-02-20)*
+*Phase 11 plan 04 complete — Admin-only billing page with subscription status card, color-coded usage bars, and Stripe Customer Portal button (2026-02-20)*
