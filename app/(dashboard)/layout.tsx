@@ -21,6 +21,8 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const isSuperAdmin = user?.app_metadata?.is_super_admin === true;
+
   // Check if org is in read-only mode (lapsed subscription) and fetch org name
   let readOnly = false;
   let orgName = '';
@@ -55,7 +57,7 @@ export default async function DashboardLayout({
 
           {/* Navigation Links & Settings */}
           <div className="flex items-center gap-4">
-            <NavLinks />
+            <NavLinks isSuperAdmin={isSuperAdmin} />
             <SettingsLink />
           </div>
         </div>

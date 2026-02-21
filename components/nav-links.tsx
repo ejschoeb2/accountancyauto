@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Zap, Mail, Send, CreditCard, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Users, Zap, Mail, Send, CreditCard, Shield, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
@@ -14,12 +14,24 @@ const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: "/billing", icon: CreditCard, label: "Billing" },
 ];
 
-export function NavLinks() {
+const ADMIN_ITEM: { href: string; icon: LucideIcon; label: string } = {
+  href: "/admin",
+  icon: Shield,
+  label: "Admin",
+};
+
+interface NavLinksProps {
+  isSuperAdmin?: boolean;
+}
+
+export function NavLinks({ isSuperAdmin }: NavLinksProps) {
   const pathname = usePathname();
+
+  const items = isSuperAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
     <nav className="flex items-center gap-2">
-      {NAV_ITEMS.map(({ href, icon: IconComponent, label }) => {
+      {items.map(({ href, icon: IconComponent, label }) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
 
         return (
