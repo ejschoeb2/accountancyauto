@@ -140,6 +140,127 @@ export async function sendPaymentFailedEmail(
   );
 }
 
+// ── Trial ending soon email ──────────────────────────────────────────
+
+/**
+ * Send a trial-ending-soon email (NOTF-01) to all admins of the given org.
+ *
+ * Sends 3 days before trial expiry. Idempotency is enforced at the cron
+ * level via the app_settings "trial_reminder_sent" key — this function
+ * does not check idempotency itself.
+ *
+ * Uses the platform Postmark token (not org token) — system notification.
+ *
+ * @param orgId       - Organisation ID
+ * @param orgName     - Organisation display name
+ * @param trialEndsAt - ISO string of trial expiry date
+ * @param supabase    - Admin Supabase client (service_role)
+ */
+export async function sendTrialEndingSoonEmail(
+  orgId: string,
+  orgName: string,
+  trialEndsAt: string,
+  supabase: SupabaseClient
+): Promise<void> {
+  // Get admin user IDs for this org
+  const { data: adminMemberships, error: membersError } = await supabase
+    .from("user_organisations")
+    .select("user_id")
+    .eq("org_id", orgId)
+    .eq("role", "admin");
+
+  if (membersError || !adminMemberships || adminMemberships.length === 0) {
+    console.warn(
+      `sendTrialEndingSoonEmail: no admin users found for org ${orgId}:`,
+      membersError
+    );
+    return;
+  }
+
+  // Resolve email addresses via auth admin API
+  const adminEmails: string[] = [];
+  for (const membership of adminMemberships) {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.admin.getUserById(membership.user_id);
+
+      if (userError || !user?.email) {
+        console.warn(
+          `sendTrialEndingSoonEmail: could not resolve email for user ${membership.user_id}:`,
+          userError
+        );
+        continue;
+      }
+
+      adminEmails.push(user.email);
+    } catch (err) {
+      console.warn(
+        `sendTrialEndingSoonEmail: error fetching user ${membership.user_id}:`,
+        err
+      );
+    }
+  }
+
+  if (adminEmails.length === 0) {
+    console.warn(
+      `sendTrialEndingSoonEmail: no admin email addresses resolved for org ${orgId}`
+    );
+    return;
+  }
+
+  // Initialize Postmark client with platform token
+  const postmarkToken = process.env.POSTMARK_SERVER_TOKEN;
+  if (!postmarkToken) {
+    console.error(
+      "sendTrialEndingSoonEmail: POSTMARK_SERVER_TOKEN not configured"
+    );
+    return;
+  }
+
+  const postmark = new ServerClient(postmarkToken);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const billingUrl = `${appUrl}/billing`;
+  const senderDomain = process.env.POSTMARK_SENDER_DOMAIN || "phasetwo.uk";
+
+  // Format the trial end date for human readability
+  const trialEndDate = new Date(trialEndsAt);
+  const formattedDate = trialEndDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  let sentCount = 0;
+
+  for (const email of adminEmails) {
+    try {
+      await postmark.sendEmail({
+        From: `Peninsula Accounting <noreply@${senderDomain}>`,
+        To: email,
+        Subject: `Your trial for ${orgName} ends in 3 days`,
+        HtmlBody: buildTrialEndingSoonHtml(orgName, formattedDate, billingUrl),
+        TextBody: buildTrialEndingSoonText(orgName, formattedDate, billingUrl),
+        MessageStream: "outbound",
+        TrackOpens: false,
+        TrackLinks: "None" as never,
+      });
+      sentCount++;
+    } catch (err) {
+      console.error(
+        `sendTrialEndingSoonEmail: failed to send to ${email}:`,
+        err
+      );
+      // Continue to next admin — don't fail the whole batch
+    }
+  }
+
+  console.log(
+    `sendTrialEndingSoonEmail: sent ${sentCount}/${adminEmails.length} emails for org ${orgId} (${orgName})`
+  );
+}
+
 // ── Invite email ─────────────────────────────────────────────────────
 
 /**
@@ -187,6 +308,92 @@ export async function sendInviteEmail(
 }
 
 // ── Email templates ──────────────────────────────────────────────────
+
+function buildTrialEndingSoonHtml(
+  orgName: string,
+  formattedDate: string,
+  billingUrl: string
+): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your trial ends in 3 days</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;">
+          <!-- Header (amber — reminder, not error) -->
+          <tr>
+            <td style="background-color:#d97706;padding:24px 32px;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Your trial is ending soon</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <p style="margin:0 0 16px;color:#18181b;font-size:15px;line-height:1.6;">Hi,</p>
+              <p style="margin:0 0 16px;color:#18181b;font-size:15px;line-height:1.6;">
+                Your free trial for <strong>${escapeHtml(orgName)}</strong> ends on
+                <strong>${escapeHtml(formattedDate)}</strong>.
+              </p>
+              <p style="margin:0 0 24px;color:#18181b;font-size:15px;line-height:1.6;">
+                To continue using the platform without interruption, please set up a subscription before your trial expires.
+              </p>
+              <!-- CTA Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+                <tr>
+                  <td style="background-color:#18181b;border-radius:6px;">
+                    <a href="${escapeHtml(billingUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+                      Upgrade Now
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;color:#71717a;font-size:13px;line-height:1.5;">
+                If you have any questions, reply to this email.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e4e4e7;">
+              <p style="margin:0;color:#a1a1aa;font-size:12px;text-align:center;">
+                Peninsula Accounting
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+function buildTrialEndingSoonText(
+  orgName: string,
+  formattedDate: string,
+  billingUrl: string
+): string {
+  return `Your trial is ending soon
+
+Hi,
+
+Your free trial for ${orgName} ends on ${formattedDate}.
+
+To continue using the platform without interruption, please set up a subscription before your trial expires.
+
+Upgrade Now: ${billingUrl}
+
+If you have any questions, reply to this email.
+
+--
+Peninsula Accounting`;
+}
 
 function buildInviteHtml(
   orgName: string,
