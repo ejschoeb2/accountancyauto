@@ -135,8 +135,7 @@ export default function PricingPage() {
               <CardHeader>
                 <CardTitle className="text-lg">{plan.name}</CardTitle>
                 <CardDescription>
-                  {formatLimit(plan.clientLimit, "clients")} &middot;{" "}
-                  {formatLimit(plan.userLimit, "users")}
+                  {formatLimit(plan.clientLimit, "clients")}
                 </CardDescription>
               </CardHeader>
 

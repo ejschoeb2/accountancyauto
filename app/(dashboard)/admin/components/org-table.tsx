@@ -30,7 +30,6 @@ export interface OrgRow {
   trial_ends_at: string | null;
   stripe_subscription_id: string | null;
   client_count_limit: number | null;
-  user_count_limit: number | null;
   created_at: string;
   clientCount: number;
   userCount: number;

@@ -56,6 +56,18 @@ export async function POST(request: NextRequest) {
   const { company_name, primary_email, client_type, year_end_date, vat_registered, display_name } = result.data;
 
   const supabase = await createClient();
+
+  // Get the current user's ID for owner_id
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      { status: 401 }
+    );
+  }
+
   const orgId = await getOrgId();
 
   // Enforce billing: block mutations when subscription is inactive
@@ -81,6 +93,7 @@ export async function POST(request: NextRequest) {
     .from("clients")
     .insert({
       org_id: orgId,
+      owner_id: userId,
       company_name,
       primary_email,
       client_type,

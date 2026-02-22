@@ -72,7 +72,6 @@ export async function handleCheckoutSessionCompleted(
       subscription_status: subscription.status,
       plan_tier: planTier,
       client_count_limit: plan.clientLimit,
-      user_count_limit: plan.userLimit,
       trial_ends_at: subscription.trial_end
         ? new Date(subscription.trial_end * 1000).toISOString()
         : null,
@@ -139,7 +138,6 @@ export async function handleSubscriptionUpdated(
     if (newPlan) {
       updatePayload.plan_tier = newPlan.tier;
       updatePayload.client_count_limit = newPlan.clientLimit;
-      updatePayload.user_count_limit = newPlan.userLimit;
       updatePayload.stripe_price_id = newPriceId;
       console.log(
         `customer.subscription.updated: org ${org.id} plan changed to ${newPlan.tier}`

@@ -106,9 +106,10 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
  *
  * Enforces:
  * - Caller must be an admin
- * - Seat limits (active + pending against org.user_count_limit)
  * - No duplicate active invite for same email+org
  * - No already-active member with the same email
+ *
+ * No seat limits — user count is not part of the billing model.
  */
 export async function sendInvite(
   email: string,
@@ -122,43 +123,15 @@ export async function sendInvite(
 
   const admin = createAdminClient();
 
-  // --- Seat limit check ---
-  const { count: activeCount, error: activeCountError } = await admin
-    .from("user_organisations")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId);
-
-  if (activeCountError) {
-    return { error: "Failed to check team capacity." };
-  }
-
-  const { count: pendingCount, error: pendingCountError } = await admin
-    .from("invitations")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId)
-    .is("accepted_at", null)
-    .gt("expires_at", new Date().toISOString());
-
-  if (pendingCountError) {
-    return { error: "Failed to check team capacity." };
-  }
-
+  // Fetch org name for the invite email
   const { data: org, error: orgError } = await admin
     .from("organisations")
-    .select("name, user_count_limit")
+    .select("name")
     .eq("id", orgId)
     .single();
 
   if (orgError || !org) {
     return { error: "Failed to load organisation details." };
-  }
-
-  const totalSeatsUsed = (activeCount ?? 0) + (pendingCount ?? 0);
-  if (org.user_count_limit !== null && totalSeatsUsed >= org.user_count_limit) {
-    return {
-      error:
-        "Team is at capacity. Upgrade your plan to add more members.",
-    };
   }
 
   // --- Check if email is already an active member ---

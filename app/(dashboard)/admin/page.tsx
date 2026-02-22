@@ -24,7 +24,7 @@ export default async function AdminPage() {
   const { data: orgs, error: orgsError } = await admin
     .from("organisations")
     .select(
-      "id, name, slug, plan_tier, subscription_status, trial_ends_at, stripe_subscription_id, client_count_limit, user_count_limit, created_at"
+      "id, name, slug, plan_tier, subscription_status, trial_ends_at, stripe_subscription_id, client_count_limit, created_at"
     )
     .order("created_at", { ascending: true });
 

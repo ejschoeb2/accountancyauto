@@ -19,8 +19,6 @@ export interface PlanConfig {
   monthlyPrice: number;
   /** Maximum number of clients, null = unlimited */
   clientLimit: number | null;
-  /** Maximum number of users/team members, null = unlimited */
-  userLimit: number | null;
   /** Feature bullet points for pricing page */
   features: string[];
 }
@@ -41,10 +39,8 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     priceId: process.env.STRIPE_PRICE_LITE ?? "",
     monthlyPrice: 2000, // £20/mo
     clientLimit: 15,
-    userLimit: 1,
     features: [
       "Up to 15 clients",
-      "1 user",
       "Email reminders",
       "Basic templates",
     ],
@@ -55,10 +51,8 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     priceId: process.env.STRIPE_PRICE_SOLE_TRADER ?? "",
     monthlyPrice: 3900, // £39/mo
     clientLimit: 40,
-    userLimit: 1,
     features: [
       "Up to 40 clients",
-      "1 user",
       "Email reminders",
       "Custom templates",
       "Filing tracking",
@@ -70,10 +64,8 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     priceId: process.env.STRIPE_PRICE_PRACTICE ?? "",
     monthlyPrice: 8900, // £89/mo
     clientLimit: 150,
-    userLimit: 5,
     features: [
       "Up to 150 clients",
-      "Up to 5 users",
       "Email reminders",
       "Custom templates",
       "Filing tracking",
@@ -86,10 +78,8 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     priceId: process.env.STRIPE_PRICE_FIRM ?? "",
     monthlyPrice: 15900, // £159/mo
     clientLimit: null, // Unlimited
-    userLimit: null, // Unlimited
     features: [
       "Unlimited clients",
-      "Unlimited users",
       "Email reminders",
       "Custom templates",
       "Filing tracking",
@@ -112,7 +102,7 @@ export function getPlanByPriceId(priceId: string): PlanConfig | undefined {
 /** Convenience helper to get just the limits for a tier. */
 export function getPlanLimits(
   tier: PlanTier
-): { clientLimit: number | null; userLimit: number | null } {
+): { clientLimit: number | null } {
   const plan = PLAN_TIERS[tier];
-  return { clientLimit: plan.clientLimit, userLimit: plan.userLimit };
+  return { clientLimit: plan.clientLimit };
 }

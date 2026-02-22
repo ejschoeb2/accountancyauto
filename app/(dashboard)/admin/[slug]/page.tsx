@@ -97,7 +97,7 @@ export default async function OrgDetailPage({
   const { data: org, error: orgError } = await admin
     .from("organisations")
     .select(
-      "id, name, slug, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, client_count_limit, user_count_limit, postmark_server_token, postmark_sender_domain, created_at"
+      "id, name, slug, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, client_count_limit, postmark_server_token, postmark_sender_domain, created_at"
     )
     .eq("slug", slug)
     .single();
@@ -241,15 +241,6 @@ export default async function OrgDetailPage({
               </dt>
               <dd className="text-sm">
                 {clientCount} / {org.client_count_limit != null ? org.client_count_limit : "Unlimited"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                User Limit
-              </dt>
-              <dd className="text-sm">
-                {userCount} / {org.user_count_limit != null ? org.user_count_limit : "Unlimited"}
               </dd>
             </div>
 

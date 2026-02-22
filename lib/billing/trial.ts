@@ -6,7 +6,6 @@ const TRIAL_DURATION_DAYS = 14;
 /** Trial orgs get Practice tier access (mid-range, not full unlock) */
 const TRIAL_PLAN_TIER = "practice";
 const TRIAL_CLIENT_LIMIT = 150;
-const TRIAL_USER_LIMIT = 5;
 
 /**
  * Set up a trial for an organisation.
@@ -34,7 +33,6 @@ export async function createTrialForOrg(
       subscription_status: "trialing",
       trial_ends_at: trialEndsAt.toISOString(),
       client_count_limit: TRIAL_CLIENT_LIMIT,
-      user_count_limit: TRIAL_USER_LIMIT,
     })
     .eq("id", orgId)
     .select()

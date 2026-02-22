@@ -3,8 +3,6 @@ import Link from "next/link";
 interface UsageBarsProps {
   clientCount: number;
   clientLimit: number | null;
-  userCount: number;
-  userLimit: number | null;
 }
 
 interface UsageBarItemProps {
@@ -71,8 +69,6 @@ function UsageBarItem({
 export function UsageBars({
   clientCount,
   clientLimit,
-  userCount,
-  userLimit,
 }: UsageBarsProps) {
   return (
     <div className="space-y-6">
@@ -81,11 +77,6 @@ export function UsageBars({
         current={clientCount}
         limit={clientLimit}
         showUpgradeWarning
-      />
-      <UsageBarItem
-        label="Team members"
-        current={userCount}
-        limit={userLimit}
       />
     </div>
   );

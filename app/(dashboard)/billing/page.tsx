@@ -28,7 +28,7 @@ export default async function BillingPage() {
   const { data: org, error: orgError } = await supabase
     .from("organisations")
     .select(
-      "plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, client_count_limit, user_count_limit"
+      "plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, client_count_limit"
     )
     .eq("id", orgId)
     .single();
@@ -58,12 +58,6 @@ export default async function BillingPage() {
   const usageStats = await getUsageStats(orgId);
 
   const hasSubscription = !!org.stripe_customer_id;
-
-  // Count current users for this org
-  const { count: userCount } = await supabase
-    .from("user_organisations")
-    .select("id", { count: "exact", head: true })
-    .eq("org_id", orgId);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -101,8 +95,6 @@ export default async function BillingPage() {
           <UsageBars
             clientCount={usageStats.clientCount}
             clientLimit={usageStats.clientLimit}
-            userCount={userCount ?? 1}
-            userLimit={org.user_count_limit}
           />
         </CardContent>
       </Card>

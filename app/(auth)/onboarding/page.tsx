@@ -453,13 +453,6 @@ export default function OnboardingPage() {
                             ? "Unlimited clients"
                             : `Up to ${plan.clientLimit} clients`}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {plan.userLimit === null
-                            ? "Unlimited users"
-                            : plan.userLimit === 1
-                            ? "1 user"
-                            : `Up to ${plan.userLimit} users`}
-                        </p>
                         <ul className="space-y-1 pt-2">
                           {plan.features.map((feature) => (
                             <li
