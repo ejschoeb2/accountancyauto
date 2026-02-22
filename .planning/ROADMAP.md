@@ -261,4 +261,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
 | 12. Subdomain Routing & Access Gating | v3.0 | 3/3 | Complete | 2026-02-21 |
 | 13. Onboarding Flow & Team Management | 4/4 | Complete    | 2026-02-21 | - |
 | 14. Super-Admin Dashboard | 2/2 | Complete    | 2026-02-21 | - |
-| 15. Per-Accountant Configuration | 5/5 | Complete   | 2026-02-22 | - |
+| 15. Per-Accountant Configuration | 5/5 | Complete    | 2026-02-22 | - |
