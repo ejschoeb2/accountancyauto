@@ -1,25 +1,51 @@
-import { redirect } from "next/navigation";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getSendHour, getEmailSettings, getInboundCheckerMode, getPostmarkSettings } from "@/app/actions/settings";
+import {
+  getSendHour,
+  getEmailSettings,
+  getInboundCheckerMode,
+  getPostmarkSettings,
+  getUserSendHour,
+  getUserEmailSettings,
+} from "@/app/actions/settings";
 import { SendHourPicker } from "./components/send-hour-picker";
 import { EmailSettingsCard } from "./components/email-settings-card";
 import { InboundCheckerCard } from "./components/inbound-checker-card";
 import { PostmarkSettingsCard } from "./components/postmark-settings-card";
 import { TeamCard } from "./components/team-card";
 import { SignOutCard } from "./components/sign-out-card";
+import { MemberSettingsCard } from "./components/member-settings-card";
 import {
   AccountantOverviewCard,
   type AccountantStats,
 } from "./components/accountant-overview-card";
 
 export default async function SettingsPage() {
-  // Admin-only access: members are silently redirected to dashboard
   const { orgId, orgRole } = await getOrgContext();
+
+  // Member view: show only personal settings + sign out
   if (orgRole !== "admin") {
-    redirect("/dashboard");
+    const [userSendHour, userEmailSettings] = await Promise.all([
+      getUserSendHour(),
+      getUserEmailSettings(),
+    ]);
+
+    return (
+      <div className="space-y-8 max-w-7xl mx-auto">
+        <div className="space-y-2">
+          <h1>Settings</h1>
+          <p className="text-muted-foreground">Manage your email preferences</p>
+        </div>
+        <MemberSettingsCard
+          defaultSendHour={userSendHour}
+          defaultEmailSettings={userEmailSettings}
+        />
+        <SignOutCard />
+      </div>
+    );
   }
 
+  // Admin view: full settings page
   const admin = createAdminClient();
 
   // Fetch data needed for AccountantOverviewCard in parallel with settings
