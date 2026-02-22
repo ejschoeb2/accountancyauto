@@ -12,8 +12,8 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 Phase: 15 of 15 (Per-Accountant Configuration)
 Plan: 4 of 5 (Per-user sender settings in send-emails cron)
-Status: Phase 15 plan 04 complete — plan 05 remaining
-Last activity: 2026-02-22 — Completed 15-04-PLAN.md (per-user sender settings in send-emails cron)
+Status: Phase 15 plans 01-04 complete — plan 05 remaining
+Last activity: 2026-02-22 — Completed 15-03-PLAN.md (cron pipeline per-user refactor)
 
 Progress: [████████░░░░░░░░░░░░] 4/5 Phase 15 plans complete
 
@@ -140,6 +140,10 @@ Recent decisions affecting v3.0:
 - [Phase 15-per-accountant-config]: [D-15-01-02] app_settings RLS stays org-scoped (not owner-scoped) — org defaults (user_id IS NULL) must be readable by all org members; user_id filtering in application code
 - [Phase 15-per-accountant-config]: [D-15-01-03] Do NOT backfill user_id on app_settings — existing rows are org-level defaults (NULL = org-level is correct semantic)
 - [Phase 15-per-accountant-config]: [D-15-01-04] Migration history repair pattern — use --include-all flag when remote history has out-of-order entries from dashboard-applied migrations
+- [Phase 15-per-accountant-config]: [D-15-03-01] Per-user per-org lock key (cron_reminders_{org_id}_{userId}) — prevents two cron runs processing same user simultaneously; org-level lock would block all members while one is processing
+- [Phase 15-per-accountant-config]: [D-15-03-02] processReminders kept as deprecated wrapper — calls processRemindersForUser per member; new cron entry point calls processRemindersForUser directly
+- [Phase 15-per-accountant-config]: [D-15-03-03] ownerId optional in queue-builder — backwards compatible; server actions omit it (RLS handles), cron passes it explicitly
+- [Phase 15-per-accountant-config]: [D-15-03-04] accountant_name resolved from user email_sender_name setting (with org fallback) — replaces hardcoded 'PhaseTwo'
 - [Phase 15-per-accountant-config]: [D-15-04-01] owner_id derived at send time from clients.owner_id JOIN (no reminder_queue schema change) — owner is a client property, always correct at send time
 - [Phase 15-per-accountant-config]: [D-15-04-02] getEmailFromForUser does two separate queries merged in app code — avoids complex SQL for 3-key lookup; consistent with settings fallback pattern
 - [Phase 15-per-accountant-config]: [D-15-04-03] Postmark server token stays org-level — only From name and Reply-To are per-user; token is infrastructure, not identity
@@ -209,7 +213,7 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-22 UTC
-Stopped at: Completed 15-04-PLAN.md (per-user sender settings in send-emails cron)
+Stopped at: Completed 15-03-PLAN.md (cron pipeline per-user refactor)
 Resume file: None
 Next step: 15-05-PLAN.md (new user seeding — owner_id required on all resource rows when admin creates new org member)
 
