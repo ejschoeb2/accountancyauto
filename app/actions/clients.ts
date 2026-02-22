@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getOrgId } from "@/lib/auth/org-context";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getOrgId, getOrgContext } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { updateClientMetadataSchema, clientTypeSchema } from "@/lib/validations/client";
 import { z } from "zod";
@@ -148,6 +149,69 @@ export async function bulkUpdateClients(
   }
 
   return { success: true, count: clientIds.length };
+}
+
+/**
+ * Reassign all clients from one accountant to another within the same org.
+ *
+ * Admin-only action. Uses the service-role client to bypass owner-scoped RLS.
+ * Validates that both users belong to the caller's org before updating.
+ */
+export async function reassignClients(
+  fromUserId: string,
+  toUserId: string
+): Promise<{ error?: string; reassigned?: number }> {
+  const { orgId, orgRole } = await getOrgContext();
+
+  if (orgRole !== "admin") {
+    return { error: "Only admins can reassign clients." };
+  }
+
+  // Enforce billing: block mutations when subscription is inactive
+  try {
+    await requireWriteAccess(orgId);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Subscription inactive" };
+  }
+
+  const admin = createAdminClient();
+
+  // Validate both users belong to this org
+  const { data: fromMembership } = await admin
+    .from("user_organisations")
+    .select("user_id")
+    .eq("org_id", orgId)
+    .eq("user_id", fromUserId)
+    .maybeSingle();
+
+  if (!fromMembership) {
+    return { error: "Source accountant is not a member of this organisation." };
+  }
+
+  const { data: toMembership } = await admin
+    .from("user_organisations")
+    .select("user_id")
+    .eq("org_id", orgId)
+    .eq("user_id", toUserId)
+    .maybeSingle();
+
+  if (!toMembership) {
+    return { error: "Target accountant is not a member of this organisation." };
+  }
+
+  // Use admin client to bypass owner-scoped RLS
+  const { error, count } = await admin
+    .from("clients")
+    .update({ owner_id: toUserId, updated_at: new Date().toISOString() })
+    .eq("org_id", orgId)
+    .eq("owner_id", fromUserId);
+
+  if (error) {
+    console.error("reassignClients: failed to update clients:", error);
+    return { error: "Failed to reassign clients. Please try again." };
+  }
+
+  return { reassigned: count ?? 0 };
 }
 
 /**
