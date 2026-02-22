@@ -136,6 +136,10 @@ Recent decisions affecting v3.0:
 - [Phase 15-02]: [D-15-02-02] Org-level reads updated to .is('user_id', null) — prevents reading user-specific rows as org defaults after migration
 - [Phase 15-02]: [D-15-02-03] Member settings page uses early-return pattern (no redirect) — members access /settings with simplified view
 - [Phase 15-02]: [D-15-02-04] MemberSettingsCard saves send hour + email settings in a single Save action (not auto-save like SendHourPicker)
+- [Phase 15-per-accountant-config]: [D-15-01-01] NULLS NOT DISTINCT for app_settings unique constraint — ensures (org_id, NULL, key) is truly unique; prevents duplicate org-level defaults
+- [Phase 15-per-accountant-config]: [D-15-01-02] app_settings RLS stays org-scoped (not owner-scoped) — org defaults (user_id IS NULL) must be readable by all org members; user_id filtering in application code
+- [Phase 15-per-accountant-config]: [D-15-01-03] Do NOT backfill user_id on app_settings — existing rows are org-level defaults (NULL = org-level is correct semantic)
+- [Phase 15-per-accountant-config]: [D-15-01-04] Migration history repair pattern — use --include-all flag when remote history has out-of-order entries from dashboard-applied migrations
 
 ### Known Risks
 
@@ -162,6 +166,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 14-super-admin-dashboard P01 | 10 | 2 tasks | 6 files |
 | Phase 14 P02 | 3 | 1 tasks | 3 files |
 | Phase 13 P04 | 6 | 2 tasks | 5 files |
+| Phase 15-per-accountant-config P01 | 7 | 2 tasks | 3 files |
 
 ### Tech Debt
 

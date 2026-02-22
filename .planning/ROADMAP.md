@@ -227,7 +227,7 @@ Plans:
 4. `app_settings` supports per-user overrides with org-level fallback: a member's `reminder_send_hour` takes precedence over the org default; deleting the user override reverts to the org default.
 5. The admin settings page shows all members' configurations; a member's settings page shows only their own.
 
-**Plans:** 5 plans in 3 waves
+**Plans:** 2/5 plans executed
 
 Plans:
 - [ ] 15-01-PLAN.md — Database migrations: owner_id on resource tables, user_id on app_settings, RLS rewrites
@@ -261,4 +261,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
 | 12. Subdomain Routing & Access Gating | v3.0 | 3/3 | Complete | 2026-02-21 |
 | 13. Onboarding Flow & Team Management | 4/4 | Complete    | 2026-02-21 | - |
 | 14. Super-Admin Dashboard | 2/2 | Complete    | 2026-02-21 | - |
-| 15. Per-Accountant Configuration | v3.0 | 0/5 | In Progress | - |
+| 15. Per-Accountant Configuration | 2/5 | In Progress|  | - |
