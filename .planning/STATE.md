@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 15 (Per-Accountant Configuration) in progress.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 15 (Per-Accountant Configuration) COMPLETE.
 
 ## Current Position
 
 Phase: 15 of 15 (Per-Accountant Configuration)
-Plan: 4 of 5 (Per-user sender settings in send-emails cron)
-Status: Phase 15 plans 01-04 complete — plan 05 remaining
-Last activity: 2026-02-22 — Completed 15-03-PLAN.md (cron pipeline per-user refactor)
+Plan: 5 of 5 (New user seeding on invite acceptance)
+Status: Phase 15 ALL PLANS COMPLETE — v3.0 complete
+Last activity: 2026-02-22 — Completed 15-05-PLAN.md (new user seeding on invite acceptance)
 
-Progress: [████████░░░░░░░░░░░░] 4/5 Phase 15 plans complete
+Progress: [████████████████████] 5/5 Phase 15 plans complete
 
 ## Performance Metrics
 
@@ -147,6 +147,8 @@ Recent decisions affecting v3.0:
 - [Phase 15-per-accountant-config]: [D-15-04-01] owner_id derived at send time from clients.owner_id JOIN (no reminder_queue schema change) — owner is a client property, always correct at send time
 - [Phase 15-per-accountant-config]: [D-15-04-02] getEmailFromForUser does two separate queries merged in app code — avoids complex SQL for 3-key lookup; consistent with settings fallback pattern
 - [Phase 15-per-accountant-config]: [D-15-04-03] Postmark server token stays org-level — only From name and Reply-To are per-user; token is infrastructure, not identity
+- [Phase 15-per-accountant-config]: Templates/schedules cloned one-by-one (not bulk) to capture generated IDs for schedule_steps FK remapping
+- [Phase 15-per-accountant-config]: schedule_client_exclusions and app_settings NOT cloned on new user seed — exclusions meaningless without clients; settings use org-default fallback pattern
 
 ### Known Risks
 
@@ -175,6 +177,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 13 P04 | 6 | 2 tasks | 5 files |
 | Phase 15-per-accountant-config P01 | 7 | 2 tasks | 3 files |
 | Phase 15-per-accountant-config P04 | 5 | 1 tasks | 2 files |
+| Phase 15-per-accountant-config P05 | 5 | 2 tasks | 2 files |
 
 ### Tech Debt
 
@@ -213,9 +216,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-22 UTC
-Stopped at: Completed 15-03-PLAN.md (cron pipeline per-user refactor)
+Stopped at: Completed 15-05-PLAN.md (new user seeding on invite acceptance)
 Resume file: None
-Next step: 15-05-PLAN.md (new user seeding — owner_id required on all resource rows when admin creates new org member)
+Next step: v3.0 COMPLETE — all 15 phases and 5 per-accountant-config plans done
 
 ---
-*Phase 13 plan 04 complete -- team management card on settings page + trial-ending-soon cron with idempotency (2026-02-21)*
+*Phase 15 plan 05 complete -- new user seeding on invite acceptance, clones admin templates/schedules/steps (2026-02-22)*
