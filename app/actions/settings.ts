@@ -374,6 +374,46 @@ export async function updateInboundCheckerMode(
   return {};
 }
 
+// --- Member Setup Wizard Completion ---
+
+export async function getMemberSetupComplete(): Promise<boolean> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("org_id", orgId)
+    .eq("user_id", user.id)
+    .eq("key", "member_setup_complete")
+    .maybeSingle();
+
+  return data?.value === "true";
+}
+
+export async function markMemberSetupComplete(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { org_id: orgId, user_id: user.id, key: "member_setup_complete", value: "true" },
+      { onConflict: "org_id,user_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 // --- Postmark Settings ---
 
 export async function getPostmarkSettings(): Promise<{ token: string; senderDomain: string }> {
