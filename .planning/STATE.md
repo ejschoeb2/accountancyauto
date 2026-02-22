@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 16 of 16 (Member Setup Wizard)
-Plan: 1 of 4 (executing)
-Status: Phase 16 plan 01 complete
-Last activity: 2026-02-22 — Phase 16 plan 01 complete (wizard foundation)
+Plan: 2 of 4 (executing)
+Status: Phase 16 plan 02 complete
+Last activity: 2026-02-22 — Phase 16 plan 02 complete (CsvImportStep full-page component)
 
-Progress: [█░░░░] 1/4 Phase 16 plans complete
+Progress: [██░░░] 2/4 Phase 16 plans complete
 
 ## Performance Metrics
 
@@ -152,6 +152,9 @@ Recent decisions affecting v3.0:
 - [Phase 16-member-setup-wizard]: [D-16-01-01] markMemberSetupComplete omits requireWriteAccess — wizard runs before subscription enforcement; writing a completion flag must not be blocked by billing gate
 - [Phase 16-member-setup-wizard]: [D-16-01-02] member_setup_complete is per-user (user_id = user.id), NOT org-level (user_id IS NULL) — each member completes setup independently
 - [Phase 16-member-setup-wizard]: [D-16-01-03] /setup exemption in enforceSubscription prevents redirect loop for new members on expired-trial orgs
+- [Phase 16-member-setup-wizard]: [D-16-02-01] CsvImportStep created as extraction (not shared component) — original dialog kept 100% unchanged because it serves different context
+- [Phase 16-member-setup-wizard]: [D-16-02-02] Skip for now on upload state only; mapping/edit-data use Back navigation
+- [Phase 16-member-setup-wizard]: [D-16-02-03] Results state button reads 'Next: Configure' — contextual wizard label
 
 ### Roadmap Evolution
 
@@ -186,6 +189,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 15-per-accountant-config P04 | 5 | 1 tasks | 2 files |
 | Phase 15-per-accountant-config P05 | 5 | 2 tasks | 2 files |
 | Phase 16-member-setup-wizard P01 | 2 | 3 tasks | 3 files |
+| Phase 16-member-setup-wizard P02 | 3 | 1 tasks | 1 files |
 
 ### Tech Debt
 
@@ -224,9 +228,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-22 UTC
-Stopped at: Completed 16-01-PLAN.md (member setup wizard foundation)
+Stopped at: Completed 16-02-PLAN.md (CsvImportStep full-page wizard component)
 Resume file: None
-Next step: Phase 16 plan 02 (wizard UI)
+Next step: Phase 16 plan 03 (wizard page and layout)
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
