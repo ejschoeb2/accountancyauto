@@ -3,6 +3,7 @@
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { seedNewUserDefaults } from "@/lib/seeding/seed-new-user";
 
 /**
  * Validate an invite token and return invite details for the accept page.
@@ -157,6 +158,9 @@ export async function acceptInvite(
     console.error("acceptInvite: failed to insert user_organisations:", insertError);
     return { error: "Failed to join organisation. Please try again." };
   }
+
+  // Seed new user with cloned admin resources (non-fatal)
+  await seedNewUserDefaults(user.id, invite.org_id);
 
   // Mark the invitation as accepted (single-use enforcement)
   const { error: updateError } = await admin
