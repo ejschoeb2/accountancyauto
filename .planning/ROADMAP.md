@@ -85,7 +85,7 @@
 
 **Milestone Goal:** Transform the application from a single-firm tool into a fully-isolated multi-tenant SaaS platform serving multiple independent accounting practices — with org-scoped database isolation, Stripe subscription billing, subdomain routing, guided onboarding, team management, and super-admin visibility.
 
-**Phases:** 10-14 (5 phases)
+**Phases:** 10-15 (6 phases)
 **Requirements:** 43 v3.0 requirements
 **Depth:** Standard
 
@@ -212,10 +212,36 @@ Plans:
 
 ---
 
+### Phase 15: Per-Accountant Configuration
+
+**Goal:** Templates, schedules, and email settings are per-accountant (owner_id-scoped) rather than org-level shared resources; each member manages their own reminder setup independently while admins retain full visibility.
+
+**Depends on:** Phase 13 (team management, invite acceptance flow), Quick Task 5 (owner_id on clients, auth_org_role() helper)
+
+**Requirements:** —
+
+**Success Criteria** (what must be TRUE when this phase completes):
+1. A member-role user can access `/templates` and `/schedules`, sees only their own resources, and can create/edit/delete them independently of other members or the admin.
+2. The cron pipeline processes reminders per-user: each accountant's clients are matched against that accountant's schedules and templates, and emails are sent using that accountant's sender name and reply-to address.
+3. A newly invited member who accepts an invite has starter templates and schedules seeded automatically, so they can begin configuring reminders immediately.
+4. `app_settings` supports per-user overrides with org-level fallback: a member's `reminder_send_hour` takes precedence over the org default; deleting the user override reverts to the org default.
+5. The admin settings page shows all members' configurations; a member's settings page shows only their own.
+
+**Plans:** 5 plans in 3 waves
+
+Plans:
+- [ ] 15-01-PLAN.md — Database migrations: owner_id on resource tables, user_id on app_settings, RLS rewrites
+- [ ] 15-02-PLAN.md — Nav visibility, settings actions per-user support, member settings card
+- [ ] 15-03-PLAN.md — Cron pipeline per-user inner loop (scheduler + queue-builder)
+- [ ] 15-04-PLAN.md — Send-emails cron per-user sender settings
+- [ ] 15-05-PLAN.md — New-user seeding on invite acceptance (clone admin resources)
+
+---
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
+Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
 (Phase 12 can begin in parallel with Phase 11 if needed; both must complete before Phase 13)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -235,3 +261,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14
 | 12. Subdomain Routing & Access Gating | v3.0 | 3/3 | Complete | 2026-02-21 |
 | 13. Onboarding Flow & Team Management | 4/4 | Complete    | 2026-02-21 | - |
 | 14. Super-Admin Dashboard | 2/2 | Complete    | 2026-02-21 | - |
+| 15. Per-Accountant Configuration | v3.0 | 0/5 | In Progress | - |
