@@ -22,19 +22,25 @@ COMMENT ON COLUMN clients.owner_id IS
 -- ============================================================================
 -- STEP 2: Backfill existing clients
 --
--- Assign each client to the earliest admin member of its org.
+-- Priority: earliest admin in the org > earliest member > any auth user.
+-- The final fallback handles orgs with no user_organisations rows yet
+-- (e.g. the founding org seeded before the membership table existed).
 -- This is a one-time backfill — all future inserts will set owner_id from
 -- the authenticated user via application code.
 -- ============================================================================
 
 UPDATE clients
-SET owner_id = (
-  SELECT uo.user_id
-  FROM user_organisations uo
-  WHERE uo.org_id = clients.org_id
-    AND uo.role = 'admin'
-  ORDER BY uo.created_at ASC
-  LIMIT 1
+SET owner_id = COALESCE(
+  -- Try: earliest admin in the org
+  (SELECT uo.user_id FROM user_organisations uo
+   WHERE uo.org_id = clients.org_id AND uo.role = 'admin'
+   ORDER BY uo.created_at ASC LIMIT 1),
+  -- Try: earliest member of any role in the org
+  (SELECT uo.user_id FROM user_organisations uo
+   WHERE uo.org_id = clients.org_id
+   ORDER BY uo.created_at ASC LIMIT 1),
+  -- Fallback: any user in the system (for orgs with no user_organisations rows yet)
+  (SELECT id FROM auth.users ORDER BY created_at ASC LIMIT 1)
 )
 WHERE owner_id IS NULL;
 
