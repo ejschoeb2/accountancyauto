@@ -21,7 +21,7 @@ const ADMIN_ITEM: { href: string; icon: LucideIcon; label: string } = {
 };
 
 // Nav items hidden from member-role users
-const ADMIN_ONLY_HREFS = new Set(["/schedules", "/templates", "/billing"]);
+const ADMIN_ONLY_HREFS = new Set(["/billing"]);
 
 interface NavLinksProps {
   isSuperAdmin?: boolean;
