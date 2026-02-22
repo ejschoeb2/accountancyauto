@@ -236,6 +236,22 @@ Plans:
 - [ ] 15-04-PLAN.md — Send-emails cron per-user sender settings
 - [ ] 15-05-PLAN.md — New-user seeding on invite acceptance (clone admin resources)
 
+### Phase 16: Member Setup Wizard
+
+**Goal:** Invited members complete a mandatory two-step post-invite setup wizard (CSV client import + personal configuration) before accessing the dashboard; the wizard is gated so it cannot be skipped or re-entered after completion.
+
+**Depends on:** Phase 15
+
+**Requirements:** —
+
+**Plans:** 4 plans in 3 waves
+
+Plans:
+- [ ] 16-01-PLAN.md — Server actions (markMemberSetupComplete, getMemberSetupComplete) + middleware /setup exemption + invite accept redirect to wizard
+- [ ] 16-02-PLAN.md — CsvImportStep component (full-page extraction from csv-import-dialog, no dialog wrapper)
+- [ ] 16-03-PLAN.md — Setup layout gate + dashboard layout member gate + ConfigStep component (send hour + inbound mode + email identity)
+- [ ] 16-04-PLAN.md — Wizard page shell (WizardStepper + step orchestration + completion) + human verification checkpoint
+
 ---
 
 ## Progress
@@ -262,3 +278,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
 | 13. Onboarding Flow & Team Management | 4/4 | Complete    | 2026-02-21 | - |
 | 14. Super-Admin Dashboard | 2/2 | Complete    | 2026-02-21 | - |
 | 15. Per-Accountant Configuration | 5/5 | Complete    | 2026-02-22 | - |
+| 16. Member Setup Wizard | — | 0/4 | Planning | — |
