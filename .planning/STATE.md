@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 15 (Per-Accountant Configuration) COMPLETE.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 16 (Member Setup Wizard) executing.
 
 ## Current Position
 
-Phase: 15 of 15 (Per-Accountant Configuration)
-Plan: 5 of 5 (New user seeding on invite acceptance)
-Status: Phase 15 ALL PLANS COMPLETE — v3.0 complete
-Last activity: 2026-02-22 — Completed 15-05-PLAN.md (new user seeding on invite acceptance)
+Phase: 16 of 16 (Member Setup Wizard)
+Plan: 1 of 4 (executing)
+Status: Phase 16 plan 01 complete
+Last activity: 2026-02-22 — Phase 16 plan 01 complete (wizard foundation)
 
-Progress: [████████████████████] 5/5 Phase 15 plans complete
+Progress: [█░░░░] 1/4 Phase 16 plans complete
 
 ## Performance Metrics
 
@@ -149,6 +149,13 @@ Recent decisions affecting v3.0:
 - [Phase 15-per-accountant-config]: [D-15-04-03] Postmark server token stays org-level — only From name and Reply-To are per-user; token is infrastructure, not identity
 - [Phase 15-per-accountant-config]: Templates/schedules cloned one-by-one (not bulk) to capture generated IDs for schedule_steps FK remapping
 - [Phase 15-per-accountant-config]: schedule_client_exclusions and app_settings NOT cloned on new user seed — exclusions meaningless without clients; settings use org-default fallback pattern
+- [Phase 16-member-setup-wizard]: [D-16-01-01] markMemberSetupComplete omits requireWriteAccess — wizard runs before subscription enforcement; writing a completion flag must not be blocked by billing gate
+- [Phase 16-member-setup-wizard]: [D-16-01-02] member_setup_complete is per-user (user_id = user.id), NOT org-level (user_id IS NULL) — each member completes setup independently
+- [Phase 16-member-setup-wizard]: [D-16-01-03] /setup exemption in enforceSubscription prevents redirect loop for new members on expired-trial orgs
+
+### Roadmap Evolution
+
+- Phase 16 added: Member Setup Wizard — post-invite setup flow with CSV client import and configuration
 
 ### Known Risks
 
@@ -178,6 +185,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 15-per-accountant-config P01 | 7 | 2 tasks | 3 files |
 | Phase 15-per-accountant-config P04 | 5 | 1 tasks | 2 files |
 | Phase 15-per-accountant-config P05 | 5 | 2 tasks | 2 files |
+| Phase 16-member-setup-wizard P01 | 2 | 3 tasks | 3 files |
 
 ### Tech Debt
 
@@ -216,9 +224,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-22 UTC
-Stopped at: Completed 15-05-PLAN.md (new user seeding on invite acceptance)
+Stopped at: Completed 16-01-PLAN.md (member setup wizard foundation)
 Resume file: None
-Next step: v3.0 COMPLETE — all 15 phases and 5 per-accountant-config plans done
+Next step: Phase 16 plan 02 (wizard UI)
 
 ---
-*Phase 15 plan 05 complete -- new user seeding on invite acceptance, clones admin templates/schedules/steps (2026-02-22)*
+*Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
