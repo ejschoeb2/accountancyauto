@@ -26,17 +26,18 @@ interface FilingType {
 }
 
 /**
- * Process daily reminders for a specific organisation (v3.0 multi-tenant)
- * - Acquires org-scoped distributed lock
- * - Checks if it's 9am UK time
- * - Builds/updates queue for the org
- * - Marks due reminders as pending
- * - Resolves template variables using v1.1 TipTap rendering
- * - Handles deadline rollover
+ * Process daily reminders for a specific user within an organisation (v3.0 per-accountant)
+ * - Acquires per-user per-org distributed lock
+ * - Checks if it's the user's configured send_hour (with org-level fallback)
+ * - Builds/updates queue for this user's clients using their own schedules and templates
+ * - Marks due reminders as pending (scoped to this user's clients)
+ * - Resolves template variables using v1.1 TipTap rendering with user's sender name
+ * - Handles deadline rollover for this user's clients
  */
-export async function processReminders(
+export async function processRemindersForUser(
   supabase: SupabaseClient,
-  org: Org
+  org: Org,
+  userId: string
 ): Promise<ProcessResult> {
   const result: ProcessResult = {
     queued: 0,
@@ -45,8 +46,8 @@ export async function processReminders(
     skipped_wrong_hour: false,
   };
 
-  // Step 1: Acquire org-scoped distributed lock
-  const lockId = `cron_reminders_${org.id}`;
+  // Step 1: Acquire per-user per-org distributed lock
+  const lockId = `cron_reminders_${org.id}_${userId}`;
   const expiresAt = addMinutes(new Date(), 5);
 
   try {
@@ -56,32 +57,49 @@ export async function processReminders(
 
     if (lockError) {
       // Lock already held
-      result.errors.push(`[${org.name}] Lock already held by another process`);
+      result.errors.push(`[${org.name}:${userId}] Lock already held by another process`);
       return result;
     }
   } catch (error) {
-    result.errors.push(`[${org.name}] Failed to acquire lock`);
+    result.errors.push(`[${org.name}:${userId}] Failed to acquire lock`);
     return result;
   }
 
   try {
-    // Step 2: Get current UK hour and global send hour for this org
+    // Step 2: Get current UK hour and this user's send hour (with org-level fallback)
     const ukTime = toZonedTime(new Date(), 'Europe/London');
     const ukHour = ukTime.getHours();
 
-    const { data: sendHourRow } = await supabase
+    // Try user-specific send hour first
+    const { data: userSendHourRow } = await supabase
       .from('app_settings')
       .select('value')
       .eq('org_id', org.id)
+      .eq('user_id', userId)
       .eq('key', 'reminder_send_hour')
-      .single();
-    const globalSendHour = sendHourRow ? parseInt(sendHourRow.value, 10) : 9;
+      .maybeSingle();
 
-    // Check if any custom schedules have a send_hour matching the current hour
+    let globalSendHour: number;
+    if (userSendHourRow) {
+      globalSendHour = parseInt(userSendHourRow.value, 10);
+    } else {
+      // Fallback to org-level default
+      const { data: orgSendHourRow } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('org_id', org.id)
+        .is('user_id', null)
+        .eq('key', 'reminder_send_hour')
+        .maybeSingle();
+      globalSendHour = orgSendHourRow ? parseInt(orgSendHourRow.value, 10) : 9;
+    }
+
+    // Check if any of this user's custom schedules have a send_hour matching the current hour
     const { data: customHourSchedules } = await supabase
       .from('schedules')
       .select('id')
       .eq('org_id', org.id)
+      .eq('owner_id', userId)
       .eq('schedule_type', 'custom')
       .eq('is_active', true)
       .eq('send_hour', ukHour);
@@ -96,22 +114,24 @@ export async function processReminders(
     }
 
     // Step 3: Build/update queue for any new reminders (filing + custom) — idempotent
-    const buildResult = await buildReminderQueue(supabase, org);
-    const customBuildResult = await buildCustomScheduleQueue(supabase, org);
+    // Pass userId so queue builder scopes all resources to this user
+    const buildResult = await buildReminderQueue(supabase, org, userId);
+    const customBuildResult = await buildCustomScheduleQueue(supabase, org, userId);
 
-    // Step 4: Find due reminders, split by hour matching
+    // Step 4: Find due reminders for today, scoped to this user's clients
     const today = format(new UTCDate(), 'yyyy-MM-dd');
 
-    // Fetch all due reminders for today for this org
+    // Fetch all due reminders for today for this org, scoped to this user's clients via owner_id
     const { data: allDueReminders, error: fetchError } = await supabase
       .from('reminder_queue')
       .select('*, clients!inner(*), filing_types(*)')
       .eq('org_id', org.id)
+      .eq('clients.owner_id', userId)
       .eq('send_date', today)
       .eq('status', 'scheduled');
 
     if (fetchError) {
-      result.errors.push(`[${org.name}] Failed to fetch due reminders: ${fetchError.message}`);
+      result.errors.push(`[${org.name}:${userId}] Failed to fetch due reminders: ${fetchError.message}`);
       return result;
     }
 
@@ -119,7 +139,7 @@ export async function processReminders(
       return result;
     }
 
-    // Build set of custom schedule IDs that match the current hour
+    // Build set of custom schedule IDs that match the current hour (for this user)
     const customHourScheduleIds = new Set(
       (customHourSchedules || []).map(s => s.id)
     );
@@ -156,82 +176,112 @@ export async function processReminders(
       .in('id', reminderIds);
 
     if (updateError) {
-      result.errors.push(`[${org.name}] Failed to update reminder status: ${updateError.message}`);
+      result.errors.push(`[${org.name}:${userId}] Failed to update reminder status: ${updateError.message}`);
       return result;
     }
 
     result.queued = dueReminders.length;
 
-    // Step 6: Resolve template variables for each pending reminder using v1.1 TipTap rendering
+    // Step 6: Resolve this user's sender name for template rendering context
+    // Try user-specific email_sender_name first, fall back to org default
+    let accountantName = 'PhaseTwo';
+    const { data: userSenderNameRow } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('org_id', org.id)
+      .eq('user_id', userId)
+      .eq('key', 'email_sender_name')
+      .maybeSingle();
+
+    if (userSenderNameRow?.value) {
+      accountantName = userSenderNameRow.value;
+    } else {
+      const { data: orgSenderNameRow } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('org_id', org.id)
+        .is('user_id', null)
+        .eq('key', 'email_sender_name')
+        .maybeSingle();
+      if (orgSenderNameRow?.value) {
+        accountantName = orgSenderNameRow.value;
+      }
+    }
+
+    // Step 7: Resolve template variables for each pending reminder using v1.1 TipTap rendering
     for (const reminder of dueReminders) {
       try {
         const client = reminder.clients as Client;
         const filingType = reminder.filing_types as FilingType | null;
 
-        // Fetch the schedule for this reminder
+        // Fetch the schedule for this reminder — scoped to this user's schedules
         let schedule;
         if (reminder.filing_type_id) {
-          // Filing schedule - lookup by filing_type_id
+          // Filing schedule - lookup by filing_type_id, scoped to this user
           const { data, error: scheduleError } = await supabase
             .from('schedules')
             .select('*')
             .eq('org_id', org.id)
+            .eq('owner_id', userId)
             .eq('filing_type_id', reminder.filing_type_id)
             .eq('is_active', true)
             .single();
 
           if (scheduleError || !data) {
-            result.errors.push(`[${org.name}] Failed to fetch schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
+            result.errors.push(`[${org.name}:${userId}] Failed to fetch schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
             continue;
           }
           schedule = data;
         } else {
-          // Custom schedule - lookup by template_id (which stores schedule.id)
+          // Custom schedule - lookup by template_id (which stores schedule.id), scoped to this user
           const { data, error: scheduleError } = await supabase
             .from('schedules')
             .select('*')
             .eq('org_id', org.id)
+            .eq('owner_id', userId)
             .eq('id', reminder.template_id)
             .eq('is_active', true)
             .single();
 
           if (scheduleError || !data) {
-            result.errors.push(`[${org.name}] Failed to fetch custom schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
+            result.errors.push(`[${org.name}:${userId}] Failed to fetch custom schedule for reminder ${reminder.id}: ${scheduleError?.message || 'No schedule found'}`);
             continue;
           }
           schedule = data;
         }
 
-        // Fetch schedule_steps for that schedule
+        // Fetch schedule_steps for that schedule — scoped to this user
         const { data: steps, error: stepsError } = await supabase
           .from('schedule_steps')
           .select('*')
           .eq('org_id', org.id)
+          .eq('owner_id', userId)
           .eq('schedule_id', schedule.id)
           .order('step_number', { ascending: true });
 
         if (stepsError || !steps) {
-          result.errors.push(`[${org.name}] Failed to fetch schedule steps for reminder ${reminder.id}: ${stepsError?.message || 'No steps found'}`);
+          result.errors.push(`[${org.name}:${userId}] Failed to fetch schedule steps for reminder ${reminder.id}: ${stepsError?.message || 'No steps found'}`);
           continue;
         }
 
         // Find the step matching reminder.step_index
         const step = steps.find((s) => s.step_number === reminder.step_index);
         if (!step) {
-          result.errors.push(`[${org.name}] Step ${reminder.step_index} not found in schedule ${schedule.id} for reminder ${reminder.id}`);
+          result.errors.push(`[${org.name}:${userId}] Step ${reminder.step_index} not found in schedule ${schedule.id} for reminder ${reminder.id}`);
           continue;
         }
 
-        // Fetch the email template for that step
+        // Fetch the email template for that step — scoped to this user
         const { data: template, error: templateError } = await supabase
           .from('email_templates')
           .select('*')
           .eq('org_id', org.id)
+          .eq('owner_id', userId)
           .eq('id', step.email_template_id)
           .single();
 
         if (templateError || !template) {
-          result.errors.push(`[${org.name}] Failed to fetch template for reminder ${reminder.id}: ${templateError?.message || 'No template found'}`);
+          result.errors.push(`[${org.name}:${userId}] Failed to fetch template for reminder ${reminder.id}: ${templateError?.message || 'No template found'}`);
           continue;
         }
 
@@ -247,7 +297,7 @@ export async function processReminders(
               client_name: client.company_name,
               deadline: new UTCDate(reminder.deadline_date),
               filing_type: filingTypeName,
-              accountant_name: 'PhaseTwo',
+              accountant_name: accountantName,
             },
             clientId: client.id,
           });
@@ -263,11 +313,11 @@ export async function processReminders(
             .eq('id', reminder.id);
 
           if (resolveError) {
-            result.errors.push(`[${org.name}] Failed to update resolved content for reminder ${reminder.id}: ${resolveError.message}`);
+            result.errors.push(`[${org.name}:${userId}] Failed to update resolved content for reminder ${reminder.id}: ${resolveError.message}`);
           }
         } catch (renderError) {
           const message = renderError instanceof Error ? renderError.message : 'Unknown rendering error';
-          result.errors.push(`[${org.name}] Failed to render template for reminder ${reminder.id}: ${message}`);
+          result.errors.push(`[${org.name}:${userId}] Failed to render template for reminder ${reminder.id}: ${message}`);
 
           // Log rendering failure to email_log
           await supabase.from('email_log').insert({
@@ -282,23 +332,24 @@ export async function processReminders(
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        result.errors.push(`[${org.name}] Error processing reminder ${reminder.id}: ${message}`);
+        result.errors.push(`[${org.name}:${userId}] Error processing reminder ${reminder.id}: ${message}`);
       }
     }
 
-    // Step 7: Check for rollover - find deadlines that have passed
+    // Step 8: Check for rollover - find deadlines that have passed for this user's clients
     // Only for filing type reminders (not custom schedules)
     const { data: pastDeadlines, error: pastError } = await supabase
       .from('reminder_queue')
       .select('*, clients!inner(*)')
       .eq('org_id', org.id)
+      .eq('clients.owner_id', userId)
       .lt('deadline_date', today)
       .eq('status', 'sent')
       .not('filing_type_id', 'is', null)
       .order('deadline_date', { ascending: false });
 
     if (pastError) {
-      result.errors.push(`[${org.name}] Failed to fetch past deadlines: ${pastError.message}`);
+      result.errors.push(`[${org.name}:${userId}] Failed to fetch past deadlines: ${pastError.message}`);
     } else if (pastDeadlines && pastDeadlines.length > 0) {
       // Group by client + filing type to get the most recent deadline for each
       const deadlineMap = new Map<string, typeof pastDeadlines[0]>();
@@ -333,21 +384,50 @@ export async function processReminders(
               .eq('id', client.id);
 
             if (updateClientError) {
-              result.errors.push(`[${org.name}] Failed to update client year_end_date: ${updateClientError.message}`);
+              result.errors.push(`[${org.name}:${userId}] Failed to update client year_end_date: ${updateClientError.message}`);
             }
           }
 
           result.rolled_over++;
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unknown error';
-          result.errors.push(`[${org.name}] Failed to rollover deadline for ${key}: ${message}`);
+          result.errors.push(`[${org.name}:${userId}] Failed to rollover deadline for ${key}: ${message}`);
         }
       }
     }
 
     return result;
   } finally {
-    // Step 8: Release org-scoped lock
+    // Step 9: Release per-user per-org lock
     await supabase.from('locks').delete().eq('id', lockId);
   }
+}
+
+/**
+ * @deprecated Use processRemindersForUser instead.
+ * Kept for backwards compatibility — calls processRemindersForUser without user scoping
+ * by iterating over all org members. Only use this if you genuinely need the old org-wide
+ * (all-members) processing in a single call.
+ */
+export async function processReminders(
+  supabase: SupabaseClient,
+  org: Org
+): Promise<ProcessResult> {
+  // Fetch all org members and process each independently
+  const { data: members } = await supabase
+    .from('user_organisations')
+    .select('user_id')
+    .eq('org_id', org.id);
+
+  const combined: ProcessResult = { queued: 0, rolled_over: 0, errors: [], skipped_wrong_hour: true };
+
+  for (const member of members ?? []) {
+    const userResult = await processRemindersForUser(supabase, org, member.user_id);
+    combined.queued += userResult.queued;
+    combined.rolled_over += userResult.rolled_over;
+    combined.errors.push(...userResult.errors);
+    if (!userResult.skipped_wrong_hour) combined.skipped_wrong_hour = false;
+  }
+
+  return combined;
 }
