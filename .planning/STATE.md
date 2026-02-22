@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 14 complete (2/2 plans). All phases complete.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 15 (Per-Accountant Configuration) in progress.
 
 ## Current Position
 
-Phase: 14 of 14 (Super-Admin Dashboard)
-Plan: 2 of 2 (Org Detail Page at /admin/[slug])
-Status: Phase 14 plan 02 complete — ALL PHASES COMPLETE
-Last activity: 2026-02-21 — Completed 14-02-PLAN.md (Org detail page at /admin/[slug] with settings, members, and Stripe info)
+Phase: 15 of 15 (Per-Accountant Configuration)
+Plan: 2 of 5 (Nav, settings page, and user-aware settings actions)
+Status: Phase 15 plan 02 complete — plans 03-05 remaining
+Last activity: 2026-02-22 — Completed 15-02-PLAN.md (Nav visibility, member settings card, user-aware settings CRUD)
 
-Progress: [████████████████████] 2/2 Phase 14 plans complete
+Progress: [████░░░░░░░░░░░░░░░░] 2/5 Phase 15 plans complete
 
 ## Performance Metrics
 
@@ -132,6 +132,10 @@ Recent decisions affecting v3.0:
 - [Phase 13]: [D-13-04-02] pendingAction state per-row for cancel/resend — avoids disabling whole member list
 - [Phase 13]: [D-13-04-03] Trial reminder window gte(now+3d)+lt(now+4d) with idempotency flag prevents double-sends
 - [Phase 13]: [D-13-04-04] trial-expiry cron added to vercel.json — was missing from schedule despite route existing
+- [Phase 15-02]: [D-15-02-01] ADMIN_ONLY_HREFS now contains only /billing — schedules and templates visible to all roles (RLS handles scoping)
+- [Phase 15-02]: [D-15-02-02] Org-level reads updated to .is('user_id', null) — prevents reading user-specific rows as org defaults after migration
+- [Phase 15-02]: [D-15-02-03] Member settings page uses early-return pattern (no redirect) — members access /settings with simplified view
+- [Phase 15-02]: [D-15-02-04] MemberSettingsCard saves send hour + email settings in a single Save action (not auto-save like SendHourPicker)
 
 ### Known Risks
 
@@ -196,9 +200,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-22 UTC
-Stopped at: Completed quick task 5 (accountant-scoped client isolation and seat limit removal)
+Stopped at: Completed 15-02-PLAN.md (nav visibility, member settings card, user-aware settings CRUD)
 Resume file: None
-Next step: All phases complete — v3.0 shipped
+Next step: 15-03-PLAN.md (cron pipeline refactor for per-user send hour and sender settings)
 
 ---
 *Phase 13 plan 04 complete -- team management card on settings page + trial-ending-soon cron with idempotency (2026-02-21)*
