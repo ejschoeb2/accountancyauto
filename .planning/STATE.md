@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 15 of 15 (Per-Accountant Configuration)
-Plan: 2 of 5 (Nav, settings page, and user-aware settings actions)
-Status: Phase 15 plan 02 complete — plans 03-05 remaining
-Last activity: 2026-02-22 — Completed 15-02-PLAN.md (Nav visibility, member settings card, user-aware settings CRUD)
+Plan: 4 of 5 (Per-user sender settings in send-emails cron)
+Status: Phase 15 plan 04 complete — plan 05 remaining
+Last activity: 2026-02-22 — Completed 15-04-PLAN.md (per-user sender settings in send-emails cron)
 
-Progress: [████░░░░░░░░░░░░░░░░] 2/5 Phase 15 plans complete
+Progress: [████████░░░░░░░░░░░░] 4/5 Phase 15 plans complete
 
 ## Performance Metrics
 
@@ -140,6 +140,9 @@ Recent decisions affecting v3.0:
 - [Phase 15-per-accountant-config]: [D-15-01-02] app_settings RLS stays org-scoped (not owner-scoped) — org defaults (user_id IS NULL) must be readable by all org members; user_id filtering in application code
 - [Phase 15-per-accountant-config]: [D-15-01-03] Do NOT backfill user_id on app_settings — existing rows are org-level defaults (NULL = org-level is correct semantic)
 - [Phase 15-per-accountant-config]: [D-15-01-04] Migration history repair pattern — use --include-all flag when remote history has out-of-order entries from dashboard-applied migrations
+- [Phase 15-per-accountant-config]: [D-15-04-01] owner_id derived at send time from clients.owner_id JOIN (no reminder_queue schema change) — owner is a client property, always correct at send time
+- [Phase 15-per-accountant-config]: [D-15-04-02] getEmailFromForUser does two separate queries merged in app code — avoids complex SQL for 3-key lookup; consistent with settings fallback pattern
+- [Phase 15-per-accountant-config]: [D-15-04-03] Postmark server token stays org-level — only From name and Reply-To are per-user; token is infrastructure, not identity
 
 ### Known Risks
 
@@ -167,6 +170,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 14 P02 | 3 | 1 tasks | 3 files |
 | Phase 13 P04 | 6 | 2 tasks | 5 files |
 | Phase 15-per-accountant-config P01 | 7 | 2 tasks | 3 files |
+| Phase 15-per-accountant-config P04 | 5 | 1 tasks | 2 files |
 
 ### Tech Debt
 
@@ -205,9 +209,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-22 UTC
-Stopped at: Completed 15-02-PLAN.md (nav visibility, member settings card, user-aware settings CRUD)
+Stopped at: Completed 15-04-PLAN.md (per-user sender settings in send-emails cron)
 Resume file: None
-Next step: 15-03-PLAN.md (cron pipeline refactor for per-user send hour and sender settings)
+Next step: 15-05-PLAN.md (new user seeding — owner_id required on all resource rows when admin creates new org member)
 
 ---
 *Phase 13 plan 04 complete -- team management card on settings page + trial-ending-soon cron with idempotency (2026-02-21)*
