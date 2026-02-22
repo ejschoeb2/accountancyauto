@@ -76,17 +76,28 @@ function getNextCustomDate(schedule: {
  * Build reminder queue from schedules, filing assignments, and deadlines (v1.1)
  * Idempotent: won't create duplicates if queue already populated
  * Org-scoped: all queries filtered by org_id
+ * When ownerId is provided, all resource queries (schedules, steps, templates, clients, exclusions)
+ * are additionally scoped to that user's owner_id. This is used by the cron pipeline to process
+ * each org member independently. When ownerId is omitted, existing behavior is preserved
+ * (for rebuildQueueForClient called from server actions where RLS handles scoping).
  */
-export async function buildReminderQueue(supabase: SupabaseClient, org: Org): Promise<BuildResult> {
+export async function buildReminderQueue(supabase: SupabaseClient, org: Org, ownerId?: string): Promise<BuildResult> {
   let created = 0;
   let skipped = 0;
 
   // Fetch all clients with active filing assignments for this org
-  const { data: assignments, error: assignmentsError } = await supabase
+  // When ownerId provided, scope to that user's clients via clients.owner_id
+  let assignmentsQuery = supabase
     .from('client_filing_assignments')
     .select('*, clients!inner(*)')
     .eq('org_id', org.id)
     .eq('is_active', true);
+
+  if (ownerId) {
+    assignmentsQuery = assignmentsQuery.eq('clients.owner_id', ownerId);
+  }
+
+  const { data: assignments, error: assignmentsError } = await assignmentsQuery;
 
   if (assignmentsError) {
     throw new Error(`Failed to fetch filing assignments: ${assignmentsError.message}`);
@@ -97,32 +108,50 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org): Pr
   }
 
   // Fetch v1.1 normalized tables (PostgREST FK workaround: fetch separately and map in app)
-  const { data: schedules, error: schedulesError } = await supabase
+  let schedulesQuery = supabase
     .from('schedules')
     .select('*')
     .eq('org_id', org.id)
     .eq('is_active', true)
     .eq('schedule_type', 'filing');
 
+  if (ownerId) {
+    schedulesQuery = schedulesQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: schedules, error: schedulesError } = await schedulesQuery;
+
   if (schedulesError) {
     throw new Error(`Failed to fetch schedules: ${schedulesError.message}`);
   }
 
-  const { data: scheduleSteps, error: stepsError } = await supabase
+  let stepsQuery = supabase
     .from('schedule_steps')
     .select('*')
     .eq('org_id', org.id)
     .order('step_number', { ascending: true });
 
+  if (ownerId) {
+    stepsQuery = stepsQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: scheduleSteps, error: stepsError } = await stepsQuery;
+
   if (stepsError) {
     throw new Error(`Failed to fetch schedule steps: ${stepsError.message}`);
   }
 
-  const { data: emailTemplates, error: templatesError } = await supabase
+  let templatesQuery = supabase
     .from('email_templates')
     .select('*')
     .eq('org_id', org.id)
     .eq('is_active', true);
+
+  if (ownerId) {
+    templatesQuery = templatesQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: emailTemplates, error: templatesError } = await templatesQuery;
 
   if (templatesError) {
     throw new Error(`Failed to fetch email templates: ${templatesError.message}`);
@@ -174,10 +203,16 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org): Pr
   });
 
   // Fetch schedule-level client exclusions
-  const { data: exclusionsData } = await supabase
+  let exclusionsQuery = supabase
     .from('schedule_client_exclusions')
     .select('schedule_id, client_id')
     .eq('org_id', org.id);
+
+  if (ownerId) {
+    exclusionsQuery = exclusionsQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: exclusionsData } = await exclusionsQuery;
 
   const exclusionSet = new Set(
     (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
@@ -321,20 +356,29 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org): Pr
 
 /**
  * Build reminder queue entries for custom schedules (v1.1+)
- * Custom schedules apply to ALL active, non-paused clients within the org
- * Org-scoped: all queries filtered by org_id
+ * When ownerId is provided: custom schedules apply only to that user's clients (owner_id match).
+ * When ownerId is omitted: existing behaviour — schedules apply to all active, non-paused clients.
+ * This is the correct per-accountant behaviour: a user's custom schedule should only fire for
+ * clients they own. RLS handles scoping in server action context; ownerId handles cron context.
  */
-export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Org): Promise<BuildResult> {
+export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Org, ownerId?: string): Promise<BuildResult> {
   let created = 0;
   let skipped = 0;
 
   // 1. Fetch all active custom schedules for this org
-  const { data: customSchedules, error: schedulesError } = await supabase
+  // When ownerId provided, scope to that user's schedules
+  let schedulesQuery = supabase
     .from('schedules')
     .select('*')
     .eq('org_id', org.id)
     .eq('is_active', true)
     .eq('schedule_type', 'custom');
+
+  if (ownerId) {
+    schedulesQuery = schedulesQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: customSchedules, error: schedulesError } = await schedulesQuery;
 
   if (schedulesError) {
     throw new Error(`Failed to fetch custom schedules: ${schedulesError.message}`);
@@ -345,11 +389,18 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
   }
 
   // 2. Fetch all active, non-paused clients for this org
-  const { data: clients, error: clientsError } = await supabase
+  // When ownerId provided, scope to that user's clients only
+  let clientsQuery = supabase
     .from('clients')
     .select('*')
     .eq('org_id', org.id)
     .eq('reminders_paused', false);
+
+  if (ownerId) {
+    clientsQuery = clientsQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: clients, error: clientsError } = await clientsQuery;
 
   if (clientsError) {
     throw new Error(`Failed to fetch clients: ${clientsError.message}`);
@@ -361,12 +412,18 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
 
   // 3. Fetch schedule steps for this org
   const scheduleIds = customSchedules.map(s => s.id);
-  const { data: scheduleSteps, error: stepsError } = await supabase
+  let stepsQuery = supabase
     .from('schedule_steps')
     .select('*')
     .eq('org_id', org.id)
     .in('schedule_id', scheduleIds)
     .order('step_number', { ascending: true });
+
+  if (ownerId) {
+    stepsQuery = stepsQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: scheduleSteps, error: stepsError } = await stepsQuery;
 
   if (stepsError) {
     throw new Error(`Failed to fetch custom schedule steps: ${stepsError.message}`);
@@ -383,10 +440,16 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
   const holidays = await getUKBankHolidaySet();
 
   // 4. Fetch schedule-level client exclusions for this org
-  const { data: exclusionsData } = await supabase
+  let exclusionsQuery = supabase
     .from('schedule_client_exclusions')
     .select('schedule_id, client_id')
     .eq('org_id', org.id);
+
+  if (ownerId) {
+    exclusionsQuery = exclusionsQuery.eq('owner_id', ownerId);
+  }
+
+  const { data: exclusionsData } = await exclusionsQuery;
 
   const exclusionSet = new Set(
     (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
