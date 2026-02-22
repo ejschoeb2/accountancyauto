@@ -161,7 +161,7 @@ async function processOrgEmails(
     // Query pending reminders for this org with resolved subject/body and html_body
     const { data: pendingReminders, error: queryError } = await adminClient
       .from('reminder_queue')
-      .select('*, clients!inner(company_name, primary_email)')
+      .select('*, clients!inner(company_name, primary_email, owner_id)')
       .eq('org_id', org.id)
       .eq('status', 'pending')
       .not('resolved_subject', 'is', null)
@@ -180,7 +180,7 @@ async function processOrgEmails(
 
     // Process each reminder sequentially (avoid Postmark rate limits)
     for (const reminder of pendingReminders) {
-      const client = reminder.clients;
+      const client = reminder.clients as { company_name: string; primary_email: string; owner_id: string };
 
       // Check if client has primary_email
       if (!client?.primary_email) {
@@ -197,7 +197,7 @@ async function processOrgEmails(
       }
 
       try {
-        // Send HTML email via Postmark using org's credentials
+        // Send HTML email via Postmark using org's credentials + per-user sender settings
         const sendResult = await sendRichEmailForOrg({
           to: client.primary_email,
           subject: reminder.resolved_subject!,
@@ -207,6 +207,7 @@ async function processOrgEmails(
           orgPostmarkToken: org.postmark_server_token,
           supabase: adminClient,
           orgId: org.id,
+          userId: client.owner_id,  // Per-user sender settings (name, reply-to)
         });
 
         // Update reminder_queue: status = sent, sent_at = now

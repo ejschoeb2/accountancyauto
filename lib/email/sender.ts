@@ -51,6 +51,44 @@ async function getEmailFromForOrg(
 }
 
 /**
+ * Get email from/replyTo settings for a specific user within an org (for cron jobs)
+ * Reads user-specific app_settings rows first, falls back to org-level defaults.
+ * Uses admin client — no session needed.
+ */
+async function getEmailFromForUser(
+  supabase: SupabaseClient,
+  orgId: string,
+  userId: string
+): Promise<{ from: string; replyTo: string }> {
+  const keys = ['email_sender_name', 'email_sender_address', 'email_reply_to'];
+
+  // Fetch user-specific rows
+  const { data: userRows } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+    .in('key', keys);
+
+  // Fetch org-level defaults (user_id IS NULL)
+  const { data: orgRows } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .eq('org_id', orgId)
+    .is('user_id', null)
+    .in('key', keys);
+
+  // User rows win over org rows
+  const map = new Map(orgRows?.map(r => [r.key, r.value]) ?? []);
+  (userRows ?? []).forEach(r => map.set(r.key, r.value));
+
+  return {
+    from: `${map.get('email_sender_name') || 'PhaseTwo'} <${map.get('email_sender_address') || 'hello@phasetwo.uk'}>`,
+    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@phasetwo.uk',
+  };
+}
+
+/**
  * Create a Postmark ServerClient for a specific org's token
  */
 function getOrgPostmarkClient(token: string): ServerClient {
@@ -78,6 +116,7 @@ interface SendRichEmailForOrgParams extends SendRichEmailParams {
   orgPostmarkToken: string | null;
   supabase: SupabaseClient;
   orgId: string;
+  userId?: string;  // Optional: use per-user sender settings instead of org-level defaults
 }
 
 interface SendReminderEmailResult {
@@ -233,8 +272,10 @@ export async function sendRichEmailForOrg(
 
     const client = getOrgPostmarkClient(token);
 
-    // Get org-specific email settings
-    const emailFrom = await getEmailFromForOrg(params.supabase, params.orgId);
+    // Get email settings — user-specific if userId provided, otherwise org-level
+    const emailFrom = params.userId
+      ? await getEmailFromForUser(params.supabase, params.orgId, params.userId)
+      : await getEmailFromForOrg(params.supabase, params.orgId);
 
     // Build List-Unsubscribe headers if clientId provided
     const headers: Record<string, string> = {};
