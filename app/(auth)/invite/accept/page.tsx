@@ -83,9 +83,9 @@ function AcceptInviteContent() {
 
     if (orgSlug) {
       if (isDev) {
-        window.location.href = `/?org=${orgSlug}`;
+        window.location.href = `/setup/wizard?org=${orgSlug}`;
       } else {
-        window.location.href = `https://${orgSlug}.app.phasetwo.uk/`;
+        window.location.href = `https://${orgSlug}.app.phasetwo.uk/setup/wizard`;
       }
     } else {
       // orgSlug missing — user was added but we couldn't resolve the slug
