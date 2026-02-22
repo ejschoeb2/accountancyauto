@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
 import { getPlanByTier, type PlanTier } from "@/lib/stripe/plans";
 
-const VALID_TIERS: PlanTier[] = ["lite", "sole_trader", "practice", "firm"];
+const VALID_TIERS: PlanTier[] = ["sole_trader", "practice", "firm"];
 
 /**
  * POST /api/stripe/create-checkout-session

@@ -7,7 +7,7 @@
  */
 
 // Matches the plan_tier_enum in the database
-export type PlanTier = "lite" | "sole_trader" | "practice" | "firm";
+export type PlanTier = "sole_trader" | "practice" | "firm";
 
 export interface PlanConfig {
   tier: PlanTier;
@@ -33,18 +33,6 @@ export interface PlanConfig {
  * different Stripe accounts for test vs production.
  */
 export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
-  lite: {
-    tier: "lite",
-    name: "Lite",
-    priceId: process.env.STRIPE_PRICE_LITE ?? "",
-    monthlyPrice: 2000, // £20/mo
-    clientLimit: 15,
-    features: [
-      "Up to 15 clients",
-      "Email reminders",
-      "Basic templates",
-    ],
-  },
   sole_trader: {
     tier: "sole_trader",
     name: "Sole Trader",

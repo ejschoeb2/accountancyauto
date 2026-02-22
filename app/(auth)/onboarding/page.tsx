@@ -410,8 +410,8 @@ export default function OnboardingPage() {
             <p className="text-sm text-destructive text-center">{planError}</p>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(["lite", "sole_trader", "practice", "firm"] as PlanTier[]).map(
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {(["sole_trader", "practice", "firm"] as PlanTier[]).map(
               (tier) => {
                 const plan = PLAN_TIERS[tier];
                 const isPopular = tier === "practice";
