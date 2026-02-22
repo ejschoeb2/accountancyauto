@@ -176,6 +176,7 @@ All v1.0 and v1.1 risks resolved.
 | 002 | Demo client creation dialog and POST API | 2026-02-09 | 074aa4c | [002-demo-client-creation](./quick/002-demo-client-creation/) |
 | 003 | Auth and multi-practice deployment automation | 2026-02-12 | fd582b9 | [003-auth-and-multi-practice-setup](./quick/003-auth-and-multi-practice-setup/) |
 | 004 | Streamlined 3-step onboarding wizard | 2026-02-12 | b44ad4d | [004-streamlined-onboarding-wizard](./quick/004-streamlined-onboarding-wizard/) |
+| 005 | Accountant-scoped client isolation and seat limit removal | 2026-02-22 | dbd7884 | [5-accountant-scoped-client-isolation-and-r](./quick/5-accountant-scoped-client-isolation-and-r/) |
 
 ### Deferred Features
 
@@ -194,8 +195,8 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-21 10:55 UTC
-Stopped at: Completed 13-04-PLAN.md (Team management UI card and trial-ending-soon cron)
+Last session: 2026-02-22 UTC
+Stopped at: Completed quick task 5 (accountant-scoped client isolation and seat limit removal)
 Resume file: None
 Next step: All phases complete — v3.0 shipped
 
