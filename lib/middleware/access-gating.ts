@@ -21,12 +21,13 @@ export function enforceSubscription(
 ): NextResponse | null {
   const { pathname } = request.nextUrl;
 
-  // Always allow through: billing, auth, login, API routes
+  // Always allow through: billing, auth, login, API routes, setup wizard
   if (
     pathname.startsWith('/billing') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/login') ||
-    pathname.startsWith('/api/')
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/setup')
   ) {
     return null;
   }
