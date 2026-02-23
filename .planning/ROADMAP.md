@@ -318,10 +318,13 @@ Plans:
 4. The filing type card on the client detail page shows the document count and most recent submission date; expanding the card lists all documents with filename, document type label, confidence badge, received date, source, and a download button; clicking download generates a signed URL with 300-second expiry, logs the access in `document_access_log`, and does not expose the raw storage path.
 5. The weekly retention cron sets `retention_flagged = true` on `client_documents` rows where `retain_until < NOW()` and `retention_hold = false`; it does not auto-delete any documents; it sends the org admin an email listing newly flagged documents; running the cron a second time does not re-flag already-flagged documents or send duplicate notification emails.
 
-**Plans:** TBD
-- Plan 19-01: Schema foundation verification + passive collection (PASS-01, PASS-02)
-- Plan 19-02: Active collection portal (ACTV-01, ACTV-02, ACTV-03, ACTV-04)
-- Plan 19-03: Dashboard integration + compliance mechanisms (DASH-01, DASH-02, DASH-03, COMP-02, COMP-03)
+**Plans:** 4 plans in 2 waves
+
+Plans:
+- [ ] 19-01-PLAN.md — Phase 19 schema migration (revoked_at, checklist customisations, Realtime) + classifyDocument utility + Postmark attachment extraction (PASS-01, PASS-02)
+- [ ] 19-02-PLAN.md — Active portal: token generation, /portal/[token] page, upload API, checklist customisation UI (ACTV-01, ACTV-02, ACTV-03, ACTV-04)
+- [ ] 19-03-PLAN.md — Document card on client page + live activity feed + Realtime notification hook (DASH-01, DASH-02, DASH-03)
+- [ ] 19-04-PLAN.md — Retention enforcement cron + DSAR export ZIP download (COMP-02, COMP-03)
 
 ---
 
@@ -349,7 +352,7 @@ Plans:
   3. A client uploads two files against checklist items on the portal; the progress indicator updates to "2 of Y items provided"; each file is stored in Supabase Storage via signed upload URL (the file bytes never pass through the Next.js server); a `client_documents` row is created for each file with `classification_confidence` set and `source = portal_upload`; the accountant receives an in-app notification showing the client name and outstanding items count.
   4. The filing type card on the client detail page shows the document count and most recent submission date; expanding the card lists all documents with filename, document type label, confidence badge, received date, source, and a download button; clicking download generates a signed URL with 300-second expiry, logs the access in `document_access_log`, and does not expose the raw storage path.
   5. The weekly retention cron sets `retention_flagged = true` on `client_documents` rows where `retain_until < NOW()` and `retention_hold = false`; it does not auto-delete any documents; it sends the org admin an email listing newly flagged documents; running the cron a second time does not re-flag already-flagged documents or send duplicate notification emails.
-**Plans**: TBD
+**Plans**: 4 plans in 2 waves
 
 ---
 
@@ -379,5 +382,5 @@ Phases execute in numeric order: 18 -> 19
 | 15. Per-Accountant Configuration | v3.0 | 5/5 | Complete | 2026-02-22 |
 | 16. Member Setup Wizard | v3.0 | 4/4 | Complete | 2026-02-23 |
 | 17. Marketing Landing Page | v3.0 | 3/3 | Complete | 2026-02-23 |
-| 18. Document Collection Foundation | v4.0 | 4/4 | Complete | 2026-02-23 |
+| 18. Document Collection Foundation | v4.0 | Complete    | 2026-02-23 | 2026-02-23 |
 | 19. Collection Mechanisms | v4.0 | 0/TBD | Not started | - |
