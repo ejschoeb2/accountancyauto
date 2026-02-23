@@ -13,7 +13,7 @@ The application connects to three external services. Each has its own set of var
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Peninsula Accounting                      │
+│                    Prompt                      │
 │                     (Next.js on Vercel)                      │
 └──────────────┬────────────────┬────────────────┬────────────┘
                │                │                │
@@ -61,6 +61,32 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 **How to get it:** Supabase Dashboard → Project Settings → API → `anon` `public` key.
 
 **Multi-tenant note:** Unique per Supabase project, so changes per tenant.
+
+---
+
+### `SUPABASE_STORAGE_BUCKET_DOCUMENTS`
+
+```
+SUPABASE_STORAGE_BUCKET_DOCUMENTS=prompt-documents
+```
+
+**What it is:** The name of the private Supabase Storage bucket used to store uploaded client financial documents (tax certificates, accounts, HMRC records, etc.). The bucket must be created manually in the Supabase Dashboard before first use — it cannot be created via SQL migration.
+
+**Default:** `prompt-documents` (hardcoded fallback in `lib/documents/storage.ts`). If this variable is not set, the application will use `prompt-documents` automatically.
+
+**Used in:** `lib/documents/storage.ts` — all three storage utilities (`uploadDocument`, `getSignedDownloadUrl`, `deleteDocument`) read this variable at module level.
+
+**How to get it / set it up:**
+1. Open the Supabase Dashboard for your project
+2. Navigate to **Storage** → **New bucket**
+3. Name the bucket `prompt-documents`
+4. Set access to **Private** (do NOT set Public)
+5. Confirm the bucket is created in the correct region (EU West for UK data residency)
+6. Set this variable to `prompt-documents` (or your chosen bucket name)
+
+**Required:** Optional — falls back to `'prompt-documents'` if not set. Recommended to set explicitly so the bucket name is visible in your environment configuration.
+
+**Multi-tenant note:** All tenants using the same Supabase project share one bucket. Documents are isolated by the path prefix `orgs/{org_id}/...` and by org-scoped RLS policies on `storage.objects`.
 
 ---
 
