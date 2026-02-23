@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 Plan 01 complete; Phase 19 Plan 02 next
+**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 Plans 01 and 03 complete; Phase 19 Plan 02 (upload portal) and Plan 04 (retention cron + DSAR) remaining
 
 ## Current Position
 
 Phase: 19 — Collection Mechanisms
-Plan: 02 (Plan 01 complete — schema migration, classifyDocument utility, and Postmark attachment extraction done)
-Status: Phase 19 in progress — 1/4 plans complete
-Last activity: 2026-02-23 — Plan 19-01 completed (Phase 19 schema migration + classifyDocument + processAttachments pipeline)
+Plan: 04 (Plans 01 and 03 complete — schema migration, classifyDocument, processAttachments, DocumentCard, live feed, Realtime notifications done)
+Status: Phase 19 in progress — 2/4 plans complete
+Last activity: 2026-02-23 — Plan 19-03 completed (DocumentCard + download API + live alert feed + Realtime notifications)
 
-Progress: [##########] Phase 18 done | [##--------] Phase 19: 1/4 plans complete
+Progress: [##########] Phase 18 done | [####------] Phase 19: 2/4 plans complete
 
 ## Performance Metrics
 
@@ -207,6 +207,9 @@ Recent decisions affecting v3.0:
 - [Phase 19-01]: [D-19-01-02] BANK_STATEMENT keyword pattern restricted to 'bank statement' phrase — prevents false positives on unrelated documents containing the word 'statement'
 - [Phase 19-01]: [D-19-01-03] KEYWORD_MAP uses actual seed codes (CT600_ACCOUNTS, CT600_TAX_COMPUTATION, PAYROLL_SUMMARY) not plan alias names (COMPANY_ACCOUNTS, CT600, PAYSLIP)
 - [Phase 19-01]: [D-19-01-04] Migration history repair applied (20260210) — idempotent ADD COLUMN IF NOT EXISTS ran cleanly; consistent with D-15-01-04 pattern
+- [Phase 19]: [D-19-03-01] document_access_log INSERT uses created_at (auto-defaulted) + org_id — plan had accessed_at which does not exist in Phase 18 schema
+- [Phase 19]: [D-19-03-02] PostgREST FK join typed as unknown as DocumentActivity[] — double-cast required for Supabase SDK array inference mismatch
+- [Phase 19]: [D-19-03-03] DocumentCard fetches all client documents once per page mount and filters client-side by filing_type_id — simpler than per-card API call
 
 ### Roadmap Evolution
 
@@ -238,6 +241,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | Phase 18 P02 | 12 | 2 tasks | 4 files |
 | Phase 18-document-collection-foundation P01 | 8 | 2 tasks | 2 files |
 | Phase 18 P03 | 10 | 2 tasks | 2 files |
+| Phase 19 P03 | 284 | 2 tasks | 7 files |
 
 ### Tech Debt
 
@@ -279,9 +283,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 19 Plan 01 complete — schema migration applied, classifyDocument utility created, processAttachments pipeline added to Postmark webhook
-Resume file: .planning/phases/19-collection-mechanisms/19-01-SUMMARY.md
-Next step: Phase 19 Plan 02 (active collection — upload portal)
+Stopped at: Phase 19 Plan 03 complete — DocumentCard component, document download API with access log, live alert feed, and Realtime notification hook all done
+Resume file: .planning/phases/19-collection-mechanisms/19-03-SUMMARY.md
+Next step: Phase 19 Plan 02 (active collection — upload portal) or Plan 04 (retention cron + DSAR export)
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*

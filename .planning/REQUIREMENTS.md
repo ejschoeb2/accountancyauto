@@ -36,9 +36,9 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 
 ### Dashboard Integration (DASH)
 
-- [ ] **DASH-01**: Filing type cards on the client detail page show a document count and most recent submission date; expanding the card reveals the document list with filename, document type, confidence badge, received date, source, and a download button that generates a 300-second signed URL and logs the access in `document_access_log`; raw storage paths are never exposed
-- [ ] **DASH-02**: Dashboard activity feed shows recent document submissions across all org clients (portal uploads and inbound email attachments), with click-through navigation to the relevant client page
-- [ ] **DASH-03**: Accountant receives an in-app notification when a client uploads documents via the portal, showing client name, number of items uploaded, and items still outstanding
+- [x] **DASH-01**: Filing type cards on the client detail page show a document count and most recent submission date; expanding the card reveals the document list with filename, document type, confidence badge, received date, source, and a download button that generates a 300-second signed URL and logs the access in `document_access_log`; raw storage paths are never exposed
+- [x] **DASH-02**: Dashboard activity feed shows recent document submissions across all org clients (portal uploads and inbound email attachments), with click-through navigation to the relevant client page
+- [x] **DASH-03**: Accountant receives an in-app notification when a client uploads documents via the portal, showing client name, number of items uploaded, and items still outstanding
 
 ## v5.0 Requirements (Deferred)
 
@@ -83,9 +83,9 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 | ACTV-02 | Phase 19 | Pending |
 | ACTV-03 | Phase 19 | Pending |
 | ACTV-04 | Phase 19 | Pending |
-| DASH-01 | Phase 19 | Pending |
-| DASH-02 | Phase 19 | Pending |
-| DASH-03 | Phase 19 | Pending |
+| DASH-01 | Phase 19 | Complete |
+| DASH-02 | Phase 19 | Complete |
+| DASH-03 | Phase 19 | Complete |
 
 **Coverage:**
 - v4.0 requirements: 18 total
