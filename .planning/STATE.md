@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — Phase 18 in progress (Plan 02 complete)
+**Current focus:** v4.0 Document Collection milestone — Phase 18 in progress (Plans 01, 02, 03 complete)
 
 ## Current Position
 
 Phase: 18 — Document Collection Foundation
-Plan: 02 complete (storage utilities + calculateRetainUntil TDD)
-Status: In progress — Plan 18-02 complete
-Last activity: 2026-02-23 — Plan 18-02 executed (storage utilities, retention calculator, ENV_VARIABLES.md)
+Plan: 03 complete (Plans 01, 02, 03 all done — Plan 04 next)
+Status: In progress — Plans 18-01, 18-02, 18-03 complete
+Last activity: 2026-02-23 — Plan 18-01 executed (five DB tables DDL + RLS + HMRC seed data)
 
-Progress: [##--------] 2/TBD Phase 18 plans complete
+Progress: [###-------] 3/4 Phase 18 plans complete
 
 ## Performance Metrics
 
@@ -194,6 +194,9 @@ Recent decisions affecting v3.0:
 - [Phase 18]: [D-18-02-01] vitest used instead of jest — project test runner is vitest; test file imports from vitest not jest
 - [Phase 18]: [D-18-02-02] BUCKET_NAME module-level const reads SUPABASE_STORAGE_BUCKET_DOCUMENTS env var with 'prompt-documents' fallback
 - [Phase 18]: [D-18-02-03] createSignedUploadUrl NOT used in storage.ts — documented in comments; only createSignedUrl (downloads) is safe with admin client
+- [Phase 18-document-collection-foundation]: document_types and filing_document_requirements are global reference tables (no org_id) — authenticated SELECT USING(true), service_role-only writes
+- [Phase 18-document-collection-foundation]: document_access_log: INSERT + SELECT only for authenticated (no UPDATE/DELETE RLS policies) — audit trail immutability for HMRC enquiry compliance
+- [Phase 18-document-collection-foundation]: upload_portal_tokens.token_hash TEXT NOT NULL UNIQUE — raw token never stored; SHA-256 hex of crypto.randomBytes(32)
 
 ### Roadmap Evolution
 
@@ -223,6 +226,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | DSAR ZIP size limit mitigation: stream to temp Storage path when client has >50 documents? Decide before Phase 19-03 DSAR plan. | Phase 19-03 plan |
 | `SUPABASE_STORAGE_BUCKET_DOCUMENTS` env var: add to ENV_VARIABLES.md before Phase 18 implementation | Phase 18 plan |
 | Phase 18 P02 | 12 | 2 tasks | 4 files |
+| Phase 18-document-collection-foundation P01 | 8 | 2 tasks | 2 files |
 
 ### Tech Debt
 

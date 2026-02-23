@@ -9,12 +9,12 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 
 ### Schema & Storage (DOCS)
 
-- [ ] **DOCS-01**: System has a seeded `document_types` catalog of HMRC document types (P60, P45, P11D, SA302, bank statement, dividend voucher, etc.) with `retention_years`, `retention_anchor` (filing_period_end / relationship_end), expected format metadata, and classification hints
-- [ ] **DOCS-02**: System has a `filing_document_requirements` table mapping document types to filing types with mandatory/conditional flags and condition descriptions (e.g. "required if client is a director")
-- [ ] **DOCS-03**: `client_documents` table stores document metadata per org: client_id, filing_type, document_type_id, storage_path, original_filename, received_at, `tax_period_end_date`, `classification_confidence` (HIGH/MEDIUM/LOW/UNCLASSIFIED), source (inbound_email / portal_upload / manual), uploader, `retention_hold`, `retention_flagged`
-- [ ] **DOCS-04**: `document_access_log` table records every document access and download: user_id, document_id, action (view / download / delete), session context, timestamp; INSERT-only RLS for authenticated users
+- [x] **DOCS-01**: System has a seeded `document_types` catalog of HMRC document types (P60, P45, P11D, SA302, bank statement, dividend voucher, etc.) with `retention_years`, `retention_anchor` (filing_period_end / relationship_end), expected format metadata, and classification hints
+- [x] **DOCS-02**: System has a `filing_document_requirements` table mapping document types to filing types with mandatory/conditional flags and condition descriptions (e.g. "required if client is a director")
+- [x] **DOCS-03**: `client_documents` table stores document metadata per org: client_id, filing_type, document_type_id, storage_path, original_filename, received_at, `tax_period_end_date`, `classification_confidence` (HIGH/MEDIUM/LOW/UNCLASSIFIED), source (inbound_email / portal_upload / manual), uploader, `retention_hold`, `retention_flagged`
+- [x] **DOCS-04**: `document_access_log` table records every document access and download: user_id, document_id, action (view / download / delete), session context, timestamp; INSERT-only RLS for authenticated users
 - [x] **DOCS-05**: Supabase Storage private bucket exists (`prompt-documents`) with org-scoped path convention (`orgs/{org_id}/clients/{client_id}/{filing_type}/{tax_year}/{uuid}_{ext}`) and explicit `storage.objects` RLS policies scoped to JWT `app_metadata.org_id` using path-prefix check
-- [ ] **DOCS-06**: `upload_portal_tokens` table stores SHA-256 hashed tokens (raw token never stored) scoped to org_id + client_id + filing_type with `expires_at`, `used_at`, and revocation support; minimum 256-bit entropy on generation
+- [x] **DOCS-06**: `upload_portal_tokens` table stores SHA-256 hashed tokens (raw token never stored) scoped to org_id + client_id + filing_type with `expires_at`, `used_at`, and revocation support; minimum 256-bit entropy on generation
 
 ### Compliance & Policy (COMP)
 
@@ -68,12 +68,12 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DOCS-01 | Phase 18 | Pending |
-| DOCS-02 | Phase 18 | Pending |
-| DOCS-03 | Phase 18 | Pending |
-| DOCS-04 | Phase 18 | Pending |
+| DOCS-01 | Phase 18 | Complete |
+| DOCS-02 | Phase 18 | Complete |
+| DOCS-03 | Phase 18 | Complete |
+| DOCS-04 | Phase 18 | Complete |
 | DOCS-05 | Phase 18 | Complete |
-| DOCS-06 | Phase 18 | Pending |
+| DOCS-06 | Phase 18 | Complete |
 | COMP-01 | Phase 18 | Pending |
 | COMP-02 | Phase 19 | Pending |
 | COMP-03 | Phase 19 | Pending |
