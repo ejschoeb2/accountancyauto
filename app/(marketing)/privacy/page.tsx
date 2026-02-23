@@ -64,6 +64,7 @@ export default function PrivacyPage() {
             <li>Postal addresses</li>
             <li>Filing deadlines and accounting period dates</li>
             <li>VAT stagger group information</li>
+            <li>Financial documents and records uploaded through the client portal — including but not limited to tax certificates (P60, P45), employer forms (P11D), HMRC tax calculations (SA302), bank statements, dividend vouchers, statutory accounts, VAT records, and Companies House filing documents</li>
           </ul>
 
           <h3 className="text-xl font-semibold mt-8 mb-3">Billing Data</h3>
@@ -98,7 +99,10 @@ export default function PrivacyPage() {
             <li>Ensuring the accuracy of client data entered into the platform</li>
           </ul>
           <p className="text-base text-muted-foreground leading-relaxed mb-4">
-            We process client data only as instructed — specifically for sending reminders, rendering email templates, and delivering email communications. We will not access, use, or disclose client data for any other purpose.
+            We process client data only as instructed — specifically for sending reminders, rendering email templates, delivering email communications, storing and managing financial documents and tax records uploaded via the accountant portal or received as email attachments, and providing accountants with access to those documents on behalf of their clients. We will not access, use, or disclose client data for any other purpose.
+          </p>
+          <p className="text-base text-muted-foreground leading-relaxed mb-4">
+            Where accountants share a portal link with their clients to facilitate document uploads, those clients interact directly with the Prompt platform as data subjects. In this context, accountants (as data controllers) are responsible for informing their clients that their personal data and financial documents will be processed by Prompt as a data processor. The upload portal does not require client account registration; clients access the portal via a time-limited token link provided by their accountant.
           </p>
 
           {/* 5. Lawful Basis */}
@@ -147,7 +151,7 @@ export default function PrivacyPage() {
                 <tr className="border-b border-border">
                   <td className="py-3 pr-4">Supabase Inc.</td>
                   <td className="py-3 pr-4">USA</td>
-                  <td className="py-3">Database hosting, authentication, row-level security</td>
+                  <td className="py-3">Database hosting, authentication, row-level security, and encrypted file storage for uploaded financial documents and tax records</td>
                 </tr>
                 <tr className="border-b border-border">
                   <td className="py-3 pr-4">MessageBird B.V. / Postmark</td>
@@ -187,6 +191,7 @@ export default function PrivacyPage() {
             <li>Email logs are retained for 12 months for compliance and audit purposes</li>
             <li>Stripe retains payment and billing data per their own retention policy, independent of our deletion</li>
             <li>Backup data may be retained for up to 7 days beyond deletion requests (database backup rotation)</li>
+            <li>Financial documents and tax records uploaded to the platform are subject to statutory retention requirements. Under HMRC record-keeping obligations (TMA 1970 s12B for individuals; HMRC CH14600 for companies) and UK GDPR Article 17(3)(b), financial documents must be retained for a minimum of 5 years from the 31 January filing deadline (individual filings) or 6 years from the tax period end date (company filings). These documents will not be deleted within the applicable statutory retention period, even on account cancellation.</li>
           </ul>
 
           {/* 10. Data Security */}

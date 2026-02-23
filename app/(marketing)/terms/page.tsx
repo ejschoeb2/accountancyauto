@@ -103,7 +103,7 @@ export default function TermsPage() {
             <li>Have a lawful basis under UK GDPR to collect and store client personal data</li>
             <li>Ensure your clients are informed that their data may be used to send automated reminder emails</li>
             <li>Maintain appropriate data processing agreements with your clients where required</li>
-            <li>Not enter special category data (health, financial beyond what is necessary, etc.) into the platform</li>
+            <li>Not enter special category data (such as health data, biometric data, or criminal record data) into the platform; financial documents that are necessary for the purpose of tax return preparation and filing (including P60s, SA302s, bank statements, dividend vouchers, and similar HMRC or Companies House records) are permitted as they fall within the ordinary scope of accountancy services</li>
           </ul>
           <p className="text-base text-muted-foreground leading-relaxed mb-4">
             We will not access, use, share, or disclose client data except as strictly necessary to provide the service. Our full data processing practices are set out in our{" "}
