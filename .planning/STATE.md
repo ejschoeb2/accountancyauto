@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 Phase: 17 of 17 (Marketing Landing Page)
 Plan: 3 of 3 (complete)
 Status: Phase 17 complete — all 3 plans executed; marketing landing page live at root URL
-Last activity: 2026-02-23 — Phase 17 plan 03 complete; human-verified marketing page with all sections, particle physics, and responsive mobile layout
+Last activity: 2026-02-23 - Completed quick task 6: Build privacy policy and terms of service pages for marketing site
 
 Progress: [███] 3/3 Phase 17 plans complete
 
