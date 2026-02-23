@@ -26,11 +26,19 @@ import { LoadingScreen } from '@/components/loading-screen';
 import { FilingManagement } from './components/filing-management';
 import { ClientEmailHistoryTable } from './components/client-email-log-table';
 import { SendEmailModal } from '../components/send-email-modal';
+import { DocumentCard } from './components/document-card';
 import { toast } from 'sonner';
 import type { Client } from '@/app/actions/clients';
 
 type ClientType = 'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP';
 type VATScheme = 'Standard' | 'Flat Rate' | 'Cash Accounting';
+
+const FILING_TYPE_LABELS: Record<string, string> = {
+  ct600_filing: 'CT600',
+  self_assessment: 'Self Assessment',
+  vat_return: 'VAT Return',
+  companies_house: 'Companies House',
+};
 
 export default function ClientPage() {
   const params = useParams();
@@ -333,6 +341,32 @@ export default function ClientPage() {
 
       {/* Filing Management */}
       <FilingManagement clientId={id} onUpdate={triggerRefresh} />
+
+      {/* Document Cards — one per filing type */}
+      <Card className="gap-1.5">
+        <div className="px-8">
+          <div className="mb-6">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Documents</h2>
+              <p className="text-sm text-muted-foreground">
+                Documents submitted by the client, organised by filing type.
+              </p>
+            </div>
+          </div>
+        </div>
+        <CardContent>
+          <div className="space-y-3">
+            {(['ct600_filing', 'self_assessment', 'vat_return', 'companies_house'] as const).map((filingTypeId) => (
+              <DocumentCard
+                key={filingTypeId}
+                clientId={id}
+                filingTypeId={filingTypeId}
+                filingTypeName={FILING_TYPE_LABELS[filingTypeId] ?? filingTypeId}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Email Log */}
       <Card className="gap-1.5">
