@@ -260,12 +260,12 @@ Plans:
 
 **Requirements:** MKT-PARTICLES, MKT-SECTIONS, MKT-PAGE, MKT-ROUTING
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 17-01-PLAN.md — Particle physics foundation (framer-motion, useIsMobile, hero-particles, footer-particles)
-- [ ] 17-02-PLAN.md — Page sections (nav, hero, features, pricing, footer)
-- [ ] 17-03-PLAN.md — Page assembly, routing, and visual verification
+- [x] 17-01-PLAN.md — Particle physics foundation (framer-motion, useIsMobile, hero-particles, footer-particles)
+- [x] 17-02-PLAN.md — Page sections (nav, hero, features, pricing, footer)
+- [x] 17-03-PLAN.md — Page assembly, routing, and visual verification
 
 ---
 

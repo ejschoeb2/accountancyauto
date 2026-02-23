@@ -2,19 +2,30 @@
 phase: 17-marketing-landing-page
 plan: "03"
 subsystem: marketing
-tags: [landing-page, routing, middleware, assembly]
+tags: [landing-page, routing, middleware, assembly, next-js]
+
 dependency_graph:
-  requires: [MarketingNav, HeroSection, FeaturesSection, PricingSection, FooterSection]
-  provides: [marketing-landing-page-at-root]
+  requires:
+    - phase: 17-02
+      provides: MarketingNav, HeroSection, FeaturesSection, PricingSection, FooterSection components
+    - phase: 17-01
+      provides: HeroParticles, FooterParticles, useIsMobile hook
+  provides:
+    - marketing landing page at root URL (/)
+    - (marketing) route group with minimal layout
+    - middleware root-path bypass for public access
   affects:
-    - app/(marketing)/layout.tsx
-    - app/(marketing)/page.tsx
-    - app/page.tsx
-    - lib/supabase/middleware.ts
-tech_stack:
+    - middleware (all requests through lib/supabase/middleware.ts)
+    - onboarding flow (all CTAs point to /onboarding)
+
+tech-stack:
   added: []
-  patterns: [route-group-layout, middleware-pathname-bypass, server-component-composition]
-key_files:
+  patterns:
+    - Route group layout isolation — (marketing) group gets bare layout with no auth/sidebar
+    - Server component composition — page.tsx composes client section components without "use client"
+    - Middleware pathname bypass — exact path check before no-slug logic for public routes
+
+key-files:
   created:
     - app/(marketing)/layout.tsx
     - app/(marketing)/page.tsx
@@ -22,73 +33,81 @@ key_files:
     - lib/supabase/middleware.ts
   deleted:
     - app/page.tsx
-decisions:
+
+key-decisions:
   - "app/page.tsx deleted entirely — app/(marketing)/page.tsx is sole handler for '/'; no re-export needed"
   - "Middleware root bypass is universal (auth-state-agnostic) — authenticated users at '/' see marketing page; dashboard is at '/dashboard?org=slug'"
   - "scroll-smooth added to main element className — CSS-level smooth scroll for anchor nav links"
-metrics:
-  duration: "~5 minutes"
-  completed: "2026-02-23"
-  tasks_completed: 1
-  tasks_total: 2
-  files_created: 2
-  files_modified: 1
-  files_deleted: 1
-status: awaiting-human-verify
+
+patterns-established:
+  - "Marketing route group: (marketing)/ with bare layout — inherits root html/body/fonts from app/layout.tsx, adds only SEO metadata"
+  - "Public path bypass in middleware: insert pathname === '/' check at top of !slug block before any auth logic"
+
+requirements-completed: [MKT-PAGE, MKT-ROUTING]
+
+duration: "~10 minutes total (5 min build + visual checkpoint)"
+completed: "2026-02-23"
 ---
 
 # Phase 17 Plan 03: Marketing Page Assembly Summary
 
-Assembled the marketing landing page from section components into the (marketing) route group, replaced the old auth-redirect app/page.tsx, and updated middleware to serve the root URL as a public marketing page without authentication.
+**Full marketing landing page assembled at root URL: (marketing) route group with isolated layout, server component composing 5 sections, middleware updated to allow '/' through without auth redirect, and human-verified visual quality**
 
-## Tasks Completed
+## Performance
 
-| Task | Name | Commit | Files |
-|------|------|--------|-------|
-| 1 | Create marketing route group layout and page, replace app/page.tsx, update middleware | ad257d1 | app/(marketing)/layout.tsx (created), app/(marketing)/page.tsx (created), app/page.tsx (deleted), lib/supabase/middleware.ts (modified) |
+- **Duration:** ~10 minutes total (5 min build + visual checkpoint)
+- **Started:** 2026-02-23
+- **Completed:** 2026-02-23
+- **Tasks:** 2 of 2
+- **Files modified:** 4 (2 created, 1 modified, 1 deleted)
 
-## Tasks Pending
+## Accomplishments
+- Created `app/(marketing)/layout.tsx` — bare route group layout with SEO metadata, no auth providers, no sidebar, no Toaster
+- Created `app/(marketing)/page.tsx` — server component composing all 5 section components in order (Nav, Hero, Features, Pricing, Footer) with `scroll-smooth` for anchor navigation
+- Deleted `app/page.tsx` — removed the old auth-redirect page; the (marketing) route group now exclusively owns the `/` route
+- Updated `lib/supabase/middleware.ts` Step 5 to allow exact path `/` through without redirect, enabling the marketing page to render in development and production without authentication
+- Human visual verification approved — all sections render correctly, particle physics animate, CTAs navigate to /onboarding, mobile layout is responsive
 
-| Task | Name | Status |
-|------|------|--------|
-| 2 | Visual verification of marketing landing page | Awaiting human-verify checkpoint |
+## Task Commits
 
-## What Was Built
+Each task was committed atomically:
 
-### app/(marketing)/layout.tsx
-Minimal route group layout — no auth providers, no sidebar, no Toaster. Wraps children in a React fragment. Exports custom metadata with SEO title and description targeting UK accountants.
+1. **Task 1: Create marketing route group layout and page, replace app/page.tsx, update middleware** - `ad257d1` (feat)
+2. **Task 2: Visual verification of marketing landing page** - Human-approved checkpoint (no code commit)
 
-### app/(marketing)/page.tsx
-Server component composing all 5 marketing sections in order:
-1. `<MarketingNav />` — sticky glassmorphism nav with logo, anchor links, Login, Sign Up CTA
-2. `<HeroSection />` — "The Chase Is Over" hero with particle physics
-3. `<FeaturesSection />` — 3 feature cards with `id="features"` anchor
-4. `<PricingSection />` — 3 pricing tier cards with `id="pricing"` anchor
-5. `<FooterSection />` — dark footer with IntersectionObserver-triggered particle explosion
+**Plan metadata:** TBD (docs commit)
 
-### lib/supabase/middleware.ts (Step 5 modification)
-Added root path bypass at the top of the `if (!slug)` block:
-```typescript
-if (pathname === "/") {
-  return supabaseResponse;
-}
-```
-This allows `localhost:3000/` to render the marketing page in development without redirecting to `/login`. In production, the same check allows the root of any marketing deployment through. All other no-slug paths continue to existing logic (authenticated → org redirect, unauthenticated → /login in dev, phasetwo.uk in prod).
+## Files Created/Modified
+- `app/(marketing)/layout.tsx` — Minimal route group layout with Prompt SEO metadata; no auth providers, sidebar, or Toaster; inherits html/body/fonts from root layout
+- `app/(marketing)/page.tsx` — Server component composing MarketingNav, HeroSection, FeaturesSection, PricingSection, FooterSection; scroll-smooth on main wrapper
+- `lib/supabase/middleware.ts` — Added `if (pathname === "/") { return supabaseResponse; }` at top of Step 5 no-slug block
+- `app/page.tsx` — DELETED; old auth-redirect server component replaced by (marketing) route group
 
-### app/page.tsx (deleted)
-The old server component that checked auth and redirected to /dashboard, /login, or /onboarding. Deleted because `app/(marketing)/page.tsx` now claims the `/` route. The (marketing) route group handles auth-agnostic rendering for the public landing page.
-
-## Verification Results
-
-1. `app/page.tsx` deleted — confirmed `DELETED` via bash check
-2. `app/(marketing)/layout.tsx` exists with metadata
-3. `app/(marketing)/page.tsx` imports all 5 section components (verified against export names)
-4. `npx tsc --noEmit` — no errors in source files; only pre-existing `.next/dev/types` errors (same as plans 01 and 02)
-5. Middleware Step 5 now has `if (pathname === "/") { return supabaseResponse; }` as first check
+## Decisions Made
+- `app/page.tsx` deleted entirely rather than emptied/redirected — the (marketing) route group's `page.tsx` is the sole handler for `/` with no conflict
+- Middleware root bypass is auth-state-agnostic — authenticated users visiting `/` see the marketing page (not redirected); the dashboard lives at `/dashboard?org=slug`, so this is intentional behaviour for dev preview and production phasetwo.uk root
+- `scroll-smooth` added as className on the `<main>` element for CSS-level anchor scroll behaviour without JavaScript
 
 ## Deviations from Plan
 
 None — plan executed exactly as written.
+
+## Issues Encountered
+
+None.
+
+## User Setup Required
+
+None — no external service configuration required.
+
+## Next Phase Readiness
+
+Phase 17 is complete. All 3 plans executed:
+- Plan 01: Particle systems (HeroParticles, FooterParticles, useIsMobile)
+- Plan 02: Marketing section components (Nav, Hero, Features, Pricing, Footer)
+- Plan 03: Page assembly, routing, middleware (this plan)
+
+The marketing landing page is live at the root URL. The project is feature-complete for v3.0 scope.
 
 ## Self-Check: PASSED
 
@@ -99,3 +118,8 @@ None — plan executed exactly as written.
 | app/page.tsx | DELETED (correct) |
 | lib/supabase/middleware.ts root bypass | VERIFIED |
 | Commit ad257d1 | FOUND |
+| Human verification | APPROVED |
+
+---
+*Phase: 17-marketing-landing-page*
+*Completed: 2026-02-23*

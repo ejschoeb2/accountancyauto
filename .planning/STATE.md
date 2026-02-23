@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 17 (Marketing Landing Page) — Plan 03 of 3 in progress (Task 1 complete, awaiting human-verify checkpoint).
+**Current focus:** Phase 17 (Marketing Landing Page) — ALL PLANS COMPLETE. Project v3.0 feature-complete.
 
 ## Current Position
 
 Phase: 17 of 17 (Marketing Landing Page)
-Plan: 3 of 3 (in progress — Task 1 complete, awaiting human-verify checkpoint at Task 2)
-Status: Phase 17 plan 03 in progress — marketing page assembled at root URL, middleware updated
-Last activity: 2026-02-23 — Phase 17 plan 03 Task 1 complete; app/(marketing)/layout.tsx, app/(marketing)/page.tsx created, app/page.tsx deleted, middleware updated
+Plan: 3 of 3 (complete)
+Status: Phase 17 complete — all 3 plans executed; marketing landing page live at root URL
+Last activity: 2026-02-23 — Phase 17 plan 03 complete; human-verified marketing page with all sections, particle physics, and responsive mobile layout
 
-Progress: [██▒] 2.5/3 Phase 17 plans in progress (plan 03 Task 1 done, awaiting checkpoint)
+Progress: [███] 3/3 Phase 17 plans complete
 
 ## Performance Metrics
 
@@ -166,6 +166,9 @@ Recent decisions affecting v3.0:
 - [Phase 17-marketing-landing-page]: Bottom boundary bounce added to HeroParticles (not in reference) — prevents particles escaping the 150vh container
 - [Phase 17-marketing-landing-page]: PricingSection hardcodes tier values — no lib/stripe/plans.ts import to avoid Stripe env var coupling
 - [Phase 17-marketing-landing-page]: Footer CTA uses inverted colour scheme (white bg + violet text) for contrast on dark background
+- [Phase 17-03]: app/page.tsx deleted entirely — (marketing)/page.tsx is sole handler for '/'; no re-export needed
+- [Phase 17-03]: Middleware root bypass is auth-state-agnostic — authenticated users at '/' see marketing page; dashboard is at '/dashboard?org=slug'
+- [Phase 17-03]: scroll-smooth added to main element className — CSS-level smooth scroll for anchor nav links
 
 ### Roadmap Evolution
 
@@ -243,9 +246,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 17 plan 03 Task 1 complete — marketing page assembled, awaiting human-verify checkpoint for visual review
+Stopped at: Phase 17 plan 03 complete — all 3 plans of Phase 17 done; project v3.0 feature-complete
 Resume file: None
-Next step: Phase 17 plan 03 Task 2 (human verifies the marketing page visually at localhost:3000/)
+Next step: None — all planned phases complete
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
