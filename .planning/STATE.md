@@ -166,6 +166,7 @@ Recent decisions affecting v3.0:
 ### Roadmap Evolution
 
 - Phase 16 added: Member Setup Wizard — post-invite setup flow with CSV client import and configuration
+- Phase 17 added: Marketing Landing Page — public-facing marketing site with hero, features, pricing, and footer sections
 
 ### Known Risks
 
