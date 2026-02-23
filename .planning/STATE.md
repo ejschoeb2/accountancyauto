@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 16 of 16 (Member Setup Wizard)
-Plan: 2 of 4 (executing)
-Status: Phase 16 plan 02 complete
-Last activity: 2026-02-22 — Phase 16 plan 02 complete (CsvImportStep full-page component)
+Plan: 3 of 4 (executing)
+Status: Phase 16 plan 03 complete
+Last activity: 2026-02-23 — Phase 16 plan 03 complete (wizard gating layout gates and ConfigStep UI)
 
-Progress: [██░░░] 2/4 Phase 16 plans complete
+Progress: [███░░] 3/4 Phase 16 plans complete
 
 ## Performance Metrics
 
@@ -155,6 +155,10 @@ Recent decisions affecting v3.0:
 - [Phase 16-member-setup-wizard]: [D-16-02-01] CsvImportStep created as extraction (not shared component) — original dialog kept 100% unchanged because it serves different context
 - [Phase 16-member-setup-wizard]: [D-16-02-02] Skip for now on upload state only; mapping/edit-data use Back navigation
 - [Phase 16-member-setup-wizard]: [D-16-02-03] Results state button reads 'Next: Configure' — contextual wizard label
+- [Phase 16-member-setup-wizard]: [D-16-03-01] Setup layout silently catches getMemberSetupComplete errors — no org context yet for fresh invitees; wizard must proceed without error
+- [Phase 16-member-setup-wizard]: [D-16-03-02] Dashboard wizard gate uses dynamic import inside try block — avoids top-level import cost on all layout renders; cached after first call
+- [Phase 16-member-setup-wizard]: [D-16-03-03] ConfigStep uses ToggleGroup (not Select) for inbound mode — binary choice benefits from visual toggle in wizard context
+- [Phase 16-member-setup-wizard]: [D-16-03-04] ConfigStep Save & Continue always visible (not isDirty-conditional) — explicit user action required to advance wizard even with defaults
 
 ### Roadmap Evolution
 
@@ -190,6 +194,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 15-per-accountant-config P05 | 5 | 2 tasks | 2 files |
 | Phase 16-member-setup-wizard P01 | 2 | 3 tasks | 3 files |
 | Phase 16-member-setup-wizard P02 | 3 | 1 tasks | 1 files |
+| Phase 16-member-setup-wizard P03 | 6 | 3 tasks | 3 files |
 
 ### Tech Debt
 
@@ -227,10 +232,10 @@ All v1.0 and v1.1 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-22 UTC
-Stopped at: Completed 16-02-PLAN.md (CsvImportStep full-page wizard component)
+Last session: 2026-02-23 UTC
+Stopped at: Completed 16-03-PLAN.md (wizard gating layout gates and ConfigStep UI)
 Resume file: None
-Next step: Phase 16 plan 03 (wizard page and layout)
+Next step: Phase 16 plan 04 (wizard page.tsx — orchestrates steps, calls markMemberSetupComplete)
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*

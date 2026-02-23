@@ -244,7 +244,7 @@ Plans:
 
 **Requirements:** —
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 16-01-PLAN.md — Server actions (markMemberSetupComplete, getMemberSetupComplete) + middleware /setup exemption + invite accept redirect to wizard
@@ -278,4 +278,4 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
 | 13. Onboarding Flow & Team Management | 4/4 | Complete    | 2026-02-21 | - |
 | 14. Super-Admin Dashboard | 2/2 | Complete    | 2026-02-21 | - |
 | 15. Per-Accountant Configuration | 5/5 | Complete    | 2026-02-22 | - |
-| 16. Member Setup Wizard | 2/4 | In Progress|  | — |
+| 16. Member Setup Wizard | 3/4 | In Progress|  | — |
