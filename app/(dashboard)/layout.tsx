@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { isOrgReadOnly } from "@/lib/billing/read-only-mode";
 
+
 export default async function DashboardLayout({
   children,
 }: {
@@ -31,6 +32,16 @@ export default async function DashboardLayout({
     const { orgId, orgRole: role } = await getOrgContext();
     orgRole = role;
     readOnly = await isOrgReadOnly(orgId);
+
+    // Gate: members must complete the wizard before accessing the dashboard
+    if (role === "member") {
+      const { getMemberSetupComplete } = await import("@/app/actions/settings");
+      const setupComplete = await getMemberSetupComplete();
+      if (!setupComplete) {
+        redirect("/setup/wizard");
+      }
+    }
+
     const { data: org } = await supabase
       .from('organisations')
       .select('name')
