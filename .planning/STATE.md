@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — Phase 18 ready to plan
+**Current focus:** v4.0 Document Collection milestone — Phase 18 in progress (Plan 02 complete)
 
 ## Current Position
 
 Phase: 18 — Document Collection Foundation
-Plan: — (not started; roadmap complete, ready for /gsd:plan-phase 18)
-Status: Roadmap created; Phase 18 is next
-Last activity: 2026-02-23 — v4.0 roadmap created (Phases 18-19, 18 requirements mapped)
+Plan: 02 complete (storage utilities + calculateRetainUntil TDD)
+Status: In progress — Plan 18-02 complete
+Last activity: 2026-02-23 — Plan 18-02 executed (storage utilities, retention calculator, ENV_VARIABLES.md)
 
-Progress: [not started] 0/TBD Phase 18 plans complete
+Progress: [##--------] 2/TBD Phase 18 plans complete
 
 ## Performance Metrics
 
@@ -191,6 +191,9 @@ Recent decisions affecting v3.0:
 - Bucket creation is a manual step (Supabase Dashboard or management API) — cannot be done via SQL migration
 - DSAR covers all personal data categories: `client_documents`, `inbound_emails`, `email_log`, `clients` profile, `audit_log`
 - Postmark webhook extension is non-blocking: email stored in `inbound_emails` first; attachment extraction is Step 6; Storage failure does not prevent 200 response
+- [Phase 18]: [D-18-02-01] vitest used instead of jest — project test runner is vitest; test file imports from vitest not jest
+- [Phase 18]: [D-18-02-02] BUCKET_NAME module-level const reads SUPABASE_STORAGE_BUCKET_DOCUMENTS env var with 'prompt-documents' fallback
+- [Phase 18]: [D-18-02-03] createSignedUploadUrl NOT used in storage.ts — documented in comments; only createSignedUrl (downloads) is safe with admin client
 
 ### Roadmap Evolution
 
@@ -219,6 +222,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | AML/KYC documents: same `client-documents` bucket or exclude from standard retention cron via `retention_rule` column? | Phase 18 plan |
 | DSAR ZIP size limit mitigation: stream to temp Storage path when client has >50 documents? Decide before Phase 19-03 DSAR plan. | Phase 19-03 plan |
 | `SUPABASE_STORAGE_BUCKET_DOCUMENTS` env var: add to ENV_VARIABLES.md before Phase 18 implementation | Phase 18 plan |
+| Phase 18 P02 | 12 | 2 tasks | 4 files |
 
 ### Tech Debt
 
@@ -260,9 +264,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: v4.0 roadmap created — Phases 18 and 19 defined, all 18 requirements mapped
-Resume file: .planning/ROADMAP.md (Phase 18 detail section)
-Next step: /gsd:plan-phase 18
+Stopped at: Completed 18-02-PLAN.md (storage utilities + calculateRetainUntil TDD)
+Resume file: .planning/phases/18-document-collection-foundation/18-02-SUMMARY.md
+Next step: Execute plan 18-03 (next plan in Phase 18)
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
