@@ -5,6 +5,7 @@ import { SettingsLink } from "@/components/settings-link";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { isOrgReadOnly } from "@/lib/billing/read-only-mode";
+import { DocumentNotificationMount } from "@/app/(dashboard)/components/document-notification-mount";
 
 
 export default async function DashboardLayout({
@@ -54,6 +55,9 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Realtime document notifications — client-side side-effect component, renders nothing */}
+      <DocumentNotificationMount />
+
       {/* Header / Navigation */}
       <header className="bg-background">
         <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">

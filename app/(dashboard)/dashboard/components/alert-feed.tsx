@@ -1,101 +1,102 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { Bell, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { Bell, Upload, Mail } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
-interface Alert {
+interface DocumentActivity {
   id: string;
-  type: 'status_change' | 'new_overdue' | 'improvement';
-  message: string;
-  client: string;
-  timestamp: Date;
+  client_id: string;
+  original_filename: string;
+  source: 'portal_upload' | 'inbound_email' | 'manual';
+  created_at: string;
+  document_types: { label: string } | null;
+  clients: { company_name: string | null; display_name: string | null } | null;
 }
 
 export function AlertFeed() {
-  // Sample alerts - in production, these would come from the database
-  const alerts: Alert[] = [
-    {
-      id: '1',
-      type: 'improvement',
-      message: 'moved from Chasing to Up to Date',
-      client: 'Smith & Associates',
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    },
-    {
-      id: '2',
-      type: 'new_overdue',
-      message: 'moved to Overdue',
-      client: 'Johnson Consulting',
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-    },
-    {
-      id: '3',
-      type: 'status_change',
-      message: 'moved from Up to Date to Chasing',
-      client: 'Williams Tax Group',
-      timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-    },
-    {
-      id: '4',
-      type: 'improvement',
-      message: 'moved from Chasing to Up to Date',
-      client: 'Brown Financial',
-      timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-    },
-  ];
+  const [activities, setActivities] = useState<DocumentActivity[]>([]);
 
-  const getIcon = (type: Alert['type']) => {
-    switch (type) {
-      case 'improvement':
-        return <CheckCircle className="size-4 text-emerald-500" />;
-      case 'new_overdue':
-        return <AlertCircle className="size-4 text-red-500" />;
-      case 'status_change':
-        return <TrendingUp className="size-4 text-amber-500" />;
-    }
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from('client_documents')
+      .select(
+        'id, client_id, original_filename, source, created_at, document_types(label), clients(company_name, display_name)'
+      )
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }) => setActivities((data as unknown as DocumentActivity[]) ?? []));
+  }, []);
+
+  const getIcon = (source: DocumentActivity['source']) => {
+    if (source === 'portal_upload') return <Upload className="size-4 text-violet-500" />;
+    if (source === 'inbound_email') return <Mail className="size-4 text-blue-500" />;
+    return <Bell className="size-4 text-emerald-500" />;
   };
 
-  const formatTime = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
+  const formatTime = (iso: string) => {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    const hours = Math.floor(diffMs / 3600000);
+    const days = Math.floor(diffMs / 86400000);
+    if (mins < 60) return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
   };
+
+  const getClientName = (a: DocumentActivity) =>
+    a.clients?.display_name || a.clients?.company_name || 'Unknown client';
+
+  if (activities.length === 0) {
+    return (
+      <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
+        <CardContent className="px-5 py-0">
+          <div className="flex items-start justify-between mb-6">
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Recent Documents
+            </p>
+            <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Bell className="size-6 text-blue-500" />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">No document activity yet.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
       <CardContent className="px-5 py-0">
         <div className="flex items-start justify-between mb-6">
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Recent Alerts
+            Recent Documents
           </p>
           <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-blue-500/20">
             <Bell className="size-6 text-blue-500" />
           </div>
         </div>
-
         <div className="space-y-2">
-          {alerts.map((alert) => (
-            <div
-              key={alert.id}
+          {activities.map((a) => (
+            <Link
+              key={a.id}
+              href={`/clients/${a.client_id}`}
               className="flex items-start gap-3 py-2 px-2 rounded-md hover:bg-muted/50 transition-colors"
             >
-              <div className="mt-0.5">{getIcon(alert.type)}</div>
+              <div className="mt-0.5">{getIcon(a.source)}</div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium leading-tight">
-                  <span className="text-foreground">{alert.client}</span>{' '}
-                  <span className="text-muted-foreground">{alert.message}</span>
+                  <span className="text-foreground">{getClientName(a)}</span>{' '}
+                  <span className="text-muted-foreground">
+                    uploaded {a.document_types?.label ?? a.original_filename}
+                  </span>
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatTime(alert.timestamp)}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">{formatTime(a.created_at)}</p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </CardContent>

@@ -4,7 +4,7 @@ import { getOrgSlug, resolveOrgFromSlug } from "@/lib/middleware/subdomain";
 import { enforceSubscription } from "@/lib/middleware/access-gating";
 
 // Routes that don't require org context or authentication
-const PUBLIC_ROUTES = ["/login", "/auth/callback", "/auth/signout", "/pricing", "/onboarding", "/invite/accept"];
+const PUBLIC_ROUTES = ["/login", "/auth/callback", "/auth/signout", "/pricing", "/onboarding", "/invite/accept", "/portal"];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
