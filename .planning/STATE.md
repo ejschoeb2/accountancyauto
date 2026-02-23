@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 (Collection Mechanisms) is next
+**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 Plan 01 complete; Phase 19 Plan 02 next
 
 ## Current Position
 
 Phase: 19 — Collection Mechanisms
-Plan: 01 (not yet started — Phase 18 complete, Phase 19 queued)
-Status: Phase 18 complete — Phase 19 not yet started
-Last activity: 2026-02-23 — Plan 18-04 completed (storage bucket RLS + full Phase 18 integration verified by user; all 18 DOCS requirements satisfied)
+Plan: 02 (Plan 01 complete — schema migration, classifyDocument utility, and Postmark attachment extraction done)
+Status: Phase 19 in progress — 1/4 plans complete
+Last activity: 2026-02-23 — Plan 19-01 completed (Phase 19 schema migration + classifyDocument + processAttachments pipeline)
 
-Progress: [####------] 4/4 Phase 18 plans complete — Phase 18 done
+Progress: [##########] Phase 18 done | [##--------] Phase 19: 1/4 plans complete
 
 ## Performance Metrics
 
@@ -203,6 +203,10 @@ Recent decisions affecting v3.0:
 - [Phase 18]: [D-18-04-02] 5 separate storage.objects policies (not one FOR ALL) — consistent with project pattern D-10-02-03 for per-operation clarity
 - [Phase 18]: [D-18-04-03] service_role ALL policy specifies both USING and WITH CHECK — required for complete DML coverage
 - [Phase 18]: [D-18-04-04] Full Phase 18 integration verification passed — 5 checks: tables, seed data, storage RLS, privacy/terms pages, npm run build
+- [Phase 19-01]: [D-19-01-01] inbound_email_id excluded from client_documents INSERT — column not present in Phase 18 schema; plan noted this as expected conditional omission
+- [Phase 19-01]: [D-19-01-02] BANK_STATEMENT keyword pattern restricted to 'bank statement' phrase — prevents false positives on unrelated documents containing the word 'statement'
+- [Phase 19-01]: [D-19-01-03] KEYWORD_MAP uses actual seed codes (CT600_ACCOUNTS, CT600_TAX_COMPUTATION, PAYROLL_SUMMARY) not plan alias names (COMPANY_ACCOUNTS, CT600, PAYSLIP)
+- [Phase 19-01]: [D-19-01-04] Migration history repair applied (20260210) — idempotent ADD COLUMN IF NOT EXISTS ran cleanly; consistent with D-15-01-04 pattern
 
 ### Roadmap Evolution
 
@@ -275,9 +279,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 18 complete — Plan 18-04 all 3 tasks done; Phase 18 integration verified by user ("phase 18 verified")
-Resume file: .planning/phases/18-document-collection-foundation/18-04-SUMMARY.md
-Next step: Begin Phase 19 (Collection Mechanisms) — Plan 19-01 (passive collection: inbound email attachment extraction + classification)
+Stopped at: Phase 19 Plan 01 complete — schema migration applied, classifyDocument utility created, processAttachments pipeline added to Postmark webhook
+Resume file: .planning/phases/19-collection-mechanisms/19-01-SUMMARY.md
+Next step: Phase 19 Plan 02 (active collection — upload portal)
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*

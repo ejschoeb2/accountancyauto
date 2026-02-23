@@ -18,14 +18,14 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 
 ### Compliance & Policy (COMP)
 
-- [ ] **COMP-01**: Privacy policy at `/privacy` updated inline with all 7 identified gaps: documents/files as a new data category in Section 3; 6-year statutory carve-out in Section 9 retention (UK GDPR Art. 17(3)(b) + HMRC record-keeping obligations); broadened processing scope in Section 4 to include document storage and client portal; firm's clients added as recognised data subjects interacting with the portal; Supabase sub-processor entry updated to include file storage; Terms Section 6 qualified to permit financial documents (P60, SA302, bank statements, dividend vouchers) as necessary for the service
+- [x] **COMP-01**: Privacy policy at `/privacy` updated inline with all 7 identified gaps: documents/files as a new data category in Section 3; 6-year statutory carve-out in Section 9 retention (UK GDPR Art. 17(3)(b) + HMRC record-keeping obligations); broadened processing scope in Section 4 to include document storage and client portal; firm's clients added as recognised data subjects interacting with the portal; Supabase sub-processor entry updated to include file storage; Terms Section 6 qualified to permit financial documents (P60, SA302, bank statements, dividend vouchers) as necessary for the service
 - [ ] **COMP-02**: Retention enforcement cron (Supabase Edge Function, weekly) sets `retention_flagged = true` on `client_documents` rows where `tax_period_end_date` + `retention_years` < now, honours `retention_hold` flag (skips flagging during active HMRC enquiries), never auto-deletes, and notifies org admin by email when documents are flagged
 - [ ] **COMP-03**: DSAR export generates a ZIP archive containing all `client_documents` files for a given client plus a JSON manifest (document metadata, access log entries), downloadable from the client detail page
 
 ### Passive Collection (PASS)
 
-- [ ] **PASS-01**: Postmark inbound webhook extracts attachments from client emails and uploads them to Supabase Storage using the org-scoped path convention, creating a `client_documents` row with source = `inbound_email`; attachment extraction runs after the `inbound_emails` row is stored so webhook always returns 200 regardless of Storage outcome
-- [ ] **PASS-02**: Uploaded documents are classified against the `document_types` catalog based on filename and MIME type; `classification_confidence` is recorded; LOW and UNCLASSIFIED items are flagged for accountant review and do not auto-mark checklist items as received
+- [x] **PASS-01**: Postmark inbound webhook extracts attachments from client emails and uploads them to Supabase Storage using the org-scoped path convention, creating a `client_documents` row with source = `inbound_email`; attachment extraction runs after the `inbound_emails` row is stored so webhook always returns 200 regardless of Storage outcome
+- [x] **PASS-02**: Uploaded documents are classified against the `document_types` catalog based on filename and MIME type; `classification_confidence` is recorded; LOW and UNCLASSIFIED items are flagged for accountant review and do not auto-mark checklist items as received
 
 ### Active Collection (ACTV)
 
@@ -74,11 +74,11 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 | DOCS-04 | Phase 18 | Complete |
 | DOCS-05 | Phase 18 | Complete |
 | DOCS-06 | Phase 18 | Complete |
-| COMP-01 | Phase 18 | Pending |
+| COMP-01 | Phase 18 | Complete |
 | COMP-02 | Phase 19 | Pending |
 | COMP-03 | Phase 19 | Pending |
-| PASS-01 | Phase 19 | Pending |
-| PASS-02 | Phase 19 | Pending |
+| PASS-01 | Phase 19 | Complete |
+| PASS-02 | Phase 19 | Complete |
 | ACTV-01 | Phase 19 | Pending |
 | ACTV-02 | Phase 19 | Pending |
 | ACTV-03 | Phase 19 | Pending |
