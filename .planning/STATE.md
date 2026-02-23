@@ -227,6 +227,7 @@ All v1.0 and v1.1 risks resolved.
 | 003 | Auth and multi-practice deployment automation | 2026-02-12 | fd582b9 | [003-auth-and-multi-practice-setup](./quick/003-auth-and-multi-practice-setup/) |
 | 004 | Streamlined 3-step onboarding wizard | 2026-02-12 | b44ad4d | [004-streamlined-onboarding-wizard](./quick/004-streamlined-onboarding-wizard/) |
 | 005 | Accountant-scoped client isolation and seat limit removal | 2026-02-22 | dbd7884 | [5-accountant-scoped-client-isolation-and-r](./quick/5-accountant-scoped-client-isolation-and-r/) |
+| 006 | Privacy policy and terms of service pages | 2026-02-23 | 05169c7 | [6-build-privacy-policy-and-terms-of-servic](./quick/6-build-privacy-policy-and-terms-of-servic/) |
 
 ### Deferred Features
 
@@ -246,7 +247,7 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 17 plan 03 complete — all 3 plans of Phase 17 done; project v3.0 feature-complete
+Stopped at: Quick task 6 complete — privacy policy and terms of service pages with footer links
 Resume file: None
 Next step: None — all planned phases complete
 
