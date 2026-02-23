@@ -215,6 +215,9 @@ Recent decisions affecting v3.0:
 - [Phase 19]: [D-19-02-03] Button variants use IconButtonWithText (violet/green) — standard Button component lacks these variants
 - [Phase 19]: [D-19-02-04] used_at update is fire-and-forget in portal server component — non-critical, does not block page render
 - [Phase 19]: [D-19-02-05] Checklist customisation upsert uses onConflict: 'client_id,filing_type_id,document_type_id' matching unique constraint from Phase 19 schema
+- [Phase 19]: [D-19-04-01] JSZip arraybuffer type for generateAsync — nodebuffer and uint8array fail TypeScript strict mode with BodyInit; arraybuffer passes
+- [Phase 19]: [D-19-04-02] PostgREST FK join returns clients as array; normalised inline in cron route (pick index 0) rather than changing FlaggedDocument interface
+- [Phase 19]: [D-19-04-03] DSAR manifest excludes storage_path — raw Storage paths must never be exposed per DOCS-05; manifest contains document metadata fields only
 
 ### Roadmap Evolution
 

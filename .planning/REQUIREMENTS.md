@@ -19,8 +19,8 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 ### Compliance & Policy (COMP)
 
 - [x] **COMP-01**: Privacy policy at `/privacy` updated inline with all 7 identified gaps: documents/files as a new data category in Section 3; 6-year statutory carve-out in Section 9 retention (UK GDPR Art. 17(3)(b) + HMRC record-keeping obligations); broadened processing scope in Section 4 to include document storage and client portal; firm's clients added as recognised data subjects interacting with the portal; Supabase sub-processor entry updated to include file storage; Terms Section 6 qualified to permit financial documents (P60, SA302, bank statements, dividend vouchers) as necessary for the service
-- [ ] **COMP-02**: Retention enforcement cron (Supabase Edge Function, weekly) sets `retention_flagged = true` on `client_documents` rows where `tax_period_end_date` + `retention_years` < now, honours `retention_hold` flag (skips flagging during active HMRC enquiries), never auto-deletes, and notifies org admin by email when documents are flagged
-- [ ] **COMP-03**: DSAR export generates a ZIP archive containing all `client_documents` files for a given client plus a JSON manifest (document metadata, access log entries), downloadable from the client detail page
+- [x] **COMP-02**: Retention enforcement cron (Supabase Edge Function, weekly) sets `retention_flagged = true` on `client_documents` rows where `tax_period_end_date` + `retention_years` < now, honours `retention_hold` flag (skips flagging during active HMRC enquiries), never auto-deletes, and notifies org admin by email when documents are flagged
+- [x] **COMP-03**: DSAR export generates a ZIP archive containing all `client_documents` files for a given client plus a JSON manifest (document metadata, access log entries), downloadable from the client detail page
 
 ### Passive Collection (PASS)
 
@@ -75,8 +75,8 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 | DOCS-05 | Phase 18 | Complete |
 | DOCS-06 | Phase 18 | Complete |
 | COMP-01 | Phase 18 | Complete |
-| COMP-02 | Phase 19 | Pending |
-| COMP-03 | Phase 19 | Pending |
+| COMP-02 | Phase 19 | Complete |
+| COMP-03 | Phase 19 | Complete |
 | PASS-01 | Phase 19 | Complete |
 | PASS-02 | Phase 19 | Complete |
 | ACTV-01 | Phase 19 | Complete |
