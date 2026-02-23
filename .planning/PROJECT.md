@@ -1,8 +1,8 @@
-# Peninsula Accounting Client Reminder System
+# Prompt Client Reminder System
 
 ## What This Is
 
-A web application for Peninsula Accounting that connects to their QuickBooks Online account, syncs the client list automatically, and sends scheduled email reminders to clients about upcoming filing obligations — year-end accounts, VAT returns, self-assessment deadlines, corporation tax, and Companies House filings. The accountant creates rich text email templates with placeholder variables, configures reminder schedules with multi-step escalation, and can send ad-hoc emails to selected clients. The system handles everything else: calculating when reminders are due, rendering emails with client data, sending them at the right time, tracking delivery, and providing a dashboard with traffic-light status indicators to monitor the whole process.
+A web application for Prompt that connects to their QuickBooks Online account, syncs the client list automatically, and sends scheduled email reminders to clients about upcoming filing obligations — year-end accounts, VAT returns, self-assessment deadlines, corporation tax, and Companies House filings. The accountant creates rich text email templates with placeholder variables, configures reminder schedules with multi-step escalation, and can send ad-hoc emails to selected clients. The system handles everything else: calculating when reminders are due, rendering emails with client data, sending them at the right time, tracking delivery, and providing a dashboard with traffic-light status indicators to monitor the whole process.
 
 ## Core Value
 
@@ -66,29 +66,45 @@ Accountants spend hours every month manually chasing clients for records and doc
 
 ### Active
 
-- [ ] Organisations table as root entity with plan tier, billing fields, and per-org Postmark credentials
-- [ ] All data tables (clients, schedules, email_templates, reminder_queue, email_log, etc.) gain org_id FK
-- [ ] RLS policies rewritten to scope all queries to authenticated user's organisation
-- [ ] Subdomain routing resolves org from subdomain in Next.js middleware
-- [ ] user_organisations table linking users to orgs with admin/member roles
-- [ ] Team invite flow: admin invites team members via email link, accept joins org
-- [ ] Stripe billing: checkout session, webhook handler, subscription status enforcement, billing management page
-- [ ] 4 pricing tiers enforced: Lite (£20, 1 user, 40 clients), Sole Trader (£39, 2 users, 100 clients), Practice (£89, 5 users, 300 clients), Firm (£159, 15 users, 750 clients)
-- [ ] Guided onboarding flow: create account → create org → firm details → choose plan → Stripe checkout → 14-day trial
-- [ ] Super-admin dashboard: view all tenants, plan/status/client count/health monitoring
+- [ ] Document types catalog and filing requirements mapping (what documents each UK filing type needs)
+- [ ] client_documents table: store document metadata linked to client + filing type + storage path
+- [ ] document_access_log table: full audit trail of who accessed which document when
+- [ ] Supabase Storage private bucket with org-scoped path convention and EU West region
+- [ ] Retention enforcement design: 6-year HMRC requirement, flagging mechanism, deletion workflow
+- [ ] DSAR export data model: ZIP + JSON manifest for all client documents on request
+- [ ] Privacy policy + Terms amendments: 7 gaps identified in ROADMAP.md Phase 2 (document data category, 6-year statutory carve-out, processing scope, client portal data subjects, Supabase storage use, Terms Section 6 qualification)
+- [ ] Passive document collection: Postmark inbound attachment extraction → Supabase Storage, classification against document_types catalog
+- [ ] Active document collection: token-based client upload portal (Prompt-branded with firm context, no login required), checklist of required documents per filing
+- [ ] Per-client checklist customisation: toggle items on/off, add ad-hoc items, persist per client-filing pair
+- [ ] Documents inline in filing type cards on dashboard: count, most recent, expand to list, signed URL download
+- [ ] Dashboard activity feed: real-time submissions across org's clients
+- [ ] Accountant notifications: in-app + email on client portal upload
+- [ ] Retention enforcement cron job (Supabase Edge Function)
+- [ ] DSAR export mechanism: ZIP archive with JSON manifest, accessible from client detail page
+
+### Validated (v3.0)
+
+- ✓ Organisations table as root entity with plan tier, billing fields, and per-org Postmark credentials — v3.0
+- ✓ All data tables gain org_id FK; RLS policies scope all queries to authenticated user's organisation — v3.0
+- ✓ Subdomain routing resolves org from subdomain in Next.js middleware — v3.0
+- ✓ user_organisations table with admin/member roles; team invite flow — v3.0
+- ✓ Stripe billing: 4 tiers (Lite/Sole Trader/Practice/Firm), checkout, webhook, billing management page — v3.0
+- ✓ Guided onboarding wizard (Account → Firm Details → Plan → Trial) — v3.0
+- ✓ Super-admin dashboard: tenant list, plan/status/usage monitoring — v3.0
+- ✓ Per-accountant config: templates, schedules, email settings scoped per user — v3.0
+- ✓ Member setup wizard: CSV import + personal configuration post-invite — v3.0
+- ✓ Marketing landing page + Privacy Policy + Terms of Service — v3.0
 
 ### Deferred
 
-- Inbound email intelligence (v3.0 inbound plan, phases 10-13) — deferred indefinitely; can revisit after multi-tenancy is stable
-- HMRC API integration (MTD VAT/ITSA) — Phase 4 of strategic roadmap, after multi-tenancy foundation
+- Inbound email intelligence — deferred indefinitely; can revisit after document collection is stable
+- HMRC API integration (MTD VAT/ITSA) — Phase 4 of strategic roadmap, after document collection
 
 ### Out of Scope
 
 - Write access to QuickBooks — read-only client data sync
 - Mobile app — web dashboard only
-- Real-time chat or client portal — email reminders only
 - SMS reminders — email only
-- Document upload from clients — just reminders, not a file exchange platform
 - Drag-and-drop email builder — rich text editor sufficient
 - HTML source code editing — non-technical user, would bypass sanitization
 - Real-time collaborative editing — email analytics (open/click tracking) — privacy concern
@@ -120,7 +136,7 @@ Accountants spend hours every month manually chasing clients for records and doc
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Single practice, not SaaS | Built for Peninsula Accounting specifically; avoids multi-tenancy complexity | Good |
+| Single practice, not SaaS | Built for Prompt specifically; avoids multi-tenancy complexity | Good |
 | Supabase backend | Postgres + Auth + Edge Functions in one platform; MCP integration available | Good |
 | Vercel Pro hosting | Native cron jobs for scheduler; Next.js optimized deployment | Good |
 | Postmark over SendGrid | Better deliverability for low-volume, high-importance transactional email | Good |
@@ -142,18 +158,21 @@ Accountants spend hours every month manually chasing clients for records and doc
 | Three urgency levels only | normal/high/urgent — 'low' removed for simplicity | Good |
 | Paste always strips formatting | Plain text only, no Ctrl+Shift+V — predictable paste behavior | Good |
 
-## Current Milestone: v3.0 Multi-Tenancy & SaaS Platform
+## Current Milestone: v4.0 Document Collection
 
-**Goal:** Transform the application from a single-firm tool into a multi-tenant SaaS platform serving multiple independent accounting practices with full data isolation, Stripe billing, and a guided onboarding experience.
+**Goal:** Build the document collection infrastructure — backend schema, Supabase Storage, compliance framework, and the passive + active collection mechanisms — enabling accountants to receive and track client documents ahead of every UK filing deadline.
 
 **Target features:**
-- Centralised database with org_id isolation and RLS policies
-- Subdomain routing (orgslug.app.domain.com) with org resolution in middleware
-- Per-org Postmark credentials stored in organisations table
-- Stripe billing (4 tiers: Lite/Sole Trader/Practice/Firm) with 14-day free trial
-- Team member invites with admin/member roles
-- Guided onboarding wizard for new firm signup
-- Super-admin dashboard for tenant management
+- Filing requirements catalog (`document_types`, `filing_document_requirements`)
+- Document metadata storage (`client_documents`, `document_access_log`)
+- Supabase Storage private bucket (EU West, org-scoped paths, signed URLs only)
+- Retention enforcement design + DSAR export model
+- Privacy policy + Terms amendments (7 identified gaps)
+- Passive collection: Postmark attachment extraction → Storage + auto-classification
+- Active collection: Prompt-branded token-link client upload portal (checklist-driven, no login)
+- Per-client checklist customisation
+- Documents inline in filing type cards; dashboard activity feed; upload notifications
+- Retention enforcement cron job + DSAR ZIP export
 
 ---
-*Last updated: 2026-02-19 after v3.0 milestone pivot to multi-tenancy (inbound email deferred)*
+*Last updated: 2026-02-23 after v4.0 milestone started (Document Collection — Phases 18-19)*

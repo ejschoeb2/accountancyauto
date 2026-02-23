@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 17 (Marketing Landing Page) — ALL PLANS COMPLETE. Project v3.0 feature-complete.
+**Current focus:** v4.0 Document Collection milestone — requirements and roadmap phase
 
 ## Current Position
 
-Phase: 17 of 17 (Marketing Landing Page)
-Plan: 3 of 3 (complete)
-Status: Phase 17 complete — all 3 plans executed; marketing landing page live at root URL
-Last activity: 2026-02-23 - Completed quick task 6: Build privacy policy and terms of service pages for marketing site
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v4.0 Document Collection milestone
+Last activity: 2026-02-23 — Milestone v4.0 started (Document Collection, Phases 18-19) for marketing site
 
 Progress: [███] 3/3 Phase 17 plans complete
 
@@ -247,9 +247,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Quick task 6 complete — privacy policy and terms of service pages with footer links
-Resume file: None
-Next step: None — all planned phases complete
+Stopped at: v4.0 milestone started — requirements and roadmap in progress
+Resume file: .planning/REQUIREMENTS.md (once written)
+Next step: /gsd:plan-phase 18
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
