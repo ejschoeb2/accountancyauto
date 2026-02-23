@@ -439,7 +439,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
       const csvContent = [headers, ...csvRows].join("\n");
 
       // Create a new File object with transformed CSV
-      const transformedFile = new File([csvContent], selectedFile?.name || "import.csv", {
+      const transformedFile = new File([csvContent], "import.csv", {
         type: "text/csv",
       });
 
