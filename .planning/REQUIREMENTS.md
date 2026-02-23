@@ -1,176 +1,97 @@
-# Requirements: Prompt v3.0 — Multi-Tenancy & SaaS Platform
+# Requirements: Prompt v4.0 — Document Collection
 
-**Defined:** 2026-02-19
-**Core Value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
+**Defined:** 2026-02-23
+**Core Value:** Accountants spend hours every month manually chasing clients for records and documents. This system automates that entirely while keeping the accountant in full control of messaging and timing.
 
----
+## v4.0 Requirements
 
-## v3.0 Requirements
+Requirements for the Document Collection milestone. Each maps to roadmap phases 18–19.
 
-### ORG — Org Data Model & Multi-Tenant Database
+### Schema & Storage (DOCS)
 
-- [ ] **ORG-01**: `organisations` table exists with: id (uuid), name, slug (unique, URL-safe), plan_tier, client_count_limit, user_count_limit, stripe_customer_id, stripe_subscription_id, subscription_status, trial_ends_at, postmark_server_token, postmark_sender_domain
-- [ ] **ORG-02**: `user_organisations` junction table links users to orgs with role (admin | member)
-- [ ] **ORG-03**: `invitations` table stores pending team invites: org_id, email, role, token (hashed), expires_at, accepted_at
-- [ ] **ORG-04**: All data tables gain `org_id` FK: clients, email_templates, schedules, schedule_steps, schedule_client_exclusions, client_email_overrides, client_schedule_overrides, client_filing_assignments, client_deadline_overrides, client_filing_status_overrides, reminder_queue, email_log, inbound_emails, app_settings, locks
-- [ ] **ORG-05**: `app_settings` unique constraint changes from `(key)` to `(org_id, key)`
-- [ ] **ORG-06**: `filing_types` and `bank_holidays_cache` remain global (no org_id — shared reference data)
-- [ ] **ORG-07**: Existing single-tenant data is migrated to a first org row with zero data loss; existing user assigned as admin of that org
-- [ ] **ORG-08**: Supabase Custom Access Token Hook writes `org_id` and `org_role` into JWT `app_metadata` at login; all RLS policies use JWT claim, not table subquery
-- [ ] **ORG-09**: RLS policies on all data tables scope reads/writes to `org_id = (auth.jwt() ->> 'org_id')::uuid`
-- [ ] **ORG-10**: Both cron jobs (reminders + send-emails) iterate over active `organisations` and apply `.eq('org_id', org.id)` to every query; lock keys are org-scoped
+- [ ] **DOCS-01**: System has a seeded `document_types` catalog of HMRC document types (P60, P45, P11D, SA302, bank statement, dividend voucher, etc.) with `retention_years`, `retention_anchor` (filing_period_end / relationship_end), expected format metadata, and classification hints
+- [ ] **DOCS-02**: System has a `filing_document_requirements` table mapping document types to filing types with mandatory/conditional flags and condition descriptions (e.g. "required if client is a director")
+- [ ] **DOCS-03**: `client_documents` table stores document metadata per org: client_id, filing_type, document_type_id, storage_path, original_filename, received_at, `tax_period_end_date`, `classification_confidence` (HIGH/MEDIUM/LOW/UNCLASSIFIED), source (inbound_email / portal_upload / manual), uploader, `retention_hold`, `retention_flagged`
+- [ ] **DOCS-04**: `document_access_log` table records every document access and download: user_id, document_id, action (view / download / delete), session context, timestamp; INSERT-only RLS for authenticated users
+- [ ] **DOCS-05**: Supabase Storage private bucket exists (`prompt-documents`) with org-scoped path convention (`orgs/{org_id}/clients/{client_id}/{filing_type}/{tax_year}/{uuid}_{ext}`) and explicit `storage.objects` RLS policies scoped to JWT `app_metadata.org_id` using path-prefix check
+- [ ] **DOCS-06**: `upload_portal_tokens` table stores SHA-256 hashed tokens (raw token never stored) scoped to org_id + client_id + filing_type with `expires_at`, `used_at`, and revocation support; minimum 256-bit entropy on generation
 
-### AUTH — Authentication, Session & Subdomain Routing
+### Compliance & Policy (COMP)
 
-- [x] **AUTH-01**: Next.js middleware extracts `orgSlug` from the `host` header and rewrites requests to org-scoped routes
-- [x] **AUTH-02**: `getCurrentOrg()` server utility resolves slug → org_id via Supabase with `React.cache()` deduplication (one DB call per request)
-- [x] **AUTH-03**: Users logging in at the wrong org's subdomain see a clear error and are not granted access to that org's data
-- [x] **AUTH-04**: Middleware enforces access gating: orgs with expired trial or cancelled subscription are redirected to `/billing` except for the billing page itself
-- [x] **AUTH-05**: Per-org Postmark credentials (`postmark_server_token`, `postmark_sender_domain`) are read from `organisations` table; `lib/email/sender.ts` accepts a `serverToken` parameter replacing the env var
+- [ ] **COMP-01**: Privacy policy at `/privacy` updated inline with all 7 identified gaps: documents/files as a new data category in Section 3; 6-year statutory carve-out in Section 9 retention (UK GDPR Art. 17(3)(b) + HMRC record-keeping obligations); broadened processing scope in Section 4 to include document storage and client portal; firm's clients added as recognised data subjects interacting with the portal; Supabase sub-processor entry updated to include file storage; Terms Section 6 qualified to permit financial documents (P60, SA302, bank statements, dividend vouchers) as necessary for the service
+- [ ] **COMP-02**: Retention enforcement cron (Supabase Edge Function, weekly) sets `retention_flagged = true` on `client_documents` rows where `tax_period_end_date` + `retention_years` < now, honours `retention_hold` flag (skips flagging during active HMRC enquiries), never auto-deletes, and notifies org admin by email when documents are flagged
+- [ ] **COMP-03**: DSAR export generates a ZIP archive containing all `client_documents` files for a given client plus a JSON manifest (document metadata, access log entries), downloadable from the client detail page
 
-### BILL — Stripe Billing
+### Passive Collection (PASS)
 
-- [ ] **BILL-01**: 4 Stripe products created in GBP: Lite (£20/mo), Sole Trader (£39/mo), Practice (£89/mo), Firm (£159/mo)
-- [ ] **BILL-02**: Stripe Hosted Checkout is initiated from plan selection during onboarding; no client-side Stripe.js required
-- [ ] **BILL-03**: Stripe webhook handler with idempotency table (`processed_webhook_events`) handles: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
-- [ ] **BILL-04**: `organisations` row is updated with `stripe_customer_id`, `stripe_subscription_id`, `subscription_status`, `plan_tier`, and limit fields on webhook events
-- [ ] **BILL-05**: Billing management page shows: current plan name, client count vs limit, user count vs limit, trial expiry (if active), and a link to Stripe Customer Portal for payment method / invoice management
-- [ ] **BILL-06**: Client count enforced: adding a client is blocked when at or over limit; a warning banner appears at 80% of limit with an upgrade prompt
-- [ ] **BILL-07**: User (seat) count enforced: inviting a team member is blocked when at or over the plan's user_count_limit
-- [ ] **BILL-08**: Lite tier has no overage — firm must upgrade to Sole Trader once 40-client limit is reached
-- [ ] **BILL-09**: Stripe Tax enabled for UK VAT (20%) on all subscriptions; plan prices are exclusive of VAT
-- [ ] **BILL-10**: 14-day free trial tracked via `trial_ends_at` in `organisations`; trial can be started without a payment method
+- [ ] **PASS-01**: Postmark inbound webhook extracts attachments from client emails and uploads them to Supabase Storage using the org-scoped path convention, creating a `client_documents` row with source = `inbound_email`; attachment extraction runs after the `inbound_emails` row is stored so webhook always returns 200 regardless of Storage outcome
+- [ ] **PASS-02**: Uploaded documents are classified against the `document_types` catalog based on filename and MIME type; `classification_confidence` is recorded; LOW and UNCLASSIFIED items are flagged for accountant review and do not auto-mark checklist items as received
 
-### ONBD — Onboarding Flow
+### Active Collection (ACTV)
 
-- [x] **ONBD-01**: Sign-up page: new user creates a Supabase Auth account (email + password); no existing account required
-- [x] **ONBD-02**: Org creation step: user enters firm name and org slug (auto-suggested, editable, unique, validated against reserved slug list); creates `organisations` and `user_organisations` (admin) rows
-- [x] **ONBD-03**: Firm details step: sender name and email (pre-fills Postmark per-org config); Postmark server token field (optional — can be configured later in Settings)
-- [x] **ONBD-04**: Plan selection step: all 4 tiers shown with feature comparison and pricing; selecting a paid plan launches Stripe Checkout; "Start free trial" option begins 14-day trial and skips Stripe Checkout
-- [x] **ONBD-05**: After completing onboarding, user is redirected to their org subdomain dashboard (`orgslug.app.domain.com/dashboard`)
-- [x] **ONBD-06**: Already-onboarded orgs cannot re-enter the onboarding flow; `setup_complete` flag in `app_settings` prevents this
+- [ ] **ACTV-01**: Accountant can generate a token-based portal link for a specific client + filing type from the client detail page; link expires after a configurable period (default 30 days); regenerating a link revokes the previous token
+- [ ] **ACTV-02**: Client upload portal at `/portal/[token]` is a Prompt-branded page showing the accountant's firm name as context ("Your accountant, Smith & Co, has requested..."); accessible via token link with no login required; validates token server-side on every request; expired tokens show a clear expiry message with contact instructions
+- [ ] **ACTV-03**: Portal shows a checklist of required documents for the specific filing drawn from `filing_document_requirements`; clients can upload files against checklist items (multiple files per item), add a short note, and see a progress indicator (X of Y items provided); files upload directly to Supabase Storage via signed upload URL (browser → Storage, never through Next.js server)
+- [ ] **ACTV-04**: Accountant can customise the default checklist per client-filing pair from the client detail page: toggle items on/off, add ad-hoc items; customisations persist across years
 
-### TEAM — Team Management & Invites
+### Dashboard Integration (DASH)
 
-- [x] **TEAM-01**: Admin can invite team members by email from the Settings page; invite email is sent via Postmark with a tokenized accept link (expires 7 days)
-- [x] **TEAM-02**: Accept invite flow: recipient clicks link → creates Supabase Auth account if new, or logs in if existing → is added to the org via `user_organisations`
-- [x] **TEAM-03**: Settings page shows current team: member name, email, role, joined date; admin can remove members and change roles
-- [x] **TEAM-04**: Admin role has full access: clients, dashboard, templates, schedules, email logs, settings, billing, team management
-- [x] **TEAM-05**: Member role has restricted access: clients and dashboard only; billing and team management tabs are hidden/blocked
-- [x] **TEAM-06**: An org must always retain at least one admin; removing the last admin is prevented with an error
+- [ ] **DASH-01**: Filing type cards on the client detail page show a document count and most recent submission date; expanding the card reveals the document list with filename, document type, confidence badge, received date, source, and a download button that generates a 300-second signed URL and logs the access in `document_access_log`; raw storage paths are never exposed
+- [ ] **DASH-02**: Dashboard activity feed shows recent document submissions across all org clients (portal uploads and inbound email attachments), with click-through navigation to the relevant client page
+- [ ] **DASH-03**: Accountant receives an in-app notification when a client uploads documents via the portal, showing client name, number of items uploaded, and items still outstanding
 
-### ADMN — Super-Admin Dashboard
+## v5.0 Requirements (Deferred)
 
-- [x] **ADMN-01**: Super-admin flag stored in Supabase Auth `app_metadata.is_super_admin`; writable only via service role (not by any user action)
-- [x] **ADMN-02**: `/admin` route requires `is_super_admin = true`; non-super-admin users are redirected to their dashboard
-- [x] **ADMN-03**: Super-admin org list shows: org name, slug, plan_tier, subscription_status, trial_ends_at, client count, user count — sortable by plan and status
-- [x] **ADMN-04**: Clicking an org shows its detail: full org settings, member list, Stripe subscription ID for manual lookup
+### Automated chasing
 
-### NOTF — System Notification Emails
+- **CHAS-01**: Automated email sequences chase clients who have not completed their upload checklist — initial request, follow-ups at configurable intervals, pause on full submission
+- **CHAS-02**: Client responsiveness profiling: accountant rates each client's typical responsiveness to seed the chasing sequence timing
 
-- [x] **NOTF-01**: Trial-ending-soon email sent to org admin 3 days before `trial_ends_at`; triggered by a daily cron check (not Stripe webhook)
-- [ ] **NOTF-02**: Payment-failed email sent to org admin when `invoice.payment_failed` webhook is received; includes link to Stripe Customer Portal to update payment method
+### Document intelligence
 
----
-
-## Future Requirements (v3.x and later roadmap phases)
-
-### Billing Enhancements
-
-- **BILL-EXT-01**: Stripe metered/usage-based overage billing (£15/50 clients beyond tier limit) — deferred; soft-cap warnings handle overages in v3.0
-- **BILL-EXT-02**: Annual billing option (2 months free) — simple Stripe config; defer until monthly billing is stable
-
-### Communication
-
-- **NOTF-EXT-01**: Subscription-cancelled confirmation email with data retention notice
-- **NOTF-EXT-02**: Plan-upgrade/downgrade confirmation email
-- **NOTF-EXT-03**: New team member welcome email (sent to invited user on accept)
-
-### Admin Tooling
-
-- **ADMN-EXT-01**: Super-admin impersonation (log in as any org user) — significant RLS security implications; v3.x only
-- **ADMN-EXT-02**: Super-admin manual plan override without Stripe (for trials, discounts)
-
-### Future Strategic Phases (from ROADMAP.md)
-
-- Inbound email intelligence — deferred from original v3.0 plan; revisit after multi-tenancy is stable
-- Document storage (Supabase Storage) — ROADMAP.md Phase 3
-- HMRC API integration (MTD VAT/ITSA) — ROADMAP.md Phase 4
-- AI agent interface — ROADMAP.md Phase 5
-
----
+- **INTEL-01**: OCR/field extraction for HMRC fixed-format documents (P60, P45, SA302) — extract key fields without third-party AI; all processing on Prompt's infrastructure
+- **INTEL-02**: Auto-update checklist when records arrive by email and are confidently classified
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Stripe metered overage billing | Complexity for v3.0; soft-cap + upgrade prompt is sufficient initially |
-| SSO / OAuth login (Google, Microsoft) | Email/password sufficient for UK accounting SaaS at this scale |
-| Multi-org membership (one user in multiple orgs) | Edge case; subdomain model handles it via separate logins |
-| White-label / custom domain per org | Requires wildcard cert per org; defer until there is demand |
-| org-level analytics / reporting | No user request; not in ROADMAP.md |
-| Mobile app | Web dashboard only |
-| Real-time collaborative editing | Solo/small team; not applicable |
-| Document upload from clients | Out of scope until Phase 3 of strategic roadmap |
-| iXBRL CT600 filing | Aspirational; see ROADMAP.md Phase 6 |
-| Super-admin impersonation in v3.0 | RLS security implications require careful design; v3.x |
-
----
+| E-signatures | Separate product category — document for v6+ |
+| Client account logins for portal | Token-based (magic link) is industry standard and significantly reduces scope |
+| Virus scanning / ClamAV | Deferred; magic byte validation covers most spoofing; re-evaluate if compliance demand arises |
+| OCR / data extraction | Dext's entire product; deferred to v5.0 INTEL requirements |
+| iXBRL / CT600 filing | Multi-year undertaking; Prompt collects source documents only |
+| Permanent / public document URLs | UK GDPR violation — always signed URLs with expiry |
+| HMRC API integration (MTD/ITSA) | Practice management scope, not filing submission |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ORG-01 | Phase 10 | Complete |
-| ORG-02 | Phase 10 | Complete |
-| ORG-03 | Phase 10 | Complete |
-| ORG-04 | Phase 10 | Complete |
-| ORG-05 | Phase 10 | Complete |
-| ORG-06 | Phase 10 | Complete |
-| ORG-07 | Phase 10 | Complete |
-| ORG-08 | Phase 10 | Complete |
-| ORG-09 | Phase 10 | Complete |
-| ORG-10 | Phase 10 | Complete |
-| AUTH-01 | Phase 12 | Complete |
-| AUTH-02 | Phase 12 | Complete |
-| AUTH-03 | Phase 12 | Complete |
-| AUTH-04 | Phase 12 | Complete |
-| AUTH-05 | Phase 12 | Complete |
-| BILL-01 | Phase 11 | Complete |
-| BILL-02 | Phase 11 | Complete |
-| BILL-03 | Phase 11 | Complete |
-| BILL-04 | Phase 11 | Complete |
-| BILL-05 | Phase 11 | Complete |
-| BILL-06 | Phase 11 | Complete |
-| BILL-07 | Phase 11 | Complete |
-| BILL-08 | Phase 11 | Complete |
-| BILL-09 | Phase 11 | Complete |
-| BILL-10 | Phase 11 | Complete |
-| ONBD-01 | Phase 13 | Complete |
-| ONBD-02 | Phase 13 | Complete |
-| ONBD-03 | Phase 13 | Complete |
-| ONBD-04 | Phase 13 | Complete |
-| ONBD-05 | Phase 13 | Complete |
-| ONBD-06 | Phase 13 | Complete |
-| TEAM-01 | Phase 13 | Complete |
-| TEAM-02 | Phase 13 | Complete |
-| TEAM-03 | Phase 13 | Complete |
-| TEAM-04 | Phase 13 | Complete |
-| TEAM-05 | Phase 13 | Complete |
-| TEAM-06 | Phase 13 | Complete |
-| ADMN-01 | Phase 14 | Complete |
-| ADMN-02 | Phase 14 | Complete |
-| ADMN-03 | Phase 14 | Complete |
-| ADMN-04 | Phase 14 | Complete |
-| NOTF-01 | Phase 13 | Complete |
-| NOTF-02 | Phase 11 | Complete |
+| DOCS-01 | Phase 18 | Pending |
+| DOCS-02 | Phase 18 | Pending |
+| DOCS-03 | Phase 18 | Pending |
+| DOCS-04 | Phase 18 | Pending |
+| DOCS-05 | Phase 18 | Pending |
+| DOCS-06 | Phase 18 | Pending |
+| COMP-01 | Phase 18 | Pending |
+| COMP-02 | Phase 19 | Pending |
+| COMP-03 | Phase 19 | Pending |
+| PASS-01 | Phase 19 | Pending |
+| PASS-02 | Phase 19 | Pending |
+| ACTV-01 | Phase 19 | Pending |
+| ACTV-02 | Phase 19 | Pending |
+| ACTV-03 | Phase 19 | Pending |
+| ACTV-04 | Phase 19 | Pending |
+| DASH-01 | Phase 19 | Pending |
+| DASH-02 | Phase 19 | Pending |
+| DASH-03 | Phase 19 | Pending |
 
 **Coverage:**
-- v3.0 requirements: 43 total
-- Mapped to phases: 43
-- Unmapped: 0
+- v4.0 requirements: 18 total
+- Mapped to phases: 18
+- Unmapped: 0 ✓
 
 ---
-
-*Requirements defined: 2026-02-19*
-*Last updated: 2026-02-19 — traceability populated after roadmap creation*
+*Requirements defined: 2026-02-23*
+*Last updated: 2026-02-23 after initial v4.0 definition*
