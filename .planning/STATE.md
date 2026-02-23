@@ -11,11 +11,11 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 16 of 16 (Member Setup Wizard)
-Plan: 3 of 4 (executing)
-Status: Phase 16 plan 03 complete
-Last activity: 2026-02-23 — Phase 16 plan 03 complete (wizard gating layout gates and ConfigStep UI)
+Plan: 4 of 4 (checkpoint — awaiting human verification)
+Status: Phase 16 plan 04 auto-task complete; checkpoint human-verify pending
+Last activity: 2026-02-23 — Phase 16 plan 04 Task 1 complete (wizard page shell); awaiting human verification checkpoint
 
-Progress: [███░░] 3/4 Phase 16 plans complete
+Progress: [████░] 4/4 Phase 16 plans complete (checkpoint pending)
 
 ## Performance Metrics
 
@@ -159,6 +159,9 @@ Recent decisions affecting v3.0:
 - [Phase 16-member-setup-wizard]: [D-16-03-02] Dashboard wizard gate uses dynamic import inside try block — avoids top-level import cost on all layout renders; cached after first call
 - [Phase 16-member-setup-wizard]: [D-16-03-03] ConfigStep uses ToggleGroup (not Select) for inbound mode — binary choice benefits from visual toggle in wizard context
 - [Phase 16-member-setup-wizard]: [D-16-03-04] ConfigStep Save & Continue always visible (not isDirty-conditional) — explicit user action required to advance wizard even with defaults
+- [Phase 16-member-setup-wizard]: [D-16-04-01] Promise.all prefetch on mount for Step 2 defaults — all three settings fetched in parallel while user is on Step 1; Step 2 renders instantly without loading state in the common case
+- [Phase 16-member-setup-wizard]: [D-16-04-02] Error state on markMemberSetupComplete failure shown inline without redirect — user can retry; wizard does not advance on error
+- [Phase 16-member-setup-wizard]: [D-16-04-03] window.location.href = "/" for final redirect — forces full page load and middleware re-evaluation so member_setup_complete flag is picked up correctly
 
 ### Roadmap Evolution
 
@@ -233,9 +236,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Completed 16-03-PLAN.md (wizard gating layout gates and ConfigStep UI)
+Stopped at: Phase 16 plan 04 — Task 1 complete (wizard page shell created); Task 2 is checkpoint:human-verify (pending)
 Resume file: None
-Next step: Phase 16 plan 04 (wizard page.tsx — orchestrates steps, calls markMemberSetupComplete)
+Next step: Human verification of full wizard flow end-to-end; then Phase 16 complete
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
