@@ -13,7 +13,7 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 Phase: 18 — Document Collection Foundation
 Plan: 03 complete (Plans 01, 02, 03 all done — Plan 04 next)
 Status: In progress — Plans 18-01, 18-02, 18-03 complete
-Last activity: 2026-02-23 — Plan 18-01 executed (five DB tables DDL + RLS + HMRC seed data)
+Last activity: 2026-02-23 — Plan 18-03 completed (privacy and terms compliance amendments — COMP-01 satisfied, user approved)
 
 Progress: [###-------] 3/4 Phase 18 plans complete
 
@@ -197,6 +197,8 @@ Recent decisions affecting v3.0:
 - [Phase 18-document-collection-foundation]: document_types and filing_document_requirements are global reference tables (no org_id) — authenticated SELECT USING(true), service_role-only writes
 - [Phase 18-document-collection-foundation]: document_access_log: INSERT + SELECT only for authenticated (no UPDATE/DELETE RLS policies) — audit trail immutability for HMRC enquiry compliance
 - [Phase 18-document-collection-foundation]: upload_portal_tokens.token_hash TEXT NOT NULL UNIQUE — raw token never stored; SHA-256 hex of crypto.randomBytes(32)
+- [Phase 18]: [D-18-03-01] Amendments 1-6 applied inline — no visible changelog or amendment section; last updated date unchanged (already February 2026)
+- [Phase 18]: [D-18-03-02] Amendment 7 (date) requires no change — both pages already show February 2026
 
 ### Roadmap Evolution
 
@@ -227,6 +229,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | `SUPABASE_STORAGE_BUCKET_DOCUMENTS` env var: add to ENV_VARIABLES.md before Phase 18 implementation | Phase 18 plan |
 | Phase 18 P02 | 12 | 2 tasks | 4 files |
 | Phase 18-document-collection-foundation P01 | 8 | 2 tasks | 2 files |
+| Phase 18 P03 | 10 | 2 tasks | 2 files |
 
 ### Tech Debt
 
@@ -268,9 +271,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Completed 18-02-PLAN.md (storage utilities + calculateRetainUntil TDD)
-Resume file: .planning/phases/18-document-collection-foundation/18-02-SUMMARY.md
-Next step: Execute plan 18-03 (next plan in Phase 18)
+Stopped at: Completed 18-03-PLAN.md (privacy and terms compliance amendments — COMP-01)
+Resume file: .planning/phases/18-document-collection-foundation/18-03-SUMMARY.md
+Next step: Execute plan 18-04 (next and final plan in Phase 18)
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
