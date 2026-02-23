@@ -260,7 +260,7 @@ Plans:
 
 **Requirements:** MKT-PARTICLES, MKT-SECTIONS, MKT-PAGE, MKT-ROUTING
 
-**Plans:** 3 plans in 3 waves
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 17-01-PLAN.md — Particle physics foundation (framer-motion, useIsMobile, hero-particles, footer-particles)

@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 16 (Member Setup Wizard) COMPLETE.
+**Current focus:** Phase 17 (Marketing Landing Page) — Plan 01 of 3 complete.
 
 ## Current Position
 
-Phase: 16 of 16 (Member Setup Wizard)
-Plan: 4 of 4 (complete)
-Status: Phase 16 complete — all 4 plans done; human verification passed
-Last activity: 2026-02-23 — Phase 16 plan 04 complete; wizard page shell created, xlsx filename bug fixed during verification, full end-to-end flow human-verified
+Phase: 17 of 17 (Marketing Landing Page)
+Plan: 1 of 3 (complete)
+Status: Phase 17 in progress — Plan 01 complete (particle systems built)
+Last activity: 2026-02-23 — Phase 17 plan 01 complete; framer-motion installed, useIsMobile hook created, HeroParticles and FooterParticles built
 
-Progress: [█████] 4/4 Phase 16 plans complete
+Progress: [█░░] 1/3 Phase 17 plans complete
 
 ## Performance Metrics
 
@@ -162,6 +162,8 @@ Recent decisions affecting v3.0:
 - [Phase 16-member-setup-wizard]: [D-16-04-01] Promise.all prefetch on mount for Step 2 defaults — all three settings fetched in parallel while user is on Step 1; Step 2 renders instantly without loading state in the common case
 - [Phase 16-member-setup-wizard]: [D-16-04-02] Error state on markMemberSetupComplete failure shown inline without redirect — user can retry; wizard does not advance on error
 - [Phase 16-member-setup-wizard]: [D-16-04-03] window.location.href = "/" for final redirect — forces full page load and middleware re-evaluation so member_setup_complete flag is picked up correctly
+- [Phase 17-marketing-landing-page]: framer-motion v12.34.3 installed; compatible with React 19
+- [Phase 17-marketing-landing-page]: Bottom boundary bounce added to HeroParticles (not in reference) — prevents particles escaping the 150vh container
 
 ### Roadmap Evolution
 
@@ -199,6 +201,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 16-member-setup-wizard P01 | 2 | 3 tasks | 3 files |
 | Phase 16-member-setup-wizard P02 | 3 | 1 tasks | 1 files |
 | Phase 16-member-setup-wizard P03 | 6 | 3 tasks | 3 files |
+| Phase 17-marketing-landing-page P01 | 15 | 2 tasks | 5 files |
 
 ### Tech Debt
 
@@ -237,9 +240,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 16 plan 04 complete — wizard page shell created, xlsx filename bug fixed, human verification passed
+Stopped at: Phase 17 plan 01 complete — framer-motion installed, useIsMobile hook created, HeroParticles and FooterParticles physics engines built
 Resume file: None
-Next step: v3.0 complete — all phases 10-16 done
+Next step: Phase 17 plan 02 (landing page page structure and sections)
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
