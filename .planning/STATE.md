@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 17 (Marketing Landing Page) — Plan 02 of 3 complete.
+**Current focus:** Phase 17 (Marketing Landing Page) — Plan 03 of 3 in progress (Task 1 complete, awaiting human-verify checkpoint).
 
 ## Current Position
 
 Phase: 17 of 17 (Marketing Landing Page)
-Plan: 2 of 3 (complete)
-Status: Phase 17 in progress — Plan 02 complete (all 5 section components built)
-Last activity: 2026-02-23 — Phase 17 plan 02 complete; MarketingNav, HeroSection, FeaturesSection, PricingSection, FooterSection created
+Plan: 3 of 3 (in progress — Task 1 complete, awaiting human-verify checkpoint at Task 2)
+Status: Phase 17 plan 03 in progress — marketing page assembled at root URL, middleware updated
+Last activity: 2026-02-23 — Phase 17 plan 03 Task 1 complete; app/(marketing)/layout.tsx, app/(marketing)/page.tsx created, app/page.tsx deleted, middleware updated
 
-Progress: [██░] 2/3 Phase 17 plans complete
+Progress: [██▒] 2.5/3 Phase 17 plans in progress (plan 03 Task 1 done, awaiting checkpoint)
 
 ## Performance Metrics
 
@@ -243,9 +243,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 17 plan 02 complete — all 5 marketing section components built (MarketingNav, HeroSection, FeaturesSection, PricingSection, FooterSection)
+Stopped at: Phase 17 plan 03 Task 1 complete — marketing page assembled, awaiting human-verify checkpoint for visual review
 Resume file: None
-Next step: Phase 17 plan 03 (page assembly — compose sections into final landing page)
+Next step: Phase 17 plan 03 Task 2 (human verifies the marketing page visually at localhost:3000/)
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
