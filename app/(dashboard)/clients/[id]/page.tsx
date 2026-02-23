@@ -25,8 +25,11 @@ import { PageLoadingProvider } from '@/components/page-loading';
 import { LoadingScreen } from '@/components/loading-screen';
 import { FilingManagement } from './components/filing-management';
 import { ClientEmailHistoryTable } from './components/client-email-log-table';
+import { DsarExportButton } from './components/dsar-export-button';
 import { SendEmailModal } from '../components/send-email-modal';
 import { DocumentCard } from './components/document-card';
+import { GeneratePortalLink } from './components/generate-portal-link';
+import { ChecklistCustomisation } from './components/checklist-customisation';
 import { toast } from 'sonner';
 import type { Client } from '@/app/actions/clients';
 
@@ -365,6 +368,32 @@ export default function ClientPage() {
               />
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Generate Portal Link */}
+      <GeneratePortalLink clientId={id} />
+
+      {/* Checklist Customisation */}
+      <ChecklistCustomisation clientId={id} />
+
+      {/* Compliance */}
+      <Card className="gap-1.5">
+        <div className="px-8">
+          <div className="mb-6">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Compliance</h2>
+              <p className="text-sm text-muted-foreground">
+                Export all documents for this client in response to a Data Subject Access Request (UK GDPR Art. 15).
+              </p>
+            </div>
+          </div>
+        </div>
+        <CardContent>
+          <DsarExportButton
+            clientId={id}
+            clientName={client.display_name || client.company_name || ''}
+          />
         </CardContent>
       </Card>
 
