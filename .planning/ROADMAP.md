@@ -252,6 +252,21 @@ Plans:
 - [x] 16-03-PLAN.md — Setup layout gate + dashboard layout member gate + ConfigStep component (send hour + inbound mode + email identity)
 - [x] 16-04-PLAN.md — Wizard page shell (WizardStepper + step orchestration + completion) + human verification checkpoint
 
+### Phase 17: Marketing Landing Page
+
+**Goal:** A public-facing marketing landing page converts visiting UK accountants into free trial signups, with hero particle effects, feature cards, pricing cards, and a bold footer CTA.
+
+**Depends on:** Phase 16
+
+**Requirements:** MKT-PARTICLES, MKT-SECTIONS, MKT-PAGE, MKT-ROUTING
+
+**Plans:** 3 plans in 3 waves
+
+Plans:
+- [ ] 17-01-PLAN.md — Particle physics foundation (framer-motion, useIsMobile, hero-particles, footer-particles)
+- [ ] 17-02-PLAN.md — Page sections (nav, hero, features, pricing, footer)
+- [ ] 17-03-PLAN.md — Page assembly, routing, and visual verification
+
 ---
 
 ## Progress
