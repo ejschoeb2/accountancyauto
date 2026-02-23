@@ -1,4 +1,4 @@
-# Requirements: Peninsula Accounting v3.0 — Multi-Tenancy & SaaS Platform
+# Requirements: Prompt v3.0 — Multi-Tenancy & SaaS Platform
 
 **Defined:** 2026-02-19
 **Core Value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.

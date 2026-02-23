@@ -101,6 +101,17 @@ None - no external service configuration required.
 - Middleware exemption live: /setup/* routes won't be blocked by billing enforcement
 - Entry point wired: new members accepting invites will land at /setup/wizard
 
+## Self-Check: PASSED
+
+All files exist and all commits confirmed present:
+- FOUND: app/actions/settings.ts
+- FOUND: lib/middleware/access-gating.ts
+- FOUND: app/(auth)/invite/accept/page.tsx
+- FOUND: 16-01-SUMMARY.md
+- FOUND: ef3cf0c (Task 1 commit)
+- FOUND: 53b9a70 (Task 2 commit)
+- FOUND: 6a08d1f (Task 3 commit)
+
 ---
 *Phase: 16-member-setup-wizard*
 *Completed: 2026-02-22*

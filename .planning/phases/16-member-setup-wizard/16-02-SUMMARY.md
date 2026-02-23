@@ -93,6 +93,12 @@ None - no external service configuration required.
 - Component accepts `onComplete: () => void` — wizard page calls next step after this resolves
 - All imports use `@/` aliases — no relative path issues when consumed from wizard page
 
+## Self-Check: PASSED
+
+- FOUND: `app/(auth)/setup/wizard/components/csv-import-step.tsx`
+- FOUND: commit `5a6c1e1` (feat - CsvImportStep component)
+- FOUND: commit `122c7fd` (docs - plan complete)
+
 ---
 *Phase: 16-member-setup-wizard*
 *Completed: 2026-02-22*
