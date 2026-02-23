@@ -2,20 +2,20 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-19)
+See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — requirements and roadmap phase
+**Current focus:** v4.0 Document Collection milestone — Phase 18 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for v4.0 Document Collection milestone
-Last activity: 2026-02-23 — Milestone v4.0 started (Document Collection, Phases 18-19) for marketing site
+Phase: 18 — Document Collection Foundation
+Plan: — (not started; roadmap complete, ready for /gsd:plan-phase 18)
+Status: Roadmap created; Phase 18 is next
+Last activity: 2026-02-23 — v4.0 roadmap created (Phases 18-19, 18 requirements mapped)
 
-Progress: [███] 3/3 Phase 17 plans complete
+Progress: [not started] 0/TBD Phase 18 plans complete
 
 ## Performance Metrics
 
@@ -39,10 +39,15 @@ Progress: [███] 3/3 Phase 17 plans complete
 - Status: Shipped
 
 **v3.0 Velocity:**
-- Total plans completed: 13
-- Phases: 5 (Phase 10-14)
+- Total plans completed: 22
+- Phases: 8 (Phase 10-17)
 - Requirements: 43 mapped
-- Status: Phase 10 complete (all 5 plans), Phase 11 complete (all 5 plans), Phase 12 complete (all 3 plans), Phase 13 not started
+- Status: All phases complete (shipped 2026-02-23)
+
+**v4.0 Status:**
+- Phases: 2 (18-19)
+- Requirements: 18 mapped
+- Status: Roadmap complete, Phase 18 not started
 
 ## Accumulated Context
 
@@ -170,44 +175,50 @@ Recent decisions affecting v3.0:
 - [Phase 17-03]: Middleware root bypass is auth-state-agnostic — authenticated users at '/' see marketing page; dashboard is at '/dashboard?org=slug'
 - [Phase 17-03]: scroll-smooth added to main element className — CSS-level smooth scroll for anchor nav links
 
+**v4.0 Decisions (from research — pre-committed before implementation):**
+- Storage bucket name: `prompt-documents` (private bucket, EU West region — verify project region at creation time)
+- Storage path convention: `orgs/{org_id}/clients/{client_id}/{filing_type_id}/{tax_year}/{uuid}.{ext}` — server-generated UUID; original filename stored in `client_documents.original_filename` only
+- Portal uploads use `storage.upload()` with admin client (NOT `createSignedUploadUrl` — known service_role `owner=null` bug in storage-js #186)
+- `classification_confidence` stored as enum label (`high`/`medium`/`low`/`unclassified`) — simpler to display and query; numeric score deferred to v5.0 if ML classification added
+- Signed download URL expiry: maximum 300 seconds — every generation logged in `document_access_log` before URL is returned to client
+- `document_access_log` is INSERT-only for authenticated users (no UPDATE/DELETE via RLS) — audit trail integrity
+- Portal token entropy: `crypto.randomBytes(32)` (256-bit); SHA-256 hash stored; raw token shown once and discarded
+- Portal layout includes `<meta name="referrer" content="no-referrer">` — prevents token leaking via Referer header to analytics
+- Retention anchor: `tax_period_end_date` (not `received_at`) — HMRC CH14600 + TMA 1970 s12B compliance
+- Retention hold: `retention_hold = true` skips flagging during active HMRC enquiries (destroying records under enquiry is a criminal offence under TMA 1970 s.20BB)
+- Privacy policy deployment is a hard gate before any real documents are stored in production (UK GDPR Art. 13/14 transparency obligation)
+- New npm packages: `file-type@^21.3.0` (magic byte MIME detection), `fflate@^0.8.2` (DSAR ZIP export)
+- Bucket creation is a manual step (Supabase Dashboard or management API) — cannot be done via SQL migration
+- DSAR covers all personal data categories: `client_documents`, `inbound_emails`, `email_log`, `clients` profile, `audit_log`
+- Postmark webhook extension is non-blocking: email stored in `inbound_emails` first; attachment extraction is Step 6; Storage failure does not prevent 200 response
+
 ### Roadmap Evolution
 
 - Phase 16 added: Member Setup Wizard — post-invite setup flow with CSV client import and configuration
 - Phase 17 added: Marketing Landing Page — public-facing marketing site with hero, features, pricing, and footer sections
+- Phase 18 added: Document Collection Foundation — schema, Storage, RLS, privacy policy, seed data, token table
+- Phase 19 added: Collection Mechanisms — passive + active collection, classification, dashboard integration, retention cron, DSAR export
 
 ### Known Risks
 
-All v1.0 and v1.1 risks resolved.
+All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 
-**v3.0 risks identified in research (from PITFALLS.md):**
-1. Cron jobs bypass RLS — must add org_id filters before or simultaneously with RLS activation (Phase 10)
-2. RLS activated before JWT hook verified will lock out all users — verify hook first, then activate RLS
-3. JWT claims must use `app_metadata` not `user_metadata` — architectural invariant, cannot be changed after RLS is active
-4. Stripe webhook race (`subscription.created` fires before `checkout.session.completed`) — use `checkout.session.completed` as sole provisioning trigger + idempotency table
-5. Trial expiry not enforced if Stripe webhook delivery fails — store `trial_ends_at` at org creation; check in middleware; add daily fallback cron
-6. Postmark token for founding org must be seeded from env var before cron switches to per-org token mode
+**v4.0 risks from research (PITFALLS.md — must be addressed during Phase 18 planning):**
+1. Storage RLS not written — private bucket rejects all SDK calls (non-service-role). Fix: write org-scoped `storage.objects` policies using `storage.foldername(objects.name)` before Phase 19 begins. Test with real authenticated JWT.
+2. Privacy policy not updated before documents stored — UK GDPR transparency violation. Fix: COMP-01 is in Phase 18 and is a hard deployment gate before the production bucket receives any real data.
+3. HMRC retention anchored to `received_at` instead of `tax_period_end_date` — incorrect deletion dates + criminal risk under enquiry. Fix: `tax_period_end_date` and `retention_hold` are non-nullable in Phase 18 schema.
+4. Portal token stored as plaintext or with insufficient entropy. Fix: `crypto.randomBytes(32)`, `sha256(rawToken)` stored, `<meta name="referrer" content="no-referrer">` in portal layout.
+5. `createSignedUploadUrl` service_role bug (`owner=null`). Fix: use `storage.upload()` with admin client for portal uploads.
+6. Vercel 4.5 MB serverless payload limit — hard constraint, not configurable. Fix: signed upload URL pattern is mandatory; portal client uploads direct to Supabase Storage, bypassing Next.js entirely.
 
-### Open Questions (to resolve during planning)
+### Open Questions (to resolve during Phase 18 planning)
 
 | Question | Resolve Before |
 |----------|---------------|
-| ~~Exact `plan_tier` enum values~~ RESOLVED: `('lite', 'sole_trader', 'practice', 'firm')` created in 10-01 | Phase 10 plan |
-| Is Prompt VAT-registered? (determines Stripe Tax configuration) | Phase 11 plan |
-| Reserved slug list (admin, www, api, app, billing, etc.) | Phase 10/13 plan |
-| Where do per-org Postmark server tokens come from for new tenants? (admin enters own token vs programmatic via API vs shared account) | Phase 13 plan |
-| Data retention policy for cancelled orgs (30 days mentioned; confirm before Phase 14) | Phase 14 plan |
-| Phase 12-subdomain-routing-access-gating P02 | 15 | 2 tasks | 6 files |
-| Phase 14-super-admin-dashboard P01 | 10 | 2 tasks | 6 files |
-| Phase 14 P02 | 3 | 1 tasks | 3 files |
-| Phase 13 P04 | 6 | 2 tasks | 5 files |
-| Phase 15-per-accountant-config P01 | 7 | 2 tasks | 3 files |
-| Phase 15-per-accountant-config P04 | 5 | 1 tasks | 2 files |
-| Phase 15-per-accountant-config P05 | 5 | 2 tasks | 2 files |
-| Phase 16-member-setup-wizard P01 | 2 | 3 tasks | 3 files |
-| Phase 16-member-setup-wizard P02 | 3 | 1 tasks | 1 files |
-| Phase 16-member-setup-wizard P03 | 6 | 3 tasks | 3 files |
-| Phase 17-marketing-landing-page P01 | 15 | 2 tasks | 5 files |
-| Phase 17-marketing-landing-page P02 | 2min | 2 tasks | 5 files |
+| 5/6-year retention split: derive `retain_until` from `filing_type_id` in application code, or store `retention_years` on `client_documents`? | Phase 18 plan |
+| AML/KYC documents: same `client-documents` bucket or exclude from standard retention cron via `retention_rule` column? | Phase 18 plan |
+| DSAR ZIP size limit mitigation: stream to temp Storage path when client has >50 documents? Decide before Phase 19-03 DSAR plan. | Phase 19-03 plan |
+| `SUPABASE_STORAGE_BUCKET_DOCUMENTS` env var: add to ENV_VARIABLES.md before Phase 18 implementation | Phase 18 plan |
 
 ### Tech Debt
 
@@ -243,13 +254,15 @@ All v1.0 and v1.1 risks resolved.
 - BILL-EXT-02: Annual billing option — defer to v3.x
 - ADMN-EXT-01: Super-admin impersonation — RLS complexity, defer to v3.x
 - ADMN-EXT-02: Super-admin manual plan override — defer to v3.x
+- CHAS-01/02: Automated chasing sequences — deferred to v5.0
+- INTEL-01/02: OCR/field extraction and auto-checklist update — deferred to v5.0
 
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: v4.0 milestone started — requirements and roadmap in progress
-Resume file: .planning/REQUIREMENTS.md (once written)
+Stopped at: v4.0 roadmap created — Phases 18 and 19 defined, all 18 requirements mapped
+Resume file: .planning/ROADMAP.md (Phase 18 detail section)
 Next step: /gsd:plan-phase 18
 
 ---
-*Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
+*v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*

@@ -5,7 +5,8 @@
 - **v1.0 MVP** - Phases 1-3 (shipped 2026-02-07)
 - **v1.1 Template & Scheduling Redesign** - Phases 4-9 (shipped 2026-02-08)
 - **v2.0 QOL & Platform Hardening** - (shipped 2026-02-14)
-- **v3.0 Multi-Tenancy & SaaS Platform** - Phases 10-14 (in progress)
+- **v3.0 Multi-Tenancy & SaaS Platform** - Phases 10-17 (shipped 2026-02-23)
+- **v4.0 Document Collection** - Phases 18-19 (in progress)
 
 ## Phases
 
@@ -81,11 +82,11 @@
 
 ---
 
-## v3.0 Multi-Tenancy & SaaS Platform (In Progress)
+## v3.0 Multi-Tenancy & SaaS Platform (Shipped 2026-02-23)
 
 **Milestone Goal:** Transform the application from a single-firm tool into a fully-isolated multi-tenant SaaS platform serving multiple independent accounting practices — with org-scoped database isolation, Stripe subscription billing, subdomain routing, guided onboarding, team management, and super-admin visibility.
 
-**Phases:** 10-15 (6 phases)
+**Phases:** 10-17 (8 phases)
 **Requirements:** 43 v3.0 requirements
 **Depth:** Standard
 
@@ -185,8 +186,8 @@ Plans:
 Plans:
 - [x] 13-01-PLAN.md — Onboarding wizard (4-step signup: Account, Firm Details, Plan Selection, Trial Started) + middleware updates
 - [x] 13-02-PLAN.md — Invite send + accept flow with cryptographic token security and seat limit enforcement
-- [ ] 13-03-PLAN.md — Role-based navigation filtering and admin-only route protection
-- [ ] 13-04-PLAN.md — Team management UI card on settings page + trial-ending-soon cron notification
+- [x] 13-03-PLAN.md — Role-based navigation filtering and admin-only route protection
+- [x] 13-04-PLAN.md — Team management UI card on settings page + trial-ending-soon cron notification
 
 ---
 
@@ -207,8 +208,8 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 14-01-PLAN.md — Middleware admin bypass, nav link, super-admin guard, org list page with sortable table
-- [ ] 14-02-PLAN.md — Org detail page with settings, member list, and Stripe info
+- [x] 14-01-PLAN.md — Middleware admin bypass, nav link, super-admin guard, org list page with sortable table
+- [x] 14-02-PLAN.md — Org detail page with settings, member list, and Stripe info
 
 ---
 
@@ -230,11 +231,11 @@ Plans:
 **Plans:** 5/5 plans complete
 
 Plans:
-- [ ] 15-01-PLAN.md — Database migrations: owner_id on resource tables, user_id on app_settings, RLS rewrites
-- [ ] 15-02-PLAN.md — Nav visibility, settings actions per-user support, member settings card
-- [ ] 15-03-PLAN.md — Cron pipeline per-user inner loop (scheduler + queue-builder)
-- [ ] 15-04-PLAN.md — Send-emails cron per-user sender settings
-- [ ] 15-05-PLAN.md — New-user seeding on invite acceptance (clone admin resources)
+- [x] 15-01-PLAN.md — Database migrations: owner_id on resource tables, user_id on app_settings, RLS rewrites
+- [x] 15-02-PLAN.md — Nav visibility, settings actions per-user support, member settings card
+- [x] 15-03-PLAN.md — Cron pipeline per-user inner loop (scheduler + queue-builder)
+- [x] 15-04-PLAN.md — Send-emails cron per-user sender settings
+- [x] 15-05-PLAN.md — New-user seeding on invite acceptance (clone admin resources)
 
 ### Phase 16: Member Setup Wizard
 
@@ -269,11 +270,88 @@ Plans:
 
 ---
 
+## v4.0 Document Collection (In Progress)
+
+**Milestone Goal:** Build the document collection infrastructure — backend schema, Supabase Storage, compliance framework, and the passive + active collection mechanisms — enabling accountants to receive and track client documents ahead of every UK filing deadline.
+
+**Phases:** 18-19 (2 phases)
+**Requirements:** 18 v4.0 requirements (DOCS-01 through DASH-03)
+**Depth:** Standard
+
+### Phase 18: Document Collection Foundation
+
+**Goal:** Every artifact needed by the collection mechanisms exists and is verified: all five database tables, the private Storage bucket with org-scoped RLS, seed data covering HMRC document types, the portal token security model, core storage utilities, and the privacy policy deployed — making it legally and technically safe to store the first client document.
+
+**Depends on:** Phase 17 (application at v3.0 stable state; `/privacy` page exists for policy amendments)
+
+**Requirements:** DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, DOCS-06, COMP-01
+
+**Success Criteria** (what must be TRUE when this phase completes):
+1. A developer can upload a test PDF using an authenticated user JWT and confirm the file is stored at `orgs/{org_id}/clients/{client_id}/{filing_type}/{tax_year}/{uuid}.pdf`; attempting the same upload with a JWT from a different org returns a storage 403 error.
+2. All five tables (`document_types`, `filing_document_requirements`, `client_documents`, `document_access_log`, `upload_portal_tokens`) exist in the production database with the correct schema; `client_documents` rows have non-nullable `tax_period_end_date` and `retention_hold` columns; `upload_portal_tokens` stores `token_hash` (SHA-256) and never the raw token.
+3. `document_types` contains seeded rows covering the core HMRC document catalog (P60, P45, P11D, SA302, bank statement, dividend voucher) and `filing_document_requirements` maps them to SA100, CT600, VAT, and Companies House filing types with mandatory/conditional flags present.
+4. The privacy policy at `/privacy` is live and contains all 7 identified amendments: financial documents as a data category, 6-year statutory retention carve-out with HMRC authority citation, broadened processing scope to include document storage, firm clients added as portal data subjects, Supabase file storage in the sub-processor list, and Terms Section 6 qualified to permit financial document types.
+5. `lib/documents/storage.ts` exports working `uploadDocument`, `getSignedDownloadUrl` (300-second max expiry), and `deleteDocument` functions; `lib/documents/metadata.ts` exports a `calculateRetainUntil` function that correctly returns `tax_period_end_date + 6 years` for company filings and `january_31_deadline + 5 years` for individual filings.
+
+**Plans:** TBD
+
+---
+
+### Phase 19: Collection Mechanisms
+
+**Goal:** Documents arrive through both channels — passively from Postmark email attachments and actively via the token-based client upload portal — are classified, surfaced inline on the client detail page, and trigger accountant notifications; retention enforcement runs automatically and DSAR export is available on demand.
+
+**Depends on:** Phase 18 (all five tables, Storage bucket + RLS policies, seed data, core storage utilities, privacy policy deployed)
+
+**Requirements:** PASS-01, PASS-02, ACTV-01, ACTV-02, ACTV-03, ACTV-04, DASH-01, DASH-02, DASH-03, COMP-02, COMP-03
+
+**Success Criteria** (what must be TRUE when this phase completes):
+1. Sending an email with a PDF attachment to the Postmark inbound address results in a `client_documents` row with `source = inbound_email` and the file stored in Supabase Storage; the Postmark webhook returns 200 even when the Storage upload fails (non-blocking); duplicate message IDs do not create duplicate documents.
+2. An accountant generates a portal link from the client detail page; clicking the link in an incognito browser (no auth session) shows the Prompt-branded portal page with the filing-type-specific document checklist; the page includes `<meta name="referrer" content="no-referrer">`; an expired or revoked token shows a clear expiry message instead of the portal.
+3. A client uploads two files against checklist items on the portal; the progress indicator updates to "2 of Y items provided"; each file is stored in Supabase Storage via signed upload URL (the file bytes never pass through the Next.js server); a `client_documents` row is created for each file with `classification_confidence` set and `source = portal_upload`; the accountant receives an in-app notification showing the client name and outstanding items count.
+4. The filing type card on the client detail page shows the document count and most recent submission date; expanding the card lists all documents with filename, document type label, confidence badge, received date, source, and a download button; clicking download generates a signed URL with 300-second expiry, logs the access in `document_access_log`, and does not expose the raw storage path.
+5. The weekly retention cron sets `retention_flagged = true` on `client_documents` rows where `retain_until < NOW()` and `retention_hold = false`; it does not auto-delete any documents; it sends the org admin an email listing newly flagged documents; running the cron a second time does not re-flag already-flagged documents or send duplicate notification emails.
+
+**Plans:** TBD
+- Plan 19-01: Schema foundation verification + passive collection (PASS-01, PASS-02)
+- Plan 19-02: Active collection portal (ACTV-01, ACTV-02, ACTV-03, ACTV-04)
+- Plan 19-03: Dashboard integration + compliance mechanisms (DASH-01, DASH-02, DASH-03, COMP-02, COMP-03)
+
+---
+
+## Phase Details
+
+### Phase 18: Document Collection Foundation
+**Goal**: Every artifact needed by the collection mechanisms exists and is verified: all five database tables, the private Storage bucket with org-scoped RLS, seed data covering HMRC document types, the portal token security model, core storage utilities, and the privacy policy deployed — making it legally and technically safe to store the first client document.
+**Depends on**: Phase 17
+**Requirements**: DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, DOCS-06, COMP-01
+**Success Criteria** (what must be TRUE):
+  1. A developer can upload a test PDF using an authenticated user JWT and confirm the file is stored at `orgs/{org_id}/clients/{client_id}/{filing_type}/{tax_year}/{uuid}.pdf`; attempting the same upload with a JWT from a different org returns a storage 403 error.
+  2. All five tables (`document_types`, `filing_document_requirements`, `client_documents`, `document_access_log`, `upload_portal_tokens`) exist in the production database with the correct schema; `client_documents` rows have non-nullable `tax_period_end_date` and `retention_hold` columns; `upload_portal_tokens` stores `token_hash` (SHA-256) and never the raw token.
+  3. `document_types` contains seeded rows covering the core HMRC document catalog (P60, P45, P11D, SA302, bank statement, dividend voucher) and `filing_document_requirements` maps them to SA100, CT600, VAT, and Companies House filing types with mandatory/conditional flags present.
+  4. The privacy policy at `/privacy` is live and contains all 7 identified amendments: financial documents as a data category, 6-year statutory retention carve-out with HMRC authority citation, broadened processing scope to include document storage, firm clients added as portal data subjects, Supabase file storage in the sub-processor list, and Terms Section 6 qualified to permit financial document types.
+  5. `lib/documents/storage.ts` exports working `uploadDocument`, `getSignedDownloadUrl` (300-second max expiry), and `deleteDocument` functions; `lib/documents/metadata.ts` exports a `calculateRetainUntil` function that correctly returns `tax_period_end_date + 6 years` for company filings and `january_31_deadline + 5 years` for individual filings.
+**Plans**: TBD
+
+### Phase 19: Collection Mechanisms
+**Goal**: Documents arrive through both channels — passively from Postmark email attachments and actively via the token-based client upload portal — are classified, surfaced inline on the client detail page, and trigger accountant notifications; retention enforcement runs automatically and DSAR export is available on demand.
+**Depends on**: Phase 18
+**Requirements**: PASS-01, PASS-02, ACTV-01, ACTV-02, ACTV-03, ACTV-04, DASH-01, DASH-02, DASH-03, COMP-02, COMP-03
+**Success Criteria** (what must be TRUE):
+  1. Sending an email with a PDF attachment to the Postmark inbound address results in a `client_documents` row with `source = inbound_email` and the file stored in Supabase Storage; the Postmark webhook returns 200 even when the Storage upload fails (non-blocking); duplicate message IDs do not create duplicate documents.
+  2. An accountant generates a portal link from the client detail page; clicking the link in an incognito browser (no auth session) shows the Prompt-branded portal page with the filing-type-specific document checklist; the page includes `<meta name="referrer" content="no-referrer">`; an expired or revoked token shows a clear expiry message instead of the portal.
+  3. A client uploads two files against checklist items on the portal; the progress indicator updates to "2 of Y items provided"; each file is stored in Supabase Storage via signed upload URL (the file bytes never pass through the Next.js server); a `client_documents` row is created for each file with `classification_confidence` set and `source = portal_upload`; the accountant receives an in-app notification showing the client name and outstanding items count.
+  4. The filing type card on the client detail page shows the document count and most recent submission date; expanding the card lists all documents with filename, document type label, confidence badge, received date, source, and a download button; clicking download generates a signed URL with 300-second expiry, logs the access in `document_access_log`, and does not expose the raw storage path.
+  5. The weekly retention cron sets `retention_flagged = true` on `client_documents` rows where `retain_until < NOW()` and `retention_hold = false`; it does not auto-delete any documents; it sends the org admin an email listing newly flagged documents; running the cron a second time does not re-flag already-flagged documents or send duplicate notification emails.
+**Plans**: TBD
+
+---
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
-(Phase 12 can begin in parallel with Phase 11 if needed; both must complete before Phase 13)
+Phases execute in numeric order: 18 -> 19
+(Phase 18 is a hard prerequisite for Phase 19 — no Phase 19 work begins until Phase 18 is deployed and verified)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -290,7 +368,10 @@ Phases execute in numeric order: 10 -> 11 -> 12 -> 13 -> 14 -> 15
 | 10. Org Data Model & RLS Foundation | v3.0 | 5/5 | Complete | 2026-02-20 |
 | 11. Stripe Billing | v3.0 | 5/5 | Complete | 2026-02-21 |
 | 12. Subdomain Routing & Access Gating | v3.0 | 3/3 | Complete | 2026-02-21 |
-| 13. Onboarding Flow & Team Management | 4/4 | Complete    | 2026-02-21 | - |
-| 14. Super-Admin Dashboard | 2/2 | Complete    | 2026-02-21 | - |
-| 15. Per-Accountant Configuration | 5/5 | Complete    | 2026-02-22 | - |
-| 16. Member Setup Wizard | 4/4 | Complete    | 2026-02-23 | — |
+| 13. Onboarding Flow & Team Management | v3.0 | 4/4 | Complete | 2026-02-21 |
+| 14. Super-Admin Dashboard | v3.0 | 2/2 | Complete | 2026-02-21 |
+| 15. Per-Accountant Configuration | v3.0 | 5/5 | Complete | 2026-02-22 |
+| 16. Member Setup Wizard | v3.0 | 4/4 | Complete | 2026-02-23 |
+| 17. Marketing Landing Page | v3.0 | 3/3 | Complete | 2026-02-23 |
+| 18. Document Collection Foundation | v4.0 | 0/TBD | Not started | - |
+| 19. Collection Mechanisms | v4.0 | 0/TBD | Not started | - |

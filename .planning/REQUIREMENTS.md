@@ -92,6 +92,9 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 - Mapped to phases: 18
 - Unmapped: 0 ✓
 
+Phase 18 covers: DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, DOCS-06, COMP-01 (7 requirements)
+Phase 19 covers: PASS-01, PASS-02, ACTV-01, ACTV-02, ACTV-03, ACTV-04, DASH-01, DASH-02, DASH-03, COMP-02, COMP-03 (11 requirements)
+
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after initial v4.0 definition*
+*Last updated: 2026-02-23 — traceability confirmed after roadmap creation; 100% coverage verified*
