@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { detectDocumentKeywords, detectFilingType } from '@/lib/email/keyword-detector';
+import type { FilingTypeId } from '@/lib/types/database';
 
 /**
  * Postmark Inbound Webhook Handler
@@ -11,6 +12,8 @@ import { detectDocumentKeywords, detectFilingType } from '@/lib/email/keyword-de
  * 3. Extracts filing type from subject/body
  * 4. Stores in inbound_emails table
  * 5. Auto-updates client status if documents detected
+ * 6. Non-blocking attachment extraction: classifies + stores each attachment
+ *    as a client_documents row (PASS-01). Storage failures never affect the 200 response.
  *
  * @see .planning/research/postmark-inbound-webhooks.md
  */
@@ -95,10 +98,10 @@ export async function POST(request: NextRequest) {
     // Create service client (bypasses RLS for webhook)
     const supabase = createServiceClient();
 
-    // Step 1: Look up client by email (include org_id for the INSERT)
+    // Step 1: Look up client by email (include org_id and year_end_date for attachment processing)
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('id, company_name, primary_email, org_id')
+      .select('id, company_name, primary_email, org_id, year_end_date')
       .ilike('primary_email', senderEmail)
       .single();
 
@@ -114,7 +117,7 @@ export async function POST(request: NextRequest) {
       const { data: foundingOrg } = await supabase
         .from('organisations')
         .select('id')
-        .eq('slug', 'peninsula')
+        .eq('slug', 'prompt')
         .single();
       orgId = foundingOrg?.id;
     }
@@ -169,6 +172,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Step 6: Non-blocking attachment extraction (PASS-01)
+    // Must run AFTER inbound_emails insert. Failures do NOT affect the 200 response.
+    if (payload.Attachments && payload.Attachments.length > 0) {
+      processAttachments(payload.Attachments, inboundEmail.id, client, orgId, supabase).catch(err =>
+        console.error('[Postmark Inbound] Attachment processing error:', err)
+      );
+    }
+
     // Always return 200 to Postmark (even for partial failures)
     return NextResponse.json({
       success: true,
@@ -186,6 +197,101 @@ export async function POST(request: NextRequest) {
       success: false,
       message: 'Error processing email (logged)',
     });
+  }
+}
+
+/**
+ * Asynchronously extract, classify, and store all attachments from an inbound email.
+ *
+ * This function is intentionally fire-and-forget (called with .catch() only).
+ * It MUST NOT throw — all errors are caught and logged per-attachment so that
+ * a single failing attachment does not prevent others from being processed.
+ *
+ * Each attachment produces one client_documents row with:
+ *   - source = 'inbound_email'
+ *   - classification_confidence derived from classifyDocument()
+ *   - tax_period_end_date derived from client.year_end_date (best-effort; accountant can correct)
+ *   - retain_until calculated by calculateRetainUntil()
+ *
+ * If the client is null (unmatched email), attachments are skipped — we cannot
+ * construct a scoped Storage path without a client_id.
+ */
+async function processAttachments(
+  attachments: PostmarkInboundWebhook['Attachments'],
+  inboundEmailId: string,
+  client: { id: string; org_id: string; year_end_date?: string | null } | null,
+  orgId: string | undefined,
+  supabase: ReturnType<typeof createServiceClient>
+): Promise<void> {
+  const { uploadDocument } = await import('@/lib/documents/storage');
+  const { classifyDocument } = await import('@/lib/documents/classify');
+  const { calculateRetainUntil } = await import('@/lib/documents/metadata');
+
+  for (const attachment of attachments) {
+    try {
+      const fileBuffer = Buffer.from(attachment.Content, 'base64');
+      const classification = await classifyDocument(attachment.Name, attachment.ContentType, supabase);
+
+      // Derive tax period end from client year_end_date (best-effort; accountant can correct)
+      // Use the most recently completed year end before today
+      const now = new Date();
+      let taxPeriodEndDate: Date;
+      if (client?.year_end_date) {
+        const yearEnd = new Date(client.year_end_date);
+        // Use this year's year-end if it has passed, otherwise previous year
+        taxPeriodEndDate = yearEnd <= now
+          ? yearEnd
+          : new Date(yearEnd.getFullYear() - 1, yearEnd.getMonth(), yearEnd.getDate());
+      } else {
+        // Fallback: use previous 5 April (UK tax year end)
+        const apr5 = new Date(now.getFullYear(), 3, 5);
+        taxPeriodEndDate = apr5 <= now ? apr5 : new Date(now.getFullYear() - 1, 3, 5);
+      }
+
+      const taxYear = `${taxPeriodEndDate.getFullYear()}`;
+      const filingTypeId = (classification.filingTypeId ?? 'ct600_filing') as FilingTypeId;
+
+      // For unmatched emails (no client), skip storage — cannot scope the path
+      if (!client?.id || !orgId) {
+        console.warn('[Postmark Inbound] No client match — skipping attachment storage for:', attachment.Name);
+        continue;
+      }
+
+      const { storagePath } = await uploadDocument({
+        orgId,
+        clientId: client.id,
+        filingTypeId,
+        taxYear,
+        file: fileBuffer,
+        originalFilename: attachment.Name,
+        mimeType: attachment.ContentType,
+      });
+
+      const retainUntil = calculateRetainUntil(filingTypeId, taxPeriodEndDate);
+
+      await supabase.from('client_documents').insert({
+        org_id: orgId,
+        client_id: client.id,
+        filing_type_id: filingTypeId,
+        document_type_id: classification.documentTypeId,
+        storage_path: storagePath,
+        original_filename: attachment.Name,
+        tax_period_end_date: taxPeriodEndDate.toISOString().split('T')[0],
+        retain_until: retainUntil.toISOString().split('T')[0],
+        classification_confidence: classification.confidence,
+        source: 'inbound_email',
+      });
+
+      console.log('[Postmark Inbound] Attachment stored:', {
+        filename: attachment.Name,
+        confidence: classification.confidence,
+        code: classification.documentTypeCode,
+        inboundEmailId,
+      });
+    } catch (err) {
+      console.error('[Postmark Inbound] Failed to process attachment:', attachment.Name, err);
+      // Continue to next attachment — never throw from this loop
+    }
   }
 }
 
