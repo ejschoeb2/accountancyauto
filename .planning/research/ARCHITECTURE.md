@@ -1,941 +1,800 @@
-# Architecture Patterns: Multi-Tenancy Migration
+# Architecture Research: v4.0 Document Collection
 
-**Project:** Peninsula Accounting — v3.0 Multi-Tenancy & SaaS Platform
-**Researched:** 2026-02-19
-**Scope:** Migration from single-tenant (one Supabase project per firm) to shared-project multi-tenant
-**Overall confidence:** HIGH — all core patterns verified against Supabase official documentation and Next.js official documentation
+**Domain:** UK Accounting SaaS — Document collection layer on existing Next.js + Supabase platform
+**Researched:** 2026-02-23
+**Confidence:** HIGH — patterns verified against Supabase official documentation and official Next.js documentation. Storage RLS and signed URL patterns confirmed against Supabase JS SDK reference. Token portal pattern derived from established presigned-upload patterns and Supabase service-role upload URL generation.
 
----
-
-## Recommended Architecture Overview
-
-```
-                        Vercel (single deployment)
-                   ┌─────────────────────────────────────────┐
-                   │                                         │
-  Browser ───────► │  middleware.ts                          │
-  (firmA.          │  1. Extract orgSlug from host header    │
-   app.domain.com) │  2. Set x-org-slug header               │
-                   │  3. Rewrite to same App Router routes   │
-                   │  4. Refresh Supabase session cookie     │
-                   │                                         │
-                   │  Server Components / Actions            │
-                   │  Read x-org-slug, resolve org_id via   │
-                   │  cached DB lookup (getCurrentOrg())     │
-                   │                                         │
-                   │  Cron routes                            │
-                   │  Service role — must manually loop      │
-                   │  over orgs and filter by org_id         │
-                   └──────────────┬──────────────────────────┘
-                                  │
-                   ┌──────────────▼──────────────────────────┐
-                   │   Supabase (SINGLE shared project)       │
-                   │                                          │
-                   │   organisations table                    │
-                   │   user_organisations table               │
-                   │   All existing tables + org_id column   │
-                   │                                          │
-                   │   RLS: USING (org_id = (auth.jwt()       │
-                   │          ->> 'org_id')::uuid)            │
-                   │                                          │
-                   │   JWT custom claims via Auth Hook:       │
-                   │   { org_id, org_role }                   │
-                   └──────────────────────────────────────────┘
-```
+> Prior v3.0 multi-tenancy architecture (RLS patterns, subdomain routing, JWT hook, migration strategy) is fully documented in `ARCHITECTURE.md` at the repo root. This document covers only the v4.0 additions.
 
 ---
 
-## 1. RLS Policy Pattern
+## System Overview
 
-### Decision: JWT Custom Claims (not direct table lookup)
-
-**Recommended approach:** Store `org_id` as a JWT claim via the Supabase Custom Access Token Hook. RLS policies read `(auth.jwt() ->> 'org_id')::uuid` — no subquery on every row, Postgres caches the JWT parse per statement.
-
-**Why not `user_organisations` table subquery directly in each policy:**
-The Supabase performance documentation is explicit: any join table referenced in an RLS expression triggers that table's own RLS, compounding evaluation cost. A subquery like `(SELECT org_id FROM user_organisations WHERE user_id = auth.uid())` evaluates on every candidate row. On a scan of 50,000 `email_log` rows that is 50,000 subquery evaluations. JWT claim extraction runs once per statement and is cached by the Postgres query planner.
-
-Sources: [Supabase RLS Performance and Best Practices](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv), [Row Level Security | Supabase Docs](https://supabase.com/docs/guides/database/postgres/row-level-security)
-
-### Handling Users Who Belong to Multiple Orgs
-
-For v3.0, the constraint is simpler than the general multi-org case: each user belongs to exactly one accounting firm, and that firm is identified by the subdomain they log in on. The `org_id` stored in `app_metadata` at user creation time is the single org this user belongs to.
-
-If a future v4.0 requires users to switch orgs (e.g., a freelancer working across firms), the session token approach would need to change — the Custom Access Token Hook would read the "active org" from a per-session setting rather than a static `app_metadata` field. This is a deliberate scope cut for v3.0.
-
-### Custom Access Token Hook — SQL
-
-```sql
--- Create the hook function
--- Runs before every JWT is issued (login, token refresh)
-CREATE OR REPLACE FUNCTION public.custom_access_token_hook(event jsonb)
-RETURNS jsonb
-LANGUAGE plpgsql
-STABLE
-AS $$
-DECLARE
-  claims        jsonb;
-  v_org_id      uuid;
-  v_role        text;
-BEGIN
-  claims := event -> 'claims';
-
-  -- Read org_id from app_metadata (written at user creation / org assignment)
-  v_org_id := (event -> 'claims' -> 'app_metadata' ->> 'org_id')::uuid;
-
-  -- Look up the user's role within that org
-  -- This single lookup at token-issuance time is acceptable performance-wise.
-  -- It does NOT run on every row during a query — it runs once at login.
-  IF v_org_id IS NOT NULL THEN
-    SELECT uo.role
-    INTO   v_role
-    FROM   public.user_organisations uo
-    WHERE  uo.user_id = (event ->> 'user_id')::uuid
-      AND  uo.org_id  = v_org_id
-    LIMIT  1;
-  END IF;
-
-  -- Embed org_id and org_role as top-level JWT claims
-  IF v_org_id IS NOT NULL THEN
-    claims := jsonb_set(claims, '{org_id}', to_jsonb(v_org_id::text));
-  END IF;
-
-  claims := jsonb_set(
-    claims,
-    '{org_role}',
-    to_jsonb(COALESCE(v_role, 'member'))
-  );
-
-  RETURN jsonb_set(event, '{claims}', claims);
-END;
-$$;
-
--- Grant execute only to the Supabase auth system role
-GRANT EXECUTE ON FUNCTION public.custom_access_token_hook TO supabase_auth_admin;
-REVOKE EXECUTE ON FUNCTION public.custom_access_token_hook
-  FROM authenticated, anon, public;
 ```
-
-After creating this function, register it in the Supabase Dashboard:
-**Authentication > Hooks > Custom Access Token Hook** — select the `public.custom_access_token_hook` function.
-
-Sources: [Custom Access Token Hook | Supabase Docs](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook), [Custom Claims & RBAC | Supabase Docs](https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac)
-
-### RLS Policy Templates — Standard Tenant-Scoped Table
-
-Apply this exact pattern to: `clients`, `client_filing_assignments`, `client_deadline_overrides`, `client_filing_status_overrides`, `email_templates`, `schedules`, `schedule_steps`, `schedule_client_exclusions`, `client_email_overrides`, `client_schedule_overrides`, `reminder_queue`, `email_log`, `inbound_emails`, `app_settings`, `locks`, `oauth_tokens`.
-
-```sql
--- Enable RLS (required)
-ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
-
--- SELECT: user sees only their org's rows
-CREATE POLICY "clients_org_select"
-  ON public.clients
-  FOR SELECT
-  TO authenticated
-  USING (org_id = (auth.jwt() ->> 'org_id')::uuid);
-
--- INSERT: user can only insert into their own org
-CREATE POLICY "clients_org_insert"
-  ON public.clients
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (org_id = (auth.jwt() ->> 'org_id')::uuid);
-
--- UPDATE: same org on both sides
-CREATE POLICY "clients_org_update"
-  ON public.clients
-  FOR UPDATE
-  TO authenticated
-  USING     (org_id = (auth.jwt() ->> 'org_id')::uuid)
-  WITH CHECK (org_id = (auth.jwt() ->> 'org_id')::uuid);
-
--- DELETE: same org
-CREATE POLICY "clients_org_delete"
-  ON public.clients
-  FOR DELETE
-  TO authenticated
-  USING (org_id = (auth.jwt() ->> 'org_id')::uuid);
-```
-
-### RLS Policies — Global Reference Tables (no change)
-
-`filing_types` and `bank_holidays_cache` are global reference data, shared across all orgs. Keep existing `USING (true)` policies or replace with `TO authenticated USING (true)`. No `org_id` column needed on these tables.
-
-### RLS Policies — organisations table
-
-```sql
-ALTER TABLE public.organisations ENABLE ROW LEVEL SECURITY;
-
--- Users can read only their own org's record
-CREATE POLICY "organisations_self_select"
-  ON public.organisations
-  FOR SELECT
-  TO authenticated
-  USING (id = (auth.jwt() ->> 'org_id')::uuid);
-
--- Only org admins can update org settings
--- Note: sensitive fields like postmark_server_token should be
--- updated only through a server action with additional auth checks,
--- not directly via client queries
-CREATE POLICY "organisations_admin_update"
-  ON public.organisations
-  FOR UPDATE
-  TO authenticated
-  USING     (id = (auth.jwt() ->> 'org_id')::uuid
-             AND (auth.jwt() ->> 'org_role') = 'admin')
-  WITH CHECK (id = (auth.jwt() ->> 'org_id')::uuid
-             AND (auth.jwt() ->> 'org_role') = 'admin');
-```
-
-### RLS Policies — user_organisations table
-
-```sql
-ALTER TABLE public.user_organisations ENABLE ROW LEVEL SECURITY;
-
--- Users can see members of their own org
-CREATE POLICY "user_orgs_select"
-  ON public.user_organisations
-  FOR SELECT
-  TO authenticated
-  USING (org_id = (auth.jwt() ->> 'org_id')::uuid);
-
--- Only admins can manage org membership
-CREATE POLICY "user_orgs_admin_write"
-  ON public.user_organisations
-  FOR ALL
-  TO authenticated
-  USING     (org_id = (auth.jwt() ->> 'org_id')::uuid
-             AND (auth.jwt() ->> 'org_role') = 'admin')
-  WITH CHECK (org_id = (auth.jwt() ->> 'org_id')::uuid
-             AND (auth.jwt() ->> 'org_role') = 'admin');
-```
-
-### Required Indexes
-
-Every tenant-scoped table needs an index on `org_id`. Use `CONCURRENTLY` in production to avoid table locks:
-
-```sql
-CREATE INDEX CONCURRENTLY idx_clients_org_id
-  ON public.clients(org_id);
-CREATE INDEX CONCURRENTLY idx_client_filing_assignments_org_id
-  ON public.client_filing_assignments(org_id);
-CREATE INDEX CONCURRENTLY idx_reminder_queue_org_id
-  ON public.reminder_queue(org_id);
-CREATE INDEX CONCURRENTLY idx_email_log_org_id
-  ON public.email_log(org_id);
-CREATE INDEX CONCURRENTLY idx_inbound_emails_org_id
-  ON public.inbound_emails(org_id);
-CREATE INDEX CONCURRENTLY idx_schedules_org_id
-  ON public.schedules(org_id);
-CREATE INDEX CONCURRENTLY idx_email_templates_org_id
-  ON public.email_templates(org_id);
-CREATE INDEX CONCURRENTLY idx_app_settings_org_id
-  ON public.app_settings(org_id);
-CREATE INDEX CONCURRENTLY idx_locks_org_id
-  ON public.locks(org_id);
+                          Vercel (existing deployment)
+        ┌────────────────────────────────────────────────────────────┐
+        │                                                            │
+        │  Existing dashboard routes (authenticated)                 │
+        │  /clients/[id] — filing cards now show document counts     │
+        │  /dashboard    — activity feed shows recent uploads        │
+        │                                                            │
+        │  NEW: /portal/[token]   (PUBLIC — no Supabase auth)        │
+        │  Upload portal served as App Router page group             │
+        │  Token resolved → client + filing context from DB          │
+        │                                                            │
+        │  Existing: /api/postmark/inbound    (extended)             │
+        │  NEW attachment extraction step appended to pipeline        │
+        │                                                            │
+        │  NEW: /api/cron/retention          (Vercel cron, daily)    │
+        │  Flags documents past 6-year retention window              │
+        │                                                            │
+        │  NEW Server Actions:                                        │
+        │  lib/documents/storage.ts   — signed URL generation        │
+        │  lib/documents/portal.ts    — token validation + creation  │
+        │  lib/documents/retention.ts — flag + DSAR export           │
+        └──────────────────┬──────────────────────────┬─────────────┘
+                           │                          │
+              ┌────────────▼────────────┐   ┌─────────▼──────────┐
+              │   Supabase Postgres     │   │  Supabase Storage   │
+              │                         │   │  (private bucket)   │
+              │  NEW tables:            │   │                     │
+              │  document_types         │   │  orgs/{org_id}/     │
+              │  filing_doc_reqs        │   │    clients/         │
+              │  client_documents       │   │      {client_id}/   │
+              │  document_access_log    │   │        {filing}/    │
+              │  upload_portal_tokens   │   │          {year}/    │
+              │                         │   │            file.pdf │
+              └─────────────────────────┘   └────────────────────┘
 ```
 
 ---
 
-## 2. Subdomain Routing — Next.js 15 App Router Middleware
+## Component Responsibilities
 
-### Pattern: URL Rewrite with Header Injection
-
-The browser URL stays as `firmA.app.example.com/clients`. Middleware transparently rewrites to the same App Router route while injecting `x-org-slug` as a trusted request header. No changes to the route file structure are required. This is the pattern used by the Vercel Platforms reference implementation.
-
-Sources: [Guides: Multi-tenant | Next.js](https://nextjs.org/docs/app/guides/multi-tenant), [vercel/platforms](https://github.com/vercel/platforms), [Vercel multi-tenant domain management](https://vercel.com/docs/multi-tenant/domain-management)
-
-### middleware.ts
-
-```typescript
-import { type NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
-
-// Set via NEXT_PUBLIC_ROOT_DOMAIN env var, e.g. "app.example.com"
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? 'app.example.com'
-
-export async function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone()
-  // Strip port for local dev comparisons
-  const hostname = (request.headers.get('host') ?? '').replace(/:\d+$/, '')
-
-  // Determine org slug from subdomain
-  // Production:  firmA.app.example.com  → orgSlug = 'firmA'
-  // Local dev:   firmA.localhost         → orgSlug = 'firmA'
-  let orgSlug: string | null = null
-
-  if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
-    orgSlug = hostname.slice(0, -(ROOT_DOMAIN.length + 1))
-  } else if (hostname.endsWith('.localhost')) {
-    orgSlug = hostname.slice(0, -('.localhost'.length))
-  }
-
-  // Root domain (no subdomain) — marketing site or login portal
-  if (!orgSlug) {
-    return NextResponse.next()
-  }
-
-  // Inject org slug as a trusted header.
-  // This header is set by middleware (server-side); client code cannot spoof it.
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-org-slug', orgSlug)
-
-  // Rewrite: keep URL the same in browser, inject headers
-  const response = NextResponse.rewrite(url, {
-    request: { headers: requestHeaders },
-  })
-
-  // Run Supabase session refresh (must run on every request)
-  return await updateSession(request, response)
-}
-
-export const config = {
-  matcher: [
-    // Run on all paths except Next.js internals and static files
-    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-}
-```
-
-### Resolving org_id in Server Components and Actions
-
-```typescript
-// lib/org/current-org.ts
-import { headers } from 'next/headers'
-import { cache } from 'react'
-import { createAdminClient } from '@/lib/supabase/admin'
-
-export type OrgContext = {
-  id: string
-  name: string
-  slug: string
-  plan_tier: string
-  postmark_server_token: string | null
-  postmark_sender_domain: string | null
-}
-
-// React cache() deduplicates this DB call within a single request.
-// Multiple server components calling getCurrentOrg() in the same
-// request hit the DB only once.
-export const getCurrentOrg = cache(async (): Promise<OrgContext | null> => {
-  const headerStore = await headers()
-  const orgSlug = headerStore.get('x-org-slug')
-  if (!orgSlug) return null
-
-  const supabase = createAdminClient()
-  const { data: org } = await supabase
-    .from('organisations')
-    .select('id, name, slug, plan_tier, postmark_server_token, postmark_sender_domain')
-    .eq('slug', orgSlug)
-    .single()
-
-  return org ?? null
-})
-```
-
-Usage in a server action:
-
-```typescript
-// In any app/actions/*.ts
-import { getCurrentOrg } from '@/lib/org/current-org'
-
-export async function someAction() {
-  const org = await getCurrentOrg()
-  if (!org) throw new Error('Organisation not found')
-  // org.id is the org_id to use for all queries
-}
-```
-
-### Vercel DNS Setup
-
-1. Add root domain in Vercel project settings: `app.example.com`
-2. Add wildcard domain: `*.app.example.com`
-3. Point domain nameservers to Vercel (`ns1.vercel-dns.com`, `ns2.vercel-dns.com`) — required for wildcard SSL certificate provisioning
-4. For local development: entries in `/etc/hosts` like `127.0.0.1 firmA.localhost` or a local proxy tool
+| Component | Status | Responsibility |
+|-----------|--------|---------------|
+| `/api/postmark/inbound/route.ts` | MODIFIED | Add attachment extraction + Storage upload after existing email insert |
+| `lib/documents/storage.ts` | NEW | All Supabase Storage interactions: upload, signed URL generation, deletion |
+| `lib/documents/portal.ts` | NEW | Token creation, validation, portal context resolution |
+| `lib/documents/metadata.ts` | NEW | `client_documents` CRUD, document classification |
+| `lib/documents/retention.ts` | NEW | Retention flag logic, DSAR ZIP export |
+| `app/(portal)/portal/[token]/page.tsx` | NEW | Public upload portal — no layout wrapping from dashboard |
+| `app/(portal)/portal/[token]/components/` | NEW | Checklist UI, dropzone, upload progress |
+| `app/api/portal/[token]/upload/route.ts` | NEW | API Route Handler accepting multipart upload from portal |
+| `app/api/cron/retention/route.ts` | NEW | Vercel cron job — daily retention flag scan |
+| `app/(dashboard)/clients/[id]/components/filing-management.tsx` | MODIFIED | Add document count badge + expandable document list per filing card |
+| `app/(dashboard)/clients/[id]/components/documents-panel.tsx` | NEW | Document list with signed URL download, metadata |
+| `app/(dashboard)/dashboard/components/activity-feed.tsx` | NEW | Real-time upload activity across org |
+| `supabase/migrations/YYYYMMDD_document_collection_schema.sql` | NEW | All new tables + Storage bucket creation + RLS policies |
 
 ---
 
-## 3. Database Migration Strategy — Zero Downtime
+## New Database Tables
 
-### Principle: Expand → Backfill → Contract
+### document_types
 
-The migration runs in three phases. The application remains live throughout. No single step requires a maintenance window.
-
-### Phase A: Expand — New tables and nullable columns
-
-This migration is purely additive. No existing columns changed, no constraints added yet. Deploy and run this migration while the app is serving traffic.
+Global reference table (no `org_id`). Describes the types of documents that can be collected.
 
 ```sql
--- ================================================================
--- Step 1: New tables
--- ================================================================
-
-CREATE TABLE public.organisations (
-  id                     uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  name                   text        NOT NULL,
-  slug                   text        NOT NULL UNIQUE,
-  plan_tier              text        NOT NULL DEFAULT 'starter'
-                           CHECK (plan_tier IN ('starter', 'pro', 'enterprise')),
-  stripe_customer_id     text,
-  stripe_subscription_id text,
-  -- Postmark per-org config (replaces env vars)
-  postmark_server_token  text,
-  postmark_sender_domain text,
-  trial_ends_at          timestamptz,
-  created_at             timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE public.user_organisations (
-  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  org_id     uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-  role       text NOT NULL DEFAULT 'member'
-               CHECK (role IN ('admin', 'member')),
-  created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, org_id)
-);
-
-CREATE TABLE public.invitations (
-  id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id      uuid        NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-  email       text        NOT NULL,
-  role        text        NOT NULL DEFAULT 'member',
-  token       text        NOT NULL UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
-  expires_at  timestamptz NOT NULL DEFAULT (now() + interval '7 days'),
-  accepted_at timestamptz,
+CREATE TABLE public.document_types (
+  id          text    PRIMARY KEY,  -- e.g. 'bank_statements', 'vat_returns'
+  name        text    NOT NULL,
+  description text,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
+-- RLS: TO authenticated USING (true)  -- read-only reference data, same as filing_types
+```
 
--- ================================================================
--- Step 2: Seed the first (existing) organisation
--- This must be done before adding FK columns below
--- ================================================================
+### filing_document_requirements
 
-INSERT INTO public.organisations (id, name, slug, plan_tier)
-VALUES (
-  gen_random_uuid(),  -- capture this UUID; used in backfill
-  'Peninsula Accounting',
-  'peninsula',
-  'pro'
+Maps filing types to required document types. Global reference, no `org_id`.
+
+```sql
+CREATE TABLE public.filing_document_requirements (
+  id              uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
+  filing_type_id  text    NOT NULL REFERENCES public.filing_types(id),
+  document_type_id text   NOT NULL REFERENCES public.document_types(id),
+  is_required     boolean NOT NULL DEFAULT true,
+  display_order   int     NOT NULL DEFAULT 0,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (filing_type_id, document_type_id)
+);
+-- RLS: TO authenticated USING (true)
+```
+
+### client_documents
+
+Core document metadata table. One row per stored file.
+
+```sql
+CREATE TABLE public.client_documents (
+  id               uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id           uuid        NOT NULL REFERENCES public.organisations(id),
+  client_id        uuid        NOT NULL REFERENCES public.clients(id),
+  filing_type_id   text        REFERENCES public.filing_types(id),
+  document_type_id text        REFERENCES public.document_types(id),
+  -- Storage path (NEVER expose to client directly — generate signed URLs only)
+  storage_path     text        NOT NULL,
+  -- Original filename from uploader
+  original_filename text       NOT NULL,
+  file_size_bytes  bigint,
+  mime_type        text,
+  -- Source of upload
+  source           text        NOT NULL CHECK (source IN ('email_attachment', 'portal_upload', 'manual_upload')),
+  -- Relation back to inbound email if source = email_attachment
+  inbound_email_id uuid        REFERENCES public.inbound_emails(id),
+  -- Relation to portal token if source = portal_upload
+  portal_token_id  uuid        REFERENCES public.upload_portal_tokens(id),
+  -- Tax year the document pertains to (e.g. '2025-04-06' = tax year ending April 2025)
+  tax_year_end     date,
+  -- Retention enforcement
+  retain_until     date,        -- calculated: tax_year_end + 6 years
+  retention_flagged boolean     NOT NULL DEFAULT false,
+  retention_flagged_at timestamptz,
+  -- Classification confidence (0.0–1.0) when auto-detected
+  classification_confidence numeric(3,2),
+  uploaded_at      timestamptz NOT NULL DEFAULT now(),
+  uploaded_by_user_id uuid     REFERENCES auth.users(id),  -- null for portal/email uploads
+  created_at       timestamptz NOT NULL DEFAULT now()
 );
 
--- ================================================================
--- Step 3: Add nullable org_id FK to all tenant-scoped tables
--- No NOT NULL, no defaults — fast ALTER with no table rewrite
--- ================================================================
+-- Indexes
+CREATE INDEX idx_client_documents_org_id      ON public.client_documents(org_id);
+CREATE INDEX idx_client_documents_client_id   ON public.client_documents(client_id);
+CREATE INDEX idx_client_documents_filing_type ON public.client_documents(filing_type_id);
+CREATE INDEX idx_client_documents_retain_until ON public.client_documents(retain_until)
+  WHERE retention_flagged = false;
 
-ALTER TABLE public.clients
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.client_filing_assignments
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.client_deadline_overrides
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.client_filing_status_overrides
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.email_templates
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.schedules
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.schedule_steps
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.schedule_client_exclusions
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.client_email_overrides
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.client_schedule_overrides
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.reminder_queue
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.email_log
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.inbound_emails
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.app_settings
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.locks
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
-ALTER TABLE public.oauth_tokens
-  ADD COLUMN IF NOT EXISTS org_id uuid REFERENCES public.organisations(id);
+-- RLS: standard org_id-scoped policies (same pattern as clients table)
 ```
 
-After this migration: deploy application code that writes `org_id` on all new inserts (using the known first org's ID from `getCurrentOrg()`). Existing rows have NULL org_id but the app continues working because RLS has not been activated yet.
+### document_access_log
 
-### Phase B: Backfill — Populate existing rows
-
-Run this script after deploying the app code that writes org_id on new rows. Use batches to avoid locking large tables.
+Audit trail — every time a signed URL is generated for a document.
 
 ```sql
--- Backfill all tenant-scoped tables with the first org's ID
--- Run once per table; the DO block avoids long table locks
+CREATE TABLE public.document_access_log (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id         uuid        NOT NULL REFERENCES public.organisations(id),
+  document_id    uuid        NOT NULL REFERENCES public.client_documents(id),
+  accessed_by    uuid        REFERENCES auth.users(id),  -- null if system-generated
+  access_type    text        NOT NULL CHECK (access_type IN ('view', 'download', 'dsar_export')),
+  accessed_at    timestamptz NOT NULL DEFAULT now()
+);
 
-DO $$
-DECLARE
-  v_org_id      uuid;
-  rows_updated  int;
-  tables        text[] := ARRAY[
-    'clients',
-    'client_filing_assignments',
-    'client_deadline_overrides',
-    'client_filing_status_overrides',
-    'email_templates',
-    'schedules',
-    'schedule_steps',
-    'schedule_client_exclusions',
-    'client_email_overrides',
-    'client_schedule_overrides',
-    'reminder_queue',
-    'email_log',
-    'inbound_emails',
-    'app_settings',
-    'locks',
-    'oauth_tokens'
-  ];
-  t             text;
-BEGIN
-  SELECT id INTO v_org_id
-  FROM public.organisations
-  WHERE slug = 'peninsula'
-  LIMIT 1;
+CREATE INDEX idx_doc_access_log_org_id ON public.document_access_log(org_id);
+CREATE INDEX idx_doc_access_log_doc_id ON public.document_access_log(document_id);
 
-  FOREACH t IN ARRAY tables LOOP
-    RAISE NOTICE 'Backfilling table: %', t;
-    LOOP
-      EXECUTE format(
-        'UPDATE public.%I
-         SET    org_id = $1
-         WHERE  org_id IS NULL
-         AND    ctid IN (
-                  SELECT ctid FROM public.%I
-                  WHERE  org_id IS NULL
-                  LIMIT  500
-                )',
-        t, t
-      ) USING v_org_id;
-
-      GET DIAGNOSTICS rows_updated = ROW_COUNT;
-      EXIT WHEN rows_updated = 0;
-      PERFORM pg_sleep(0.05);  -- 50ms pause between batches
-    END LOOP;
-    RAISE NOTICE 'Done: %', t;
-  END LOOP;
-END $$;
+-- RLS: standard org_id-scoped, SELECT only for authenticated users
 ```
 
-Verify before proceeding to Phase C:
+### upload_portal_tokens
+
+Stores the state of client-facing portal links. One token per (client, filing_type, tax_year) combination.
 
 ```sql
--- Must return 0 for all tables before adding NOT NULL
-SELECT 'clients' AS tbl, COUNT(*) AS nulls FROM public.clients WHERE org_id IS NULL
-UNION ALL
-SELECT 'email_log', COUNT(*) FROM public.email_log WHERE org_id IS NULL
-UNION ALL
-SELECT 'reminder_queue', COUNT(*) FROM public.reminder_queue WHERE org_id IS NULL;
--- ... add all tables
+CREATE TABLE public.upload_portal_tokens (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id        uuid        NOT NULL REFERENCES public.organisations(id),
+  client_id     uuid        NOT NULL REFERENCES public.clients(id),
+  filing_type_id text       REFERENCES public.filing_types(id),
+  tax_year_end  date,
+  -- The URL-safe token (random bytes, stored hashed)
+  token_hash    text        NOT NULL UNIQUE,  -- SHA-256 of raw token
+  expires_at    timestamptz NOT NULL DEFAULT (now() + interval '30 days'),
+  revoked       boolean     NOT NULL DEFAULT false,
+  created_by    uuid        NOT NULL REFERENCES auth.users(id),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  last_used_at  timestamptz
+);
+
+CREATE INDEX idx_portal_tokens_token_hash ON public.upload_portal_tokens(token_hash);
+CREATE INDEX idx_portal_tokens_org_id     ON public.upload_portal_tokens(org_id);
+
+-- RLS: authenticated users can SELECT/INSERT/UPDATE tokens for their org
+-- Portal validation API uses service role client (bypasses RLS deliberately)
 ```
-
-### Phase C: Contract — Lock in NOT NULL, add indexes, activate RLS
-
-Run only after the Phase B verification query returns zero nulls for all tables.
-
-```sql
--- Add NOT NULL constraints (fast in Postgres when no NULLs exist)
-ALTER TABLE public.clients                        ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.client_filing_assignments      ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.client_deadline_overrides      ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.client_filing_status_overrides ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.email_templates                ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.schedules                      ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.schedule_steps                 ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.schedule_client_exclusions     ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.client_email_overrides         ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.client_schedule_overrides      ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.reminder_queue                 ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.email_log                      ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.inbound_emails                 ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.app_settings                   ALTER COLUMN org_id SET NOT NULL;
-ALTER TABLE public.locks                          ALTER COLUMN org_id SET NOT NULL;
-
--- Indexes (CONCURRENTLY avoids table locks — run outside a transaction block)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_clients_org_id
-  ON public.clients(org_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_reminder_queue_org_id
-  ON public.reminder_queue(org_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_email_log_org_id
-  ON public.email_log(org_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_inbound_emails_org_id
-  ON public.inbound_emails(org_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_schedules_org_id
-  ON public.schedules(org_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_email_templates_org_id
-  ON public.email_templates(org_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_app_settings_org_id
-  ON public.app_settings(org_id);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_locks_org_id
-  ON public.locks(org_id);
-
--- Drop old USING (true) policies and replace with org_id-scoped policies
--- See Section 1 for full policy SQL.
--- Activate RLS on each table:
-ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
--- ... repeat for each table
-```
-
-**Critical note:** The Custom Access Token Hook (Section 1) MUST be deployed and verified before this step. If the hook is not working, users will not have `org_id` in their JWT and all RLS policies will block them immediately. Verify with a test login and `SELECT auth.jwt()` in the SQL editor.
 
 ---
 
-## 4. Cron Jobs — Service Role Safety with Multi-Tenancy
+## Supabase Storage Configuration
 
-### The Core Danger
+### Bucket Setup
 
-The two cron routes use `createAdminClient()` (service role key). The service role bypasses ALL RLS. In multi-tenant mode, without explicit `org_id` filtering in every query, a cron job running against the full `clients` table will touch every org's data.
+One private bucket for all document files, created via migration:
 
-This is the highest-severity migration risk. RLS provides zero protection for service role queries.
+```sql
+-- In Supabase dashboard or via management API at project init:
+-- Bucket name: 'client-documents'
+-- Public: false (private — all access via signed URLs only)
+-- File size limit: 50MB per file
+-- Allowed MIME types: pdf, image/*, application/msword, etc.
+```
 
-Source: [Why is my service role key client bypassing RLS? | Supabase Docs](https://supabase.com/docs/guides/troubleshooting/why-is-my-service-role-key-client-getting-rls-errors-or-not-returning-data-7_1K9z)
+Bucket creation cannot be done in a SQL migration. Use the Supabase dashboard or the management REST API in a setup script. The bucket name `client-documents` should be stored in an env var: `SUPABASE_STORAGE_BUCKET_DOCUMENTS`.
 
-### Required Pattern: Per-Org Iteration
+### Storage Path Convention
 
-Both cron routes must be rewritten to:
-1. Fetch all active organisations
-2. Iterate per org
-3. Pass `org_id` explicitly to every query
-4. Use per-org Postmark tokens
+```
+orgs/{org_id}/clients/{client_id}/{filing_type_id}/{tax_year}/{filename}
+
+Example:
+orgs/a1b2c3d4.../clients/e5f6g7h8.../corporation_tax_payment/2025/company_accounts.pdf
+```
+
+The `{filename}` segment uses a generated UUID with the original extension to avoid path collisions and prevent filename-based enumeration:
+```
+{uuid}.{ext}  -- e.g. 3f8a12bc.pdf
+```
+
+Original filename is preserved in `client_documents.original_filename`, not in the storage path.
+
+### Storage RLS Policies
+
+These policies are on `storage.objects` (not a regular Postgres table). They restrict which rows authenticated users can read. The portal upload flow uses service-role client (bypasses storage RLS entirely) so portal users do not need Supabase auth.
+
+```sql
+-- SELECT: authenticated users can only read objects under their org_id path
+CREATE POLICY "client_documents_select_own_org"
+  ON storage.objects
+  FOR SELECT
+  TO authenticated
+  USING (
+    bucket_id = 'client-documents'
+    AND (storage.foldername(name))[1] = 'orgs'
+    AND (storage.foldername(name))[2] = (auth.jwt() ->> 'org_id')
+  );
+
+-- INSERT: authenticated users can upload into their org's path only
+CREATE POLICY "client_documents_insert_own_org"
+  ON storage.objects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'client-documents'
+    AND (storage.foldername(name))[1] = 'orgs'
+    AND (storage.foldername(name))[2] = (auth.jwt() ->> 'org_id')
+  );
+
+-- DELETE: authenticated users can delete within their org's path
+CREATE POLICY "client_documents_delete_own_org"
+  ON storage.objects
+  FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'client-documents'
+    AND (storage.foldername(name))[1] = 'orgs'
+    AND (storage.foldername(name))[2] = (auth.jwt() ->> 'org_id')
+  );
+
+-- NOTE: The portal upload flow bypasses these policies entirely.
+-- It uses the service-role client to call storage.upload() server-side.
+-- Never expose the service-role key to the portal client.
+```
+
+**Confidence:** HIGH — `storage.foldername(name)` returns an array where `[1]` is the first folder segment, `[2]` is the second. This array indexing pattern is confirmed in official Supabase storage helper function docs and community examples. The JWT `org_id` claim is already established in v3.0 via the custom access token hook.
+
+**Important caveat (MEDIUM confidence):** Supabase sometimes rewrites `storage.foldername(name)` to `storage.foldername(tables.name)` if multiple tables in the query have a `name` column. Use `storage.foldername(objects.name)` to be explicit if this ambiguity arises.
+
+---
+
+## Data Flows
+
+### Flow 1: Passive Collection — Postmark Email Attachment
+
+```
+Client sends email with PDF attachment
+    |
+    v
+Postmark delivers to inbound address
+    |
+    v
+POST /api/postmark/inbound?token=<secret>
+    |
+    +--> [EXISTING] Parse email, match client by From address
+    |    Store in inbound_emails table
+    |    Run keyword detection
+    |
+    +--> [NEW] If Attachments.length > 0:
+         For each attachment (Content is base64):
+           |
+           +--> Decode base64 → Buffer
+           |
+           +--> Determine storage path:
+           |    orgs/{org_id}/clients/{client_id}/{filing_type}/{tax_year}/{uuid}.{ext}
+           |
+           +--> serviceClient.storage
+           |      .from('client-documents')
+           |      .upload(storagePath, buffer, { contentType, upsert: false })
+           |
+           +--> Insert into client_documents:
+                { org_id, client_id, filing_type_id, storage_path,
+                  original_filename: attachment.Name,
+                  file_size_bytes: attachment.ContentLength,
+                  mime_type: attachment.ContentType,
+                  source: 'email_attachment',
+                  inbound_email_id: inboundEmail.id }
+```
+
+**Key point:** Attachment extraction happens in the same webhook request as the email store. Postmark base64-encodes attachment content in the webhook payload (`attachment.Content`). A `Buffer.from(content, 'base64')` converts it to bytes for Storage upload. The service client bypasses RLS — the org_id must be explicitly set on the `client_documents` row.
+
+**Postmark attachment size limit:** Postmark inbound webhook payloads have a 25MB total limit. Files above this cannot arrive via email. The webhook must return 200 regardless (even on partial attachment failure) to prevent Postmark retries.
+
+### Flow 2: Active Collection — Client Portal Upload
+
+```
+Accountant generates portal link for a client + filing type
+    |
+    v
+Server Action: lib/documents/portal.ts → createPortalToken()
+    Generate 32-byte random token (crypto.randomBytes)
+    Store SHA-256 hash in upload_portal_tokens table
+    Return raw token (shown to accountant once, then lost)
+    |
+    v
+Accountant sends link to client:
+    https://{org}.app.domain.com/portal/{rawToken}
+    |
+    v
+Client opens /portal/[token] (PUBLIC Next.js route)
+    |
+    +--> Server Component resolves token:
+    |    Hash the URL token → look up upload_portal_tokens by token_hash
+    |    Validate: not revoked, not expired
+    |    Load: client name, filing type, tax_year, checklist items
+    |    (Uses service role client — no Supabase auth session from client)
+    |
+    +--> Render checklist UI with dropzone per document type
+    |
+    v
+Client selects file and submits form
+    |
+    v
+POST /api/portal/[token]/upload (Next.js API Route Handler)
+    |
+    +--> Re-validate token (same hash lookup — server-side, not trusting client)
+    |
+    +--> Parse multipart body (request.formData())
+    |
+    +--> Validate file: size, MIME type, scan (if ClamAV integration added later)
+    |
+    +--> serviceClient.storage.from('client-documents').upload(storagePath, fileBuffer)
+    |
+    +--> Insert into client_documents
+         { source: 'portal_upload', portal_token_id: token.id, ... }
+    |
+    v
+Accountant notification:
+    +--> Insert notification record or call Postmark to email accountant
+    +--> Dashboard activity feed reflects new upload
+```
+
+**Why API Route Handler instead of Server Action for the upload:** File uploads from unauthenticated forms require multipart parsing which `request.formData()` handles well in a Route Handler. Server Actions work but add overhead for large files. A dedicated Route Handler at `/api/portal/[token]/upload` is cleaner.
+
+**Why the portal does not use Supabase client-side upload:** The portal visitor is not a Supabase auth user. They cannot satisfy the storage RLS policies. The API Route Handler runs server-side with the service role client and uploads on their behalf. The raw token in the URL is the authentication mechanism.
+
+### Flow 3: Accountant Views Documents (Dashboard)
+
+```
+Accountant navigates to /clients/[id]
+    |
+    v
+filing-management.tsx loads document counts per filing type
+    |
+    +--> Query client_documents grouped by filing_type_id:
+         SELECT filing_type_id, COUNT(*), MAX(uploaded_at)
+         FROM client_documents
+         WHERE client_id = ? AND org_id = ?
+         (RLS enforces org scoping via authenticated user's JWT)
+    |
+    v
+Document count badge shown on each filing card
+Accountant clicks "View documents" on a filing card
+    |
+    v
+documents-panel.tsx loads document list for that filing
+    |
+    v
+Accountant clicks "Download" on a specific document
+    |
+    v
+Server Action: lib/documents/storage.ts → getSignedUrl()
+    |
+    +--> adminClient.storage
+    |      .from('client-documents')
+    |      .createSignedUrl(storagePath, 3600)  -- 1-hour expiry
+    |
+    +--> Insert into document_access_log
+    |    { document_id, accessed_by: userId, access_type: 'download' }
+    |
+    +--> Return signed URL to client component
+    |
+    v
+Browser redirects to signed URL → file downloads
+```
+
+**Key point:** The `storage_path` from `client_documents` is NEVER sent to the client component. Only the signed URL is returned. The signed URL is opaque (contains a token, not a path). After 1 hour the URL is invalid. The `document_access_log` insert is fire-and-forget — do not block the response on it.
+
+### Flow 4: DSAR Export
+
+```
+Accountant requests DSAR export for a client
+    |
+    v
+Server Action: lib/documents/retention.ts → exportDsarZip()
+    |
+    +--> Query all client_documents for the client
+    |
+    +--> For each document:
+    |    adminClient.storage.from('client-documents').download(storagePath)
+    |    Returns Blob/Buffer
+    |
+    +--> Build ZIP archive using JSZip:
+    |    zip.file(original_filename, buffer)
+    |    Add manifest.json: { client_id, exported_at, documents: [...] }
+    |
+    +--> Insert document_access_log rows (access_type: 'dsar_export')
+    |
+    +--> Return ZIP as NextResponse with Content-Disposition: attachment
+         OR write to temp storage path and return a short-lived signed URL
+```
+
+**Recommendation:** For small document sets (< 50 files), generate the ZIP in-memory and stream it back. For larger exports, write the ZIP to a temp path in Storage (`orgs/{org_id}/_exports/{uuid}.zip`) and return a 5-minute signed URL. The temp export file can be cleaned up by the retention cron.
+
+### Flow 5: Retention Enforcement
+
+```
+Daily Vercel cron → GET /api/cron/retention
+    |
+    +--> adminClient query:
+    |    SELECT * FROM client_documents
+    |    WHERE retain_until < CURRENT_DATE
+    |    AND retention_flagged = false
+    |
+    +--> For each document:
+    |    UPDATE client_documents SET retention_flagged = true, retention_flagged_at = now()
+    |
+    +--> (Phase 19+) Notify org admin via email that documents need review
+    |    (Do NOT auto-delete — accountant must confirm deletion for HMRC compliance)
+```
+
+**Retention logic:** `retain_until` = `tax_year_end + 6 years`. HMRC requires records to be kept for 6 years from the end of the accounting period for Corporation Tax and Self Assessment. This system flags but does not delete — deletion is a manual accountant action after review.
+
+---
+
+## Token Security Model
+
+The upload portal uses a database-token pattern (not JWT or HMAC). This is the appropriate pattern when:
+- The token must be revocable (revoked column on the row)
+- The token must expire on a known date (expires_at column)
+- The token scope must be narrowly defined (client + filing + tax year)
+
+### Token Lifecycle
+
+```
+1. Generation (server-side, authenticated accountant):
+   rawToken = crypto.randomBytes(32)        -- 256 bits of randomness
+   urlToken  = rawToken.toString('base64url') -- URL-safe base64
+   hash      = crypto.createHash('sha256').update(rawToken).digest('hex')
+   INSERT INTO upload_portal_tokens (token_hash, ...)
+
+2. URL sent to client:
+   https://{org}.app.domain.com/portal/{urlToken}
+   Raw token travels in URL — TLS encrypts in transit
+
+3. Portal page load (server component):
+   hash = sha256(urlToken)
+   SELECT * FROM upload_portal_tokens WHERE token_hash = hash
+   Validate: not revoked, not expired
+
+4. Portal upload (API route):
+   Re-validate token (same hash lookup — do not trust cached state)
+   Update last_used_at on the token row
+
+5. Revocation:
+   UPDATE upload_portal_tokens SET revoked = true WHERE id = ?
+   Existing URL immediately becomes invalid on next use
+```
+
+### Security Properties
+
+| Property | Implementation |
+|----------|---------------|
+| Unguessability | 32 random bytes = 2^256 search space |
+| In-transit confidentiality | TLS (HTTPS enforced by Vercel) |
+| Storage at rest | Hash stored, raw token never persisted |
+| Revocability | `revoked` boolean — instant invalidation |
+| Expiry | `expires_at` column, checked on every use |
+| Scope | Token is bound to client + filing + tax year, validated on every use |
+| Replay resistance | Token can only be used for the bound (client, filing, year) |
+
+**Not used:** HMAC signed tokens. HMAC is appropriate for stateless verification (webhook signatures). The portal needs revocability — once a client has submitted their documents, the accountant should be able to invalidate the link. Stateless HMAC tokens cannot be revoked without additional state, which negates the benefit. Database-token is the correct choice.
+
+---
+
+## Signed URL Generation Pattern
 
 ```typescript
-// app/api/cron/reminders/route.ts — updated pattern
+// lib/documents/storage.ts
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 })
+const BUCKET = process.env.SUPABASE_STORAGE_BUCKET_DOCUMENTS ?? 'client-documents'
+const SIGNED_URL_EXPIRY_SECONDS = 60 * 60  // 1 hour
+
+/**
+ * Generate a signed URL for download.
+ * NEVER call this from a client component directly.
+ * Always call from a server action or server component.
+ */
+export async function getDocumentSignedUrl(storagePath: string): Promise<string> {
+  const admin = createAdminClient()
+  const { data, error } = await admin
+    .storage
+    .from(BUCKET)
+    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY_SECONDS)
+
+  if (error || !data?.signedUrl) {
+    throw new Error(`Failed to generate signed URL: ${error?.message}`)
   }
 
-  const supabase = createAdminClient()
-
-  // Fetch all orgs with Postmark configured and active subscriptions
-  const { data: orgs, error } = await supabase
-    .from('organisations')
-    .select('id, name, postmark_server_token, postmark_sender_domain')
-    .not('postmark_server_token', 'is', null)
-    // Add: .filter('trial_ends_at', 'gte', new Date().toISOString()) when billing is live
-
-  if (error || !orgs) {
-    console.error('Failed to fetch organisations:', error)
-    return new Response('Error', { status: 500 })
-  }
-
-  const results = await Promise.allSettled(
-    orgs.map(org => processRemindersForOrg(supabase, org))
-  )
-
-  const failed = results.filter(r => r.status === 'rejected')
-  if (failed.length > 0) {
-    console.error(`${failed.length} orgs failed cron processing`)
-  }
-
-  return new Response('OK', { status: 200 })
+  return data.signedUrl
 }
 
-async function processRemindersForOrg(
-  supabase: ReturnType<typeof createAdminClient>,
-  org: { id: string; name: string; postmark_server_token: string | null }
-) {
-  // EVERY query must include .eq('org_id', org.id)
-  // RLS will not enforce this — you must do it manually
+/**
+ * Upload a file server-side (for portal uploads and email attachments).
+ * Uses admin/service role — bypasses Storage RLS.
+ */
+export async function uploadDocument(
+  storagePath: string,
+  data: Buffer | Uint8Array,
+  contentType: string
+): Promise<void> {
+  const admin = createAdminClient()
+  const { error } = await admin
+    .storage
+    .from(BUCKET)
+    .upload(storagePath, data, { contentType, upsert: false })
 
-  const { data: clients } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('org_id', org.id)  // MANDATORY
-
-  const { data: schedules } = await supabase
-    .from('schedules')
-    .select('*, schedule_steps(*)')
-    .eq('org_id', org.id)  // MANDATORY
-
-  // ... queue population logic
-
-  // Inserts must also include org_id
-  await supabase
-    .from('reminder_queue')
-    .insert({
-      org_id: org.id,  // MANDATORY
-      client_id: '...',
-      // ...
-    })
+  if (error) {
+    throw new Error(`Storage upload failed: ${error.message}`)
+  }
 }
 ```
 
-### Lock Keys Must Be Org-Scoped
+**Key invariant:** `storagePath` (the raw path in the bucket) must never be returned to client components. Client components receive only signed URLs. The mapping from `client_documents.id` to `client_documents.storage_path` happens in a server action.
 
-The existing `locks` table prevents duplicate cron runs. With multiple orgs, lock keys must include the org_id to allow concurrent runs across orgs:
+---
 
-```typescript
-// Current (single-tenant)
-const lockKey = 'send-emails'
+## Files That Change in Phase 18 vs Phase 19
 
-// Required (multi-tenant)
-const lockKey = `org:${org.id}:send-emails`
+### Phase 18 — Foundation (must exist before Phase 19 can build)
+
+| File/Component | Change Type | Why It Must Come First |
+|---------------|-------------|----------------------|
+| `supabase/migrations/*_document_schema.sql` | NEW | All other work depends on the tables |
+| Supabase Storage bucket creation | NEW | Portal and webhook uploads need the bucket |
+| Storage RLS policies | NEW | Determines how authenticated uploads are secured |
+| `lib/types/database.ts` | MODIFIED | Add `ClientDocument`, `DocumentType`, `UploadPortalToken` interfaces |
+| `lib/documents/storage.ts` | NEW | Core storage utility used by both passive and active flows |
+| `lib/documents/metadata.ts` | NEW | `client_documents` insert/query helpers |
+| `lib/documents/retention.ts` | NEW (skeleton) | `calculateRetainUntil()` utility used by both flows |
+| `document_types` and `filing_document_requirements` seed data | NEW | Checklist on portal depends on this reference data |
+| `ENV_VARIABLES.md` | MODIFIED | Document `SUPABASE_STORAGE_BUCKET_DOCUMENTS` |
+
+### Phase 19 — Passive + Active Collection (builds on Phase 18)
+
+| File/Component | Change Type | Depends On |
+|---------------|-------------|-----------|
+| `app/api/postmark/inbound/route.ts` | MODIFIED | Storage bucket, `lib/documents/storage.ts`, `client_documents` table |
+| `app/(portal)/portal/[token]/page.tsx` | NEW | `upload_portal_tokens` table, `document_types`, `filing_document_requirements` |
+| `app/(portal)/portal/[token]/components/` | NEW | Portal page |
+| `app/api/portal/[token]/upload/route.ts` | NEW | Portal page, storage, `client_documents` table |
+| `lib/documents/portal.ts` | NEW | `upload_portal_tokens` table |
+| `app/(dashboard)/clients/[id]/components/filing-management.tsx` | MODIFIED | `client_documents` table, `lib/documents/storage.ts` |
+| `app/(dashboard)/clients/[id]/components/documents-panel.tsx` | NEW | `filing-management.tsx` modifications, signed URL pattern |
+| `app/api/cron/retention/route.ts` | NEW | `client_documents` table with `retain_until` populated |
+| DSAR export action | NEW | `lib/documents/retention.ts`, `lib/documents/storage.ts` |
+| Accountant notification on upload | NEW | Portal upload route |
+
+---
+
+## Recommended Project Structure (New Files)
+
 ```
+lib/
+  documents/
+    storage.ts        -- Supabase Storage: upload, signed URL, delete
+    metadata.ts       -- client_documents CRUD helpers
+    portal.ts         -- Token create, validate, revoke
+    retention.ts      -- retain_until calc, DSAR export, flagging
+    classify.ts       -- Auto-classification: map filename/mime to document_type_id
 
-### app_settings Must Be Org-Filtered
+app/
+  (portal)/           -- NEW route group: public, no auth session required
+    portal/
+      [token]/
+        page.tsx      -- Server component: resolve token, render checklist
+        loading.tsx
+        not-found.tsx -- Shown for expired/revoked tokens
+        components/
+          document-checklist.tsx
+          upload-dropzone.tsx
+          upload-progress.tsx
 
-The cron reads `app_settings` to get the send hour. This query must be org-scoped:
+  api/
+    portal/
+      [token]/
+        upload/
+          route.ts    -- API Route Handler: multipart upload, token re-validation
 
-```typescript
-// Current (broken in multi-tenant context)
-const { data: settings } = await supabase
-  .from('app_settings')
-  .select('value')
-  .eq('key', 'send_hour')
-  .single()
+    cron/
+      retention/
+        route.ts      -- Daily: flag documents past retain_until
 
-// Required
-const { data: settings } = await supabase
-  .from('app_settings')
-  .select('value')
-  .eq('key', 'send_hour')
-  .eq('org_id', org.id)  // MANDATORY
-  .single()
+  (dashboard)/
+    clients/
+      [id]/
+        components/
+          documents-panel.tsx   -- NEW: document list per filing with download
+          portal-link-card.tsx  -- NEW: generate/revoke portal link per filing
 ```
 
 ---
 
-## 5. Per-Org Postmark Token
+## Architectural Patterns
 
-### Current State
+### Pattern 1: Server-Only Storage Paths
 
-`POSTMARK_API_TOKEN` and `POSTMARK_SENDER_EMAIL` are Vercel environment variables on the single deployment. All emails for all future orgs would use the same token — which is incorrect. Each accounting firm needs its own Postmark server.
+**What:** `client_documents.storage_path` is read only in server actions and server components. It is never included in API responses to client components. Client components request a signed URL through a server action.
 
-### Target State
+**When to use:** All document download flows.
 
-`organisations.postmark_server_token` — each org holds its own Postmark Server API token. The sender domain is stored in `organisations.postmark_sender_domain`.
-
-### Migration of Existing Token
-
-At initial startup after Phase A migration, a seed script copies the env var value into the first org's row. This is a one-time operation:
-
+**Example:**
 ```typescript
-// scripts/seed-first-org-postmark.ts
-// Run once via: npx ts-node scripts/seed-first-org-postmark.ts
-import { createAdminClient } from '@/lib/supabase/admin'
+// BAD — exposes storage path to browser
+return NextResponse.json({ storagePath: doc.storage_path })
 
-const supabase = createAdminClient()
-await supabase
-  .from('organisations')
-  .update({
-    postmark_server_token: process.env.POSTMARK_API_TOKEN,
-    postmark_sender_domain: process.env.POSTMARK_SENDER_DOMAIN,
-  })
-  .eq('slug', 'peninsula')
-```
-
-### Updated Email Sender
-
-```typescript
-// lib/email/sender.ts — updated signature
-import { ServerClient } from 'postmark'
-
-export function createPostmarkClient(serverToken: string): ServerClient {
-  return new ServerClient(serverToken)
-}
-
-// In cron per-org processing:
-const postmark = createPostmarkClient(org.postmark_server_token!)
-// org.postmark_sender_domain used as the From domain
-```
-
-### Security
-
-`postmark_server_token` must never be exposed to client-side code. The RLS policy on `organisations` allows authenticated users to SELECT their org — which means client-side queries could read this column. To prevent this:
-
-**Option A (recommended for v3.0):** Exclude the column from client-side selects. Server actions and cron jobs use the admin client to read it; client queries only select `id, name, slug, plan_tier`.
-
-**Option B (for v4.0):** Move sensitive fields to a separate `org_secrets` table with RLS that only allows server-side access.
-
----
-
-## 6. Auth Flow Changes
-
-### Login Page
-
-Each subdomain's login page must verify that the user actually has membership in that org after authentication. Without this check, a user with Supabase credentials could log in at any firm's subdomain.
-
-```typescript
-// app/(auth)/login/actions.ts
-import { createServerClient } from '@/lib/supabase/server'
-import { getCurrentOrg } from '@/lib/org/current-org'
-import { redirect } from 'next/navigation'
-
-export async function loginAction(formData: FormData) {
-  const supabase = await createServerClient()
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  })
-
-  if (error) return { error: error.message }
-
-  // Verify membership in the current subdomain's org
-  const org = await getCurrentOrg()
-  if (!org) {
-    await supabase.auth.signOut()
-    return { error: 'Organisation not found' }
-  }
-
-  const { data: membership } = await supabase
-    .from('user_organisations')
-    .select('role')
-    .eq('user_id', data.user.id)
-    .eq('org_id', org.id)
-    .single()
-
-  if (!membership) {
-    await supabase.auth.signOut()
-    return { error: 'You do not have access to this organisation' }
-  }
-
-  redirect('/dashboard')
+// GOOD — server action generates ephemeral signed URL
+'use server'
+export async function downloadDocument(documentId: string) {
+  const doc = await getDocument(documentId)  // server-only
+  const url = await getDocumentSignedUrl(doc.storage_path)
+  await logAccess(documentId, 'download')
+  return url  // only the signed URL goes to the browser
 }
 ```
 
-### User Creation (Writing app_metadata)
+### Pattern 2: Double Token Validation
 
-When a new user is invited and accepts their invitation, the server must write `org_id` into `app_metadata` so the Custom Access Token Hook can read it:
+**What:** The portal page validates the token on load (to render the checklist). The upload route re-validates on every upload request. Token state is re-read from the database each time — no caching, no client-passed context is trusted.
 
-```typescript
-// In invitation acceptance server action
-const { data: { user } } = await adminSupabase.auth.admin.createUser({
-  email: invitation.email,
-  password: generatedOrUserSuppliedPassword,
-  app_metadata: {
-    org_id: invitation.org_id,  // Required for JWT hook
-  },
-})
+**When to use:** All portal upload operations.
 
-await adminSupabase
-  .from('user_organisations')
-  .insert({
-    user_id: user.id,
-    org_id: invitation.org_id,
-    role: invitation.role,
-  })
+**Rationale:** A token could be revoked between page load and upload submission. The upload route must treat the token as untrusted input.
 
-await adminSupabase
-  .from('invitations')
-  .update({ accepted_at: new Date().toISOString() })
-  .eq('id', invitation.id)
+### Pattern 3: Service Role for Cross-Boundary Writes
+
+**What:** When unauthenticated actors (portal visitors, Postmark webhook) need to write to Storage or `client_documents`, the server-side handler uses `createAdminClient()` (service role). The handler is responsible for scoping all writes with the correct `org_id` and `client_id` — RLS will not enforce this.
+
+**When to use:** Portal upload route, Postmark inbound webhook.
+
+**Consequence:** These handlers must explicitly validate the security context (token, webhook secret) before performing any write. The service role key is the most privileged credential in the system.
+
+### Pattern 4: Attachment Extraction as a Non-Critical Step
+
+**What:** In the Postmark inbound webhook, attachment extraction is a separate step that runs after the email has been stored. If attachment upload to Storage fails, the webhook still returns 200. The inbound email record is the source of truth — attachments can be re-extracted later.
+
+**When to use:** Postmark inbound webhook.
+
+**Rationale:** Postmark retries on non-200 responses. An email should be stored even if Storage is temporarily unavailable. Do not let an attachment failure prevent the email record from being created.
+
+---
+
+## Integration Points — Existing Files That Change
+
+### `/api/postmark/inbound/route.ts` (MODIFIED)
+
+Current pipeline (5 steps) gets a new Step 6:
+
+```
+Current:
+Step 1: Verify token
+Step 2: Parse payload
+Step 3: Match client by email
+Step 4: Store inbound_emails row
+Step 5: Auto-update records_received (conditional)
+
+New Step 6 (after Step 4):
+if (payload.Attachments?.length > 0 && client?.id) {
+  for (const attachment of payload.Attachments) {
+    const buffer = Buffer.from(attachment.Content, 'base64')
+    const ext = mime.extension(attachment.ContentType) || 'bin'
+    const uuid = crypto.randomUUID()
+    const path = `orgs/${orgId}/clients/${client.id}/${detectedFilingType ?? 'unknown'}/${taxYear}/${uuid}.${ext}`
+    await uploadDocument(path, buffer, attachment.ContentType)
+    await insertClientDocument({ ... source: 'email_attachment' })
+  }
+}
 ```
 
----
+This addition is ~40 lines of new code in the existing handler. The import of `uploadDocument` and `insertClientDocument` from `lib/documents/` keeps the route handler thin.
 
-## 7. Component Boundaries — Updated for Multi-Tenancy
+### `filing-management.tsx` (MODIFIED)
 
-| Component | Responsibility | Multi-Tenancy Change |
-|-----------|---------------|----------------------|
-| `middleware.ts` | Session refresh + org resolution | CHANGED: adds x-org-slug header injection |
-| `lib/org/current-org.ts` | Resolve slug to org record | NEW FILE |
-| `lib/supabase/admin.ts` | Service role client | UNCHANGED — all callers must add `.eq('org_id', orgId)` |
-| `lib/supabase/server.ts` | Authenticated user client | UNCHANGED — RLS enforces org_id via JWT |
-| `lib/email/sender.ts` | Postmark sending | CHANGED: accepts `serverToken` param |
-| `app/api/cron/reminders/route.ts` | Queue population | REWRITE: iterate over orgs, filter all queries |
-| `app/api/cron/send-emails/route.ts` | Email delivery | REWRITE: iterate over orgs, per-org Postmark client |
-| `app/actions/*.ts` | Server actions | ALL need `org = await getCurrentOrg()` at top |
-| `organisations` table | Org config + Postmark tokens | NEW |
-| `user_organisations` table | User membership + role | NEW |
-| `invitations` table | Invite flow | NEW |
-| `custom_access_token_hook` function | JWT claim injection | NEW |
+Currently renders one card per filing type with deadline, status badge, and action buttons. The modification adds:
+- A document count badge (e.g. "3 docs") derived from a count query on `client_documents`
+- An expand/collapse button that reveals `<DocumentsPanel>` below the existing card content
+- A "Send portal link" button that calls the `createPortalToken` server action
+
+The component signature and existing props remain unchanged. The documents count is fetched as a separate query so it can be loaded independently without blocking the existing filing deadline/status render.
 
 ---
 
-## 8. Suggested Build Order
+## Anti-Patterns to Avoid
 
-Steps are ordered by dependency. Each step must be verifiable before the next begins.
+### Anti-Pattern 1: Exposing Storage Paths
 
-**Step 1 — Schema: New tables and nullable org_id (Phase A migration)**
-Prerequisite for everything. Creates `organisations`, seeds first org, adds nullable `org_id` to all tables. Zero impact on running app.
+**What people do:** Return `client_documents.storage_path` in an API response or pass it as a prop to a client component.
+**Why it's wrong:** Exposes the internal bucket structure. An attacker who knows the path convention (`orgs/{uuid}/clients/{uuid}/...`) could construct paths for other clients. Even if the bucket is private, the path leaks the org and client UUIDs.
+**Do this instead:** Server action generates and returns a signed URL. Never pass `storage_path` to client code.
 
-**Step 2 — App code: Write org_id on all new inserts**
-Deploy code changes so all server actions and cron routes write the hardcoded first org's ID on new rows. The org is read from `getCurrentOrg()` (which resolves `x-org-slug` from middleware). New rows get `org_id`; old rows still NULL (covered by backfill).
+### Anti-Pattern 2: Trusting Client-Provided Token Context
 
-**Step 3 — Backfill (Phase B)**
-Run the batched backfill script. Verify zero NULLs across all tables before proceeding.
+**What people do:** The portal page passes `clientId`, `orgId`, and `filingTypeId` as hidden form fields to the upload endpoint. The upload endpoint reads these fields and uses them for the Storage write.
+**Why it's wrong:** Anyone can submit a form with arbitrary hidden field values, uploading to any client's folder.
+**Do this instead:** The upload endpoint receives only the token. It re-validates the token and derives `clientId`, `orgId`, and `filingTypeId` from the database row. Nothing from the client body is trusted for scoping.
 
-**Step 4 — Middleware: Subdomain extraction**
-Deploy updated `middleware.ts` with subdomain detection and `x-org-slug` header injection. Deploy `lib/org/current-org.ts`. Safe to deploy before RLS — the existing single org's subdomain routes correctly; root domain continues to work.
+### Anti-Pattern 3: Auto-Deleting on Retention Flag
 
-**Step 5 — Custom Access Token Hook**
-Create and register the `custom_access_token_hook` function. VERIFY: log in as a test user on the subdomain, call `SELECT auth.jwt()` in Supabase SQL editor logged in as that user, confirm `org_id` and `org_role` are present in the output. Do not proceed to Step 6 without this verification.
+**What people do:** The retention cron identifies documents past their `retain_until` date and immediately deletes them from Storage and the database.
+**Why it's wrong:** HMRC and ICO expect records to be available on request during DSAR/investigation even after the primary retention period. Automatic deletion without accountant confirmation risks compliance liability. UK accounting firms also sometimes need to retain records longer for ongoing tax investigations.
+**Do this instead:** Set `retention_flagged = true`. Send an email to the org admin listing flagged documents. The accountant reviews and confirms deletion manually via a UI action.
 
-**Step 6 — RLS activation (Phase C migration)**
-Add NOT NULL constraints, create indexes, drop old USING(true) policies, apply new org_id-scoped policies. This is the point of no return. If the hook from Step 5 is not working, this step will lock out all users.
+### Anti-Pattern 4: One Large Webhook Handler
 
-**Step 7 — Cron job rewrites**
-Rewrite both cron routes to iterate over organisations. This should be done before or alongside Step 6 — if Step 6 activates RLS and the cron still lacks org_id filters, the cron will return empty results (harmless) rather than sending emails. The timing window is acceptable but the rewrite should not be deferred.
+**What people do:** Add all attachment extraction logic directly into the 190-line Postmark inbound route.ts, making it a 350-line god function.
+**Why it's wrong:** The route already has five distinct concerns. Adding attachment extraction inline makes the function harder to test, and means a Storage error can be visually lost in unrelated code.
+**Do this instead:** Extract the attachment loop to `lib/documents/metadata.ts → extractAndStoreAttachments(attachments, context)`. The route calls it as a single awaited call.
 
-**Step 8 — Per-org Postmark token**
-Run the one-time seed script to copy env var tokens into the first org's row. Update `sender.ts` to use the stored token. Remove env vars from Vercel once confirmed working.
+### Anti-Pattern 5: Storing Raw Tokens
 
-**Step 9 — Login membership check**
-Update the login action to verify org membership. Add user creation logic with `app_metadata.org_id`.
-
-**Step 10 — User management UI (invite flow, membership management)**
-Invite page, accept-invitation page, org member list. Not required for the data migration to work — the first org's users are manually inserted into `user_organisations`.
+**What people do:** Store the raw portal token in `upload_portal_tokens.token` for easy lookup.
+**Why it's wrong:** If the database is breached, all portal tokens are immediately usable by the attacker.
+**Do this instead:** Store only `token_hash = sha256(rawToken)`. The raw token is shown to the accountant once and never stored. Lookup is `WHERE token_hash = sha256(incoming_token)`.
 
 ---
 
-## 9. Anti-Patterns to Avoid
+## Scaling Considerations
 
-### Anti-Pattern 1: Service-role queries without org_id filter
+| Scale | Storage impact | DB impact | Mitigation |
+|-------|---------------|-----------|------------|
+| 100 clients, 5 files each | ~500 rows, small Storage | Negligible | No action needed |
+| 1,000 clients, 20 files each | ~20,000 rows, GB range | Ensure org_id + client_id indexes | Already specified above |
+| 10,000 clients | 200,000+ rows, 10s of GB | Partition `client_documents` by org_id | Defer to Phase 20+ |
 
-**What goes wrong:** `supabase.from('clients').select('*')` in a cron route returns all orgs' clients.
-**Consequences:** Org A's clients receive Org B's reminder emails. Data leaks across tenants. Completely silent — no error thrown.
-**Prevention:** Every service-role query on a tenant-scoped table must include `.eq('org_id', orgId)`. Code review should treat this as a lint rule.
+The Supabase free tier includes 1GB of Storage. The Pro plan includes 100GB with pay-as-you-go beyond that. For accounting documents (mostly PDFs, <5MB each), 100GB supports approximately 20,000 documents — well beyond the scale of any single UK accounting practice on the current plan.
 
-### Anti-Pattern 2: Activating RLS before the JWT hook is verified
-
-**What goes wrong:** Drop USING(true) policies, apply org_id policies, hook not actually running → `(auth.jwt() ->> 'org_id')` returns NULL → every row fails the check → all users get 403 on login.
-**Prevention:** Verify the hook with `SELECT auth.jwt()` in the SQL editor as an authenticated user before touching the RLS policies.
-
-### Anti-Pattern 3: Table lookup in RLS expressions
-
-**What goes wrong:** `USING (org_id IN (SELECT org_id FROM user_organisations WHERE user_id = auth.uid()))` evaluates a subquery per candidate row.
-**Consequences:** Full-table scans on large tables become catastrophically slow. A query reading 100,000 email_log rows runs 100,000 subqueries.
-**Prevention:** Use JWT claim: `USING (org_id = (auth.jwt() ->> 'org_id')::uuid)`
-
-### Anti-Pattern 4: Postmark token in app_settings key/value rows
-
-**What goes wrong:** Storing `postmark_server_token` as a row in `app_settings` rather than a typed column on `organisations`.
-**Consequences:** Harder to query per org, no type safety, harder to exclude from client-side selects, pollutes the general settings namespace.
-**Prevention:** Typed column on `organisations` table. Server-side only access.
-
-### Anti-Pattern 5: Adding NOT NULL before backfill is complete
-
-**What goes wrong:** `ALTER TABLE clients ALTER COLUMN org_id SET NOT NULL` with rows still having NULL values.
-**Consequences:** Migration fails with a constraint violation error. If in a transaction block, the whole migration rolls back.
-**Prevention:** `SELECT COUNT(*) FROM clients WHERE org_id IS NULL` must return 0 before running the NOT NULL ALTER.
-
-### Anti-Pattern 6: Using `CREATE INDEX` (without CONCURRENTLY) on a live table
-
-**What goes wrong:** Postgres acquires an exclusive lock on the table while building the index. All reads and writes block for the duration (minutes on large tables).
-**Consequences:** Service downtime during migration.
-**Prevention:** Always use `CREATE INDEX CONCURRENTLY`. Note: CONCURRENTLY cannot run inside a transaction block — run it as a standalone statement.
+The first bottleneck is the DSAR ZIP export for clients with hundreds of documents: fetching all files server-side and zipping in memory will hit Vercel's 256MB function memory limit. Mitigation: write the ZIP to a temp Storage path and stream it, or cap in-memory ZIP at 50 files and paginate.
 
 ---
 
 ## Sources
 
-- [Custom Access Token Hook | Supabase Docs](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook) — HIGH confidence
-- [Custom Claims & RBAC | Supabase Docs](https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac) — HIGH confidence
-- [RLS Performance and Best Practices | Supabase Docs](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv) — HIGH confidence
+- [Storage Access Control | Supabase Docs](https://supabase.com/docs/guides/storage/security/access-control) — HIGH confidence
+- [Storage Helper Functions | Supabase Docs](https://supabase.com/docs/guides/storage/schema/helper-functions) — HIGH confidence
+- [JavaScript: Create a signed URL | Supabase Docs](https://supabase.com/docs/reference/javascript/storage-from-createsignedurl) — HIGH confidence
+- [JavaScript: Create signed upload URL | Supabase Docs](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl) — HIGH confidence
+- [The Storage Schema | Supabase Docs](https://supabase.com/docs/guides/storage/schema/design) — HIGH confidence
+- [Storage Buckets | Supabase Docs](https://supabase.com/docs/guides/storage/buckets/fundamentals) — HIGH confidence
+- [Storage RLS to restrict top level folder to UUID | Supabase Discussion #31073](https://github.com/orgs/supabase/discussions/31073) — MEDIUM confidence
+- [Signed URL file uploads with NextJs and Supabase | Medium](https://medium.com/@olliedoesdev/signed-url-file-uploads-with-nextjs-and-supabase-74ba91b65fe0) — MEDIUM confidence
+- [createSignedUploadUrl service role issue | Supabase storage-js #186](https://github.com/supabase/storage-js/issues/186) — MEDIUM confidence (known caveat: service role + createSignedUploadUrl has owner=null bug; use direct .upload() with service role instead)
+- [Supabase Storage Inefficient Folder Operations Troubleshooting](https://supabase.com/docs/guides/troubleshooting/supabase-storage-inefficient-folder-operations-and-hierarchical-rls-challenges-b05a4d) — HIGH confidence (important anti-pattern: don't JOIN custom metadata table in storage RLS)
 - [Row Level Security | Supabase Docs](https://supabase.com/docs/guides/database/postgres/row-level-security) — HIGH confidence
-- [JWT Claims Reference | Supabase Docs](https://supabase.com/docs/guides/auth/jwt-fields) — HIGH confidence
-- [Auth Hooks | Supabase Docs](https://supabase.com/docs/guides/auth/auth-hooks) — HIGH confidence
-- [Guides: Multi-tenant | Next.js](https://nextjs.org/docs/app/guides/multi-tenant) — HIGH confidence
-- [vercel/platforms — Next.js multi-tenant reference implementation](https://github.com/vercel/platforms) — HIGH confidence
-- [Domain management for multi-tenant | Vercel](https://vercel.com/docs/multi-tenant/domain-management) — HIGH confidence
-- [Why service role key bypasses RLS | Supabase Docs](https://supabase.com/docs/guides/troubleshooting/why-is-my-service-role-key-client-getting-rls-errors-or-not-returning-data-7_1K9z) — HIGH confidence
-- [Database Migrations at Scale: Zero-Downtime Strategies](https://medium.com/@sohail_saifii/database-migrations-at-scale-zero-downtime-strategies-b72be4833519) — MEDIUM confidence (verified against Postgres documentation patterns)
-- [supabase-community/supabase-custom-claims](https://github.com/supabase-community/supabase-custom-claims) — MEDIUM confidence (community reference implementation)
+- [How to Create ZIP File with Node.js | CheatCode](https://cheatcode.co/blog/how-to-create-and-download-a-zip-file-with-node-js-and-javascript) — MEDIUM confidence
+
+---
+
+*Architecture research for: v4.0 Document Collection — Prompt UK Accounting SaaS*
+*Researched: 2026-02-23*

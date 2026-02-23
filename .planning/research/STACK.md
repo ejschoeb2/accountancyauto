@@ -1,9 +1,9 @@
-# Technology Stack: v3.0 Multi-Tenancy & SaaS Platform
+# Technology Stack: v4.0 Document Collection
 
-**Project:** Peninsula Accounting — v3.0 Multi-Tenancy
-**Researched:** 2026-02-19
-**Scope:** New dependencies and integration patterns for Stripe billing, Supabase multi-tenant RLS, and Next.js subdomain routing. Does NOT re-research existing stack.
-**Overall confidence:** HIGH (all critical claims verified with official sources or npm registry)
+**Project:** Prompt — v4.0 Document Collection
+**Researched:** 2026-02-23
+**Scope:** New dependencies and integration patterns for Supabase Storage, file upload handling, document type detection, DSAR ZIP export, and retention enforcement. Does NOT re-research existing stack.
+**Overall confidence:** HIGH (SDK methods verified against official Supabase docs; package versions verified against npm registry; file upload constraints verified against Next.js GitHub issues)
 
 ---
 
@@ -13,421 +13,290 @@ Do not re-research or alter these:
 
 | Technology | Version | Notes |
 |------------|---------|-------|
-| Next.js | 16.1.6 | App Router, confirmed in package.json |
-| React | 19.2.3 | confirmed in package.json |
-| Supabase JS | @supabase/supabase-js ^2.95.3 | Auth + DB client |
+| Next.js | 16.1.6 | App Router confirmed in package.json |
+| React | 19.2.3 | Confirmed in package.json |
+| @supabase/supabase-js | ^2.95.3 | Auth + DB + **Storage** client — covers all Storage SDK calls |
 | @supabase/ssr | ^0.8.0 | Server-side auth helpers |
-| Postmark | ^4.0.5 | Transactional email (per-org credentials now stored in DB) |
-| TipTap | ^3.19.0 | Rich text editor |
-| Vercel Pro | — | Cron jobs, wildcard domains |
-| Zod | ^4.3.6 | Validation (already in project) |
+| Postmark | ^4.0.5 | Inbound webhook already at /api/postmark/inbound |
+| Stripe | ^20.3.1 | Billing — no changes for v4.0 |
+| TipTap | ^3.19.0 | Rich text editor — no changes for v4.0 |
+| Zod | ^4.3.6 | Validation — already used for request/schema validation |
+| Vercel Pro | — | Cron jobs for queue/send; **4.5 MB serverless payload limit** |
 
 ---
 
 ## New Dependencies
 
-### Stripe Billing
+### 1. File Type Detection: `file-type`
 
 | Package | Version | Purpose | Install as |
 |---------|---------|---------|-----------|
-| `stripe` | ^20.3.1 | Server-side Stripe SDK (checkout sessions, webhooks, billing portal, subscription management) | production |
-| `@stripe/stripe-js` | ^8.7.0 | Client-side Stripe.js loader (needed ONLY if using Embedded Checkout; NOT needed for Stripe-Hosted Checkout redirect flow) | production |
+| `file-type` | ^21.3.0 | MIME type detection from binary magic bytes — no external service | production |
 
-**Recommendation: Use Stripe-Hosted Checkout (redirect), NOT Embedded Checkout.**
+**Why this package:** Detects file type by reading the first few bytes (magic bytes/signatures), not the filename extension or the `Content-Type` header. Both can be spoofed by clients. `file-type` v21 is the actively maintained ESM-only package from sindresorhus. It supports PDF (`%PDF` prefix at `0x25 0x50 0x44 0x46`), JPEG, PNG, DOCX/XLSX (zip-based Office formats), and many others out of the box.
 
-Rationale: Hosted Checkout is simpler — no client-side Stripe.js required, no PCI scope beyond redirect, works from a plain Next.js Server Action. For a B2B SaaS onboarding flow at Peninsula's volume, the UX difference is negligible. Embed only if there is a hard UX requirement to stay on-page.
+**Privacy rationale:** All detection is purely local — reads a slice of the uploaded buffer. No bytes leave the server. Satisfies the "no third-party document processing services" constraint.
 
-This means `@stripe/stripe-js` is NOT required for the initial implementation. Add it only if the team later decides to embed payment UI inline.
-
-**API Version:** `2026-01-28.clover` — pin this in the Stripe constructor to prevent breaking API changes.
+**ESM constraint:** `file-type` v16+ is ESM-only. Next.js 13+ App Router with `"type": "module"` in package.json is compatible. If the project is CJS, use `file-type@^16` with dynamic `import()` inside an async function, or use the CJS-compatible fork `file-type-cjs` (not recommended — less maintained).
 
 ```typescript
-// lib/stripe.ts
-import Stripe from 'stripe';
+// Usage inside a server action or route handler
+import { fileTypeFromBuffer } from 'file-type';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-01-28.clover',
-  typescript: true,
+const buffer = Buffer.from(await file.arrayBuffer());
+const detected = await fileTypeFromBuffer(buffer);
+// detected = { ext: 'pdf', mime: 'application/pdf' } or undefined
+```
+
+**Document classification approach (no third-party AI):** For HMRC document types (P60, P45, SA302, bank statements), classification is done by:
+1. MIME type check via `file-type` (e.g. `application/pdf` vs `image/jpeg`)
+2. Filename pattern matching against the `document_types` catalog (case-insensitive regex, e.g. `/p60/i`, `/sa302/i`, `/bank.?stat/i`)
+3. PDF text extraction is NOT needed for v4.0 — filename + MIME is sufficient for initial classification; unclassified documents land in a "Review" state
+
+### 2. ZIP Generation for DSAR Export: `fflate`
+
+| Package | Version | Purpose | Install as |
+|---------|---------|---------|-----------|
+| `fflate` | ^0.8.2 | Server-side ZIP archive generation for DSAR export | production |
+
+**Why `fflate` over `jszip`:** `fflate` is ~5x smaller bundle footprint than `jszip`, works natively in Node.js and browser (pure JavaScript, no native bindings), and supports synchronous ZIP generation (`zipSync`) suitable for server-side use in a route handler. As of 2025, it has ~27M weekly downloads and is actively maintained.
+
+**Why not `archiver`:** `archiver` is a Node.js streams-based library that works well for large archives piped to a filesystem or HTTP stream, but adds complexity in a Vercel serverless environment where filesystem writes are not persistent and streaming responses require careful handling. `fflate` generates a `Uint8Array` in memory, which can be returned directly as a `Response` body — simpler for DSAR's use case (10-50 documents per client, typically under 50 MB total).
+
+**Why not Node.js built-in `zlib`:** `zlib` provides gzip/deflate but not the ZIP container format. You would need to build the ZIP structure manually. Not worth the effort when `fflate` exists.
+
+```typescript
+// Route handler for DSAR export
+import { zipSync, strToU8 } from 'fflate';
+
+const files: Record<string, Uint8Array> = {};
+
+// Add JSON manifest
+files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2));
+
+// Add each document (downloaded from Supabase Storage as Uint8Array)
+for (const doc of documents) {
+  const bytes = await downloadFromStorage(doc.storage_path);
+  files[`documents/${doc.filename}`] = bytes;
+}
+
+const zipped = zipSync(files);
+
+return new Response(zipped, {
+  headers: {
+    'Content-Type': 'application/zip',
+    'Content-Disposition': `attachment; filename="dsar-${clientId}-${date}.zip"`,
+  },
 });
 ```
 
-### No Other New Runtime Packages Required
+---
 
-The subdomain routing and Supabase multi-tenant RLS work entirely with existing dependencies. No extra npm packages are needed for:
-- Subdomain parsing (use `request.headers.get('host')` in middleware)
-- RLS policies (SQL in Supabase migrations)
-- JWT org_id injection (Postgres function in Supabase, no npm package)
+## No New Packages Required
+
+The following v4.0 features work entirely with existing dependencies:
+
+### Supabase Storage (via `@supabase/supabase-js` — already installed)
+
+The `@supabase/supabase-js` client includes the full Storage SDK. No separate `@supabase/storage-js` install is needed — it is a transitive dependency already included. All Storage operations use `supabase.storage.from('bucket-name')`.
+
+### Supabase Edge Function for Retention Cron
+
+Retention enforcement runs as a Supabase Edge Function (Deno), invoked on a schedule via `pg_cron` + `pg_net`. No npm package is needed — Edge Functions use the Deno runtime and can call the Supabase Storage Admin API using the service role key.
+
+### Token-Based Portal Links
+
+Short-lived single-use upload tokens are stored in a `portal_tokens` Postgres table with `expires_at` and `used_at` columns. The portal route reads the token from the URL query parameter and validates it in a Server Component or Route Handler. No JWT library is needed — tokens are random UUIDs or crypto-generated strings.
+
+### Multipart Form Data Parsing
+
+Next.js App Router route handlers and server actions handle `FormData` natively via `request.formData()`. No `formidable`, `busboy`, or `multer` is needed in the App Router.
+
+### MIME Type Validation (declared type)
+
+Zod already validates request shapes. Add a string enum refinement to check that the declared `Content-Type` is in the allowed set (PDF, JPEG, PNG, DOCX). Combine with `file-type` magic byte check for defence-in-depth.
 
 ---
 
-## Stripe Integration Patterns
+## Supabase Storage SDK Patterns
 
-### Checkout Flow (Server Action)
+### Bucket Configuration
 
-Use Next.js Server Actions to create Stripe Checkout sessions server-side and redirect. No API route needed.
+The existing Supabase project is in EU West (eu-west-2 / London) by default — bucket region follows the project region automatically and cannot be configured separately per bucket in Supabase's managed offering. **Verify the project region in the Supabase Dashboard** before creating the bucket if EU residency is a compliance requirement.
 
-```typescript
-// app/actions/create-checkout.ts
-'use server';
-import { stripe } from '@/lib/stripe';
-import { redirect } from 'next/navigation';
+Create a **private** bucket (public: false) via migration SQL or the SDK. Private means all objects require either an authenticated session with an RLS-passing request, or a signed URL.
 
-export async function createCheckoutSession(orgId: string, priceId: string) {
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    currency: 'gbp',                    // CRITICAL: UK pricing in GBP
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/plan`,
-    subscription_data: {
-      trial_period_days: 14,            // 14-day free trial
-      metadata: { org_id: orgId },
-    },
-    metadata: { org_id: orgId },        // also on session for webhook lookup
-  });
-  redirect(session.url!);
-}
+```sql
+-- In a Supabase migration (preferred — infrastructure as code)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'client-documents',
+  'client-documents',
+  false,                          -- private
+  10485760,                       -- 10 MB per file (adjust per business requirement)
+  ARRAY['application/pdf', 'image/jpeg', 'image/png', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+);
 ```
 
-### Webhook Handler (Route Handler)
+**Storage path convention (org-scoped):**
 
-Stripe webhooks MUST use a Route Handler (`/app/api/webhooks/stripe/route.ts`), not a Server Action. The raw body must be preserved for signature verification.
+```
+{org_id}/{client_id}/{filing_type}/{year}/{filename}
+```
+
+Example: `b3f2a1.../client-abc.../corp-tax/2025/SA302-2025.pdf`
+
+This makes RLS policies trivial — check `(storage.foldername(name))[1] = get_org_id()::text`.
+
+### Upload from Server Action (Postmark inbound attachments)
+
+For passive collection (Postmark webhook extracts attachments), the upload happens server-side using the admin client to bypass RLS. The Postmark webhook already uses the service role for DB writes.
 
 ```typescript
-// app/api/webhooks/stripe/route.ts
-import { headers } from 'next/headers';
-import { stripe } from '@/lib/stripe';
+// Server-side upload in the inbound webhook handler
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export const dynamic = 'force-dynamic';
+const supabase = createAdminClient();
+const path = `${orgId}/${clientId}/${filingType}/${year}/${filename}`;
 
-export async function POST(request: Request) {
-  const body = await request.text();              // raw body — do NOT use .json()
-  const sig = (await headers()).get('stripe-signature')!;
-
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
-  } catch (err) {
-    return new Response(`Webhook Error: ${err}`, { status: 400 });
-  }
-
-  // handle event...
-  return new Response('ok', { status: 200 });
-}
+const { data, error } = await supabase.storage
+  .from('client-documents')
+  .upload(path, fileBuffer, {        // fileBuffer: Buffer | Uint8Array | ArrayBuffer
+    contentType: detectedMime,       // from file-type detection
+    upsert: false,                   // reject duplicate paths — force unique filenames
+    cacheControl: '3600',
+  });
 ```
 
-### Required Webhook Events
+### Signed Upload URL Pattern (Active Portal: Client Upload)
 
-Subscribe to exactly these events in the Stripe Dashboard. Do not subscribe to more — unnecessary events add noise.
+For the client-facing upload portal (no auth, token-based), DO NOT send the file through the Next.js server. Use a signed upload URL instead. This avoids the Vercel 4.5 MB payload limit and removes the server as a file transit point.
 
-| Event | Why Required |
-|-------|-------------|
-| `checkout.session.completed` | New subscription activated; write `stripe_subscription_id`, `stripe_customer_id`, `plan_tier`, `trial_ends_at` to `organisations` table |
-| `customer.subscription.updated` | Plan change, trial→active transition, payment method change; sync `plan_tier` and `subscription_status` |
-| `customer.subscription.deleted` | Subscription cancelled or payment failed → downgrade org to `inactive`; block new email sends |
-| `invoice.payment_succeeded` | Monthly renewal confirmed; optional (for audit log) |
-| `invoice.payment_failed` | First payment failure; send dunning email to admin user, set `subscription_status = 'past_due'` |
-
-### Billing Portal
-
-Generate a Stripe Customer Portal session server-side (Server Action). No new library needed.
+**Two-step flow:**
+1. Client presents token → Next.js route handler validates token → generates signed upload URL
+2. Client uploads directly from browser to Supabase Storage using the signed URL (no Next.js server involvement in the file transfer)
 
 ```typescript
-export async function createBillingPortalSession(stripeCustomerId: string) {
-  const session = await stripe.billingPortal.sessions.create({
-    customer: stripeCustomerId,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings/billing`,
-  });
-  redirect(session.url);
-}
+// Step 1: Route handler generates signed upload URL (server)
+// POST /api/portal/upload-url
+const adminClient = createAdminClient();
+const path = `${orgId}/${clientId}/${filingType}/${year}/${sanitizedFilename}`;
+
+const { data, error } = await adminClient.storage
+  .from('client-documents')
+  .createSignedUploadUrl(path);
+// data = { signedUrl: string, token: string, path: string }
+
+// Step 2: Client uploads directly (browser)
+// Using the standard fetch API — no Supabase client needed on browser for this step
+const formData = new FormData();
+formData.append('file', selectedFile);
+
+await fetch(data.signedUrl, {
+  method: 'PUT',
+  body: selectedFile,
+  headers: { 'Content-Type': selectedFile.type },
+});
 ```
 
-### UK/GBP Considerations (HIGH confidence)
+**Why signed upload URL rather than passing through Next.js:**
+- Vercel serverless functions have a 4.5 MB payload limit (hard, not configurable via `serverActions.bodySizeLimit` in production — multiple confirmed issues on the Next.js GitHub tracker)
+- Client documents (PDFs, scanned images) routinely exceed 4.5 MB
+- Signed upload URLs expire (max ~2 hours) and are single-path — scope is already constrained by the validated portal token
 
-- Set `currency: 'gbp'` explicitly on every Checkout Session creation. Stripe defaults to the account currency if omitted, which may not be GBP.
-- Configure Stripe Products and Prices in GBP in the Stripe Dashboard. Prices are currency-specific; you cannot reuse a USD price for a GBP charge.
-- UK VAT: Peninsula's plan prices (£20/£39/£89/£159) should be defined as **VAT-exclusive** in Stripe if Peninsula is VAT-registered and will add VAT at checkout. Configure Stripe Tax (automatic tax) or add VAT manually. This is a business decision, not a code decision — flag for the client.
-- Stripe account must have GBP as a supported payout currency and a UK bank account for GBP payouts.
+### Signed Download URL (Accountant accessing documents)
 
-### Stripe Price IDs
+Accountants access documents via short-lived signed URLs generated server-side. Never expose the raw storage path to the browser.
 
-Create prices in the Stripe Dashboard. Store price IDs in environment variables, not hardcoded.
+```typescript
+// In a Server Action or Route Handler
+const supabase = createClient(); // authenticated SSR client (respects RLS)
 
-```bash
-STRIPE_PRICE_LITE=price_xxx          # £20/month
-STRIPE_PRICE_SOLE_TRADER=price_xxx   # £39/month
-STRIPE_PRICE_PRACTICE=price_xxx      # £89/month
-STRIPE_PRICE_FIRM=price_xxx          # £159/month
+const { data, error } = await supabase.storage
+  .from('client-documents')
+  .createSignedUrl(storagePath, 300); // 300 seconds = 5 minutes
+// data = { signedUrl: string }
 ```
 
----
+**Expiry guidance:**
+- Download links for inline preview: 300 seconds (5 minutes)
+- DSAR ZIP download link: 3600 seconds (1 hour) — user may need time to download a large file
+- No permanent public URLs — always regenerate on demand
 
-## Supabase Multi-Tenant RLS Patterns
-
-### The Core Pattern: JWT Claims via Custom Access Token Hook
-
-**Recommendation: Store `org_id` in JWT `app_metadata` via a Supabase Custom Access Token Hook.**
-
-This is the performance-correct approach. The alternative — querying a `user_organisations` join table inside each RLS policy — works but executes an extra SELECT per row per query. With JWT claims, the `org_id` is in the token: zero additional queries.
-
-**Step 1: Postgres hook function**
+### Storage RLS Policy
 
 ```sql
--- Run in Supabase SQL Editor (or migration file)
-CREATE OR REPLACE FUNCTION public.custom_access_token_hook(event jsonb)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  claims jsonb;
-  user_org_id uuid;
-BEGIN
-  -- Get the org_id for this user from user_organisations table
-  SELECT o.id INTO user_org_id
-  FROM public.user_organisations uo
-  JOIN public.organisations o ON o.id = uo.organisation_id
-  WHERE uo.user_id = (event->>'user_id')::uuid
-  LIMIT 1;  -- users belong to exactly one org in Peninsula's model
+-- storage.objects RLS for org-scoped private bucket
+-- Pattern: first path segment = org_id
 
-  claims := event->'claims';
-
-  IF user_org_id IS NOT NULL THEN
-    claims := jsonb_set(
-      claims,
-      '{app_metadata, org_id}',
-      to_jsonb(user_org_id::text)
-    );
-  END IF;
-
-  RETURN jsonb_set(event, '{claims}', claims);
-END;
-$$;
-
--- Grant required permissions
-GRANT USAGE ON SCHEMA public TO supabase_auth_admin;
-GRANT EXECUTE ON FUNCTION public.custom_access_token_hook TO supabase_auth_admin;
-REVOKE EXECUTE ON FUNCTION public.custom_access_token_hook FROM authenticated, anon, public;
-```
-
-**Step 2: Register the hook in Supabase Dashboard**
-
-Authentication → Hooks → Custom Access Token → select `public.custom_access_token_hook`.
-
-(For local dev: add to `supabase/config.toml` under `[auth.hook.custom_access_token]`.)
-
-**Step 3: RLS policies using the JWT claim**
-
-```sql
--- Helper function (call once, reuse across all policies)
-CREATE OR REPLACE FUNCTION public.get_org_id()
-RETURNS uuid
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT (auth.jwt()->'app_metadata'->>'org_id')::uuid;
-$$;
-
--- Example policy (apply same pattern to ALL tables with org_id)
-ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "org_isolation" ON public.clients
-  AS RESTRICTIVE
+CREATE POLICY "org_scoped_access" ON storage.objects
   FOR ALL
   TO authenticated
-  USING (org_id = public.get_org_id())
-  WITH CHECK (org_id = public.get_org_id());
-```
-
-**Why `RESTRICTIVE` not `PERMISSIVE`:** A `RESTRICTIVE` policy acts as a mandatory filter — it cannot be bypassed by other permissive policies. This is the correct security posture for tenant isolation. Without it, a future permissive policy could accidentally leak cross-tenant data.
-
-**Performance note:** Wrap `auth.jwt()` in a `STABLE` function (`get_org_id()`). Postgres optimizer caches `STABLE` function results within a statement, so the JWT is parsed once per query, not once per row. This matters at scale.
-
-**Index requirement:** Every table with `org_id` must have an index on `org_id`. Without it, Postgres scans all rows then filters — RLS becomes a full table scan.
-
-```sql
-CREATE INDEX idx_clients_org_id ON public.clients(org_id);
--- Repeat for every table with org_id
-```
-
-### Service-Role Bypass (for cron and webhooks)
-
-Supabase `service_role` key bypasses RLS entirely. Use it for:
-- The two-stage cron (queue builder + email sender) — these need cross-org access for scheduling
-- Stripe webhook handler — needs to update `organisations` table without an authenticated user
-- Migration scripts
-
-```typescript
-// lib/supabase/admin.ts (service role client — NEVER expose to browser)
-import { createClient } from '@supabase/supabase-js';
-
-export function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,  // NOT the anon key
+  USING (
+    bucket_id = 'client-documents'
+    AND (storage.foldername(name))[1] = (auth.jwt()->'app_metadata'->>'org_id')
+  )
+  WITH CHECK (
+    bucket_id = 'client-documents'
+    AND (storage.foldername(name))[1] = (auth.jwt()->'app_metadata'->>'org_id')
   );
-}
 ```
 
-### Cron Update: Per-Org Postmark Credentials
+The admin/service role bypasses RLS entirely — use it in the Postmark webhook handler and the retention cron function.
 
-The existing cron (`/api/cron/send-emails`) currently uses a single global Postmark token. After multi-tenancy:
-- Query `organisations` for each org's `postmark_server_token` before sending
-- Use service_role client (bypasses RLS) to access all organisations
-- No new package needed — existing `postmark` package supports multiple client instances
+---
 
-```typescript
-// lib/email/sender.ts — updated pattern
-import { ServerClient } from 'postmark';
+## Retention Enforcement: Supabase Edge Function + pg_cron
 
-export function getPostmarkClient(serverToken: string): ServerClient {
-  return new ServerClient(serverToken);  // one instance per org, per send batch
-}
-```
+**Pattern:** Supabase Edge Function invoked weekly by `pg_cron` via `pg_net.http_post`.
 
-### user_organisations Table Pattern
-
-Store org membership in a junction table. Keep it simple: one role column (`admin` or `member`).
+The Edge Function queries `client_documents` for records where `retention_expires_at < NOW()` and `deleted_at IS NULL`, then calls `supabase.storage.from('client-documents').remove([...paths])` and marks the DB rows as deleted. This matches the pattern described in official Supabase cron + Edge Function documentation.
 
 ```sql
-CREATE TABLE public.user_organisations (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  organisation_id uuid NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-  role text NOT NULL CHECK (role IN ('admin', 'member')),
-  created_at timestamptz DEFAULT now(),
-  UNIQUE(user_id, organisation_id)
+-- pg_cron schedule (run in Supabase SQL Editor or migration)
+SELECT cron.schedule(
+  'retention-enforcement',
+  '0 3 * * 1',  -- 03:00 UTC every Monday
+  $$
+  SELECT net.http_post(
+    url := 'https://<project-ref>.supabase.co/functions/v1/retention-enforcement',
+    headers := '{"Authorization": "Bearer <service-role-key>", "Content-Type": "application/json"}'::jsonb,
+    body := '{}'::jsonb
+  );
+  $$
 );
-
--- RLS: users can only see their own membership rows
-ALTER TABLE public.user_organisations ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "own_membership" ON public.user_organisations
-  FOR SELECT TO authenticated
-  USING (user_id = auth.uid());
 ```
+
+**Key consideration:** Store the service role key in Supabase Vault (`vault.secrets`) rather than hardcoded in the cron SQL. The official Supabase docs recommend this approach for security.
 
 ---
 
-## Next.js Subdomain Routing
+## File Upload Constraints (Vercel Production)
 
-### Pattern: Middleware + NextResponse.rewrite()
+| Constraint | Value | Source |
+|------------|-------|--------|
+| Vercel serverless payload limit | 4.5 MB | Verified: multiple Next.js GitHub issues (#57501, #53087) |
+| `serverActions.bodySizeLimit` | Unreliable in production | Confirmed broken in Vercel Pro environment (GitHub Discussion #77505) |
+| Supabase Storage bucket file size limit | Configurable per bucket (set `file_size_limit` in SQL) | Official Supabase docs |
+| Recommended maximum per document | 10 MB | Business decision — covers most PDF/scan sizes; well within Supabase limits |
 
-No new package is needed. Next.js middleware runs at the edge and has access to `request.headers` including `host`. Use `NextResponse.rewrite()` to map `orgslug.app.domain.com` to a dynamic route without changing the URL the user sees.
+**Recommendation for passive collection (Postmark inbound):** Postmark attachments arrive as base64 in the webhook JSON body. Decode server-side and upload via admin client. No file size issue — Postmark's own attachment limit is 10 MB per email and the webhook POST to the server is the full payload. If this becomes a constraint, store large attachments via signed URL pattern instead.
 
-```typescript
-// middleware.ts (project root)
-import { NextRequest, NextResponse } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';  // existing auth session refresh
-
-export async function middleware(request: NextRequest) {
-  const hostname = request.headers.get('host') ?? '';
-
-  // Strip port for local dev (localhost:3000)
-  const hostWithoutPort = hostname.replace(/:\d+$/, '');
-
-  // Detect subdomain pattern: orgslug.app.domain.com
-  // In local dev: orgslug.localhost
-  const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'app.yourdomain.com';
-  const isSubdomain =
-    hostWithoutPort.endsWith(`.${appDomain}`) ||
-    (process.env.NODE_ENV === 'development' && hostWithoutPort.endsWith('.localhost'));
-
-  if (isSubdomain) {
-    const orgSlug = hostWithoutPort.split('.')[0];
-
-    // Rewrite to /[orgSlug]/... route group without changing browser URL
-    const url = request.nextUrl.clone();
-    url.pathname = `/${orgSlug}${request.nextUrl.pathname}`;
-
-    // Pass orgSlug via header so layout/pages can read it without parsing hostname again
-    const response = NextResponse.rewrite(url);
-    response.headers.set('x-org-slug', orgSlug);
-    return response;
-  }
-
-  // Main domain: onboarding, marketing, super-admin
-  return await updateSession(request);  // existing Supabase session refresh
-}
-
-export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-};
-```
-
-**Route structure:**
-
-```
-app/
-  (marketing)/           # Main domain: app.yourdomain.com — onboarding, pricing
-    page.tsx
-    onboarding/
-  [orgSlug]/             # Subdomain: orgslug.app.yourdomain.com — tenant app
-    layout.tsx           # Resolves org from URL segment, verifies membership
-    dashboard/
-    clients/
-    ...
-  (admin)/               # app.yourdomain.com/admin — super-admin only
-    dashboard/
-```
-
-**Reading orgSlug in layout:**
-
-```typescript
-// app/[orgSlug]/layout.tsx
-import { headers } from 'next/headers';
-
-export default async function OrgLayout({ params }: { params: { orgSlug: string } }) {
-  // orgSlug comes from the rewritten path segment
-  const orgSlug = params.orgSlug;
-
-  // Fetch org from DB, verify user is a member
-  // ...
-}
-```
-
-### Vercel Configuration (HIGH confidence)
-
-Wildcard subdomains on Vercel require the **nameserver method** — you must delegate your domain's DNS to Vercel's nameservers (`ns1.vercel-dns.com`, `ns2.vercel-dns.com`). The A record method does NOT support wildcard SSL.
-
-Steps:
-1. Update your domain registrar to use Vercel nameservers
-2. In Vercel Dashboard → Project → Settings → Domains → Add `*.app.yourdomain.com`
-3. Vercel automatically issues SSL certificates for each new subdomain via Let's Encrypt
-
-**Local development:** Use `*.localhost` subdomains. Chrome resolves `*.localhost` natively. Add to `/etc/hosts` (macOS/Linux) or test with `app.localhost:3000`.
+**Recommendation for active collection (client portal):** Always use the signed upload URL pattern. The Next.js server only validates the token and generates the signed URL (tiny payload) — the file never passes through Next.js.
 
 ---
 
-## Environment Variables Required for v3.0
-
-Add these to `.env.local` (dev) and Vercel project environment variables (production):
+## Installation
 
 ```bash
-# Stripe — Server Side (NEVER expose to browser)
-STRIPE_SECRET_KEY=sk_live_...            # or sk_test_... for dev
-STRIPE_WEBHOOK_SECRET=whsec_...          # from Stripe Dashboard → Webhooks → Signing Secret
-STRIPE_PRICE_LITE=price_xxx
-STRIPE_PRICE_SOLE_TRADER=price_xxx
-STRIPE_PRICE_PRACTICE=price_xxx
-STRIPE_PRICE_FIRM=price_xxx
+# New production dependency — MIME type detection
+npm install file-type@^21.3.0
 
-# Stripe — Client Side (safe to expose, prefixed NEXT_PUBLIC_)
-# Only needed if using Embedded Checkout (NOT recommended initially)
-# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
-
-# App Domain — used in middleware subdomain detection and Stripe success/cancel URLs
-NEXT_PUBLIC_APP_DOMAIN=app.yourdomain.com
-NEXT_PUBLIC_APP_URL=https://app.yourdomain.com
-
-# Supabase — unchanged from v2.0
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...            # for cron, webhooks, admin operations
+# New production dependency — DSAR ZIP export
+npm install fflate@^0.8.2
 ```
+
+No other new packages are required for v4.0.
 
 ---
 
@@ -435,12 +304,15 @@ SUPABASE_SERVICE_ROLE_KEY=...            # for cron, webhooks, admin operations
 
 | Category | Recommended | Alternative | Why Not |
 |----------|-------------|-------------|---------|
-| Checkout UI | Stripe-Hosted Checkout | Embedded Checkout | Embedded requires `@stripe/stripe-js` + client setup. No UX benefit for B2B onboarding at this scale. |
-| Org resolution | Subdomain + middleware rewrite | Custom domain per tenant | Custom domains need DNS verification flow (weeks of UX work). Subdomains work on day one. |
-| JWT org_id injection | Custom Access Token Hook | Query join table in every RLS policy | Join table in RLS = extra SELECT per row per query. JWT claim = zero extra queries. JWT is the right tool. |
-| RLS USING clause | `org_id = get_org_id()` | `org_id IN (SELECT org_id FROM user_organisations WHERE user_id = auth.uid())` | Subquery form is slower and risks N+1 at the Postgres level. JWT claim avoids the join entirely. |
-| Stripe overage enforcement | Application-layer check (count clients before add) | Stripe metered billing | Metered billing adds significant complexity (usage records, metered prices, invoice line items). Application-layer count check is simpler, transparent to users, and sufficient at Peninsula's expected tenant scale. |
-| Billing portal | Stripe Customer Portal | Custom billing UI | Portal is maintained by Stripe (handles card updates, invoice history, cancellation). Building custom is 2-4 weeks of work for no user-facing benefit. |
+| MIME detection | `file-type` | Manual magic byte comparison | `file-type` already handles 200+ formats; manual implementation only covers formats we explicitly code for; maintenance burden |
+| MIME detection | `file-type` | `mmmagic` (libmagic binding) | Requires native binary compilation; fails on Vercel serverless (no native build environment) |
+| MIME detection | `file-type` | `magic-bytes.js` | Less maintained, fewer formats, lower download count |
+| ZIP generation | `fflate` | `jszip` | `fflate` is faster, smaller, and uses threads in async mode. `jszip` still blocks main thread during decompression despite async API |
+| ZIP generation | `fflate` | `archiver` | `archiver` is stream-oriented (pipe to filesystem or HTTP); awkward in Vercel serverless where filesystem is ephemeral; `fflate` returns `Uint8Array` directly |
+| ZIP generation | `fflate` | `adm-zip` | `adm-zip` reads/writes to filesystem; incompatible with Vercel serverless |
+| Storage | Supabase Storage | Vercel Blob | Vercel Blob lacks mature signed URL support for private files (open feature request as of 2025). Supabase Storage is already in the stack; keeping storage co-located with the database reduces latency and avoids another billing relationship |
+| Upload flow | Signed upload URL (client → Supabase direct) | Proxy upload through Next.js server action | Vercel 4.5 MB hard limit makes server proxy impractical for document uploads; signed upload URLs are the official Supabase recommendation for this scenario |
+| Retention cron | Supabase Edge Function + pg_cron | Vercel cron calling Next.js API route | Retention touches Supabase Storage (delete) + DB (mark deleted); running it as a Supabase Edge Function keeps it within the same project, avoids external HTTP call overhead, and uses service role key stored in Supabase Vault |
 
 ---
 
@@ -448,60 +320,71 @@ SUPABASE_SERVICE_ROLE_KEY=...            # for cron, webhooks, admin operations
 
 | Do Not Add | Why |
 |------------|-----|
-| `@stripe/react-stripe-js` | Not needed for Hosted Checkout. Only add if switching to Embedded Checkout later. |
-| `next-auth` or `clerk` for auth | Already using Supabase Auth. Adding a second auth layer creates session conflicts and doubles complexity. |
-| Separate Supabase project per tenant | Architectural decision already made: single project, org_id isolation. Separate projects = separate API keys, separate migrations, separate cron configuration for each tenant. Not viable. |
-| Stripe metered billing | Overage checking at application layer is sufficient (count clients before adding, return 402 if at limit). Metered billing requires usage record APIs and complicates invoicing. |
-| Redis / Upstash for session caching | No evidence of session performance problems at current or expected scale. Premature. |
-| `stripe-event-types` npm package | The official `stripe` package (v20+) ships full TypeScript types for all webhook events. No supplemental type package needed. |
+| Third-party document processing services (AWS Textract, Google Document AI, etc.) | Privacy constraint: client financial documents cannot leave the EU or be processed by third-party AI. Classification by filename + MIME type is sufficient for v4.0. |
+| `uploadthing` | Wraps file upload into an opinionated SaaS. Adds a third-party data processor and billing relationship. Not needed when Supabase Storage already provides all required capabilities. |
+| `pdf-parse` or `pdfjs-dist` for text extraction | Not needed for v4.0 classification (filename + MIME sufficient). Heavy dependencies. Deferred to a future phase if structured data extraction becomes a requirement. |
+| `sharp` for image processing | No image manipulation needed in v4.0. Documents are stored as-is. |
+| `multer` or `formidable` | These are Pages Router / Express patterns. App Router handles `FormData` natively with `request.formData()`. |
+| Separate `@supabase/storage-js` install | Already a transitive dependency of `@supabase/supabase-js`. Installing it separately risks version conflicts. |
+| Redis / queue for upload processing | At Prompt's scale, synchronous upload + classification in the route handler is sufficient. Async queue adds operational complexity for no measurable benefit at <1000 documents/day. |
 
 ---
 
-## Installation
+## Version Compatibility
 
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `file-type@^21.3.0` | Next.js 16 (ESM supported) | ESM-only; works in App Router server components and route handlers. If CJS issues arise, use dynamic `import('file-type')` inside async function. |
+| `fflate@^0.8.2` | Node.js 14+, Deno (Edge Functions) | Pure JS — no native bindings; works in Vercel serverless and Supabase Edge Functions without modification. |
+| `@supabase/supabase-js@^2.95.3` | Storage SDK included | No separate storage package needed. `supabase.storage` is fully available on both anon (user-scoped) and service role clients. |
+
+---
+
+## Environment Variables Required for v4.0
+
+No new environment variables are required for the storage integration. The existing `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` cover all Storage SDK calls.
+
+Optional additions:
 ```bash
-# New dependency (only one new package for the entire multi-tenancy milestone)
-npm install stripe@^20.3.1
-
-# Only add if switching to Embedded Checkout (not recommended for initial implementation)
-# npm install @stripe/stripe-js@^8.7.0
+# If using Supabase Vault for the retention cron Edge Function
+# (recommended over hardcoding service role key in pg_cron SQL)
+# Configure via Supabase Dashboard → Vault → Secrets — not an env var
 ```
 
 ---
 
 ## Integration Points with Existing Code
 
-| Existing File | Change for v3.0 |
+| Existing File | Change for v4.0 |
 |---------------|----------------|
-| `middleware.ts` | Add subdomain detection + `NextResponse.rewrite()` to `[orgSlug]` route; keep existing `updateSession()` call |
-| `lib/supabase/client.ts` | No change — anon key client unchanged |
-| `lib/supabase/server.ts` | No change — SSR client unchanged; RLS enforcement is transparent |
-| `lib/email/sender.ts` | Accept `serverToken` parameter; remove hardcoded env var token; query per-org token before send |
-| `/api/cron/send-emails/route.ts` | Use service_role client; fetch per-org Postmark tokens; loop by org |
-| `/api/cron/build-queue/route.ts` | Use service_role client; no other changes (queue builder already operates on all rows) |
-| All Supabase DB operations | No change in application code — RLS handles isolation transparently once policies are in place |
+| `app/api/postmark/inbound/route.ts` | Add attachment extraction: decode base64 → detect MIME with `file-type` → upload to `client-documents` bucket via admin client → insert `client_documents` DB row |
+| `lib/supabase/admin.ts` | No change — existing `createAdminClient()` is used for all Storage admin operations (upload, remove) |
+| `lib/supabase/server.ts` | No change — existing SSR client used for generating signed download URLs (RLS enforces org isolation) |
+| `middleware.ts` | No change — token-based portal routes are public paths that bypass auth middleware, add to the matcher exclusion list |
+| New: `app/api/portal/upload-url/route.ts` | POST handler: validate portal token → generate signed upload URL → return to client |
+| New: `app/portal/[token]/page.tsx` | Public page (no auth): show client checklist, file picker, upload to signed URL |
+| New: `app/api/dsar/export/route.ts` | GET handler: fetch all client documents → download from Storage → `fflate.zipSync()` → return ZIP response |
+| New: `supabase/functions/retention-enforcement/index.ts` | Deno Edge Function: query expired docs → `storage.remove()` → mark rows deleted |
 
 ---
 
 ## Sources
 
-- [stripe npm package](https://www.npmjs.com/package/stripe) — latest version 20.3.1 (verified Feb 2026)
-- [@stripe/stripe-js npm package](https://www.npmjs.com/package/@stripe/stripe-js) — latest version 8.7.0 (verified Feb 2026)
-- [stripe-node GitHub releases](https://github.com/stripe/stripe-node/releases) — API version 2026-01-28.clover
-- [Stripe webhooks for subscriptions](https://docs.stripe.com/billing/subscriptions/webhooks) — required events
-- [Stripe webhook signature verification](https://docs.stripe.com/webhooks/signature) — raw body requirement
-- [Stripe build subscriptions guide](https://docs.stripe.com/billing/subscriptions/build-subscriptions) — checkout + webhook flow
-- [Supabase Custom Access Token Hook](https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook) — JWT claim injection pattern
-- [Supabase Auth Hooks](https://supabase.com/docs/guides/auth/auth-hooks) — hook types and configuration
-- [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security) — policy patterns
-- [Supabase RLS Performance](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv) — STABLE function caching, indexing
-- [Next.js Middleware docs](https://nextjs.org/docs/15/app/getting-started/route-handlers-and-middleware) — middleware pattern
-- [Vercel wildcard domains](https://vercel.com/blog/wildcard-domains) — nameserver requirement for wildcard SSL
-- [Vercel multi-tenant domain management](https://vercel.com/docs/multi-tenant/domain-management) — configuration steps
-- [Next.js App Router Stripe webhook](https://kitson-broadhurst.medium.com/next-js-app-router-stripe-webhook-signature-verification-ea9d59f3593f) — `request.text()` for raw body
+- [Supabase Storage JavaScript API — createSignedUrl](https://supabase.com/docs/reference/javascript/storage-from-createsignedurl) — method signature, expiry options (HIGH confidence)
+- [Supabase Storage JavaScript API — createSignedUploadUrl](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl) — signed upload pattern (HIGH confidence)
+- [Supabase Storage Access Control](https://supabase.com/docs/guides/storage/security/access-control) — storage.objects RLS, private buckets (HIGH confidence)
+- [Supabase Storage — Standard Uploads](https://supabase.com/docs/guides/storage/uploads/standard-uploads) — upload method accepts File, Blob, ArrayBuffer, Buffer (HIGH confidence)
+- [Supabase Scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions) — pg_cron + pg_net pattern for retention cron (HIGH confidence)
+- [file-type on npm](https://www.npmjs.com/package/file-type) — v21.3.0 latest, ESM-only, 200+ formats (HIGH confidence)
+- [fflate on npm](https://www.npmjs.com/package/fflate) — v0.8.2, pure JS, 27M weekly downloads (HIGH confidence)
+- [fflate vs jszip npm trends](https://npmtrends.com/fflate-vs-jszip-vs-node-zip-vs-yauzl-vs-zip) — comparative download counts and maintenance status (MEDIUM confidence)
+- [Next.js GitHub #57501 — App Router body size limit](https://github.com/vercel/next.js/issues/57501) — 4.5 MB Vercel hard limit confirmed (HIGH confidence — multiple reports)
+- [Next.js GitHub Discussion #77505 — bodySizeLimit broken in production](https://github.com/vercel/next.js/discussions/77505) — unreliable in production Vercel (HIGH confidence)
+- [Vercel Blob — signed URL feature request](https://github.com/vercel/storage/issues/544) — signed URL not yet supported (MEDIUM confidence — may have changed)
+- [Signed URL file uploads with Next.js and Supabase — Medium](https://medium.com/@olliedoesdev/signed-url-file-uploads-with-nextjs-and-supabase-74ba91b65fe0) — practical pattern for signed upload URL flow (MEDIUM confidence — community source, verified against official docs)
 
 ---
 
-*Stack research for: Peninsula Accounting v3.0 — Multi-Tenancy & SaaS Platform*
-*Researched: 2026-02-19*
-*Confidence: HIGH — all package versions verified against npm registry; Supabase hook pattern verified against official docs; Stripe webhook pattern verified against official docs*
+*Stack research for: Prompt v4.0 — Document Collection*
+*Researched: 2026-02-23*
+*Confidence: HIGH — package versions verified against npm registry; Supabase SDK methods verified against official docs; Vercel payload limits verified against multiple confirmed GitHub issues; ZIP library recommendation based on npm trends data*

@@ -114,7 +114,7 @@ Security relies on:
     "Name": "John Smith",
     "MailboxHash": ""
   },
-  "To": "replies@peninsulaaccounting.com",
+  "To": "replies@prompt.com",
   "Subject": "Re: Corporation Tax Return Due",
   "MessageID": "abc123",
   "MessageStream": "inbound",
