@@ -247,10 +247,10 @@ Plans:
 **Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 16-01-PLAN.md — Server actions (markMemberSetupComplete, getMemberSetupComplete) + middleware /setup exemption + invite accept redirect to wizard
-- [ ] 16-02-PLAN.md — CsvImportStep component (full-page extraction from csv-import-dialog, no dialog wrapper)
-- [ ] 16-03-PLAN.md — Setup layout gate + dashboard layout member gate + ConfigStep component (send hour + inbound mode + email identity)
-- [ ] 16-04-PLAN.md — Wizard page shell (WizardStepper + step orchestration + completion) + human verification checkpoint
+- [x] 16-01-PLAN.md — Server actions (markMemberSetupComplete, getMemberSetupComplete) + middleware /setup exemption + invite accept redirect to wizard
+- [x] 16-02-PLAN.md — CsvImportStep component (full-page extraction from csv-import-dialog, no dialog wrapper)
+- [x] 16-03-PLAN.md — Setup layout gate + dashboard layout member gate + ConfigStep component (send hour + inbound mode + email identity)
+- [x] 16-04-PLAN.md — Wizard page shell (WizardStepper + step orchestration + completion) + human verification checkpoint
 
 ---
 

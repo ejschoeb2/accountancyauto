@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 16 (Member Setup Wizard) executing.
+**Current focus:** v3.0 Multi-Tenancy & SaaS Platform — Phase 16 (Member Setup Wizard) COMPLETE.
 
 ## Current Position
 
 Phase: 16 of 16 (Member Setup Wizard)
-Plan: 4 of 4 (checkpoint — awaiting human verification)
-Status: Phase 16 plan 04 auto-task complete; checkpoint human-verify pending
-Last activity: 2026-02-23 — Phase 16 plan 04 Task 1 complete (wizard page shell); awaiting human verification checkpoint
+Plan: 4 of 4 (complete)
+Status: Phase 16 complete — all 4 plans done; human verification passed
+Last activity: 2026-02-23 — Phase 16 plan 04 complete; wizard page shell created, xlsx filename bug fixed during verification, full end-to-end flow human-verified
 
-Progress: [████░] 4/4 Phase 16 plans complete (checkpoint pending)
+Progress: [█████] 4/4 Phase 16 plans complete
 
 ## Performance Metrics
 
@@ -80,7 +80,7 @@ Recent decisions affecting v3.0:
 - [D-10-04-03] Postmark inbound webhook resolves org_id from matched client, falls back to founding org
 - [D-10-04-04] Server actions with only SELECT/UPDATE/DELETE unchanged (RLS handles filtering)
 - [D-10-05-01] supabase_auth_admin needs explicit RLS policy (not just GRANT SELECT) to read user_organisations in JWT hook
-- [D-10-05-02] Demo user linked to Acme test org; Peninsula reserved for real accounts (phases 12/13)
+- [D-10-05-02] Demo user linked to Acme test org; Prompt reserved for real accounts (phases 12/13)
 - [D-10-05-03] Sign-out card added to settings page for accessible logout
 - [D-11-01-01] Stripe API version pinned to 2026-01-28.clover
 - [D-11-01-02] Price IDs from env vars (STRIPE_PRICE_LITE etc.) for test/prod flexibility
@@ -184,7 +184,7 @@ All v1.0 and v1.1 risks resolved.
 | Question | Resolve Before |
 |----------|---------------|
 | ~~Exact `plan_tier` enum values~~ RESOLVED: `('lite', 'sole_trader', 'practice', 'firm')` created in 10-01 | Phase 10 plan |
-| Is Peninsula VAT-registered? (determines Stripe Tax configuration) | Phase 11 plan |
+| Is Prompt VAT-registered? (determines Stripe Tax configuration) | Phase 11 plan |
 | Reserved slug list (admin, www, api, app, billing, etc.) | Phase 10/13 plan |
 | Where do per-org Postmark server tokens come from for new tenants? (admin enters own token vs programmatic via API vs shared account) | Phase 13 plan |
 | Data retention policy for cancelled orgs (30 days mentioned; confirm before Phase 14) | Phase 14 plan |
@@ -236,9 +236,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 16 plan 04 — Task 1 complete (wizard page shell created); Task 2 is checkpoint:human-verify (pending)
+Stopped at: Phase 16 plan 04 complete — wizard page shell created, xlsx filename bug fixed, human verification passed
 Resume file: None
-Next step: Human verification of full wizard flow end-to-end; then Phase 16 complete
+Next step: v3.0 complete — all phases 10-16 done
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
