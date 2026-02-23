@@ -318,7 +318,7 @@ Plans:
 4. The filing type card on the client detail page shows the document count and most recent submission date; expanding the card lists all documents with filename, document type label, confidence badge, received date, source, and a download button; clicking download generates a signed URL with 300-second expiry, logs the access in `document_access_log`, and does not expose the raw storage path.
 5. The weekly retention cron sets `retention_flagged = true` on `client_documents` rows where `retain_until < NOW()` and `retention_hold = false`; it does not auto-delete any documents; it sends the org admin an email listing newly flagged documents; running the cron a second time does not re-flag already-flagged documents or send duplicate notification emails.
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 19-01-PLAN.md — Phase 19 schema migration (revoked_at, checklist customisations, Realtime) + classifyDocument utility + Postmark attachment extraction (PASS-01, PASS-02)
@@ -383,4 +383,4 @@ Phases execute in numeric order: 18 -> 19
 | 16. Member Setup Wizard | v3.0 | 4/4 | Complete | 2026-02-23 |
 | 17. Marketing Landing Page | v3.0 | 3/3 | Complete | 2026-02-23 |
 | 18. Document Collection Foundation | v4.0 | Complete    | 2026-02-23 | 2026-02-23 |
-| 19. Collection Mechanisms | 2/4 | In Progress|  | - |
+| 19. Collection Mechanisms | 3/4 | In Progress|  | - |

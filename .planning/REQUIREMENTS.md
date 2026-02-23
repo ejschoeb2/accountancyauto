@@ -29,10 +29,10 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 
 ### Active Collection (ACTV)
 
-- [ ] **ACTV-01**: Accountant can generate a token-based portal link for a specific client + filing type from the client detail page; link expires after a configurable period (default 30 days); regenerating a link revokes the previous token
-- [ ] **ACTV-02**: Client upload portal at `/portal/[token]` is a Prompt-branded page showing the accountant's firm name as context ("Your accountant, Smith & Co, has requested..."); accessible via token link with no login required; validates token server-side on every request; expired tokens show a clear expiry message with contact instructions
-- [ ] **ACTV-03**: Portal shows a checklist of required documents for the specific filing drawn from `filing_document_requirements`; clients can upload files against checklist items (multiple files per item), add a short note, and see a progress indicator (X of Y items provided); files upload directly to Supabase Storage via signed upload URL (browser → Storage, never through Next.js server)
-- [ ] **ACTV-04**: Accountant can customise the default checklist per client-filing pair from the client detail page: toggle items on/off, add ad-hoc items; customisations persist across years
+- [x] **ACTV-01**: Accountant can generate a token-based portal link for a specific client + filing type from the client detail page; link expires after a configurable period (default 30 days); regenerating a link revokes the previous token
+- [x] **ACTV-02**: Client upload portal at `/portal/[token]` is a Prompt-branded page showing the accountant's firm name as context ("Your accountant, Smith & Co, has requested..."); accessible via token link with no login required; validates token server-side on every request; expired tokens show a clear expiry message with contact instructions
+- [x] **ACTV-03**: Portal shows a checklist of required documents for the specific filing drawn from `filing_document_requirements`; clients can upload files against checklist items (multiple files per item), add a short note, and see a progress indicator (X of Y items provided); files upload directly to Supabase Storage via signed upload URL (browser → Storage, never through Next.js server)
+- [x] **ACTV-04**: Accountant can customise the default checklist per client-filing pair from the client detail page: toggle items on/off, add ad-hoc items; customisations persist across years
 
 ### Dashboard Integration (DASH)
 
@@ -79,10 +79,10 @@ Requirements for the Document Collection milestone. Each maps to roadmap phases 
 | COMP-03 | Phase 19 | Pending |
 | PASS-01 | Phase 19 | Complete |
 | PASS-02 | Phase 19 | Complete |
-| ACTV-01 | Phase 19 | Pending |
-| ACTV-02 | Phase 19 | Pending |
-| ACTV-03 | Phase 19 | Pending |
-| ACTV-04 | Phase 19 | Pending |
+| ACTV-01 | Phase 19 | Complete |
+| ACTV-02 | Phase 19 | Complete |
+| ACTV-03 | Phase 19 | Complete |
+| ACTV-04 | Phase 19 | Complete |
 | DASH-01 | Phase 19 | Complete |
 | DASH-02 | Phase 19 | Complete |
 | DASH-03 | Phase 19 | Complete |

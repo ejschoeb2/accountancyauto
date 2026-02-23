@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 Plans 01 and 03 complete; Phase 19 Plan 02 (upload portal) and Plan 04 (retention cron + DSAR) remaining
+**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 Plans 01, 02 (awaiting human verify), and 03 complete; Phase 19 Plan 04 (retention cron + DSAR) remaining
 
 ## Current Position
 
 Phase: 19 — Collection Mechanisms
-Plan: 04 (Plans 01 and 03 complete — schema migration, classifyDocument, processAttachments, DocumentCard, live feed, Realtime notifications done)
-Status: Phase 19 in progress — 2/4 plans complete
-Last activity: 2026-02-23 — Plan 19-03 completed (DocumentCard + download API + live alert feed + Realtime notifications)
+Plan: 02 checkpoint — Tasks 1 and 2 complete; awaiting human-verify checkpoint (Task 3) before advancing to Plan 04
+Status: Phase 19 in progress — Plans 01, 02 (pending verify), 03 complete; Plan 04 remaining
+Last activity: 2026-02-23 — Plan 19-02 Tasks 1-2 complete (portal page, upload API, portal-token API, generate-portal-link, checklist customisation)
 
-Progress: [##########] Phase 18 done | [####------] Phase 19: 2/4 plans complete
+Progress: [##########] Phase 18 done | [######----] Phase 19: 3/4 plans (02 pending verify)
 
 ## Performance Metrics
 
@@ -210,6 +210,11 @@ Recent decisions affecting v3.0:
 - [Phase 19]: [D-19-03-01] document_access_log INSERT uses created_at (auto-defaulted) + org_id — plan had accessed_at which does not exist in Phase 18 schema
 - [Phase 19]: [D-19-03-02] PostgREST FK join typed as unknown as DocumentActivity[] — double-cast required for Supabase SDK array inference mismatch
 - [Phase 19]: [D-19-03-03] DocumentCard fetches all client documents once per page mount and filters client-side by filing_type_id — simpler than per-card API call
+- [Phase 19]: [D-19-02-01] Portal page validates token inline via createServiceClient — avoids extra network hop, keeps server component pattern
+- [Phase 19]: [D-19-02-02] PostgREST FK join for document_types returns array — normalised in normaliseRequirements() in portal page
+- [Phase 19]: [D-19-02-03] Button variants use IconButtonWithText (violet/green) — standard Button component lacks these variants
+- [Phase 19]: [D-19-02-04] used_at update is fire-and-forget in portal server component — non-critical, does not block page render
+- [Phase 19]: [D-19-02-05] Checklist customisation upsert uses onConflict: 'client_id,filing_type_id,document_type_id' matching unique constraint from Phase 19 schema
 
 ### Roadmap Evolution
 
@@ -242,6 +247,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | Phase 18-document-collection-foundation P01 | 8 | 2 tasks | 2 files |
 | Phase 18 P03 | 10 | 2 tasks | 2 files |
 | Phase 19 P03 | 284 | 2 tasks | 7 files |
+| Phase 19 P02 | 11 | 2 tasks | 12 files |
 
 ### Tech Debt
 
