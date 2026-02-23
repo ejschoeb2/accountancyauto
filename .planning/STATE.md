@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — Phase 18 in progress (Plans 01, 02, 03 complete)
+**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 (Collection Mechanisms) is next
 
 ## Current Position
 
-Phase: 18 — Document Collection Foundation
-Plan: 03 complete (Plans 01, 02, 03 all done — Plan 04 next)
-Status: In progress — Plans 18-01, 18-02, 18-03 complete
-Last activity: 2026-02-23 — Plan 18-03 completed (privacy and terms compliance amendments — COMP-01 satisfied, user approved)
+Phase: 19 — Collection Mechanisms
+Plan: 01 (not yet started — Phase 18 complete, Phase 19 queued)
+Status: Phase 18 complete — Phase 19 not yet started
+Last activity: 2026-02-23 — Plan 18-04 completed (storage bucket RLS + full Phase 18 integration verified by user; all 18 DOCS requirements satisfied)
 
-Progress: [###-------] 3/4 Phase 18 plans complete
+Progress: [####------] 4/4 Phase 18 plans complete — Phase 18 done
 
 ## Performance Metrics
 
@@ -47,7 +47,7 @@ Progress: [###-------] 3/4 Phase 18 plans complete
 **v4.0 Status:**
 - Phases: 2 (18-19)
 - Requirements: 18 mapped
-- Status: Roadmap complete, Phase 18 not started
+- Status: Phase 18 complete (4/4 plans), Phase 19 not yet started
 
 ## Accumulated Context
 
@@ -199,6 +199,10 @@ Recent decisions affecting v3.0:
 - [Phase 18-document-collection-foundation]: upload_portal_tokens.token_hash TEXT NOT NULL UNIQUE — raw token never stored; SHA-256 hex of crypto.randomBytes(32)
 - [Phase 18]: [D-18-03-01] Amendments 1-6 applied inline — no visible changelog or amendment section; last updated date unchanged (already February 2026)
 - [Phase 18]: [D-18-03-02] Amendment 7 (date) requires no change — both pages already show February 2026
+- [Phase 18]: [D-18-04-01] Storage RLS uses auth_org_id()::text cast — auth_org_id() returns UUID, storage.foldername returns text[], explicit cast required to prevent silent type mismatch bugs
+- [Phase 18]: [D-18-04-02] 5 separate storage.objects policies (not one FOR ALL) — consistent with project pattern D-10-02-03 for per-operation clarity
+- [Phase 18]: [D-18-04-03] service_role ALL policy specifies both USING and WITH CHECK — required for complete DML coverage
+- [Phase 18]: [D-18-04-04] Full Phase 18 integration verification passed — 5 checks: tables, seed data, storage RLS, privacy/terms pages, npm run build
 
 ### Roadmap Evolution
 
@@ -271,9 +275,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Plan 18-04 Task 2 complete (storage_objects_rls migration applied — fbbb8e9); paused at Task 3 checkpoint:human-verify (full Phase 18 integration verification pending)
+Stopped at: Phase 18 complete — Plan 18-04 all 3 tasks done; Phase 18 integration verified by user ("phase 18 verified")
 Resume file: .planning/phases/18-document-collection-foundation/18-04-SUMMARY.md
-Next step: User runs Phase 18 integration verification checks (5 checks); responds "phase 18 verified"; then Task 3 can be approved and Phase 19 can begin
+Next step: Begin Phase 19 (Collection Mechanisms) — Plan 19-01 (passive collection: inbound email attachment extraction + classification)
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*

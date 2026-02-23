@@ -293,13 +293,13 @@ Plans:
 4. The privacy policy at `/privacy` is live and contains all 7 identified amendments: financial documents as a data category, 6-year statutory retention carve-out with HMRC authority citation, broadened processing scope to include document storage, firm clients added as portal data subjects, Supabase file storage in the sub-processor list, and Terms Section 6 qualified to permit financial document types.
 5. `lib/documents/storage.ts` exports working `uploadDocument`, `getSignedDownloadUrl` (300-second max expiry), and `deleteDocument` functions; `lib/documents/metadata.ts` exports a `calculateRetainUntil` function that correctly returns `tax_period_end_date + 6 years` for company filings and `january_31_deadline + 5 years` for individual filings.
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 18-01-PLAN.md — DB schema migration: all 5 tables + RLS policies + HMRC seed data (DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-06)
-- [ ] 18-02-PLAN.md — Storage utilities (lib/documents/storage.ts + metadata.ts TDD) + ENV_VARIABLES.md update (DOCS-05)
-- [ ] 18-03-PLAN.md — Privacy policy + Terms inline amendments, all 7 gaps (COMP-01)
-- [ ] 18-04-PLAN.md — Supabase Storage bucket creation (manual) + storage.objects RLS migration + full integration verification (DOCS-05)
+- [x] 18-01-PLAN.md — DB schema migration: all 5 tables + RLS policies + HMRC seed data (DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-06)
+- [x] 18-02-PLAN.md — Storage utilities (lib/documents/storage.ts + metadata.ts TDD) + ENV_VARIABLES.md update (DOCS-05)
+- [x] 18-03-PLAN.md — Privacy policy + Terms inline amendments, all 7 gaps (COMP-01)
+- [x] 18-04-PLAN.md — Supabase Storage bucket creation (manual) + storage.objects RLS migration + full integration verification (DOCS-05)
 
 ---
 
@@ -379,5 +379,5 @@ Phases execute in numeric order: 18 -> 19
 | 15. Per-Accountant Configuration | v3.0 | 5/5 | Complete | 2026-02-22 |
 | 16. Member Setup Wizard | v3.0 | 4/4 | Complete | 2026-02-23 |
 | 17. Marketing Landing Page | v3.0 | 3/3 | Complete | 2026-02-23 |
-| 18. Document Collection Foundation | 3/4 | In Progress|  | - |
+| 18. Document Collection Foundation | v4.0 | 4/4 | Complete | 2026-02-23 |
 | 19. Collection Mechanisms | v4.0 | 0/TBD | Not started | - |
