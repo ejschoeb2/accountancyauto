@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 17 (Marketing Landing Page) — Plan 01 of 3 complete.
+**Current focus:** Phase 17 (Marketing Landing Page) — Plan 02 of 3 complete.
 
 ## Current Position
 
 Phase: 17 of 17 (Marketing Landing Page)
-Plan: 1 of 3 (complete)
-Status: Phase 17 in progress — Plan 01 complete (particle systems built)
-Last activity: 2026-02-23 — Phase 17 plan 01 complete; framer-motion installed, useIsMobile hook created, HeroParticles and FooterParticles built
+Plan: 2 of 3 (complete)
+Status: Phase 17 in progress — Plan 02 complete (all 5 section components built)
+Last activity: 2026-02-23 — Phase 17 plan 02 complete; MarketingNav, HeroSection, FeaturesSection, PricingSection, FooterSection created
 
-Progress: [█░░] 1/3 Phase 17 plans complete
+Progress: [██░] 2/3 Phase 17 plans complete
 
 ## Performance Metrics
 
@@ -164,6 +164,8 @@ Recent decisions affecting v3.0:
 - [Phase 16-member-setup-wizard]: [D-16-04-03] window.location.href = "/" for final redirect — forces full page load and middleware re-evaluation so member_setup_complete flag is picked up correctly
 - [Phase 17-marketing-landing-page]: framer-motion v12.34.3 installed; compatible with React 19
 - [Phase 17-marketing-landing-page]: Bottom boundary bounce added to HeroParticles (not in reference) — prevents particles escaping the 150vh container
+- [Phase 17-marketing-landing-page]: PricingSection hardcodes tier values — no lib/stripe/plans.ts import to avoid Stripe env var coupling
+- [Phase 17-marketing-landing-page]: Footer CTA uses inverted colour scheme (white bg + violet text) for contrast on dark background
 
 ### Roadmap Evolution
 
@@ -202,6 +204,7 @@ All v1.0 and v1.1 risks resolved.
 | Phase 16-member-setup-wizard P02 | 3 | 1 tasks | 1 files |
 | Phase 16-member-setup-wizard P03 | 6 | 3 tasks | 3 files |
 | Phase 17-marketing-landing-page P01 | 15 | 2 tasks | 5 files |
+| Phase 17-marketing-landing-page P02 | 2min | 2 tasks | 5 files |
 
 ### Tech Debt
 
@@ -240,9 +243,9 @@ All v1.0 and v1.1 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-23 UTC
-Stopped at: Phase 17 plan 01 complete — framer-motion installed, useIsMobile hook created, HeroParticles and FooterParticles physics engines built
+Stopped at: Phase 17 plan 02 complete — all 5 marketing section components built (MarketingNav, HeroSection, FeaturesSection, PricingSection, FooterSection)
 Resume file: None
-Next step: Phase 17 plan 02 (landing page page structure and sections)
+Next step: Phase 17 plan 03 (page assembly — compose sections into final landing page)
 
 ---
 *Phase 16 plan 01 complete -- member setup wizard foundation: server actions, middleware exemption, invite redirect (2026-02-22)*
