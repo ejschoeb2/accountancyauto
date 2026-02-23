@@ -99,6 +99,11 @@ export async function updateSession(request: NextRequest) {
 
   // Step 5: Handle no-slug cases
   if (!slug) {
+    // Allow the root marketing page through (dev preview + production root)
+    if (pathname === "/") {
+      return supabaseResponse;
+    }
+
     if (user) {
       // Authenticated user with no org context — find their org and redirect
       const { data: userOrg } = await supabase
