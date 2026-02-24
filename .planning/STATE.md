@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 20 — Document Integration & Document-Aware Reminders
-Plan: 02 in progress — Tasks 1-3 done; paused at checkpoint:human-verify (Task 4)
-Status: Phase 20 in progress — 20-01 (API consolidation), 20-02 (UI integration — awaiting verify), 20-03 (document-aware template variables) done
-Last activity: 2026-02-24 — Plan 20-02 Tasks 1-3: rebuilt DocumentCard, auto-records-received utility, standalone cards removed from page.tsx
+Plan: 03 complete — ready for Plan 04
+Status: Phase 20 in progress — 20-01 (API consolidation), 20-02 (UI integration — complete), 20-03 (document-aware template variables) done; 20-04 next
+Last activity: 2026-02-24 — Plan 20-02 complete: human-verify approved; DocumentCard integration, auto-records-received utility, standalone cards removed
 
 Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete | [####......] Phase 20: 2/? plans complete
 
@@ -228,6 +228,9 @@ Recent decisions affecting v3.0:
 - [Phase 20-03]: Token expiry = nextStep.delay_days with 30-day fallback — ensures portal link stays valid until next reminder arrives
 - [Phase 20-03]: documents_required and portal_link default to '' for custom (non-filing) reminders — templates render correctly regardless of reminder type
 - [Phase 20-03]: Tax year derived from reminder.deadline_date.getFullYear() — simple TEXT year for upload_portal_tokens.tax_year column
+- [Phase 20-02]: div[role=button] used for DocumentCard expand trigger — nested button elements cause React hydration errors; div with role/tabIndex/onKeyDown is the correct pattern for interactive card headers with child interactive elements
+- [Phase 20-02]: ChecklistModal embeds customisation logic inline (no import of standalone ChecklistCustomisation) — modal scoped to known filingTypeId removes need for filing type dropdown
+- [Phase 20-02]: notifyAutoRecordsReceived() exported from DocumentCard — called by upload handler response path, not wired to mount; keeps component stateless regarding upload events
 
 ### Roadmap Evolution
 
@@ -303,9 +306,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-24 UTC
-Stopped at: Phase 20 Plan 02 — Tasks 1-3 complete; paused at checkpoint:human-verify (Task 4)
+Stopped at: Phase 20 Plan 02 — complete (human-verify approved)
 Resume file: .planning/phases/20-document-integration-document-aware-reminders/20-02-SUMMARY.md
-Next step: Human verifies UI in browser; after approval continue to Phase 20 Plan 04
+Next step: Phase 20 Plan 04 — wire checkAndAutoSetRecordsReceived into upload handler
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
