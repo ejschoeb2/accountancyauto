@@ -11,14 +11,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // List all documents for this client, grouped fetch — RLS ensures org-scoping
-  const { data: docs, error } = await supabase
+  // Optional server-side filter: ?filing_type_id=<value>
+  const url = new URL(request.url);
+  const filingTypeId = url.searchParams.get('filing_type_id');
+
+  // List documents for this client — RLS ensures org-scoping
+  let query = supabase
     .from('client_documents')
     .select(
       'id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, document_types(code, label)'
     )
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
+
+  // Apply optional filing_type_id filter when present
+  if (filingTypeId) {
+    query = query.eq('filing_type_id', filingTypeId);
+  }
+
+  const { data: docs, error } = await query;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ documents: docs ?? [] });
