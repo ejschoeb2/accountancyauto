@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone — Phase 18 complete; Phase 19 Plans 01, 02 (awaiting human verify), and 03 complete; Phase 19 Plan 04 (retention cron + DSAR) remaining
+**Current focus:** v4.0 Document Collection milestone COMPLETE — Phase 18 complete; Phase 19 all 4 plans complete
 
 ## Current Position
 
 Phase: 19 — Collection Mechanisms
-Plan: 02 checkpoint — Tasks 1 and 2 complete; awaiting human-verify checkpoint (Task 3) before advancing to Plan 04
-Status: Phase 19 in progress — Plans 01, 02 (pending verify), 03 complete; Plan 04 remaining
-Last activity: 2026-02-23 — Plan 19-02 Tasks 1-2 complete (portal page, upload API, portal-token API, generate-portal-link, checklist customisation)
+Plan: 04 complete — all tasks done; SUMMARY.md created
+Status: Phase 19 complete — all 4 plans done (19-01 schema, 19-02 upload portal, 19-03 document UI, 19-04 retention + DSAR)
+Last activity: 2026-02-24 — Plan 19-04 complete; retention cron, DSAR export, and DsarExportButton shipped; human verification approved
 
-Progress: [##########] Phase 18 done | [######----] Phase 19: 3/4 plans (02 pending verify)
+Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete
 
 ## Performance Metrics
 
@@ -218,6 +218,7 @@ Recent decisions affecting v3.0:
 - [Phase 19]: [D-19-04-01] JSZip arraybuffer type for generateAsync — nodebuffer and uint8array fail TypeScript strict mode with BodyInit; arraybuffer passes
 - [Phase 19]: [D-19-04-02] PostgREST FK join returns clients as array; normalised inline in cron route (pick index 0) rather than changing FlaggedDocument interface
 - [Phase 19]: [D-19-04-03] DSAR manifest excludes storage_path — raw Storage paths must never be exposed per DOCS-05; manifest contains document metadata fields only
+- [Phase 19-04]: Retention cron idempotency via WHERE retention_flagged=false — re-run is always a safe no-op; never auto-deletes documents (flag-and-notify pattern)
 
 ### Roadmap Evolution
 
@@ -291,10 +292,10 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-23 UTC
-Stopped at: Phase 19 Plan 03 complete — DocumentCard component, document download API with access log, live alert feed, and Realtime notification hook all done
-Resume file: .planning/phases/19-collection-mechanisms/19-03-SUMMARY.md
-Next step: Phase 19 Plan 02 (active collection — upload portal) or Plan 04 (retention cron + DSAR export)
+Last session: 2026-02-24 UTC
+Stopped at: Phase 19 Plan 04 complete — retention enforcement cron, DSAR export API, DsarExportButton component; v4.0 milestone complete
+Resume file: .planning/phases/19-collection-mechanisms/19-04-SUMMARY.md
+Next step: v4.0 milestone complete — plan next milestone
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
