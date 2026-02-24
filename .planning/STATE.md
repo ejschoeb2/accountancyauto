@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 20 — Document Integration & Document-Aware Reminders
-Plan: 03 complete — all tasks done; SUMMARY.md created
-Status: Phase 20 in progress — 20-01 (API consolidation), 20-03 (document-aware template variables) done
-Last activity: 2026-02-24 — Plan 20-03 complete; resolveDocumentsRequired, portal token generation, TemplateContext extension with documents_required + portal_link
+Plan: 02 in progress — Tasks 1-3 done; paused at checkpoint:human-verify (Task 4)
+Status: Phase 20 in progress — 20-01 (API consolidation), 20-02 (UI integration — awaiting verify), 20-03 (document-aware template variables) done
+Last activity: 2026-02-24 — Plan 20-02 Tasks 1-3: rebuilt DocumentCard, auto-records-received utility, standalone cards removed from page.tsx
 
 Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete | [####......] Phase 20: 2/? plans complete
 
@@ -303,9 +303,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-24 UTC
-Stopped at: Phase 20 Plan 03 complete — 20-03-SUMMARY.md created
-Resume file: .planning/phases/20-document-integration-document-aware-reminders/20-03-SUMMARY.md
-Next step: Execute Phase 20 Plan 04
+Stopped at: Phase 20 Plan 02 — Tasks 1-3 complete; paused at checkpoint:human-verify (Task 4)
+Resume file: .planning/phases/20-document-integration-document-aware-reminders/20-02-SUMMARY.md
+Next step: Human verifies UI in browser; after approval continue to Phase 20 Plan 04
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
