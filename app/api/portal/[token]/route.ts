@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // Fetch checklist: merge filing_document_requirements with customisations
   const { data: requirements } = await supabase
     .from('filing_document_requirements')
-    .select('id, document_type_id, is_mandatory, condition_description, document_types(id, code, label, expected_mime_types)')
+    .select('id, document_type_id, is_mandatory, document_types(id, code, label, expected_mime_types)')
     .eq('filing_type_id', portalToken.filing_type_id);
 
   const { data: customisations } = await supabase
