@@ -21,6 +21,8 @@ interface FilingAssignmentResponse {
   calculated_deadline: string | null;
   override_deadline: string | null;
   override_reason: string | null;
+  doc_count: number;
+  last_received_at: string | null;
 }
 
 /**
@@ -164,8 +166,49 @@ export async function GET(
         calculated_deadline: calculatedDate ? calculatedDate.toISOString().split('T')[0] : null,
         override_deadline: override?.override_date || null,
         override_reason: override?.reason || null,
+        doc_count: 0,
+        last_received_at: null,
       };
     });
+
+    // Fetch document summary per filing type — single query, mapped in app code
+    // (PostgREST FK join cache workaround: fetch separately and map, per MEMORY.md)
+    const { data: docRows, error: docSummaryError } = await supabase
+      .from('client_documents')
+      .select('filing_type_id, received_at')
+      .eq('client_id', clientId)
+      .order('received_at', { ascending: false });
+
+    if (docSummaryError) {
+      console.warn('[filings route] Failed to fetch document summary:', docSummaryError.message);
+      // Non-fatal: return filings with defaults (doc_count: 0, last_received_at: null)
+    } else {
+      // Build aggregation map: filing_type_id -> { doc_count, last_received_at }
+      const docSummaryMap = new Map<string, { doc_count: number; last_received_at: string | null }>();
+      for (const row of docRows ?? []) {
+        if (!row.filing_type_id) continue;
+        const existing = docSummaryMap.get(row.filing_type_id);
+        if (existing) {
+          existing.doc_count += 1;
+          // Rows are ordered descending; first row per filing_type_id is most recent
+          // last_received_at already set on first encounter — do not overwrite
+        } else {
+          docSummaryMap.set(row.filing_type_id, {
+            doc_count: 1,
+            last_received_at: row.received_at ?? null,
+          });
+        }
+      }
+
+      // Merge document summary into each filing
+      for (const filing of filings) {
+        const summary = docSummaryMap.get(filing.filing_type.id);
+        if (summary) {
+          filing.doc_count = summary.doc_count;
+          filing.last_received_at = summary.last_received_at;
+        }
+      }
+    }
 
     return NextResponse.json({ filings });
   } catch (error) {
