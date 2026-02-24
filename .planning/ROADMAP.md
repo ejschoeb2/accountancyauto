@@ -354,6 +354,17 @@ Plans:
   5. The weekly retention cron sets `retention_flagged = true` on `client_documents` rows where `retain_until < NOW()` and `retention_hold = false`; it does not auto-delete any documents; it sends the org admin an email listing newly flagged documents; running the cron a second time does not re-flag already-flagged documents or send duplicate notification emails.
 **Plans**: 4 plans in 2 waves
 
+### Phase 20: Document Integration & Document-Aware Reminders
+
+**Goal:** Wire the document collection system into the filing card UI and reminder email pipeline — dissolve standalone document cards into per-filing-type sections with interleaved checklist view, add {{documents_required}} and {{portal_link}} template variables resolved at scheduler send time, and auto-set Records Received when all mandatory documents are uploaded.
+**Depends on:** Phase 19
+**Plans:** 3 plans in 2 waves
+
+Plans:
+- [ ] 20-01-PLAN.md — API consolidation: augment filings API with doc_count + last_received_at; add filing_type_id filter to documents API
+- [ ] 20-02-PLAN.md — UI restructuring: rebuild DocumentCard with interleaved checklist, progress fraction, gear icon, portal link; remove standalone cards; auto Records Received utility
+- [ ] 20-03-PLAN.md — Template variable engine: lib/documents/checklist.ts, extend variables.ts, wire documents_required + portal_link into scheduler Step 7
+
 ---
 
 ## Progress
