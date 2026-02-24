@@ -227,6 +227,7 @@ Recent decisions affecting v3.0:
 - Phase 17 added: Marketing Landing Page — public-facing marketing site with hero, features, pricing, and footer sections
 - Phase 18 added: Document Collection Foundation — schema, Storage, RLS, privacy policy, seed data, token table
 - Phase 19 added: Collection Mechanisms — passive + active collection, classification, dashboard integration, retention cron, DSAR export
+- Phase 20 added: Document Integration & Document-Aware Reminders — documents inside filing cards, {{documents_required}} + {{portal_link}} template variables, auto-set Records Received
 
 ### Known Risks
 
@@ -294,9 +295,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-24 UTC
-Stopped at: Phase 19 Plan 04 complete — retention enforcement cron, DSAR export API, DsarExportButton component; v4.0 milestone complete
-Resume file: .planning/phases/19-collection-mechanisms/19-04-SUMMARY.md
-Next step: v4.0 milestone complete — plan next milestone
+Stopped at: Phase 20 context gathered
+Resume file: .planning/phases/20-document-integration-document-aware-reminders/20-CONTEXT.md
+Next step: /gsd:plan-phase 20
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
