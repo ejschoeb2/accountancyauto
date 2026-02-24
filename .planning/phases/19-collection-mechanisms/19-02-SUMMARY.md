@@ -49,11 +49,12 @@ key-decisions:
   - "[D-19-02-03] Button variants use IconButtonWithText (violet/green) — standard Button component only has default/outline/secondary/destructive variants"
   - "[D-19-02-04] used_at update is fire-and-forget (.then(() => {})) in server component — non-critical; does not block page render"
   - "[D-19-02-05] Checklist customisation upsert uses onConflict: 'client_id,filing_type_id,document_type_id' — matches unique constraint in Phase 19 schema"
+  - "condition_description removed from filing_document_requirements select — column does not exist in Phase 18 schema; PostgREST silently returns null for unknown columns, causing empty checklist"
 
 requirements-completed: [ACTV-01, ACTV-02, ACTV-03, ACTV-04]
 
-duration: 11min
-completed: 2026-02-23
+duration: 11min + checkpoint verification
+completed: 2026-02-24
 ---
 
 # Phase 19 Plan 02: Active Document Collection Portal Summary
@@ -65,8 +66,8 @@ completed: 2026-02-23
 - **Duration:** ~11 min
 - **Started:** 2026-02-23T16:46:48Z
 - **Completed:** 2026-02-23T16:57:25Z
-- **Tasks:** 2 complete (Task 3 is checkpoint:human-verify — awaiting verification)
-- **Files modified:** 12
+- **Tasks:** 3 complete (Tasks 1 + 2 auto; Task 3 checkpoint verified by human 2026-02-24)
+- **Files modified:** 12 (+ 2 modified in bugfix commit 3865549)
 
 ## Accomplishments
 
@@ -80,6 +81,7 @@ completed: 2026-02-23
 
 1. **Task 1: Backend APIs (middleware + portal token + upload)** - `eb0cb32` (feat)
 2. **Task 2: Portal page + checklist UI + dashboard components** - `b385320` (feat)
+3. **Task 3: Checkpoint — Verify portal end-to-end** - approved by human; bug fix committed as `3865549` (fix)
 
 **Note:** The Task 1 API files (portal route + upload route + portal-token route) were partially pre-committed by a prior session in `18fc60c` (feat(19-03) — mislabeled). The `eb0cb32` commit adds react-dropzone to package.json and middleware PUBLIC_ROUTES change.
 
@@ -129,8 +131,18 @@ completed: 2026-02-23
 
 ---
 
-**Total deviations:** 2 auto-fixed (2 Rule 1 - Bug)
-**Impact on plan:** Both fixes necessary for TypeScript correctness and type safety. No scope creep.
+**3. [Rule 1 - Bug] Removed non-existent `condition_description` column from PostgREST select**
+- **Found during:** Task 3 checkpoint verification (portal rendered empty checklist)
+- **Issue:** `filing_document_requirements` schema (Phase 18) does not have a `condition_description` column. The plan's code samples referenced it in `.select()`. PostgREST silently returns `data: null` when an unknown column is requested, causing the checklist to render as empty with "No documents are required for this filing."
+- **Fix:** Removed `condition_description` from the `.select()` string in both `app/api/portal/[token]/route.ts` and `app/portal/[token]/page.tsx`
+- **Files modified:** `app/api/portal/[token]/route.ts`, `app/portal/[token]/page.tsx`
+- **Verification:** Portal checklist renders items correctly after fix; human verification approved
+- **Committed in:** `3865549`
+
+---
+
+**Total deviations:** 3 auto-fixed (3 Rule 1 - Bug)
+**Impact on plan:** All fixes necessary for TypeScript correctness, type safety, and correct runtime behaviour. No scope creep.
 
 ## Issues Encountered
 
@@ -142,13 +154,13 @@ None — no additional external service configuration required beyond what Phase
 
 ## Next Phase Readiness
 
-- Portal end-to-end verification checkpoint is next (Task 3: checkpoint:human-verify)
-- After verification: Phase 19 Plan 03 (dashboard integration — live document feed, document cards, DSAR export)
-- All ACTV requirements (ACTV-01 through ACTV-04) are implemented and ready for verification
+- All ACTV requirements (ACTV-01 through ACTV-04) verified by human and complete
+- Phase 19 Plan 03 (dashboard integration — document cards, live alert feed, Realtime notifications) is already complete
+- Phase 19 Plan 04 (retention cron + DSAR export) is the only remaining plan in Phase 19 — it is paused at a human-verify checkpoint
 
 ---
 *Phase: 19-collection-mechanisms*
-*Completed: 2026-02-23*
+*Completed: 2026-02-24*
 
 ## Self-Check: PASSED
 
@@ -162,7 +174,7 @@ All files verified present on disk. All commits verified in git log.
 - `app/api/clients/[id]/portal-token/route.ts` — FOUND
 - `app/(dashboard)/clients/[id]/components/generate-portal-link.tsx` — FOUND
 - `app/(dashboard)/clients/[id]/components/checklist-customisation.tsx` — FOUND
-- Commits `eb0cb32` and `b385320` — FOUND
+- Commits `eb0cb32`, `b385320`, `3865549` — FOUND
 - `no-referrer` metadata in portal page — FOUND
 - `uploadDocument` in upload route — FOUND
 - `revoked_at` in portal-token route — FOUND

@@ -219,6 +219,7 @@ Recent decisions affecting v3.0:
 - [Phase 19]: [D-19-04-02] PostgREST FK join returns clients as array; normalised inline in cron route (pick index 0) rather than changing FlaggedDocument interface
 - [Phase 19]: [D-19-04-03] DSAR manifest excludes storage_path — raw Storage paths must never be exposed per DOCS-05; manifest contains document metadata fields only
 - [Phase 19-04]: Retention cron idempotency via WHERE retention_flagged=false — re-run is always a safe no-op; never auto-deletes documents (flag-and-notify pattern)
+- [Phase 19]: condition_description removed from filing_document_requirements select — column does not exist in Phase 18 schema; PostgREST silently returns null for unknown columns, rendering empty checklist
 
 ### Roadmap Evolution
 
