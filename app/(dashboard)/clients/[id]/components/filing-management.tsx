@@ -29,6 +29,7 @@ import { Label } from '@/components/ui/label';
 import { CheckButton } from '@/components/ui/check-button';
 import { Separator } from '@/components/ui/separator';
 import type { FilingType } from '@/lib/types/database';
+import { DocumentCard } from './document-card';
 
 interface FilingAssignment {
   filing_type: FilingType;
@@ -36,6 +37,8 @@ interface FilingAssignment {
   calculated_deadline: string | null;
   override_deadline: string | null;
   override_reason: string | null;
+  doc_count: number;
+  last_received_at: string | null;
 }
 
 interface FilingManagementProps {
@@ -629,6 +632,19 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                     )}
                   </div>
                 </div>
+
+                {/* DocumentCard — document collection section for this filing type */}
+                {filing.is_active && (
+                  <div className="mt-4">
+                    <DocumentCard
+                      clientId={clientId}
+                      filingTypeId={filing.filing_type.id}
+                      filingTypeName={filing.filing_type.name}
+                      docCount={filing.doc_count ?? 0}
+                      lastReceivedAt={filing.last_received_at ?? null}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
