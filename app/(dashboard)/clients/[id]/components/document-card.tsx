@@ -757,10 +757,12 @@ export function DocumentCard({
     <>
       <Card className="gap-0">
         {/* Collapsed header — always visible */}
-        <button
-          type="button"
-          className="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-t-lg"
+        <div
+          role="button"
+          tabIndex={0}
+          className="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-t-lg cursor-pointer"
           onClick={() => setExpanded(prev => !prev)}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(prev => !prev); } }}
           aria-expanded={expanded}
         >
           <div className="flex items-center gap-4">
@@ -791,7 +793,7 @@ export function DocumentCard({
               <ChevronDown className="size-4 text-muted-foreground shrink-0" />
             )}
           </div>
-        </button>
+        </div>
 
         {/* Expanded content */}
         {expanded && (
