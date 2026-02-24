@@ -1,10 +1,12 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { UTCDate } from '@date-fns/utc';
 import { toZonedTime } from 'date-fns-tz';
-import { format, addMinutes } from 'date-fns';
+import { format, addMinutes, addDays } from 'date-fns';
+import crypto from 'crypto';
 import { buildReminderQueue, buildCustomScheduleQueue, Org } from './queue-builder';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { rolloverDeadline } from '@/lib/deadlines/rollover';
+import { resolveDocumentsRequired } from '@/lib/documents/checklist';
 
 export interface ProcessResult {
   queued: number;
@@ -289,6 +291,59 @@ export async function processRemindersForUser(
         // For custom schedules, use the schedule name as the filing_type placeholder
         const filingTypeName = filingType?.name ?? schedule.name;
 
+        // Resolve document-aware variables for filing reminders (Step 7 additions)
+        // Custom schedule reminders do not have a filing_type_id; skip for those.
+
+        // Resolve {{documents_required}}: outstanding mandatory docs as HTML bullet list
+        let documentsRequired = '';
+        if (reminder.filing_type_id) {
+          try {
+            documentsRequired = await resolveDocumentsRequired(supabase, client.id, reminder.filing_type_id);
+          } catch (docError) {
+            const docMessage = docError instanceof Error ? docError.message : 'Unknown error';
+            result.errors.push(`[${org.name}:${userId}] Failed to resolve documents_required for reminder ${reminder.id}: ${docMessage}`);
+            // documentsRequired stays '' — do not abort the reminder
+          }
+        }
+
+        // Resolve {{portal_link}}: fresh portal upload token with expiry matching next step interval
+        let portalLink = '';
+        if (reminder.filing_type_id) {
+          try {
+            const nextStep = steps.find((s) => s.step_number === reminder.step_index + 1);
+            const daysToNextStep = nextStep?.delay_days ?? 30; // 30-day fallback for last step
+            const tokenExpiry = addDays(new Date(), daysToNextStep);
+            const rawToken = crypto.randomBytes(32).toString('hex');
+            const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+            const taxYear = new Date(reminder.deadline_date).getFullYear().toString();
+
+            // ADDITIVE INSERT ONLY — per CONTEXT.md locked decision.
+            // Do NOT revoke or delete existing tokens. Old tokens from previous reminders
+            // remain valid until their own expires_at. Insert a fresh token per send.
+            const { error: tokenError } = await supabase.from('upload_portal_tokens').insert({
+              org_id: org.id,
+              client_id: client.id,
+              filing_type_id: reminder.filing_type_id,
+              tax_year: taxYear,
+              token_hash: tokenHash,
+              expires_at: tokenExpiry.toISOString(),
+              // created_by_user_id omitted — system-generated token (cron job)
+            });
+
+            if (tokenError) {
+              result.errors.push(`[${org.name}:${userId}] Failed to generate portal token for reminder ${reminder.id}: ${tokenError.message}`);
+              // portalLink stays '' — continue rendering without portal link
+            } else {
+              const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+              portalLink = `${appUrl}/portal/${rawToken}`;
+            }
+          } catch (tokenError) {
+            const tokenMessage = tokenError instanceof Error ? tokenError.message : 'Unknown error';
+            result.errors.push(`[${org.name}:${userId}] Failed to generate portal token for reminder ${reminder.id}: ${tokenMessage}`);
+            // portalLink stays '' — do not abort the reminder
+          }
+        }
+
         try {
           const rendered = await renderTipTapEmail({
             bodyJson: template.body_json,
@@ -298,6 +353,8 @@ export async function processRemindersForUser(
               deadline: new UTCDate(reminder.deadline_date),
               filing_type: filingTypeName,
               accountant_name: accountantName,
+              documents_required: documentsRequired,
+              portal_link: portalLink,
             },
             clientId: client.id,
           });

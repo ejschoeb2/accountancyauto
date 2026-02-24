@@ -8,6 +8,8 @@ export interface TemplateContext {
   deadline: Date;
   filing_type: string;
   accountant_name?: string;
+  documents_required?: string;  // HTML fragment — resolved at send time; empty string when all docs received
+  portal_link?: string;         // URL string — resolved at send time
 }
 
 /**
@@ -19,7 +21,9 @@ export const AVAILABLE_PLACEHOLDERS = [
   { name: 'deadline_short', description: 'Deadline date in short format (e.g., 31/01/2026)' },
   { name: 'filing_type', description: 'Type of filing (e.g., Corporation Tax Payment)' },
   { name: 'days_until_deadline', description: 'Number of days remaining until deadline' },
-  { name: 'accountant_name', description: 'Practice name (Peninsula Accounting)' },
+  { name: 'accountant_name', description: 'Accountant or practice name' },
+  { name: 'documents_required', description: 'List of outstanding required documents (HTML bullet list)' },
+  { name: 'portal_link', description: 'Secure upload link for client to submit documents' },
 ] as const;
 
 /**
@@ -46,6 +50,8 @@ export function substituteVariables(template: string, context: TemplateContext):
     filing_type: context.filing_type,
     days_until_deadline: differenceInDays(context.deadline, new Date()).toString(),
     accountant_name: context.accountant_name || 'PhaseTwo',
+    documents_required: context.documents_required ?? '',
+    portal_link: context.portal_link ?? '',
   };
 
   // Replace all {{variable}} patterns
