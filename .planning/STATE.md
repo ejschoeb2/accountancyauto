@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 19 — Collection Mechanisms
-Plan: 04 complete — all tasks done; SUMMARY.md created
-Status: Phase 19 complete — all 4 plans done (19-01 schema, 19-02 upload portal, 19-03 document UI, 19-04 retention + DSAR)
-Last activity: 2026-02-24 — Plan 19-04 complete; retention cron, DSAR export, and DsarExportButton shipped; human verification approved
+Phase: 20 — Document Integration & Document-Aware Reminders
+Plan: 01 complete — all tasks done; SUMMARY.md created
+Status: Phase 20 in progress — 20-01 (API consolidation) done
+Last activity: 2026-02-24 — Plan 20-01 complete; docSummaryMap in filings route, filing_type_id filter in documents route
 
-Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete
+Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete | [##] Phase 20: 1/? plans complete
 
 ## Performance Metrics
 
@@ -220,6 +220,9 @@ Recent decisions affecting v3.0:
 - [Phase 19]: [D-19-04-03] DSAR manifest excludes storage_path — raw Storage paths must never be exposed per DOCS-05; manifest contains document metadata fields only
 - [Phase 19-04]: Retention cron idempotency via WHERE retention_flagged=false — re-run is always a safe no-op; never auto-deletes documents (flag-and-notify pattern)
 - [Phase 19]: condition_description removed from filing_document_requirements select — column does not exist in Phase 18 schema; PostgREST silently returns null for unknown columns, rendering empty checklist
+- [Phase 20-01]: docSummaryMap built via single descending-ordered SELECT on client_documents; first row per filing_type_id is most recent — O(n) app-code aggregation per MEMORY.md FK join workaround pattern
+- [Phase 20-01]: Document query failure in filings route is non-fatal — console.warn + defaults (0/null) rather than 500; document count must not break filing management view
+- [Phase 20-01]: filing_type_id filter on documents route is opt-in and backwards compatible — omitting param returns all documents (existing behaviour)
 
 ### Roadmap Evolution
 
@@ -295,9 +298,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-24 UTC
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-document-integration-document-aware-reminders/20-CONTEXT.md
-Next step: /gsd:plan-phase 20
+Stopped at: Phase 20 Plan 01 complete — 20-01-SUMMARY.md created
+Resume file: .planning/phases/20-document-integration-document-aware-reminders/20-01-SUMMARY.md
+Next step: Execute Phase 20 Plan 02
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*

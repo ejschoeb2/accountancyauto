@@ -358,7 +358,7 @@ Plans:
 
 **Goal:** Wire the document collection system into the filing card UI and reminder email pipeline — dissolve standalone document cards into per-filing-type sections with interleaved checklist view, add {{documents_required}} and {{portal_link}} template variables resolved at scheduler send time, and auto-set Records Received when all mandatory documents are uploaded.
 **Depends on:** Phase 19
-**Plans:** 3 plans in 2 waves
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 20-01-PLAN.md — API consolidation: augment filings API with doc_count + last_received_at; add filing_type_id filter to documents API
