@@ -29,7 +29,7 @@ export const FooterSection = () => {
       <FooterParticles isTriggered={shouldExplode} />
 
       {/* Main content */}
-      <div className="relative z-10 max-w-6xl mx-auto px-6 flex flex-col items-center gap-8">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 flex flex-col items-center gap-8">
 
         {/* CTA headline */}
         <div className="text-center flex flex-col items-center gap-6">

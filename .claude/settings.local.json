@@ -91,7 +91,8 @@
       "mcp__ide__getDiagnostics",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Skill(gsd:add-phase)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "WebFetch(domain:www.mapbox.com)"
     ]
   },
   "enableAllProjectMcpServers": true,

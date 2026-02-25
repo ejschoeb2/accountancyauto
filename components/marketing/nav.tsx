@@ -1,11 +1,11 @@
 "use client";
 
-import { Brain, LogIn, Rocket } from "lucide-react";
+import { Brain, LogIn } from "lucide-react";
 
 export const MarketingNav = () => {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80">
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
@@ -14,39 +14,14 @@ export const MarketingNav = () => {
             <span className="font-bold text-lg text-foreground">Prompt</span>
           </a>
 
-          {/* Nav links — hidden on mobile */}
-          <nav className="hidden md:flex items-center gap-8">
-            <a
-              href="#features"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Features
-            </a>
-            <a
-              href="#pricing"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Pricing
-            </a>
-          </nav>
-
           {/* Actions */}
-          <div className="flex items-center gap-4">
-            <a
-              href="/login"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100 transition-colors"
-            >
-              <LogIn size={15} />
-              Login
-            </a>
-            <a
-              href="/onboarding"
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
-            >
-              <Rocket size={15} />
-              Start Free Trial
-            </a>
-          </div>
+          <a
+            href="/login"
+            className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all duration-200"
+          >
+            <LogIn size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            Login
+          </a>
 
         </div>
       </div>
