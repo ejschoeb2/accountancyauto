@@ -239,6 +239,8 @@ Recent decisions affecting v3.0:
 - Phase 18 added: Document Collection Foundation — schema, Storage, RLS, privacy policy, seed data, token table
 - Phase 19 added: Collection Mechanisms — passive + active collection, classification, dashboard integration, retention cron, DSAR export
 - Phase 20 added: Document Integration & Document-Aware Reminders — documents inside filing cards, {{documents_required}} + {{portal_link}} template variables, auto-set Records Received
+- Phase 21 added: Document Verification — OCR & Classification Pipeline — pdf-parse + regex extraction of tax year/employer/PAYE ref from P60/P45/SA302; populate structured metadata on client_documents
+- Phase 22 added: Document Verification — Portal Feedback & Dashboard Summary — client-facing wrong-year/integrity warnings at upload; accountant-facing pre-read summary in filing card
 
 ### Known Risks
 
