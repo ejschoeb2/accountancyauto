@@ -1,3 +1,16 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: Overview
+status: unknown
+last_updated: "2026-02-25T20:57:21.092Z"
+progress:
+  total_phases: 23
+  completed_phases: 19
+  total_plans: 75
+  completed_plans: 70
+---
+
 # Project State
 
 ## Project Reference
@@ -10,10 +23,10 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 20 — Document Integration & Document-Aware Reminders
-Plan: 03 complete — ready for Plan 04
-Status: Phase 20 in progress — 20-01 (API consolidation), 20-02 (UI integration — complete), 20-03 (document-aware template variables) done; 20-04 next
-Last activity: 2026-02-24 — Plan 20-02 complete: human-verify approved; DocumentCard integration, auto-records-received utility, standalone cards removed
+Phase: 21 — Document Verification — OCR & Classification Pipeline
+Plan: 01 complete — ready for Plan 02
+Status: Phase 21 in progress — 21-01 (schema migration: OCR columns + file integrity columns) done; 21-02 (OCR utilities) next
+Last activity: 2026-02-25 — Plan 21-01 complete: SQL migration adding 7 nullable columns + partial index to client_documents
 
 Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete | [####......] Phase 20: 2/? plans complete
 
@@ -231,6 +244,9 @@ Recent decisions affecting v3.0:
 - [Phase 20-02]: div[role=button] used for DocumentCard expand trigger — nested button elements cause React hydration errors; div with role/tabIndex/onKeyDown is the correct pattern for interactive card headers with child interactive elements
 - [Phase 20-02]: ChecklistModal embeds customisation logic inline (no import of standalone ChecklistCustomisation) — modal scoped to known filingTypeId removes need for filing type dropdown
 - [Phase 20-02]: notifyAutoRecordsReceived() exported from DocumentCard — called by upload handler response path, not wired to mount; keeps component stateless regarding upload events
+- [Phase 21]: [D-21-01-01] DEFAULT 'keyword' on extraction_source — historical rows reflect pre-OCR classifier method, not NULL; Phase 22 display reads this value to explain extraction provenance
+- [Phase 21]: [D-21-01-02] Partial index WHERE file_hash IS NOT NULL — historical uploads have no hash so NULL rows excluded from duplicate detection index
+- [Phase 21]: [D-21-01-03] All 7 OCR/integrity columns nullable — historical rows unaffected, zero migration risk; Phase 22 handles NULL gracefully per locked decision
 
 ### Roadmap Evolution
 
@@ -267,6 +283,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | Phase 18 P03 | 10 | 2 tasks | 2 files |
 | Phase 19 P03 | 284 | 2 tasks | 7 files |
 | Phase 19 P02 | 11 | 2 tasks | 12 files |
+| Phase 21-document-verification-ocr-classification-pipeline P01 | 8 | 1 tasks | 1 files |
 
 ### Tech Debt
 
@@ -307,10 +324,10 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-24 UTC
-Stopped at: Phase 20 Plan 02 — complete (human-verify approved)
-Resume file: .planning/phases/20-document-integration-document-aware-reminders/20-02-SUMMARY.md
-Next step: Phase 20 Plan 04 — wire checkAndAutoSetRecordsReceived into upload handler
+Last session: 2026-02-25 UTC
+Stopped at: Phase 21 Plan 01 — complete (schema migration: OCR columns)
+Resume file: .planning/phases/21-document-verification-ocr-classification-pipeline/21-01-SUMMARY.md
+Next step: Phase 21 Plan 02 — OCR utilities (pdf-parse + regex extraction)
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*

@@ -371,7 +371,7 @@ Plans:
 **Requirements**: -
 **Depends on:** Phase 20
 
-**Plans:** 3 plans in 2 waves
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 21-01-PLAN.md -- Schema migration: add extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, file_hash, file_size_bytes, page_count to client_documents
@@ -419,4 +419,4 @@ Phases execute in numeric order: 18 -> 19
 | 18. Document Collection Foundation | v4.0 | Complete    | 2026-02-23 | 2026-02-23 |
 | 19. Collection Mechanisms | v4.0 | 4/4 | Complete | 2026-02-24 |
 | 20. Document Integration & Document-Aware Reminders | v4.0 | 3/3 | Complete | 2026-02-24 |
-| 21. Document Verification -- OCR & Classification Pipeline | v4.0 | 0/3 | Planned | - |
+| 21. Document Verification -- OCR & Classification Pipeline | 1/3 | In Progress|  | - |
