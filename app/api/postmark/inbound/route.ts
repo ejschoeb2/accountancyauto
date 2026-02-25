@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { detectDocumentKeywords, detectFilingType } from '@/lib/email/keyword-detector';
 import type { FilingTypeId } from '@/lib/types/database';
+import crypto from 'crypto';
 
 /**
  * Postmark Inbound Webhook Handler
@@ -230,7 +231,16 @@ async function processAttachments(
   for (const attachment of attachments) {
     try {
       const fileBuffer = Buffer.from(attachment.Content, 'base64');
-      const classification = await classifyDocument(attachment.Name, attachment.ContentType, supabase);
+      const classification = await classifyDocument(attachment.Name, attachment.ContentType, supabase, fileBuffer);
+
+      // Phase 21: skip corrupt/password-protected PDFs — no storage write, no DB row
+      if (classification.isCorruptPdf) {
+        console.warn('[Postmark Inbound] Corrupt or password-protected attachment skipped:', attachment.Name);
+        continue;
+      }
+
+      // Phase 21: compute SHA-256 hash for deduplication metadata
+      const sha256Hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
       // Derive tax period end from client year_end_date (best-effort; accountant can correct)
       // Use the most recently completed year end before today
@@ -280,6 +290,14 @@ async function processAttachments(
         retain_until: retainUntil.toISOString().split('T')[0],
         classification_confidence: classification.confidence,
         source: 'inbound_email',
+        // Phase 21 fields
+        extracted_tax_year: classification.extractedTaxYear,
+        extracted_employer: classification.extractedEmployer,
+        extracted_paye_ref: classification.extractedPayeRef,
+        extraction_source: classification.extractionSource,
+        file_hash: sha256Hash,
+        file_size_bytes: fileBuffer.length,
+        page_count: null, // integrity checks not run on inbound (no user-facing rejection path)
       });
 
       console.log('[Postmark Inbound] Attachment stored:', {
