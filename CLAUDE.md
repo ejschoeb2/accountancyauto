@@ -23,6 +23,16 @@ When you establish a new UI pattern during development, update DESIGN.md to docu
 - Commits go directly to main/master (no branching)
 - Use specific file paths with git commands (repo is in user home directory)
 
+## Design Reference Project
+
+**`C:\Users\ejsch\University\Coding Projects\estudios-launchpad-new`** — A previous project built by the same developer with similar UI goals. Use it as a design and layout reference when building new components or pages for Prompt.
+
+Key patterns to take inspiration from:
+- **Hero heading animation**: Word-by-word spring entrance — each word uses `motion.span` with `initial={{ opacity: 0, y: 20 }}`, `animate={{ opacity: 1, y: 0 }}`, spring config `{ type: "spring", stiffness: 100, damping: 12, delay: index * 0.08 }`, and `className="inline-block mr-[0.25em]"`.
+- **Overall aesthetic**: Clean, modern, slightly editorial — generous whitespace, bold typography, subtle motion.
+- **Particle system**: Physics-based icon particle bursts from a focal point with elastic collisions — see `src/components/HeroParticles.tsx` for the reference implementation.
+- **Tech stack**: Vite + React + shadcn/ui + framer-motion — components are compatible with this project's stack.
+
 ## Tech Stack & Architecture
 
 - Next.js + Supabase + Postmark

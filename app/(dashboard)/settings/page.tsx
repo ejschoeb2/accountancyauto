@@ -8,17 +8,11 @@ import {
   getUserSendHour,
   getUserEmailSettings,
 } from "@/app/actions/settings";
-import { SendHourPicker } from "./components/send-hour-picker";
-import { EmailSettingsCard } from "./components/email-settings-card";
-import { InboundCheckerCard } from "./components/inbound-checker-card";
-import { PostmarkSettingsCard } from "./components/postmark-settings-card";
-import { TeamCard } from "./components/team-card";
 import { SignOutCard } from "./components/sign-out-card";
 import { MemberSettingsCard } from "./components/member-settings-card";
-import {
-  AccountantOverviewCard,
-  type AccountantStats,
-} from "./components/accountant-overview-card";
+import { SettingsTabs } from "./components/settings-tabs";
+import { getPlanByTier, type PlanTier } from "@/lib/stripe/plans";
+import type { AccountantStats } from "./components/accountant-overview-card";
 
 export default async function SettingsPage() {
   const { orgId, orgRole } = await getOrgContext();
@@ -48,7 +42,6 @@ export default async function SettingsPage() {
   // Admin view: full settings page
   const admin = createAdminClient();
 
-  // Fetch data needed for AccountantOverviewCard in parallel with settings
   const [
     sendHour,
     emailSettings,
@@ -72,7 +65,9 @@ export default async function SettingsPage() {
       .eq("org_id", orgId),
     admin
       .from("organisations")
-      .select("client_count_limit")
+      .select(
+        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id"
+      )
       .eq("id", orgId)
       .single(),
   ]);
@@ -118,6 +113,10 @@ export default async function SettingsPage() {
   const totalClients = clientCountsResult.data?.length ?? 0;
   const clientLimit = orgResult.data?.client_count_limit ?? null;
 
+  // Billing data derived from the same org query
+  const planConfig = getPlanByTier(orgResult.data?.plan_tier as PlanTier);
+  const hasSubscription = !!orgResult.data?.stripe_customer_id;
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       <div className="space-y-2">
@@ -125,36 +124,29 @@ export default async function SettingsPage() {
         <p className="text-muted-foreground">Manage your preferences</p>
       </div>
 
-      {/* Reminder Schedule Card */}
-      <SendHourPicker defaultHour={sendHour} />
-
-      {/* Email Settings Card */}
-      <EmailSettingsCard
-        defaultSettings={emailSettings}
+      <SettingsTabs
+        sendHour={sendHour}
+        emailSettings={emailSettings}
+        inboundCheckerMode={inboundCheckerMode}
+        postmarkSettings={postmarkSettings}
         senderDomain={process.env.POSTMARK_SENDER_DOMAIN ?? "phasetwo.uk"}
-      />
-
-      {/* Postmark Configuration Card */}
-      <PostmarkSettingsCard
-        defaultToken={postmarkSettings.token}
-        defaultSenderDomain={postmarkSettings.senderDomain}
-      />
-
-      {/* Team Management Card */}
-      <TeamCard />
-
-      {/* Accountant Overview Card — admin sees per-accountant client breakdown */}
-      <AccountantOverviewCard
         accountants={accountants}
         totalClients={totalClients}
         clientLimit={clientLimit}
+        planName={planConfig.name}
+        subscriptionStatus={
+          orgResult.data?.subscription_status as
+            | "trialing"
+            | "active"
+            | "past_due"
+            | "cancelled"
+            | "unpaid"
+        }
+        trialEndsAt={orgResult.data?.trial_ends_at ?? null}
+        monthlyPrice={planConfig.monthlyPrice}
+        orgId={orgId}
+        hasSubscription={hasSubscription}
       />
-
-      {/* Inbound Email Checker Card */}
-      <InboundCheckerCard defaultMode={inboundCheckerMode} />
-
-      {/* Sign Out */}
-      <SignOutCard />
     </div>
   );
 }

@@ -19,6 +19,7 @@ export interface FilingType {
   description: string | null;
   applicable_client_types: Array<'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP'>;
   created_at: string;
+  document_requirements?: Array<{ label: string; is_mandatory: boolean }>;
 }
 
 

@@ -23,7 +23,7 @@ export const FooterSection = () => {
   return (
     <footer
       ref={footerRef}
-      className="relative bg-[#1a1a1a] text-white py-20 lg:py-32 min-h-[500px]"
+      className="relative bg-[#1a1a1a] text-white py-20 lg:py-32 min-h-screen"
     >
       {/* Particle overlay */}
       <FooterParticles isTriggered={shouldExplode} />
@@ -33,19 +33,16 @@ export const FooterSection = () => {
 
         {/* CTA headline */}
         <div className="text-center flex flex-col items-center gap-6">
-          <h2 className="text-3xl lg:text-5xl font-bold text-white text-center">
+          <h2 className="text-5xl lg:text-7xl font-bold text-white text-center">
             Ready to stop chasing?
           </h2>
           <a
             href="/onboarding"
-            className="inline-flex items-center justify-center rounded-lg bg-white px-8 py-3 text-lg font-semibold text-violet-600 hover:bg-gray-100 transition-colors"
+            className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-8 py-3 text-lg font-semibold text-white hover:bg-violet-700 transition-colors"
           >
             Start Free Trial
           </a>
         </div>
-
-        {/* Divider */}
-        <div className="w-full border-t border-white/10 my-4" />
 
         {/* Footer nav */}
         <div className="w-full flex flex-col md:flex-row items-center justify-between gap-8">

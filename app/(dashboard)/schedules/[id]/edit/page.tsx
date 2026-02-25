@@ -20,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { CheckCircle, Pencil, Trash2, X } from 'lucide-react'
+import { Bell, BellOff, CheckCircle, Pencil, Trash2, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -65,6 +65,8 @@ export default function EditSchedulePage() {
   usePageLoading('schedule-edit', loading)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [toggling, setToggling] = useState(false)
+  const [isActive, setIsActive] = useState(true)
   const [scheduleType, setScheduleType] = useState<'filing' | 'custom'>(initialScheduleType)
   const [dateMode, setDateMode] = useState<DateMode>('one-off')
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set())
@@ -156,6 +158,7 @@ export default function EditSchedulePage() {
           // Determine schedule type from loaded data
           const loadedType = scheduleData.schedule_type || 'filing'
           setScheduleType(loadedType)
+          setIsActive(scheduleData.is_active)
 
           // Determine date mode for custom schedules
           if (loadedType === 'custom') {
@@ -302,6 +305,31 @@ export default function EditSchedulePage() {
     }
   }
 
+  const handleToggleActive = async () => {
+    setToggling(true)
+    try {
+      const res = await fetch(`/api/schedules/${scheduleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !isActive }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to update schedule')
+      }
+
+      const next = !isActive
+      setIsActive(next)
+      form.setValue('is_active', next, { shouldDirty: false })
+      toast.success(next ? 'Schedule activated' : 'Schedule deactivated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update schedule')
+    } finally {
+      setToggling(false)
+    }
+  }
+
   const handleCancel = () => {
     if (hasUnsavedChanges) {
       setShowUnsavedDialog(true)
@@ -328,14 +356,26 @@ export default function EditSchedulePage() {
         <div className="flex items-center gap-2">
           {!isNew && (
             <>
+              {scheduleType === 'custom' && (
+                <IconButtonWithText
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                  title="Delete schedule"
+                >
+                  <Trash2 className="h-5 w-5" />
+                  Delete
+                </IconButtonWithText>
+              )}
               <IconButtonWithText
                 type="button"
-                variant="destructive"
-                onClick={() => setShowDeleteDialog(true)}
-                title="Delete schedule"
+                variant={isActive ? 'amber' : 'green'}
+                onClick={handleToggleActive}
+                disabled={toggling}
+                title={isActive ? 'Deactivate schedule' : 'Activate schedule'}
               >
-                <Trash2 className="h-5 w-5" />
-                Delete
+                {isActive ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
+                {toggling ? '...' : isActive ? 'Deactivate' : 'Activate'}
               </IconButtonWithText>
               <div className="h-8 w-px bg-border" />
             </>
@@ -413,6 +453,45 @@ export default function EditSchedulePage() {
               )}
             </div>
           )}
+
+          {/* Document requirements for the selected filing type */}
+          {scheduleType === 'filing' && (() => {
+            const selectedFilingTypeId = form.watch('filing_type_id')
+            const selectedFt = filingTypes.find(ft => ft.id === selectedFilingTypeId)
+            const docs = selectedFt?.document_requirements ?? []
+            if (docs.length === 0) return null
+            const mandatory = docs.filter(d => d.is_mandatory)
+            const optional = docs.filter(d => !d.is_mandatory)
+            return (
+              <div className="space-y-3">
+                <Label>Documents to collect</Label>
+                {mandatory.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Required</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {mandatory.map(d => (
+                        <span key={d.label} className="bg-blue-500/10 text-blue-500 rounded-md px-3 py-1.5 text-sm font-normal">
+                          {d.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {optional.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">May also need</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {optional.map(d => (
+                        <span key={d.label} className="bg-blue-500/5 text-blue-400 rounded-md px-3 py-1.5 text-sm font-normal border border-blue-500/20">
+                          {d.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* Custom schedule send hour */}
           {scheduleType === 'custom' && (

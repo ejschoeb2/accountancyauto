@@ -1,41 +1,61 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useSpring } from "framer-motion";
+import { motion, useMotionValue } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  Mail,
-  Calendar,
-  Clock,
+  Brain,
+  Bell,
+  CalendarDays,
+  MailOpen,
+  CheckCircle,
   FileText,
   Users,
-  Bell,
-  CheckCircle,
-  AlertCircle,
   Send,
-  BarChart2,
-  Layers,
+  Clock,
   Receipt,
+  Zap,
+  Shield,
 } from "lucide-react";
 
 // ── Colours ──────────────────────────────────────────────────────────────────
-
-type ParticleColour = 'danger' | 'critical' | 'warning' | 'info' | 'green' | 'neutral';
+// Colours map to the traffic-light status system in DESIGN.md:
+//   violet/purple = brand, blue = Scheduled, green = Records Received,
+//   amber = Approaching, orange = Critical, red = Overdue (no pink/rose)
+type ParticleColour =
+  | 'violet' | 'violet2' | 'purple'
+  | 'blue'
+  | 'green' | 'emerald'
+  | 'amber' | 'orange'
+  | 'red' | 'red2';
 
 const PARTICLE_COLOUR_CLASSES: Record<ParticleColour, string> = {
-  danger:   'text-status-danger',
-  critical: 'text-status-critical',
-  warning:  'text-status-warning',
-  info:     'text-status-info',
-  green:    'text-green-500',
-  neutral:  'text-status-neutral',
+  violet:  'text-violet-500',
+  violet2: 'text-violet-400',
+  purple:  'text-purple-500',
+  blue:    'text-blue-500',
+  green:   'text-green-500',
+  emerald: 'text-emerald-400',
+  amber:   'text-amber-500',
+  orange:  'text-orange-500',
+  red:     'text-red-500',
+  red2:    'text-red-600',
 };
 
-const PARTICLE_COLOURS: ParticleColour[] = ['danger', 'critical', 'warning', 'info', 'green', 'neutral'];
+// Brand violets dominate; each status colour gets meaningful representation.
+// Red appears twice to reflect overdue urgency. No pink/rose.
+const PARTICLE_COLOURS: ParticleColour[] = [
+  'violet', 'violet', 'violet2',
+  'purple',
+  'blue', 'blue',
+  'green', 'emerald',
+  'amber', 'orange',
+  'red', 'red', 'red2',
+];
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
-const PROMPT_ICONS = [Mail, Calendar, Clock, FileText, Users, Bell, CheckCircle, AlertCircle, Send, BarChart2, Layers, Receipt] as const;
+const PROMPT_ICONS = [Brain, Bell, CalendarDays, MailOpen, CheckCircle, FileText, Users, Send, Clock, Receipt, Zap, Shield] as const;
 
 // ── Physics constants ─────────────────────────────────────────────────────────
 
@@ -56,6 +76,8 @@ type Particle = {
 };
 
 // ── Particle generation ───────────────────────────────────────────────────────
+// containerWidth is the full section width (≈ viewport width).
+// originX = far right edge; originY = vertical centre of the visible section.
 
 const generateParticles = (containerWidth: number, containerHeight: number): Particle[] => {
   const particles: Particle[] = [];
@@ -64,8 +86,8 @@ const generateParticles = (containerWidth: number, containerHeight: number): Par
   const sizeScale = Math.max(0.6, Math.min(1, containerWidth / baseWidth));
 
   const visibleHeight = Math.min(containerHeight, window.innerHeight * 0.7);
-  const originX = containerWidth - 50;
-  const originY = (visibleHeight / 2) + 132;
+  const originX = containerWidth;          // far-right edge of the full section
+  const originY = visibleHeight / 2;       // vertical centre
 
   const layers = [
     { count: 1,  radius: 0   }, // Layer 1: Centre
@@ -95,13 +117,13 @@ const generateParticles = (containerWidth: number, containerHeight: number): Par
       const variation = (Math.random() - 0.5) * (Math.PI / 6);
       const finalAngle = velocityAngleBase + variation;
 
-      const speed = (1.5 + Math.random() * 3.5) * Math.max(0.8, sizeScale);
+      const speed = (2 + Math.random() * 3) * Math.max(0.8, sizeScale);
 
       particles.push({
         id: particleId++,
         iconIndex: Math.floor(Math.random() * PROMPT_ICONS.length),
         colour: PARTICLE_COLOURS[Math.floor(Math.random() * PARTICLE_COLOURS.length)],
-        size: (35 + Math.random() * 25) * sizeScale,
+        size: (40 + Math.random() * 20) * sizeScale,
         x,
         y,
         vx: Math.cos(finalAngle) * speed,
@@ -120,9 +142,6 @@ const Shape = ({ particle }: { particle: Particle }) => {
   const y      = useMotionValue(particle.y);
   const rotate = useMotionValue(0);
 
-  const springX = useSpring(x, { stiffness: 300, damping: 30 });
-  const springY = useSpring(y, { stiffness: 300, damping: 30 });
-
   useEffect(() => {
     x.set(particle.x);
     y.set(particle.y);
@@ -136,14 +155,15 @@ const Shape = ({ particle }: { particle: Particle }) => {
   return (
     <motion.div
       style={{
-        x: springX,
-        y: springY,
+        x,
+        y,
         rotate,
         position: 'absolute',
         left: 0,
         top: 0,
         marginLeft: -particle.size / 2,
         marginTop:  -particle.size / 2,
+        willChange: 'transform',
       }}
     >
       <Icon size={particle.size} strokeWidth={2.5} className={colourClass} />
@@ -175,6 +195,7 @@ export const HeroParticles = () => {
       }
     };
 
+    // Delay until the text + button entrance animation has fully settled (~1.5 s).
     const initTimer = setTimeout(() => {
       updateDimensions();
       const { width, height } = dimensionsRef.current;
@@ -208,12 +229,6 @@ export const HeroParticles = () => {
 
             // Left-edge removal
             if (newX + particleRadius < -100) return null;
-
-            // Right boundary bounce
-            if (newX + particleRadius > containerWidth) {
-              newX  = containerWidth - particleRadius;
-              newVx *= -0.8;
-            }
 
             // Top boundary bounce
             if (newY - particleRadius < 0) {
@@ -273,7 +288,7 @@ export const HeroParticles = () => {
       };
 
       animationFrameRef.current = requestAnimationFrame(animate);
-    }, 100);
+    }, 1100);
 
     window.addEventListener('resize', updateDimensions);
 
@@ -287,7 +302,7 @@ export const HeroParticles = () => {
   if (isMobile) return null;
 
   return (
-    <div ref={containerRef} className="absolute inset-0 h-[150vh] pointer-events-none z-0">
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none z-0">
       {particles.map(particle => (
         <Shape key={particle.id} particle={particle} />
       ))}

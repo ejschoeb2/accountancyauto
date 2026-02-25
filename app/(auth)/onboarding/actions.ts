@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createTrialForOrg } from "@/lib/billing/trial";
+import { seedOrgDefaults } from "@/lib/onboarding/seed-defaults";
 import type { PlanTier } from "@/lib/stripe/plans";
 
 /** Reserved slugs that cannot be used as org slugs */
@@ -176,6 +177,9 @@ export async function createOrgAndJoinAsAdmin(
     { org_id: org.id, key: "onboarding_complete", value: "true" },
     { onConflict: "org_id,key" }
   );
+
+  // 5. Seed default email templates and reminder schedules
+  await seedOrgDefaults(org.id, user.id, admin);
 
   return { orgId: org.id, slug: org.slug };
 }

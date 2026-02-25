@@ -19,6 +19,19 @@ function isAdminRoute(pathname: string): boolean {
 }
 
 /**
+ * Derives the marketing site URL from the current request's host.
+ * Strips {slug}.app. or app. prefix to get the apex/marketing domain.
+ * e.g. acme.app.phasetwo.uk → https://phasetwo.uk
+ *      localhost:3000        → http://localhost:3000
+ */
+function getMarketingUrl(request: NextRequest): URL {
+  const host = request.headers.get("host") || "";
+  const baseDomain = host.replace(/^([^.]+\.)*app\./, "");
+  const scheme = process.env.NODE_ENV === "development" ? "http" : "https";
+  return new URL(`${scheme}://${baseDomain}`);
+}
+
+/**
  * Copies cookies from one response to another.
  * Required when creating redirect responses so the refreshed auth token is preserved.
  */
@@ -155,7 +168,7 @@ export async function updateSession(request: NextRequest) {
         copyCookies(supabaseResponse, redirect);
         return redirect;
       } else {
-        return NextResponse.redirect(new URL("https://phasetwo.uk"), 307);
+        return NextResponse.redirect(getMarketingUrl(request), 307);
       }
     }
   }
@@ -165,7 +178,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!org) {
     // Invalid slug — redirect to marketing site
-    return NextResponse.redirect(new URL("https://phasetwo.uk"), 307);
+    return NextResponse.redirect(getMarketingUrl(request), 307);
   }
 
   // Step 7: Unauthenticated user on valid org subdomain → redirect to login
@@ -209,7 +222,7 @@ export async function updateSession(request: NextRequest) {
       }
 
       // Fallback: can't find user's org — redirect to marketing
-      return NextResponse.redirect(new URL("https://phasetwo.uk"), 307);
+      return NextResponse.redirect(getMarketingUrl(request), 307);
     }
   } else {
     // Fallback path: no org_id in JWT — query user_organisations directly
@@ -222,7 +235,7 @@ export async function updateSession(request: NextRequest) {
 
     if (!userOrg?.org_id) {
       // User has no org — redirect to marketing
-      return NextResponse.redirect(new URL("https://phasetwo.uk"), 307);
+      return NextResponse.redirect(getMarketingUrl(request), 307);
     }
 
     if (userOrg.org_id !== org.id) {
@@ -250,7 +263,7 @@ export async function updateSession(request: NextRequest) {
         return redirect;
       }
 
-      return NextResponse.redirect(new URL("https://phasetwo.uk"), 307);
+      return NextResponse.redirect(getMarketingUrl(request), 307);
     }
   }
 

@@ -128,20 +128,6 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                         </span>
                       </div>
                     )}
-                    {schedule && (
-                      <ButtonBase
-                        variant="destructive"
-                        buttonType="icon-only"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handleDelete(schedule.id, schedule.name)
-                        }}
-                        disabled={deletingId === schedule.id}
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </ButtonBase>
-                    )}
                   </div>
                 </div>
               </CardHeader>

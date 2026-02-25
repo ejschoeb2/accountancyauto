@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Zap, Mail, Send, CreditCard, Shield, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Users, Zap, Mail, Send, Shield, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
@@ -11,7 +11,6 @@ const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: "/schedules", icon: Zap, label: "Reminder Schedules" },
   { href: "/templates", icon: Mail, label: "Email Templates" },
   { href: "/email-logs", icon: Send, label: "Email Activity" },
-  { href: "/billing", icon: CreditCard, label: "Billing" },
 ];
 
 const ADMIN_ITEM: { href: string; icon: LucideIcon; label: string } = {
@@ -19,9 +18,6 @@ const ADMIN_ITEM: { href: string; icon: LucideIcon; label: string } = {
   icon: Shield,
   label: "Admin",
 };
-
-// Nav items hidden from member-role users
-const ADMIN_ONLY_HREFS = new Set(["/billing"]);
 
 interface NavLinksProps {
   isSuperAdmin?: boolean;
@@ -31,10 +27,7 @@ interface NavLinksProps {
 export function NavLinks({ isSuperAdmin, orgRole = "member" }: NavLinksProps) {
   const pathname = usePathname();
 
-  const baseItems = NAV_ITEMS.filter(
-    item => orgRole === "admin" || !ADMIN_ONLY_HREFS.has(item.href)
-  );
-  const items = isSuperAdmin ? [...baseItems, ADMIN_ITEM] : baseItems;
+  const items = isSuperAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
     <nav className="flex items-center gap-2">

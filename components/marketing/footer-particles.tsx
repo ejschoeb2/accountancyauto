@@ -4,38 +4,38 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  Mail,
-  Calendar,
-  Clock,
+  Brain,
+  Bell,
+  CalendarDays,
+  MailOpen,
+  CheckCircle,
   FileText,
   Users,
-  Bell,
-  CheckCircle,
-  AlertCircle,
   Send,
-  BarChart2,
-  Layers,
+  Clock,
   Receipt,
+  Zap,
+  Shield,
 } from "lucide-react";
 
 // ── Colours ──────────────────────────────────────────────────────────────────
 
-type ParticleColour = 'danger' | 'critical' | 'warning' | 'info' | 'green' | 'neutral';
+type ParticleColour = 'violet' | 'violet2' | 'blue' | 'blue2' | 'sky' | 'sky2';
 
 const PARTICLE_COLOUR_CLASSES: Record<ParticleColour, string> = {
-  danger:   'text-status-danger',
-  critical: 'text-status-critical',
-  warning:  'text-status-warning',
-  info:     'text-status-info',
-  green:    'text-green-500',
-  neutral:  'text-status-neutral',
+  violet:  'text-violet-500',
+  violet2: 'text-violet-400',
+  blue:    'text-blue-500',
+  blue2:   'text-blue-400',
+  sky:     'text-sky-500',
+  sky2:    'text-sky-400',
 };
 
-const PARTICLE_COLOURS: ParticleColour[] = ['danger', 'critical', 'warning', 'info', 'green', 'neutral'];
+const PARTICLE_COLOURS: ParticleColour[] = ['violet', 'violet2', 'blue', 'blue2', 'sky', 'sky2'];
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
-const PROMPT_ICONS = [Mail, Calendar, Clock, FileText, Users, Bell, CheckCircle, AlertCircle, Send, BarChart2, Layers, Receipt] as const;
+const PROMPT_ICONS = [Brain, Bell, CalendarDays, MailOpen, CheckCircle, FileText, Users, Send, Clock, Receipt, Zap, Shield] as const;
 
 // ── Physics constants ─────────────────────────────────────────────────────────
 
@@ -107,7 +107,7 @@ const generateParticles = (containerWidth: number, containerHeight: number): Par
           id:        particleId++,
           iconIndex: Math.floor(Math.random() * PROMPT_ICONS.length),
           colour:    PARTICLE_COLOURS[Math.floor(Math.random() * PARTICLE_COLOURS.length)],
-          size:      (35 + Math.random() * 30) * sizeScale,
+          size:      (55 + Math.random() * 35) * sizeScale,
           x,
           y,
           vx:        Math.cos(finalAngle) * speed,

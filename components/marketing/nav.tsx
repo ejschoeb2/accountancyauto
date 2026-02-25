@@ -1,10 +1,10 @@
 "use client";
 
-import { Brain } from "lucide-react";
+import { Brain, LogIn, Rocket } from "lucide-react";
 
 export const MarketingNav = () => {
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-border">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-white/80">
       <div className="max-w-6xl mx-auto px-6">
         <div className="flex items-center justify-between h-16">
 
@@ -34,14 +34,16 @@ export const MarketingNav = () => {
           <div className="flex items-center gap-4">
             <a
               href="/login"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 hover:bg-sky-100 transition-colors"
             >
+              <LogIn size={15} />
               Login
             </a>
             <a
               href="/onboarding"
-              className="inline-flex items-center justify-center rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-700 transition-colors"
             >
+              <Rocket size={15} />
               Start Free Trial
             </a>
           </div>

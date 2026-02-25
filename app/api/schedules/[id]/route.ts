@@ -219,6 +219,53 @@ export async function PUT(
 }
 
 /**
+ * PATCH /api/schedules/[id]
+ * Partial update — currently only supports toggling is_active.
+ */
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const supabase = await createClient();
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (typeof body.is_active !== "boolean") {
+    return NextResponse.json(
+      { error: "is_active must be a boolean" },
+      { status: 400 }
+    );
+  }
+
+  const { error } = await supabase
+    .from("schedules")
+    .update({ is_active: body.is_active })
+    .eq("id", id);
+
+  if (error) {
+    console.error("Error patching schedule:", error);
+    if (error.code === "PGRST116") {
+      return NextResponse.json(
+        { error: "Schedule not found" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Failed to update schedule" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ success: true });
+}
+
+/**
  * DELETE /api/schedules/[id]
  * Delete a schedule (CASCADE removes steps automatically)
  */

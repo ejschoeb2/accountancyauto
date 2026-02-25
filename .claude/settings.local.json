@@ -85,7 +85,13 @@
       "Bash(dir /b \".planning\\\\data\"\" && echo \"---planning-data---\" && dir /b \"appapiclientsbulk-status-update\"\")",
       "Bash(npx @supabase/supabase-js:*)",
       "WebFetch(domain:postmarkapp.com)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(git:*)",
+      "mcp__supabase__get_logs",
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Skill(gsd:add-phase)",
+      "Bash(python3 -m json.tool)"
     ]
   },
   "enableAllProjectMcpServers": true,
