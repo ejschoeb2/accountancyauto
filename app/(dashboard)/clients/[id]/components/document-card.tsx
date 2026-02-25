@@ -24,6 +24,8 @@ import {
   Copy,
   Plus,
   Loader2,
+  AlertTriangle,
+  ScanLine,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -47,6 +49,12 @@ interface ClientDocument {
   created_at: string;
   retention_flagged: boolean;
   document_types: DocumentType | null;
+  // Phase 22 additions:
+  extracted_tax_year: string | null;
+  extracted_employer: string | null;
+  extracted_paye_ref: string | null;
+  extraction_source: 'ocr' | 'keyword' | 'rules' | 'manual' | null;
+  page_count: number | null;
 }
 
 interface ChecklistRequirement {
@@ -106,6 +114,194 @@ function ConfidenceBadge({ confidence }: { confidence: ClientDocument['classific
   return (
     <div className={`px-2 py-0.5 rounded-md inline-flex items-center ${bg}`}>
       <span className={`text-xs font-medium ${text}`}>{label}</span>
+    </div>
+  );
+}
+
+// "Scanned PDF" badge — document type was keyword-matched but OCR found no readable text (image-only PDF)
+// Signal: extraction_source='rules' AND document_type_id IS NOT NULL
+function ScannedPdfBadge() {
+  return (
+    <div className="px-2 py-0.5 rounded-md inline-flex items-center gap-1 bg-amber-500/10">
+      <ScanLine className="size-3 text-amber-600" />
+      <span className="text-xs font-medium text-amber-600">Scanned PDF</span>
+    </div>
+  );
+}
+
+// "Review needed" badge — classification failed entirely, no document type identified
+// Signal: classification_confidence='unclassified' AND document_type_id IS NULL
+function ReviewNeededBadge() {
+  return (
+    <div className="px-2 py-0.5 rounded-md inline-flex items-center gap-1 bg-red-500/10">
+      <AlertTriangle className="size-3 text-red-500" />
+      <span className="text-xs font-medium text-red-500">Review needed</span>
+    </div>
+  );
+}
+
+interface EditableFieldProps {
+  value: string | null;
+  placeholder: string;
+  onSave: (val: string | null) => Promise<void>;
+  saving?: boolean;
+}
+
+function EditableField({ value, placeholder, onSave, saving }: EditableFieldProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? '');
+
+  useEffect(() => {
+    if (!editing) setDraft(value ?? '');
+  }, [value, editing]);
+
+  const handleSave = async () => {
+    setEditing(false);
+    const newVal = draft.trim() || null;
+    if (newVal !== value) {
+      await onSave(newVal);
+    }
+  };
+
+  if (saving) {
+    return <span className="text-xs text-muted-foreground italic">Saving...</span>;
+  }
+
+  if (editing) {
+    return (
+      <Input
+        className="h-7 min-w-[110px] text-xs px-2"
+        value={draft}
+        autoFocus
+        onChange={e => setDraft(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.currentTarget.blur(); }
+          if (e.key === 'Escape') { setEditing(false); setDraft(value ?? ''); }
+        }}
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="text-xs text-left hover:underline hover:text-violet-600 cursor-text"
+      onClick={() => setEditing(true)}
+      title="Click to edit"
+    >
+      {value ?? <span className="text-muted-foreground italic">{placeholder}</span>}
+    </button>
+  );
+}
+
+interface DocumentRowProps {
+  doc: ClientDocument;
+  clientId: string;
+  label?: string;
+  showLabel?: boolean;
+  onDownload: () => void;
+  isDownloading: boolean;
+}
+
+function DocumentRow({ doc, clientId, label, showLabel, onDownload, isDownloading }: DocumentRowProps) {
+  const [saving, setSaving] = useState(false);
+  const [extractedTaxYear, setExtractedTaxYear] = useState(doc.extracted_tax_year);
+  const [extractedEmployer, setExtractedEmployer] = useState(doc.extracted_employer);
+  const [extractedPayeRef, setExtractedPayeRef] = useState(doc.extracted_paye_ref);
+
+  const hasExtractionData = extractedTaxYear !== null || extractedEmployer !== null || extractedPayeRef !== null;
+  // Historical: pre-Phase-21 doc with no extraction data and keyword source
+  const isHistorical = !hasExtractionData && doc.extraction_source === 'keyword';
+  // Scanned PDF: type was keyword-identified, but OCR found no readable text
+  const isScannedPdf = doc.extraction_source === 'rules' && doc.document_type_id !== null;
+  // Review needed: classification failed entirely
+  const isReviewNeeded = doc.classification_confidence === 'unclassified' && doc.document_type_id === null;
+
+  const handleSaveField = async (field: 'extracted_tax_year' | 'extracted_employer' | 'extracted_paye_ref', value: string | null) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}/documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-extraction', documentId: doc.id, field, value }),
+      });
+      if (!res.ok) {
+        toast.error('Failed to save — please try again');
+        return;
+      }
+      if (field === 'extracted_tax_year') setExtractedTaxYear(value);
+      if (field === 'extracted_employer') setExtractedEmployer(value);
+      if (field === 'extracted_paye_ref') setExtractedPayeRef(value);
+      toast.success('Saved');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex items-start gap-3 py-2 px-3 rounded-md bg-green-50 border border-green-100">
+      <CheckCircle className="size-4 text-green-600 shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0 space-y-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          {showLabel && label && (
+            <span className="text-sm font-medium text-gray-800">{label}</span>
+          )}
+          <ConfidenceBadge confidence={doc.classification_confidence} />
+          {isScannedPdf && <ScannedPdfBadge />}
+          {isReviewNeeded && <ReviewNeededBadge />}
+        </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">
+            {doc.original_filename}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {formatDate(doc.received_at ?? doc.created_at)}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {formatSource(doc.source)}
+          </span>
+        </div>
+        {!isHistorical && (
+          <div className="flex items-center gap-4 flex-wrap pt-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground w-16 shrink-0">Tax year</span>
+              <EditableField
+                value={extractedTaxYear}
+                placeholder="—"
+                onSave={val => handleSaveField('extracted_tax_year', val)}
+                saving={saving}
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground w-16 shrink-0">Employer</span>
+              <EditableField
+                value={extractedEmployer}
+                placeholder="—"
+                onSave={val => handleSaveField('extracted_employer', val)}
+                saving={saving}
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground w-16 shrink-0">PAYE ref</span>
+              <EditableField
+                value={extractedPayeRef}
+                placeholder="—"
+                onSave={val => handleSaveField('extracted_paye_ref', val)}
+                saving={saving}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+      <IconButtonWithText
+        variant="blue"
+        onClick={onDownload}
+        disabled={isDownloading}
+      >
+        <Download className="size-3" />
+        {isDownloading ? 'Opening...' : 'Download'}
+      </IconButtonWithText>
     </div>
   );
 }
@@ -827,39 +1023,15 @@ export function DocumentCard({
                       if (matchedDoc) {
                         // Received row
                         return (
-                          <div
+                          <DocumentRow
                             key={item.documentTypeId}
-                            className="flex items-center gap-3 py-2 px-3 rounded-md bg-green-50 border border-green-100"
-                          >
-                            <CheckCircle className="size-4 text-green-600 shrink-0" />
-                            <div className="flex-1 min-w-0 space-y-0.5">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-medium text-gray-800">
-                                  {item.label}
-                                </span>
-                                <ConfidenceBadge confidence={matchedDoc.classification_confidence} />
-                              </div>
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">
-                                  {matchedDoc.original_filename}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatDate(matchedDoc.received_at ?? matchedDoc.created_at)}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {formatSource(matchedDoc.source)}
-                                </span>
-                              </div>
-                            </div>
-                            <IconButtonWithText
-                              variant="blue"
-                              onClick={() => handleDownload(matchedDoc.id)}
-                              disabled={downloading === matchedDoc.id}
-                            >
-                              <Download className="size-3" />
-                              {downloading === matchedDoc.id ? 'Opening...' : 'Download'}
-                            </IconButtonWithText>
-                          </div>
+                            doc={matchedDoc}
+                            clientId={clientId}
+                            label={item.label}
+                            showLabel={true}
+                            onDownload={() => handleDownload(matchedDoc.id)}
+                            isDownloading={downloading === matchedDoc.id}
+                          />
                         );
                       } else {
                         // Outstanding row
@@ -889,35 +1061,14 @@ export function DocumentCard({
                       </p>
                     )}
                     {extraDocuments.map(doc => (
-                      <div
+                      <DocumentRow
                         key={doc.id}
-                        className="flex items-center gap-3 py-2 px-3 rounded-md bg-muted/20 border border-border/40"
-                      >
-                        <div className="flex-1 min-w-0 space-y-0.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">
-                              {doc.original_filename}
-                            </span>
-                            <ConfidenceBadge confidence={doc.classification_confidence} />
-                          </div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(doc.received_at ?? doc.created_at)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatSource(doc.source)}
-                            </span>
-                          </div>
-                        </div>
-                        <IconButtonWithText
-                          variant="blue"
-                          onClick={() => handleDownload(doc.id)}
-                          disabled={downloading === doc.id}
-                        >
-                          <Download className="size-3" />
-                          {downloading === doc.id ? 'Opening...' : 'Download'}
-                        </IconButtonWithText>
-                      </div>
+                        doc={doc}
+                        clientId={clientId}
+                        showLabel={false}
+                        onDownload={() => handleDownload(doc.id)}
+                        isDownloading={downloading === doc.id}
+                      />
                     ))}
                   </div>
                 )}
