@@ -34,8 +34,9 @@ export function getOrgSlug(request: NextRequest): string | null {
   // Production mode: extract from subdomain
   const parts = hostname.split('.');
 
-  // Bare domain or malformed (e.g., app.phasetwo.uk or phasetwo.uk)
-  if (parts.length < 3) {
+  // Only treat as org slug if hostname matches {slug}.app.{domain} pattern
+  // e.g. acme.app.getprompt.app → valid; accountancyauto.vercel.app → not valid
+  if (parts.length < 4 || parts[1] !== 'app') {
     return null;
   }
 
