@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Overview
 status: unknown
-last_updated: "2026-02-25T20:57:21.092Z"
+last_updated: "2026-02-25T21:33:19.113Z"
 progress:
   total_phases: 23
-  completed_phases: 19
+  completed_phases: 20
   total_plans: 75
-  completed_plans: 70
+  completed_plans: 72
 ---
 
 # Project State
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 21 — Document Verification — OCR & Classification Pipeline
-Plan: 02 complete — ready for Plan 03
-Status: Phase 21 in progress — 21-01 (schema migration) done; 21-02 (OCR utilities + extended classifier) done; 21-03 (upload handler wiring) next
-Last activity: 2026-02-25 — Plan 21-02 complete: pdf-parse OCR extraction, integrity checker, extended classifyDocument() with optional buffer param, 14 tests passing
+Plan: 03 complete — Phase 21 complete (all 3 plans done)
+Status: Phase 21 complete — 21-01 (schema migration) done; 21-02 (OCR utilities + extended classifier) done; 21-03 (upload handler wiring) done
+Last activity: 2026-02-25 — Plan 21-03 complete: portal upload + Postmark inbound wired with OCR buffer, integrity checks, corrupt PDF rejection, 7 Phase 21 columns in both INSERTs
 
 Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete | [####......] Phase 20: 2/? plans complete
 
@@ -251,6 +251,9 @@ Recent decisions affecting v3.0:
 - [Phase 21]: [D-21-02-02] Local d.ts in types/ for pdf-parse-debugging-disabled — @types/pdf-parse covers original package name, not the fork; lightweight local declaration resolves TS7016
 - [Phase 21]: [D-21-02-03] KEYWORD_DEFAULTS const with satisfies — ensures all 6 Phase 21 fields populated for non-OCR paths without repetition; reduces error surface when adding future fields
 - [Phase 21]: [D-21-02-04] integrity.ts catches pdf-parse throw and sets pageCount=null — corrupt PDF rejection is classifyDocument's responsibility; integrity checker must not double-reject
+- [Phase 21-03]: [D-21-03-01] runIntegrityChecks not called in inbound handler — inbound is fire-and-forget with no rejection path; portal is the only user-facing path where duplicate/size/page-count enforcement makes sense
+- [Phase 21-03]: [D-21-03-02] page_count is null for inbound attachments — integrity.ts page count is only populated via runIntegrityChecks (portal path); inbound skips integrity checks by design
+- [Phase 21-03]: [D-21-03-03] sha256Hash computed inline in inbound handler via crypto.createHash — avoids importing integrity.ts which would pull in runIntegrityChecks and imply enforcement
 
 ### Roadmap Evolution
 
@@ -288,6 +291,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | Phase 19 P03 | 284 | 2 tasks | 7 files |
 | Phase 19 P02 | 11 | 2 tasks | 12 files |
 | Phase 21-document-verification-ocr-classification-pipeline P01 | 8 | 1 tasks | 1 files |
+| Phase 21-document-verification-ocr-classification-pipeline P03 | 14 | 2 tasks | 5 files |
 
 ### Tech Debt
 
@@ -329,9 +333,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-25 UTC
-Stopped at: Phase 21 Plan 02 — complete (OCR extraction utilities + extended classifier)
-Resume file: .planning/phases/21-document-verification-ocr-classification-pipeline/21-02-SUMMARY.md
-Next step: Phase 21 Plan 03 — wire OCR + integrity into upload handlers
+Stopped at: Phase 21 Plan 03 — complete (upload handler wiring — OCR + integrity into portal upload and Postmark inbound)
+Resume file: .planning/phases/21-document-verification-ocr-classification-pipeline/21-03-SUMMARY.md
+Next step: Phase 22 — Document Verification Portal Feedback & Dashboard Summary
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*

@@ -371,11 +371,11 @@ Plans:
 **Requirements**: -
 **Depends on:** Phase 20
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 21-01-PLAN.md -- Schema migration: add extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, file_hash, file_size_bytes, page_count to client_documents
-- [ ] 21-02-PLAN.md -- OCR extraction utility (ocr.ts), file integrity checker (integrity.ts), extended classifyDocument() with buffer param and Phase 21 result fields (TDD)
+- [x] 21-02-PLAN.md -- OCR extraction utility (ocr.ts), file integrity checker (integrity.ts), extended classifyDocument() with buffer param and Phase 21 result fields (TDD) (completed 2026-02-25)
 - [ ] 21-03-PLAN.md -- Wire OCR + integrity into portal upload route and Postmark inbound attachment handler
 
 ### Phase 22: Document Verification — Portal Feedback & Dashboard Summary
@@ -419,4 +419,4 @@ Phases execute in numeric order: 18 -> 19
 | 18. Document Collection Foundation | v4.0 | Complete    | 2026-02-23 | 2026-02-23 |
 | 19. Collection Mechanisms | v4.0 | 4/4 | Complete | 2026-02-24 |
 | 20. Document Integration & Document-Aware Reminders | v4.0 | 3/3 | Complete | 2026-02-24 |
-| 21. Document Verification -- OCR & Classification Pipeline | 1/3 | In Progress|  | - |
+| 21. Document Verification -- OCR & Classification Pipeline | 3/3 | Complete   | 2026-02-25 | - |
