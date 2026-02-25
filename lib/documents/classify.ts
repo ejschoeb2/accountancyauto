@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { extractPdfText, extractFieldsForType } from './ocr';
 
 /**
  * Result of classifying a document by filename and MIME type against the
@@ -6,15 +7,33 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  *
  * Confidence levels:
  *   high          — filename keyword matched AND MIME type is in expected_mime_types
+ *                   (also: OCR ran successfully and extracted a tax year)
  *   medium        — filename keyword matched but MIME type did not match
+ *                   (also: OCR ran but no tax year found)
  *   low           — no keyword match, but file is a PDF (generic PDF, accountant can classify)
- *   unclassified  — no keyword match and MIME type is unrecognised
+ *   unclassified  — no keyword match and MIME type is unrecognised,
+ *                   or image-only PDF, or corrupt/encrypted PDF
+ *
+ * Phase 21 additions (all backward-compatible — safe defaults when buffer is not provided):
+ *   extractedTaxYear   — tax year found in document text via OCR, or null
+ *   extractedEmployer  — employer name found in document text via OCR, or null
+ *   extractedPayeRef   — PAYE reference found in document text via OCR, or null
+ *   extractionSource   — 'ocr' | 'keyword' | 'rules' — records which method produced the result
+ *   isCorruptPdf       — true when pdf-parse threw (encrypted or damaged file)
+ *   isImageOnly        — true when PDF text is near-empty (scanned/image-only document)
  */
 export interface ClassificationResult {
   documentTypeId: string | null;
   documentTypeCode: string | null;
   filingTypeId: string | null;
   confidence: 'high' | 'medium' | 'low' | 'unclassified';
+  // Phase 21 additions (backward-compatible defaults: null / 'keyword' / false)
+  extractedTaxYear: string | null;
+  extractedEmployer: string | null;
+  extractedPayeRef: string | null;
+  extractionSource: 'ocr' | 'keyword' | 'rules';
+  isCorruptPdf: boolean;
+  isImageOnly: boolean;
 }
 
 /**
@@ -169,23 +188,54 @@ const KEYWORD_MAP: KeywordEntry[] = [
 ];
 
 /**
+ * The 4 HMRC fixed-format document types that receive content-aware OCR classification.
+ * All other types fall back to keyword-only classification.
+ */
+const HMRC_OCR_TYPES = new Set(['P60', 'P45', 'SA302', 'P11D']);
+
+/**
+ * Phase 21 defaults — returned for all non-OCR paths to ensure backward compatibility.
+ * Existing callers that don't provide a buffer continue to receive a valid ClassificationResult.
+ */
+const KEYWORD_DEFAULTS = {
+  extractedTaxYear: null,
+  extractedEmployer: null,
+  extractedPayeRef: null,
+  extractionSource: 'keyword' as const,
+  isCorruptPdf: false,
+  isImageOnly: false,
+} satisfies Pick<
+  ClassificationResult,
+  | 'extractedTaxYear'
+  | 'extractedEmployer'
+  | 'extractedPayeRef'
+  | 'extractionSource'
+  | 'isCorruptPdf'
+  | 'isImageOnly'
+>;
+
+/**
  * Classify a document by filename and MIME type against the document_types catalog.
  *
- * The function fetches all document_types rows once at the start (cheap — ~23 rows)
- * and caches them in a Map for the remainder of the call. It then iterates the
- * KEYWORD_MAP against the filename and cross-checks the MIME type for confidence
- * scoring.
+ * When a buffer is provided and the matched code is one of the 4 HMRC OCR types
+ * (P60, P45, SA302, P11D), the function also runs pdf-parse + regex extraction
+ * to populate structured metadata fields (tax year, employer, PAYE reference).
+ *
+ * Callers that do NOT provide a buffer receive the same keyword-only result as
+ * before Phase 21 — the buffer parameter is fully optional.
  *
  * @param filename  - Original filename from the attachment (e.g. "P60_John_Smith_2024.pdf")
  * @param mimeType  - MIME type from the attachment (e.g. "application/pdf")
  * @param supabase  - Supabase client to query the document_types catalog
+ * @param buffer    - (Optional) File buffer; enables OCR classification for HMRC types
  * @returns         ClassificationResult with documentTypeId, documentTypeCode,
- *                  filingTypeId, and confidence
+ *                  filingTypeId, confidence, and Phase 21 extraction fields
  */
 export async function classifyDocument(
   filename: string,
   mimeType: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  buffer?: Buffer
 ): Promise<ClassificationResult> {
   // Fetch and cache all document_types (global reference table; ~23 rows)
   const { data: allTypes, error } = await supabase
@@ -195,7 +245,14 @@ export async function classifyDocument(
   if (error) {
     console.error('[classifyDocument] Failed to fetch document_types:', error.message);
     // Degrade gracefully — cannot classify without catalog
-    return { documentTypeId: null, documentTypeCode: null, filingTypeId: null, confidence: 'unclassified' };
+    return {
+      documentTypeId: null,
+      documentTypeCode: null,
+      filingTypeId: null,
+      confidence: 'unclassified',
+      ...KEYWORD_DEFAULTS,
+      extractionSource: 'rules',
+    };
   }
 
   const typeMap = new Map(
@@ -218,21 +275,90 @@ export async function classifyDocument(
       // Step 1b: Check MIME type against expected_mime_types
       const expectedMimes = catalogEntry.expected_mime_types ?? [];
       const mimeMatches = expectedMimes.length === 0 || expectedMimes.includes(mimeType);
+      const baseConfidence: ClassificationResult['confidence'] = mimeMatches ? 'high' : 'medium';
 
+      // Step 2: OCR path for HMRC fixed-format types when buffer is available
+      if (buffer !== undefined && mimeType === 'application/pdf' && HMRC_OCR_TYPES.has(entry.code)) {
+        try {
+          const ocr = await extractPdfText(buffer);
+
+          // Image-only PDF: scanned document, cannot extract text
+          if (ocr.isImageOnly) {
+            return {
+              documentTypeId: catalogEntry.id,
+              documentTypeCode: entry.code,
+              filingTypeId: entry.filingType,
+              confidence: 'unclassified',
+              extractedTaxYear: null,
+              extractedEmployer: null,
+              extractedPayeRef: null,
+              extractionSource: 'rules',
+              isCorruptPdf: false,
+              isImageOnly: true,
+            };
+          }
+
+          // Text PDF: run field extraction
+          const extracted = extractFieldsForType(entry.code, ocr.text);
+          return {
+            documentTypeId: catalogEntry.id,
+            documentTypeCode: entry.code,
+            filingTypeId: entry.filingType,
+            // Confidence: high when we confirmed tax year; medium when keyword matched but no year found
+            confidence: extracted.taxYear ? 'high' : 'medium',
+            extractedTaxYear: extracted.taxYear,
+            extractedEmployer: extracted.employer,
+            extractedPayeRef: extracted.payeRef,
+            extractionSource: 'ocr',
+            isCorruptPdf: false,
+            isImageOnly: false,
+          };
+        } catch {
+          // pdf-parse threw — corrupt or password-protected PDF
+          return {
+            documentTypeId: catalogEntry.id,
+            documentTypeCode: entry.code,
+            filingTypeId: entry.filingType,
+            confidence: 'unclassified',
+            extractedTaxYear: null,
+            extractedEmployer: null,
+            extractedPayeRef: null,
+            extractionSource: 'rules',
+            isCorruptPdf: true,
+            isImageOnly: false,
+          };
+        }
+      }
+
+      // Non-OCR keyword match (no buffer, non-HMRC type, or non-PDF)
       return {
         documentTypeId: catalogEntry.id,
         documentTypeCode: entry.code,
         filingTypeId: entry.filingType,
-        confidence: mimeMatches ? 'high' : 'medium',
+        confidence: baseConfidence,
+        ...KEYWORD_DEFAULTS,
       };
     }
   }
 
-  // Step 2: No keyword match — check MIME type for generic PDF
+  // Step 3: No keyword match — check MIME type for generic PDF
   if (mimeType === 'application/pdf') {
-    return { documentTypeId: null, documentTypeCode: null, filingTypeId: null, confidence: 'low' };
+    return {
+      documentTypeId: null,
+      documentTypeCode: null,
+      filingTypeId: null,
+      confidence: 'low',
+      ...KEYWORD_DEFAULTS,
+    };
   }
 
-  // Step 3: Unknown file — unclassified
-  return { documentTypeId: null, documentTypeCode: null, filingTypeId: null, confidence: 'unclassified' };
+  // Step 4: Unknown file — unclassified
+  return {
+    documentTypeId: null,
+    documentTypeCode: null,
+    filingTypeId: null,
+    confidence: 'unclassified',
+    ...KEYWORD_DEFAULTS,
+    extractionSource: 'rules',
+  };
 }
