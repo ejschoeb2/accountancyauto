@@ -36,8 +36,7 @@ export async function extractPdfText(buffer: Buffer): Promise<OcrResult> {
   // May throw for corrupt/encrypted PDFs — intentionally not caught here
   const parsed = await pdfParse(buffer);
 
-  const text = parsed.text as string;
-  const numpages = parsed.numpages as number;
+  const { text, numpages } = parsed;
 
   // Image-only detection: fewer than 50 meaningful chars per page suggests
   // the PDF contains scanned images rather than selectable text
