@@ -29,6 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Parse multipart form data
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
+  const confirmDuplicate = formData.get('confirmDuplicate') === 'true';
 
   if (!file || file.size === 0) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -45,7 +46,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const fileBuffer = Buffer.from(await file.arrayBuffer());
 
   // Phase 21: integrity checks (size, duplicate detection, page count)
-  const integrity = await runIntegrityChecks(fileBuffer, file.type, portalToken.client_id, supabase);
+  // Phase 22: pass skipDuplicate when client has confirmed they want to proceed with a known duplicate
+  const integrity = await runIntegrityChecks(fileBuffer, file.type, portalToken.client_id, supabase, { skipDuplicate: confirmDuplicate });
 
   if (!integrity.passed) {
     const status = integrity.isDuplicate ? 409 : 400;
@@ -112,6 +114,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       documentTypeCode: classification.documentTypeCode,
       documentTypeLabel: classification.documentTypeCode ?? 'Document',
       confidence: classification.confidence,
+      // Phase 22: extraction fields for portal confirmation card
+      extractedTaxYear: classification.extractedTaxYear,
+      extractedEmployer: classification.extractedEmployer,
+      extractedPayeRef: classification.extractedPayeRef,
+      isImageOnly: classification.isImageOnly,
     });
   } catch (err) {
     console.error('[Portal Upload] Storage or DB error:', err);

@@ -40,7 +40,8 @@ export async function runIntegrityChecks(
   buffer: Buffer,
   mimeType: string,
   clientId: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  options?: { skipDuplicate?: boolean }
 ): Promise<IntegrityResult> {
   const fileSizeBytes = buffer.length;
   const sha256Hash = crypto.createHash('sha256').update(buffer).digest('hex');
@@ -58,22 +59,24 @@ export async function runIntegrityChecks(
   }
 
   // ── Check 2: Duplicate hash ───────────────────────────────────────────────
-  const { data: duplicates, error: dupError } = await supabase
-    .from('client_documents')
-    .select('id')
-    .eq('client_id', clientId)
-    .eq('file_hash', sha256Hash)
-    .limit(1);
+  if (!options?.skipDuplicate) {
+    const { data: duplicates, error: dupError } = await supabase
+      .from('client_documents')
+      .select('id')
+      .eq('client_id', clientId)
+      .eq('file_hash', sha256Hash)
+      .limit(1);
 
-  if (!dupError && duplicates && duplicates.length > 0) {
-    return {
-      passed: false,
-      fileSizeBytes,
-      pageCount: null,
-      isDuplicate: true,
-      sha256Hash,
-      rejectionReason: 'This file has already been uploaded',
-    };
+    if (!dupError && duplicates && duplicates.length > 0) {
+      return {
+        passed: false,
+        fileSizeBytes,
+        pageCount: null,
+        isDuplicate: true,
+        sha256Hash,
+        rejectionReason: 'This file has already been uploaded',
+      };
+    }
   }
 
   // ── Check 3: Page count (PDF only) ───────────────────────────────────────
