@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 21 — Document Verification — OCR & Classification Pipeline
-Plan: 01 complete — ready for Plan 02
-Status: Phase 21 in progress — 21-01 (schema migration: OCR columns + file integrity columns) done; 21-02 (OCR utilities) next
-Last activity: 2026-02-25 — Plan 21-01 complete: SQL migration adding 7 nullable columns + partial index to client_documents
+Plan: 02 complete — ready for Plan 03
+Status: Phase 21 in progress — 21-01 (schema migration) done; 21-02 (OCR utilities + extended classifier) done; 21-03 (upload handler wiring) next
+Last activity: 2026-02-25 — Plan 21-02 complete: pdf-parse OCR extraction, integrity checker, extended classifyDocument() with optional buffer param, 14 tests passing
 
 Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete | [####......] Phase 20: 2/? plans complete
 
@@ -247,6 +247,10 @@ Recent decisions affecting v3.0:
 - [Phase 21]: [D-21-01-01] DEFAULT 'keyword' on extraction_source — historical rows reflect pre-OCR classifier method, not NULL; Phase 22 display reads this value to explain extraction provenance
 - [Phase 21]: [D-21-01-02] Partial index WHERE file_hash IS NOT NULL — historical uploads have no hash so NULL rows excluded from duplicate detection index
 - [Phase 21]: [D-21-01-03] All 7 OCR/integrity columns nullable — historical rows unaffected, zero migration risk; Phase 22 handles NULL gracefully per locked decision
+- [Phase 21]: [D-21-02-01] Employer regex uses lazy quantifier + lookahead for PAYE/NI/National/Works labels — greedy pattern over-captures into following HMRC fields; lazy {2,60}? + lookahead is correct for normalised single-line text
+- [Phase 21]: [D-21-02-02] Local d.ts in types/ for pdf-parse-debugging-disabled — @types/pdf-parse covers original package name, not the fork; lightweight local declaration resolves TS7016
+- [Phase 21]: [D-21-02-03] KEYWORD_DEFAULTS const with satisfies — ensures all 6 Phase 21 fields populated for non-OCR paths without repetition; reduces error surface when adding future fields
+- [Phase 21]: [D-21-02-04] integrity.ts catches pdf-parse throw and sets pageCount=null — corrupt PDF rejection is classifyDocument's responsibility; integrity checker must not double-reject
 
 ### Roadmap Evolution
 
@@ -325,9 +329,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-25 UTC
-Stopped at: Phase 21 Plan 01 — complete (schema migration: OCR columns)
-Resume file: .planning/phases/21-document-verification-ocr-classification-pipeline/21-01-SUMMARY.md
-Next step: Phase 21 Plan 02 — OCR utilities (pdf-parse + regex extraction)
+Stopped at: Phase 21 Plan 02 — complete (OCR extraction utilities + extended classifier)
+Resume file: .planning/phases/21-document-verification-ocr-classification-pipeline/21-02-SUMMARY.md
+Next step: Phase 21 Plan 03 — wire OCR + integrity into upload handlers
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
