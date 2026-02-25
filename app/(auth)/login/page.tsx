@@ -128,7 +128,7 @@ function LoginForm() {
               />
               <div className="text-center space-y-1">
                 <h1 className="text-3xl font-bold tracking-tight">
-                  Welcome to PhaseTwo
+                  Welcome to Prompt
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   Explore with sample data
@@ -182,7 +182,7 @@ function LoginForm() {
           />
           <div className="text-center space-y-2 mt-4">
             <h1 className="text-2xl font-bold tracking-tight">
-              Welcome to PhaseTwo
+              Welcome to Prompt
             </h1>
             <p className="text-muted-foreground">
               Sign in with your email to get started
