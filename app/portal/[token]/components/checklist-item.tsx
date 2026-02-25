@@ -3,19 +3,38 @@
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import type { ChecklistItem as ChecklistItemType } from '../page';
+import { ExtractionConfirmationCard } from './upload-confirmation-card';
 
 interface UploadedFile {
   filename: string;
   confidence: string;
+  // Phase 22 additions:
+  documentTypeLabel: string | null;
+  extractedTaxYear: string | null;
+  extractedEmployer: string | null;
+  extractedPayeRef: string | null;
+  showConfirmationCard: boolean;
 }
 
 interface ChecklistItemProps {
   item: ChecklistItemType;
   uploaded: UploadedFile[];
   onUpload: (file: File) => Promise<void>;
+  disabled?: boolean;
+  duplicateWarning?: string;
+  onConfirmDuplicate?: () => void;
+  onDismissDuplicate?: () => void;
 }
 
-export function ChecklistItem({ item, uploaded, onUpload }: ChecklistItemProps) {
+export function ChecklistItem({
+  item,
+  uploaded,
+  onUpload,
+  disabled,
+  duplicateWarning,
+  onConfirmDuplicate,
+  onDismissDuplicate,
+}: ChecklistItemProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +65,7 @@ export function ChecklistItem({ item, uploaded, onUpload }: ChecklistItemProps) 
     onDrop,
     accept,
     maxFiles: 1,
-    disabled: uploading,
+    disabled: uploading || !!disabled,
   });
 
   return (
@@ -63,13 +82,48 @@ export function ChecklistItem({ item, uploaded, onUpload }: ChecklistItemProps) 
           {uploaded.length > 0 && (
             <div className="mt-2 space-y-1">
               {uploaded.map((u, i) => (
-                <div key={i} className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="text-xs text-gray-700 truncate">{u.filename}</span>
+                <div key={i}>
+                  <div className="flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-xs text-gray-700 truncate">{u.filename}</span>
+                  </div>
+                  {u.showConfirmationCard && (
+                    <ExtractionConfirmationCard
+                      documentTypeLabel={u.documentTypeLabel ?? 'Document'}
+                      extractedTaxYear={u.extractedTaxYear}
+                      extractedEmployer={u.extractedEmployer}
+                      extractedPayeRef={u.extractedPayeRef}
+                    />
+                  )}
                 </div>
               ))}
+            </div>
+          )}
+          {/* Duplicate warning banner */}
+          {duplicateWarning && (
+            <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 px-3 py-2.5">
+              <p className="text-xs font-medium text-amber-800 mb-2">
+                This file looks identical to one already uploaded. Are you sure?
+              </p>
+              <p className="text-xs text-amber-700 mb-2 truncate">{duplicateWarning}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors"
+                  onClick={onConfirmDuplicate}
+                >
+                  Yes, upload anyway
+                </button>
+                <button
+                  type="button"
+                  className="text-xs text-amber-700 hover:text-amber-900"
+                  onClick={onDismissDuplicate}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -88,7 +142,9 @@ export function ChecklistItem({ item, uploaded, onUpload }: ChecklistItemProps) 
             <div
               {...getRootProps()}
               className={`cursor-pointer px-3 py-2 rounded-lg border-2 border-dashed text-xs font-medium transition-colors ${
-                isDragActive
+                disabled
+                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                  : isDragActive
                   ? 'border-violet-400 bg-violet-50 text-violet-600'
                   : isUploaded
                   ? 'border-green-300 bg-green-50 text-green-700 hover:border-green-400'
