@@ -9,10 +9,12 @@ export async function GET() {
   try {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
-      .from('filing_types')
-      .select('*')
-      .order('name', { ascending: true });
+    const [{ data: filingTypes, error }, { data: requirements }] = await Promise.all([
+      supabase.from('filing_types').select('*').order('name', { ascending: true }),
+      supabase
+        .from('filing_document_requirements')
+        .select('filing_type_id, is_mandatory, document_types(id, label)')
+    ]);
 
     if (error) {
       return NextResponse.json(
@@ -21,7 +23,23 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(data || []);
+    // Group document requirements by filing_type_id
+    const reqsByFilingType: Record<string, { label: string; is_mandatory: boolean }[]> = {};
+    for (const req of requirements ?? []) {
+      const ft = req.filing_type_id as string;
+      if (!reqsByFilingType[ft]) reqsByFilingType[ft] = [];
+      const dt = req.document_types as unknown as { id: string; label: string } | null;
+      if (dt) {
+        reqsByFilingType[ft].push({ label: dt.label, is_mandatory: req.is_mandatory });
+      }
+    }
+
+    const result = (filingTypes ?? []).map(ft => ({
+      ...ft,
+      document_requirements: reqsByFilingType[ft.id] ?? [],
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(

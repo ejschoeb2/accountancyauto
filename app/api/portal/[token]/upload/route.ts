@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { uploadDocument } from '@/lib/documents/storage';
 import { classifyDocument } from '@/lib/documents/classify';
+import { runIntegrityChecks } from '@/lib/documents/integrity';
 import { calculateRetainUntil } from '@/lib/documents/metadata';
 import crypto from 'crypto';
 import type { FilingTypeId } from '@/lib/types/database';
@@ -42,7 +43,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const fileBuffer = Buffer.from(await file.arrayBuffer());
-  const classification = await classifyDocument(file.name, file.type, supabase);
+
+  // Phase 21: integrity checks (size, duplicate detection, page count)
+  const integrity = await runIntegrityChecks(fileBuffer, file.type, portalToken.client_id, supabase);
+
+  if (!integrity.passed) {
+    const status = integrity.isDuplicate ? 409 : 400;
+    return NextResponse.json({ error: integrity.rejectionReason }, { status });
+  }
+
+  const classification = await classifyDocument(file.name, file.type, supabase, fileBuffer);
+
+  // Phase 21: reject corrupt/password-protected PDFs before writing to storage
+  if (classification.isCorruptPdf) {
+    return NextResponse.json(
+      { error: 'This file appears to be protected or damaged. Please upload an unprotected copy.' },
+      { status: 400 }
+    );
+  }
 
   // Derive tax period end from tax_year stored on the token
   const taxYear = portalToken.tax_year ?? String(new Date().getFullYear());
@@ -72,6 +90,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       retain_until: retainUntil.toISOString().split('T')[0],
       classification_confidence: classification.confidence,
       source: 'portal_upload',
+      // Phase 21 fields
+      extracted_tax_year: classification.extractedTaxYear,
+      extracted_employer: classification.extractedEmployer,
+      extracted_paye_ref: classification.extractedPayeRef,
+      extraction_source: classification.extractionSource,
+      file_hash: integrity.sha256Hash,
+      file_size_bytes: integrity.fileSizeBytes,
+      page_count: integrity.pageCount,
     }).select('id').single();
 
     // Mark token used_at (non-critical)

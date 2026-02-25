@@ -59,10 +59,6 @@ export function ChecklistItem({ item, uploaded, onUpload }: ChecklistItemProps) 
               <span className="text-xs text-red-500 font-medium shrink-0">Required</span>
             )}
           </div>
-          {item.condition_description && (
-            <p className="mt-0.5 text-xs text-gray-500">{item.condition_description}</p>
-          )}
-
           {/* Uploaded files list */}
           {uploaded.length > 0 && (
             <div className="mt-2 space-y-1">
