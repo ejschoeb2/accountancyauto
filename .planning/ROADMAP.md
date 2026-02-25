@@ -361,9 +361,32 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 20-01-PLAN.md — API consolidation: augment filings API with doc_count + last_received_at; add filing_type_id filter to documents API
-- [ ] 20-02-PLAN.md — UI restructuring: rebuild DocumentCard with interleaved checklist, progress fraction, gear icon, portal link; remove standalone cards; auto Records Received utility
-- [ ] 20-03-PLAN.md — Template variable engine: lib/documents/checklist.ts, extend variables.ts, wire documents_required + portal_link into scheduler Step 7
+- [x] 20-01-PLAN.md — API consolidation: augment filings API with doc_count + last_received_at; add filing_type_id filter to documents API
+- [x] 20-02-PLAN.md — UI restructuring: rebuild DocumentCard with interleaved checklist, progress fraction, gear icon, portal link; remove standalone cards; auto Records Received utility
+- [x] 20-03-PLAN.md — Template variable engine: lib/documents/checklist.ts, extend variables.ts, wire documents_required + portal_link into scheduler Step 7
+
+### Phase 21: Document Verification — OCR & Classification Pipeline
+
+**Goal:** Upgrade the document classification pipeline from filename-only keyword matching to content-aware OCR for the four HMRC fixed-format types (P60, P45, SA302, P11D) - extracting tax year, employer name, and PAYE reference using pdf-parse + regex; add file integrity rules (size, page count, duplicate hash detection) on every upload; reject corrupt/password-protected PDFs with a clear user message.
+**Requirements**: -
+**Depends on:** Phase 20
+
+**Plans:** 3 plans in 2 waves
+
+Plans:
+- [ ] 21-01-PLAN.md -- Schema migration: add extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, file_hash, file_size_bytes, page_count to client_documents
+- [ ] 21-02-PLAN.md -- OCR extraction utility (ocr.ts), file integrity checker (integrity.ts), extended classifyDocument() with buffer param and Phase 21 result fields (TDD)
+- [ ] 21-03-PLAN.md -- Wire OCR + integrity into portal upload route and Postmark inbound attachment handler
+
+### Phase 22: Document Verification — Portal Feedback & Dashboard Summary
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 21
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 22 to break down)
 
 ---
 
@@ -394,4 +417,6 @@ Phases execute in numeric order: 18 -> 19
 | 16. Member Setup Wizard | v3.0 | 4/4 | Complete | 2026-02-23 |
 | 17. Marketing Landing Page | v3.0 | 3/3 | Complete | 2026-02-23 |
 | 18. Document Collection Foundation | v4.0 | Complete    | 2026-02-23 | 2026-02-23 |
-| 19. Collection Mechanisms | 4/4 | Complete    | 2026-02-24 | - |
+| 19. Collection Mechanisms | v4.0 | 4/4 | Complete | 2026-02-24 |
+| 20. Document Integration & Document-Aware Reminders | v4.0 | 3/3 | Complete | 2026-02-24 |
+| 21. Document Verification -- OCR & Classification Pipeline | v4.0 | 0/3 | Planned | - |
