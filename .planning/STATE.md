@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Overview
 status: unknown
-last_updated: "2026-02-25T21:34:44.579Z"
+last_updated: "2026-02-25T22:37:22.874Z"
 progress:
   total_phases: 23
   completed_phases: 20
-  total_plans: 75
-  completed_plans: 72
+  total_plans: 78
+  completed_plans: 73
 ---
 
 # Project State
@@ -23,12 +23,15 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 21 — Document Verification — OCR & Classification Pipeline
-Plan: 03 complete — Phase 21 complete (all 3 plans done)
-Status: Phase 21 complete — 21-01 (schema migration) done; 21-02 (OCR utilities + extended classifier) done; 21-03 (upload handler wiring) done
-Last activity: 2026-02-25 — Plan 21-03 complete: portal upload + Postmark inbound wired with OCR buffer, integrity checks, corrupt PDF rejection, 7 Phase 21 columns in both INSERTs
+Phase: 22 — Document Verification — Portal Feedback & Dashboard Summary
+Plan: 01 complete — Phase 22 in progress (1 of 3 plans done)
+Status: Phase 22 in progress — 22-01 (schema migration + upload route extension) done
+Last activity: 2026-02-25 — Plan 22-01 complete: 'manual' extraction_source constraint, skipDuplicate bypass in integrity.ts, OCR fields in portal upload response
 
-Progress: [##########] Phase 18 done | [##########] Phase 19: 4/4 plans complete | [####......] Phase 20: 2/? plans complete
+Resume file: .planning/phases/22-document-verification-portal-feedback-dashboard-summary/22-01-SUMMARY.md
+Next step: Phase 22 Plan 02 — portal confirmation card and duplicate warning UI
+
+Progress: [##########] Phase 21 done | [####......] Phase 22: 1/3 plans complete
 
 ## Performance Metrics
 
@@ -254,6 +257,8 @@ Recent decisions affecting v3.0:
 - [Phase 21-03]: [D-21-03-01] runIntegrityChecks not called in inbound handler — inbound is fire-and-forget with no rejection path; portal is the only user-facing path where duplicate/size/page-count enforcement makes sense
 - [Phase 21-03]: [D-21-03-02] page_count is null for inbound attachments — integrity.ts page count is only populated via runIntegrityChecks (portal path); inbound skips integrity checks by design
 - [Phase 21-03]: [D-21-03-03] sha256Hash computed inline in inbound handler via crypto.createHash — avoids importing integrity.ts which would pull in runIntegrityChecks and imply enforcement
+- [Phase 22-01]: [D-22-01-01] Migration history repair applied (20260210, 20260225204150, 20260225204246) — reverted via supabase migration repair then pushed with --include-all; consistent with D-15-01-04 pattern
+- [Phase 22-01]: [D-22-01-02] skipDuplicate guard wraps entire duplicate hash check block — when skipDuplicate=true the DB query is skipped entirely, not just the rejection logic
 
 ### Roadmap Evolution
 
@@ -292,6 +297,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | Phase 19 P02 | 11 | 2 tasks | 12 files |
 | Phase 21-document-verification-ocr-classification-pipeline P01 | 8 | 1 tasks | 1 files |
 | Phase 21-document-verification-ocr-classification-pipeline P03 | 14 | 2 tasks | 5 files |
+| Phase 22-document-verification-portal-feedback-dashboard-summary P01 | 10 | 2 tasks | 3 files |
 
 ### Tech Debt
 

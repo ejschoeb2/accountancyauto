@@ -383,7 +383,7 @@ Plans:
 **Goal:** Surface Phase 21's OCR extraction data across two UI surfaces: client-facing portal upload confirmations and accountant-facing inline document metadata with editable fields.
 **Requirements**: —
 **Depends on:** Phase 21
-**Plans:** 3 plans in 2 waves
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 22-01-PLAN.md — Schema migration (add 'manual' extraction_source) + portal upload route extension (OCR fields in response, confirmDuplicate bypass)
