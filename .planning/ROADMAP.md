@@ -380,13 +380,15 @@ Plans:
 
 ### Phase 22: Document Verification — Portal Feedback & Dashboard Summary
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Surface Phase 21's OCR extraction data across two UI surfaces: client-facing portal upload confirmations and accountant-facing inline document metadata with editable fields.
+**Requirements**: —
 **Depends on:** Phase 21
-**Plans:** 0 plans
+**Plans:** 3 plans in 2 waves
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 22 to break down)
+- [ ] 22-01-PLAN.md — Schema migration (add 'manual' extraction_source) + portal upload route extension (OCR fields in response, confirmDuplicate bypass)
+- [ ] 22-02-PLAN.md — Portal UI: duplicate warning state + ExtractionConfirmationCard component
+- [ ] 22-03-PLAN.md — Dashboard: documents API Phase 21 column support + DocumentCard with DocumentRow, status badges, inline editing
 
 ---
 
