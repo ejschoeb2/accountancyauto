@@ -5,7 +5,7 @@ const TRIAL_DURATION_DAYS = 14;
 
 /** Trial orgs get Practice tier access (mid-range, not full unlock) */
 const TRIAL_PLAN_TIER = "practice";
-const TRIAL_CLIENT_LIMIT = 150;
+const TRIAL_CLIENT_LIMIT = 300;
 
 /**
  * Set up a trial for an organisation.

@@ -274,7 +274,7 @@ Plans:
 
 **Milestone Goal:** Build the document collection infrastructure — backend schema, Supabase Storage, compliance framework, and the passive + active collection mechanisms — enabling accountants to receive and track client documents ahead of every UK filing deadline.
 
-**Phases:** 18-19 (2 phases)
+**Phases:** 18-22 (5 phases)
 **Requirements:** 18 v4.0 requirements (DOCS-01 through DASH-03)
 **Depth:** Standard
 
@@ -386,9 +386,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 22-01-PLAN.md — Schema migration (add 'manual' extraction_source) + portal upload route extension (OCR fields in response, confirmDuplicate bypass)
-- [ ] 22-02-PLAN.md — Portal UI: duplicate warning state + ExtractionConfirmationCard component
-- [ ] 22-03-PLAN.md — Dashboard: documents API Phase 21 column support + DocumentCard with DocumentRow, status badges, inline editing
+- [x] 22-01-PLAN.md — Schema migration (add 'manual' extraction_source) + portal upload route extension (OCR fields in response, confirmDuplicate bypass)
+- [x] 22-02-PLAN.md — Portal UI: duplicate warning state + ExtractionConfirmationCard component
+- [x] 22-03-PLAN.md — Dashboard: documents API Phase 21 column support + DocumentCard with DocumentRow, status badges, inline editing
 
 ---
 
@@ -422,3 +422,4 @@ Phases execute in numeric order: 18 -> 19
 | 19. Collection Mechanisms | v4.0 | 4/4 | Complete | 2026-02-24 |
 | 20. Document Integration & Document-Aware Reminders | v4.0 | 3/3 | Complete | 2026-02-24 |
 | 21. Document Verification -- OCR & Classification Pipeline | 3/3 | Complete    | 2026-02-25 | - |
+| 22. Document Verification — Portal Feedback & Dashboard Summary | v4.0 | 3/3 | Complete | 2026-02-25 |

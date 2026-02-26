@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { PLAN_TIERS, type PlanTier } from "@/lib/stripe/plans";
+import { PLAN_TIERS, PAID_PLAN_TIERS, type PlanTier } from "@/lib/stripe/plans";
 import {
   Card,
   CardContent,
@@ -14,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 
-const TIER_ORDER: PlanTier[] = ["sole_trader", "practice", "firm"];
+const TIER_ORDER: PlanTier[] = ["free", "starter", "practice", "firm", "enterprise"];
 const RECOMMENDED_TIER: PlanTier = "practice";
 
 /**
@@ -35,6 +36,9 @@ export default function PricingPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleChoosePlan(tier: PlanTier) {
+    // Free → onboarding; Enterprise → mailto (handled by link, not this handler)
+    if (!PAID_PLAN_TIERS.includes(tier)) return;
+
     setLoadingTier(tier);
     setError(null);
 
@@ -51,13 +55,10 @@ export default function PricingPage() {
       }
 
       // Get org_id from session claims
-      const orgId =
-        session.user.app_metadata?.org_id;
+      const orgId = session.user.app_metadata?.org_id;
 
       if (!orgId) {
-        setError(
-          "No organisation found. Please complete onboarding first."
-        );
+        setError("No organisation found. Please complete onboarding first.");
         setLoadingTier(null);
         return;
       }
@@ -109,19 +110,20 @@ export default function PricingPage() {
       )}
 
       {/* Plan cards grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
         {TIER_ORDER.map((tier) => {
           const plan = PLAN_TIERS[tier];
           const isRecommended = tier === RECOMMENDED_TIER;
           const isLoading = loadingTier === tier;
+          const isFree = tier === "free";
+          const isEnterprise = tier === "enterprise";
+          const isPaid = PAID_PLAN_TIERS.includes(tier);
 
           return (
             <Card
               key={tier}
               className={`relative flex flex-col ${
-                isRecommended
-                  ? "border-primary ring-2 ring-primary/20"
-                  : ""
+                isRecommended ? "border-primary ring-2 ring-primary/20" : ""
               }`}
             >
               {isRecommended && (
@@ -142,10 +144,21 @@ export default function PricingPage() {
               <CardContent className="flex-1">
                 {/* Price */}
                 <div className="mb-6">
-                  <span className="text-4xl font-bold">
-                    &pound;{formatPrice(plan.monthlyPrice)}
-                  </span>
-                  <span className="text-muted-foreground">/mo</span>
+                  {isEnterprise ? (
+                    <span className="text-4xl font-bold">Custom</span>
+                  ) : isFree ? (
+                    <>
+                      <span className="text-4xl font-bold">&pound;0</span>
+                      <span className="text-muted-foreground"> forever</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold">
+                        &pound;{formatPrice(plan.monthlyPrice)}
+                      </span>
+                      <span className="text-muted-foreground">/mo</span>
+                    </>
+                  )}
                 </div>
 
                 {/* Feature list */}
@@ -160,14 +173,24 @@ export default function PricingPage() {
               </CardContent>
 
               <CardFooter>
-                <Button
-                  className="w-full"
-                  variant={isRecommended ? "default" : "outline"}
-                  onClick={() => handleChoosePlan(tier)}
-                  disabled={loadingTier !== null}
-                >
-                  {isLoading ? "Redirecting..." : "Get Started"}
-                </Button>
+                {isFree ? (
+                  <Button className="w-full" variant="outline" asChild>
+                    <Link href="/onboarding">Get Started Free</Link>
+                  </Button>
+                ) : isEnterprise ? (
+                  <Button className="w-full" variant="outline" asChild>
+                    <a href="mailto:hello@phasetwo.uk">Get in Touch</a>
+                  </Button>
+                ) : (
+                  <Button
+                    className="w-full"
+                    variant={isRecommended ? "default" : "outline"}
+                    onClick={() => handleChoosePlan(tier)}
+                    disabled={loadingTier !== null}
+                  >
+                    {isLoading ? "Redirecting..." : "Get Started"}
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           );

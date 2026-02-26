@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
-import { getPlanByTier, type PlanTier } from "@/lib/stripe/plans";
-
-const VALID_TIERS: PlanTier[] = ["sole_trader", "practice", "firm"];
+import { getPlanByTier, PAID_PLAN_TIERS, type PlanTier } from "@/lib/stripe/plans";
 
 /**
  * POST /api/stripe/create-checkout-session
@@ -49,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!VALID_TIERS.includes(planTier as PlanTier)) {
+    if (!PAID_PLAN_TIERS.includes(planTier as PlanTier)) {
       return NextResponse.json(
         { error: `Invalid plan tier: ${planTier}` },
         { status: 400 }

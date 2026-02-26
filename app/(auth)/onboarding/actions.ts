@@ -169,8 +169,21 @@ export async function createOrgAndJoinAsAdmin(
     throw new Error(`Failed to join organisation: ${memberError.message}`);
   }
 
-  // 3. Set up 14-day trial
-  await createTrialForOrg(org.id, admin);
+  // 3. Provision billing state based on selected tier
+  if (planTier === "free") {
+    // Free plan: active immediately, no trial, 25-client limit
+    await admin
+      .from("organisations")
+      .update({
+        plan_tier: "free",
+        subscription_status: "active",
+        client_count_limit: 25,
+      })
+      .eq("id", org.id);
+  } else {
+    // Paid tiers: 14-day trial at Practice level
+    await createTrialForOrg(org.id, admin);
+  }
 
   // 4. Mark onboarding complete in app_settings
   await admin.from("app_settings").upsert(

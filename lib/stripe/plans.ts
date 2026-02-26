@@ -1,21 +1,26 @@
 /**
  * Plan tier configuration for Stripe billing.
  *
+ * This file is the single source of truth for tier names, limits, prices,
+ * and Stripe Price IDs. All other files import from here.
+ *
  * Price IDs come from environment variables so test-mode and production
- * Stripe accounts can use different values. Prices and limits are
- * placeholder values to be finalised before launch.
+ * Stripe accounts can use different values.
  */
 
 // Matches the plan_tier_enum in the database
-export type PlanTier = "sole_trader" | "practice" | "firm";
+export type PlanTier = "free" | "starter" | "practice" | "firm" | "enterprise";
+
+/** Tiers that go through Stripe Checkout (i.e. have a Stripe Price ID) */
+export const PAID_PLAN_TIERS: PlanTier[] = ["starter", "practice", "firm"];
 
 export interface PlanConfig {
   tier: PlanTier;
   /** Human-readable display name */
   name: string;
-  /** Stripe Price ID (from env var) */
+  /** Stripe Price ID (from env var). Empty string for free/enterprise. */
   priceId: string;
-  /** Monthly price in pence (for display purposes) */
+  /** Monthly price in pence (for display purposes). 0 for free/enterprise. */
   monthlyPrice: number;
   /** Maximum number of clients, null = unlimited */
   clientLimit: number | null;
@@ -23,24 +28,27 @@ export interface PlanConfig {
   features: string[];
 }
 
-/**
- * All plan tiers with their configuration.
- *
- * Prices are placeholder values (confirmed with user: "Use sensible
- * placeholder prices and limits -- finalized before launch").
- *
- * Price IDs are loaded from environment variables to support
- * different Stripe accounts for test vs production.
- */
 export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
-  sole_trader: {
-    tier: "sole_trader",
-    name: "Sole Trader",
-    priceId: process.env.STRIPE_PRICE_SOLE_TRADER ?? "",
-    monthlyPrice: 3900, // £39/mo
-    clientLimit: 40,
+  free: {
+    tier: "free",
+    name: "Free",
+    priceId: "",
+    monthlyPrice: 0,
+    clientLimit: 25,
     features: [
-      "Up to 40 clients",
+      "Up to 25 clients",
+      "Email reminders",
+      "Filing tracking",
+    ],
+  },
+  starter: {
+    tier: "starter",
+    name: "Starter",
+    priceId: process.env.STRIPE_PRICE_STARTER ?? "",
+    monthlyPrice: 3900, // £39/mo
+    clientLimit: 100,
+    features: [
+      "Up to 100 clients",
       "Email reminders",
       "Custom templates",
       "Filing tracking",
@@ -51,9 +59,9 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     name: "Practice",
     priceId: process.env.STRIPE_PRICE_PRACTICE ?? "",
     monthlyPrice: 8900, // £89/mo
-    clientLimit: 150,
+    clientLimit: 300,
     features: [
-      "Up to 150 clients",
+      "Up to 300 clients",
       "Email reminders",
       "Custom templates",
       "Filing tracking",
@@ -65,7 +73,22 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     name: "Firm",
     priceId: process.env.STRIPE_PRICE_FIRM ?? "",
     monthlyPrice: 15900, // £159/mo
-    clientLimit: null, // Unlimited
+    clientLimit: 500,
+    features: [
+      "Up to 500 clients",
+      "Email reminders",
+      "Custom templates",
+      "Filing tracking",
+      "Priority support",
+      "Dedicated account manager",
+    ],
+  },
+  enterprise: {
+    tier: "enterprise",
+    name: "Enterprise",
+    priceId: "",
+    monthlyPrice: 0, // custom pricing
+    clientLimit: null, // unlimited
     features: [
       "Unlimited clients",
       "Email reminders",
@@ -73,6 +96,7 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
       "Filing tracking",
       "Priority support",
       "Dedicated account manager",
+      "Custom integrations",
     ],
   },
 };
@@ -88,9 +112,7 @@ export function getPlanByPriceId(priceId: string): PlanConfig | undefined {
 }
 
 /** Convenience helper to get just the limits for a tier. */
-export function getPlanLimits(
-  tier: PlanTier
-): { clientLimit: number | null } {
+export function getPlanLimits(tier: PlanTier): { clientLimit: number | null } {
   const plan = PLAN_TIERS[tier];
   return { clientLimit: plan.clientLimit };
 }

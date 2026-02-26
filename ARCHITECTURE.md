@@ -307,13 +307,15 @@ All server actions use `createClient()` (session-scoped) and live in `app/action
 
 ### Plan Tiers
 
-| Tier | Client Limit | Monthly Price |
-|------|-------------|---------------|
-| `sole_trader` | 40 | £39/mo |
-| `practice` | 150 | £89/mo |
-| `firm` | Unlimited | £159/mo |
+| Tier | Client Limit | Monthly Price | Stripe |
+|------|-------------|---------------|--------|
+| `free` | 25 | £0 | None |
+| `starter` | 100 | £39/mo | `STRIPE_PRICE_STARTER` |
+| `practice` | 300 | £89/mo | `STRIPE_PRICE_PRACTICE` |
+| `firm` | 500 | £159/mo | `STRIPE_PRICE_FIRM` |
+| `enterprise` | Unlimited | Custom | None (contact sales) |
 
-Prices are placeholder values to be finalised before launch. Price IDs come from env vars (`STRIPE_PRICE_SOLE_TRADER`, `STRIPE_PRICE_PRACTICE`, `STRIPE_PRICE_FIRM`) so test-mode and production accounts can differ.
+Price IDs come from env vars so test-mode and production accounts can differ. Free and Enterprise tiers have no Stripe product — free orgs are provisioned directly, enterprise uses a `mailto:` CTA.
 
 ### Subscription Lifecycle
 

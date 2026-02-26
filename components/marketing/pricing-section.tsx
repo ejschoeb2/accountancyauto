@@ -59,7 +59,7 @@ function getTier(clients: number): TierInfo {
     key: "enterprise", name: "Enterprise", range: "500+ clients",
     tagline: "For large firms with complex needs. Let's build a plan around you.",
     featured: false, isEnterprise: true, isFirm: false,
-    price: null, cta: "Get in Touch", ctaHref: "/contact",
+    price: null, cta: "Get in Touch", ctaHref: "mailto:hello@phasetwo.uk",
   };
 }
 

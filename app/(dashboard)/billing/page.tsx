@@ -13,7 +13,7 @@ import {
 import { BillingStatusCard } from "./components/billing-status-card";
 import { UsageBars } from "./components/usage-bars";
 import { ManageBillingButton } from "./components/manage-billing-button";
-import Link from "next/link";
+import { UpgradePlanSection } from "./components/upgrade-plan-section";
 
 export default async function BillingPage() {
   // Admin-only access: members cannot see billing page at all
@@ -57,7 +57,8 @@ export default async function BillingPage() {
   const planConfig = getPlanByTier(org.plan_tier as PlanTier);
   const usageStats = await getUsageStats(orgId);
 
-  const hasSubscription = !!org.stripe_customer_id;
+  const isFree = org.plan_tier === "free";
+  const hasActiveSubscription = !!org.stripe_subscription_id;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -99,36 +100,32 @@ export default async function BillingPage() {
         </CardContent>
       </Card>
 
-      {/* Manage billing / Choose a plan */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Manage subscription</CardTitle>
-          <CardDescription>
-            {hasSubscription
-              ? "Update your payment method, change plan, or view invoices through the Stripe Customer Portal"
-              : "Get started by choosing a plan for your practice"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ManageBillingButton orgId={orgId} hasSubscription={hasSubscription} />
-        </CardContent>
-      </Card>
-
-      {/* No subscription state - additional guidance */}
-      {!hasSubscription && (
+      {/* Billing management */}
+      {hasActiveSubscription ? (
         <Card>
-          <CardContent className="py-8">
-            <div className="text-center space-y-3">
-              <p className="text-muted-foreground">
-                No active subscription found. Choose a plan to get started.
-              </p>
-              <Link
-                href="/pricing"
-                className="text-primary underline underline-offset-4 hover:text-primary/80"
-              >
-                View pricing plans
-              </Link>
-            </div>
+          <CardHeader>
+            <CardTitle>Manage subscription</CardTitle>
+            <CardDescription>
+              Update your payment method, change plan, or view invoices through
+              the Stripe Customer Portal
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ManageBillingButton orgId={orgId} hasSubscription={true} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Upgrade your plan</CardTitle>
+            <CardDescription>
+              {isFree
+                ? "You're on the Free plan. Upgrade to unlock more clients and features."
+                : "Your trial is active. Subscribe now to keep access after your trial ends."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <UpgradePlanSection orgId={orgId} />
           </CardContent>
         </Card>
       )}

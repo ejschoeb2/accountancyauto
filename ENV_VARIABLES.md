@@ -267,6 +267,98 @@ When deploying for a new accounting firm, the following variables would change. 
 | `CRON_SECRET` | ✅ Yes | Secure cron endpoints per deployment |
 | `NEXT_PUBLIC_IS_DEMO` | ❌ No | Always `false` in production |
 
+---
+
+## Stripe Variables
+
+Stripe handles subscription billing for paid plans (Starter, Practice, Firm).
+
+### `STRIPE_SECRET_KEY`
+
+```
+STRIPE_SECRET_KEY=sk_live_...
+# Test: sk_test_...
+```
+
+**What it is:** The Stripe secret API key used server-side to create checkout sessions, handle webhooks, and manage subscriptions.
+
+**Used in:** `lib/stripe/client.ts` — lazy-initialised Stripe SDK instance.
+
+---
+
+### `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+
+```
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+```
+
+**What it is:** The Stripe publishable key for client-side use.
+
+---
+
+### `STRIPE_WEBHOOK_SECRET`
+
+```
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+**What it is:** The webhook signing secret used to verify Stripe webhook payloads.
+
+**Used in:** `app/api/stripe/webhook/route.ts`.
+
+---
+
+### `STRIPE_PRICE_STARTER`
+
+```
+STRIPE_PRICE_STARTER=price_...
+```
+
+**What it is:** The Stripe Price ID for the **Starter** plan (£39/mo, up to 100 clients).
+
+**Previously named:** `STRIPE_PRICE_SOLE_TRADER` — renamed when the tier was renamed from Sole Trader → Starter. Update your `.env.local` and Vercel environment accordingly.
+
+**Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.starter.priceId`.
+
+---
+
+### `STRIPE_PRICE_PRACTICE`
+
+```
+STRIPE_PRICE_PRACTICE=price_...
+```
+
+**What it is:** The Stripe Price ID for the **Practice** plan (£89/mo, up to 300 clients).
+
+**Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.practice.priceId`.
+
+---
+
+### `STRIPE_PRICE_FIRM`
+
+```
+STRIPE_PRICE_FIRM=price_...
+```
+
+**What it is:** The Stripe Price ID for the **Firm** plan (£159/mo, up to 500 clients).
+
+**Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.firm.priceId`.
+
+---
+
+### `STRIPE_TAX_ENABLED`
+
+```
+STRIPE_TAX_ENABLED=false
+# Set to "true" to enable Stripe Tax automatic VAT collection
+```
+
+**What it is:** Feature flag to enable Stripe Tax for automatic VAT calculation at checkout.
+
+**Used in:** `app/api/stripe/create-checkout-session/route.ts`.
+
+---
+
 ### Future Architecture Path
 
 The current model is **one deployment per tenant** (simple, isolated, no shared infrastructure risk). This approach:

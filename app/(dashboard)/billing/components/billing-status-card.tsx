@@ -127,12 +127,20 @@ export function BillingStatusCard({
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">Price</p>
             <p className="text-2xl font-bold">
-              &pound;{formatPrice(monthlyPrice)}
-              <span className="text-sm font-normal text-muted-foreground">
-                /mo
-              </span>
+              {monthlyPrice === 0 ? (
+                "Free"
+              ) : (
+                <>
+                  &pound;{formatPrice(monthlyPrice)}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    /mo
+                  </span>
+                </>
+              )}
             </p>
-            <p className="text-xs text-muted-foreground">Excluding VAT</p>
+            {monthlyPrice > 0 && (
+              <p className="text-xs text-muted-foreground">Excluding VAT</p>
+            )}
           </div>
         </div>
       </CardContent>

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { WizardStepper } from "@/components/wizard-stepper";
 import { createClient } from "@/lib/supabase/client";
-import { PLAN_TIERS } from "@/lib/stripe/plans";
+import { PLAN_TIERS, PAID_PLAN_TIERS } from "@/lib/stripe/plans";
 import type { PlanTier } from "@/lib/stripe/plans";
 import {
   sendOnboardingMagicLink,
@@ -22,7 +22,7 @@ const STEPS = [
   { label: "Account" },
   { label: "Firm Details" },
   { label: "Plan" },
-  { label: "Trial Started" },
+  { label: "All Set" },
 ];
 
 function stepToIndex(step: WizardStep): number {
@@ -402,7 +402,7 @@ export default function OnboardingPage() {
               Choose your plan
             </h1>
             <p className="text-muted-foreground">
-              Start a 14-day free trial. No credit card required.
+              Start free forever, or get 14 days free on any paid plan. No credit card required.
             </p>
           </div>
 
@@ -410,11 +410,12 @@ export default function OnboardingPage() {
             <p className="text-sm text-destructive text-center">{planError}</p>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {(["sole_trader", "practice", "firm"] as PlanTier[]).map(
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(["free", ...PAID_PLAN_TIERS] as PlanTier[]).map(
               (tier) => {
                 const plan = PLAN_TIERS[tier];
                 const isPopular = tier === "practice";
+                const isFree = tier === "free";
                 const isLoading = isCreatingOrg && selectedTier === tier;
 
                 return (
@@ -438,12 +439,18 @@ export default function OnboardingPage() {
                       <div className="space-y-1">
                         <h3 className="font-semibold text-lg">{plan.name}</h3>
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-bold">
-                            {formatPrice(plan.monthlyPrice)}
-                          </span>
-                          <span className="text-muted-foreground text-sm">
-                            /mo
-                          </span>
+                          {isFree ? (
+                            <span className="text-3xl font-bold">Free</span>
+                          ) : (
+                            <>
+                              <span className="text-3xl font-bold">
+                                {formatPrice(plan.monthlyPrice)}
+                              </span>
+                              <span className="text-muted-foreground text-sm">
+                                /mo
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -475,8 +482,10 @@ export default function OnboardingPage() {
                         {isLoading ? (
                           <>
                             <Loader2 className="size-4 mr-2 animate-spin" />
-                            Starting trial...
+                            {isFree ? "Setting up..." : "Starting trial..."}
                           </>
+                        ) : isFree ? (
+                          "Start for Free"
                         ) : (
                           "Start Free Trial"
                         )}
@@ -511,10 +520,12 @@ export default function OnboardingPage() {
 
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight">
-              Your trial has started!
+              {selectedTier === "free" ? "You're all set!" : "Your trial has started!"}
             </h1>
             <p className="text-muted-foreground">
-              {firmName} is ready. You have 14 days to explore all features.
+              {selectedTier === "free"
+                ? `${firmName} is ready. You're on the Free plan.`
+                : `${firmName} is ready. You have 14 days to explore all features.`}
             </p>
           </div>
 
@@ -526,10 +537,12 @@ export default function OnboardingPage() {
                   {PLAN_TIERS[selectedTier].name}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Trial period</span>
-                <span className="font-medium">14 days remaining</span>
-              </div>
+              {selectedTier !== "free" && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Trial period</span>
+                  <span className="font-medium">14 days remaining</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Your workspace</span>
                 <span className="font-medium text-primary">
