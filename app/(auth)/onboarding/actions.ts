@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createTrialForOrg } from "@/lib/billing/trial";
 import { seedOrgDefaults } from "@/lib/onboarding/seed-defaults";
 import type { PlanTier } from "@/lib/stripe/plans";
 
@@ -138,13 +137,15 @@ export async function createOrgAndJoinAsAdmin(
     throw new Error("You already belong to an organisation.");
   }
 
-  // 1. Insert the organisation row
+  // 1. Insert the organisation row (always starts on free — Stripe webhook upgrades paid plans)
   const { data: org, error: orgError } = await admin
     .from("organisations")
     .insert({
       name: firmName,
       slug,
-      plan_tier: planTier,
+      plan_tier: "free",
+      subscription_status: "active",
+      client_count_limit: 25,
     })
     .select()
     .single();
@@ -169,29 +170,13 @@ export async function createOrgAndJoinAsAdmin(
     throw new Error(`Failed to join organisation: ${memberError.message}`);
   }
 
-  // 3. Provision billing state based on selected tier
-  if (planTier === "free") {
-    // Free plan: active immediately, no trial, 25-client limit
-    await admin
-      .from("organisations")
-      .update({
-        plan_tier: "free",
-        subscription_status: "active",
-        client_count_limit: 25,
-      })
-      .eq("id", org.id);
-  } else {
-    // Paid tiers: 14-day trial at Practice level
-    await createTrialForOrg(org.id, admin);
-  }
-
-  // 4. Mark onboarding complete in app_settings
+  // 3. Mark onboarding complete in app_settings
   await admin.from("app_settings").upsert(
     { org_id: org.id, key: "onboarding_complete", value: "true" },
     { onConflict: "org_id,key" }
   );
 
-  // 5. Seed default email templates and reminder schedules
+  // 4. Seed default email templates and reminder schedules
   await seedOrgDefaults(org.id, user.id, admin);
 
   return { orgId: org.id, slug: org.slug };

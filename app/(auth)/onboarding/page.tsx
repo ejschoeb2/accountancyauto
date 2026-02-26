@@ -161,21 +161,44 @@ export default function OnboardingPage() {
     setStep("plan");
   };
 
-  const handleStartTrial = async (tier: PlanTier) => {
+  const handleSelectPlan = async (tier: PlanTier) => {
     setSelectedTier(tier);
     setIsCreatingOrg(true);
     setPlanError(null);
 
     try {
       const result = await createOrgAndJoinAsAdmin(firmName, slug, tier);
-      setCreatedSlug(result.slug);
-      setStep("done");
+
+      if (tier === "free") {
+        setCreatedSlug(result.slug);
+        setStep("done");
+      } else {
+        // Paid plan: redirect straight to Stripe Checkout
+        const response = await fetch("/api/stripe/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planTier: tier, orgId: result.orgId }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setPlanError(data.error || "Failed to start checkout. Please try again.");
+          setSelectedTier(null);
+          setIsCreatingOrg(false);
+          return;
+        }
+
+        if (data.url) {
+          window.location.href = data.url;
+          // Don't reset loading state — we're navigating away
+        }
+      }
     } catch (err) {
       setPlanError(
         err instanceof Error ? err.message : "Failed to create organisation. Please try again."
       );
       setSelectedTier(null);
-    } finally {
       setIsCreatingOrg(false);
     }
   };
@@ -404,7 +427,7 @@ export default function OnboardingPage() {
               Choose your plan
             </h1>
             <p className="text-muted-foreground">
-              Start free forever, or get 14 days free on any paid plan. No credit card required.
+              Start free forever, or choose a paid plan for more clients. No credit card required.
             </p>
           </div>
 
@@ -478,18 +501,18 @@ export default function OnboardingPage() {
                       <Button
                         className="w-full active:scale-[0.97]"
                         variant={isPopular ? "default" : "outline"}
-                        onClick={() => handleStartTrial(tier)}
+                        onClick={() => handleSelectPlan(tier)}
                         disabled={isCreatingOrg}
                       >
                         {isLoading ? (
                           <>
                             <Loader2 className="size-4 mr-2 animate-spin" />
-                            {isFree ? "Setting up..." : "Starting trial..."}
+                            {isFree ? "Setting up..." : "Redirecting..."}
                           </>
                         ) : isFree ? (
                           "Start for Free"
                         ) : (
-                          "Start Free Trial"
+                          "Get Started"
                         )}
                       </Button>
                     </CardContent>
@@ -513,8 +536,8 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* ---- Step 4: Trial Started ---- */}
-      {step === "done" && createdSlug && selectedTier && (
+      {/* ---- Step 4: Done ---- */}
+      {step === "done" && createdSlug && (
         <div className="max-w-md mx-auto text-center space-y-6">
           <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center">
             <CheckCircle className="size-8 text-green-600" />
@@ -522,12 +545,10 @@ export default function OnboardingPage() {
 
           <div className="space-y-2">
             <h1 className="text-2xl font-bold tracking-tight">
-              {selectedTier === "free" ? "You're all set!" : "Your trial has started!"}
+              You&apos;re all set!
             </h1>
             <p className="text-muted-foreground">
-              {selectedTier === "free"
-                ? `${firmName} is ready. You're on the Free plan.`
-                : `${firmName} is ready. You have 14 days to explore all features.`}
+              {firmName} is ready. You&apos;re on the Free plan.
             </p>
           </div>
 
@@ -535,20 +556,12 @@ export default function OnboardingPage() {
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Plan</span>
-                <span className="font-medium">
-                  {PLAN_TIERS[selectedTier].name}
-                </span>
+                <span className="font-medium">Free</span>
               </div>
-              {selectedTier !== "free" && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Trial period</span>
-                  <span className="font-medium">14 days remaining</span>
-                </div>
-              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Your workspace</span>
                 <span className="font-medium text-primary">
-                  {createdSlug}.app.{(process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon").replace(/^https?:\/\/(www\.)?/, "")}
+                  {createdSlug}.app.phasetwo.uk
                 </span>
               </div>
             </CardContent>

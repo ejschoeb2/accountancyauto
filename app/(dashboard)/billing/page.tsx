@@ -121,7 +121,7 @@ export default async function BillingPage() {
             <CardDescription>
               {isFree
                 ? "You're on the Free plan. Upgrade to unlock more clients and features."
-                : "Your trial is active. Subscribe now to keep access after your trial ends."}
+                : "Choose a plan to unlock more clients and features."}
             </CardDescription>
           </CardHeader>
           <CardContent>
