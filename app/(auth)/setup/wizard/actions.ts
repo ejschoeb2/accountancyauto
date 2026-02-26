@@ -142,7 +142,9 @@ export async function createOrgAndJoinAsAdmin(
     throw new Error("You already belong to an organisation.");
   }
 
-  // 1. Insert the organisation row (always starts on free — Stripe webhook upgrades paid plans)
+  // 1. Insert the organisation row (always starts on free — Stripe webhook upgrades paid plans).
+  // Seed platform Postmark defaults so reminders send immediately even if the admin skips
+  // the Email Setup wizard step. The Email Setup step upgrades these to a custom domain.
   const { data: org, error: orgError } = await admin
     .from("organisations")
     .insert({
@@ -151,6 +153,8 @@ export async function createOrgAndJoinAsAdmin(
       plan_tier: "free",
       subscription_status: "active",
       client_count_limit: 25,
+      postmark_server_token: process.env.POSTMARK_SERVER_TOKEN ?? null,
+      postmark_sender_domain: process.env.POSTMARK_SENDER_DOMAIN ?? null,
     })
     .select()
     .single();

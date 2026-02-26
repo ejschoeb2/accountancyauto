@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Copy, Check, AlertCircle } from "lucide-react";
+import { Loader2, Copy, Check, AlertCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -138,9 +138,17 @@ export function EmailSetupStep({ onComplete }: EmailSetupStepProps) {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end">
+        <div className="border-t pt-4 space-y-2">
+          <div className="flex items-start gap-2 text-sm text-amber-600">
+            <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+            <p>
+              <span className="font-medium">Not recommended.</span>{" "}
+              Reminders will send from the Prompt platform domain, which clients may not recognise.
+              You can configure your own domain later in Settings.
+            </p>
+          </div>
           <ButtonBase variant="muted" buttonType="text-only" onClick={onComplete}>
-            Skip for now
+            Skip — use platform email instead
           </ButtonBase>
         </div>
       </div>
