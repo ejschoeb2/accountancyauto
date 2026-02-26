@@ -34,6 +34,9 @@ interface ConfigStepProps {
   defaultEmailSettings: EmailSettings;
   defaultInboundMode: InboundCheckerMode;
   onComplete: () => void;
+  orgDomain?: string;
+  orgInboundAddress?: string;
+  isMember?: boolean;
 }
 
 export function ConfigStep({
@@ -41,6 +44,9 @@ export function ConfigStep({
   defaultEmailSettings,
   defaultInboundMode,
   onComplete,
+  orgDomain,
+  orgInboundAddress,
+  isMember = false,
 }: ConfigStepProps) {
   const [hour, setHour] = useState(String(defaultSendHour));
   const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(defaultInboundMode);
@@ -50,9 +56,10 @@ export function ConfigStep({
   // Only store/edit the local part (before @)
   const defaultLocalPart = defaultEmailSettings.senderAddress.split("@")[0] ?? "reminders";
   const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
-  const senderDomain = defaultEmailSettings.senderAddress.split("@")[1] ?? "phasetwo.uk";
+  // Use org's configured domain if available, otherwise fall back to the stored default
+  const senderDomain = orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "phasetwo.uk";
 
-  const [replyTo, setReplyTo] = useState(defaultEmailSettings.replyTo);
+  const [replyTo, setReplyTo] = useState(orgInboundAddress ?? defaultEmailSettings.replyTo);
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -97,10 +104,13 @@ export function ConfigStep({
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h2 className="text-lg font-semibold">Configure Your Settings</h2>
+          <h2 className="text-lg font-semibold">
+            {isMember ? "Set up your email identity" : "Configure Your Settings"}
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Set your send hour, inbound email handling preference, and personal email identity.
-            These can be changed at any time in Settings.
+            {isMember
+              ? `Choose the name and email address clients will see when you send reminders${orgDomain ? ` from @${orgDomain}` : ""}. These can be changed at any time in Settings.`
+              : "Set your send hour, inbound email handling preference, and personal email identity. These can be changed at any time in Settings."}
           </p>
         </div>
 

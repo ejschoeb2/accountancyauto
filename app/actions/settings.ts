@@ -416,17 +416,18 @@ export async function markMemberSetupComplete(): Promise<{ error?: string }> {
 
 // --- Postmark Settings ---
 
-export async function getPostmarkSettings(): Promise<{ token: string; senderDomain: string }> {
+export async function getPostmarkSettings(): Promise<{ token: string; senderDomain: string; inboundAddress: string }> {
   const orgId = await getOrgId();
   const admin = createAdminClient();
   const { data: org } = await admin
     .from('organisations')
-    .select('postmark_server_token, postmark_sender_domain')
+    .select('postmark_server_token, postmark_sender_domain, inbound_address')
     .eq('id', orgId)
     .single();
   return {
     token: org?.postmark_server_token || '',
     senderDomain: org?.postmark_sender_domain || '',
+    inboundAddress: org?.inbound_address || '',
   };
 }
 

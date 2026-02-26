@@ -183,6 +183,24 @@ POSTMARK_SENDER_DOMAIN=phasetwo.uk
 
 ---
 
+### `POSTMARK_ACCOUNT_TOKEN`
+
+```
+POSTMARK_ACCOUNT_TOKEN=<your-postmark-account-api-token>
+```
+
+**What it is:** The account-level Postmark API token. Used by `lib/postmark/management.ts` to create Postmark Servers and Domains for new organisations via the Postmark Management API during the Email Setup wizard step.
+
+**Used in:** `lib/postmark/management.ts` — `createOrgServer()`, `createOrgDomain()`, `checkDomainVerification()`.
+
+**How to get it:** Postmark → Account → API Tokens → Account API Token.
+
+**Security:** Never expose to the browser or commit to source control. This token has account-level access to create and manage all servers and domains in your Postmark account.
+
+**Required:** Yes — if missing, the Email Setup wizard step will fail with an error. Not needed at build time; only accessed at runtime when an admin completes the wizard.
+
+---
+
 ### `POSTMARK_WEBHOOK_SECRET` `[TENANT]`
 
 ```
