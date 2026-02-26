@@ -144,7 +144,7 @@ export const ComparisonSection = () => {
           className="mt-10 flex justify-center"
         >
           <a
-            href="/onboarding"
+            href="/setup/wizard"
             className="group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold bg-violet-600 text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
           >
             Start free — no credit card needed

@@ -30,19 +30,19 @@ function getTier(clients: number): TierInfo {
     key: "free", name: "Free", range: "Up to 25 clients",
     tagline: "Get started at no cost. Upgrade naturally when your practice grows.",
     featured: false, isEnterprise: false, isFirm: false,
-    price: 0, cta: "Get Started Free", ctaHref: "/onboarding",
+    price: 0, cta: "Get Started Free", ctaHref: "/setup/wizard",
   };
   if (clients <= 100) return {
     key: "starter", name: "Starter", range: "26 – 100 clients",
     tagline: "For independent accountants and small practices.",
     featured: false, isEnterprise: false, isFirm: false,
-    price: 39, cta: "Get Started", ctaHref: "/onboarding",
+    price: 39, cta: "Get Started", ctaHref: "/setup/wizard",
   };
   if (clients <= 300) return {
     key: "practice", name: "Practice", range: "101 – 300 clients",
     tagline: "For growing practices managing a wide range of deadlines.",
     featured: true, isEnterprise: false, isFirm: false,
-    price: 89, cta: "Get Started", ctaHref: "/onboarding",
+    price: 89, cta: "Get Started", ctaHref: "/setup/wizard",
   };
   if (clients < SLIDER_MAX) {
     const overageClients = clients - 300;
@@ -52,7 +52,7 @@ function getTier(clients: number): TierInfo {
       featured: false, isEnterprise: false, isFirm: true,
       price: Math.round(89 + overageClients * 0.60),
       overage: { clients: overageClients, rate: 0.60 },
-      cta: "Get Started", ctaHref: "/onboarding",
+      cta: "Get Started", ctaHref: "/setup/wizard",
     };
   }
   return {

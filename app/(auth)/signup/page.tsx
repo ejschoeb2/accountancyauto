@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUp } from "../login/actions";
 
-export default function SignupPage() {
+function SignupForm() {
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams?.get("invite") ?? undefined;
+  const inviteOrg = searchParams?.get("org") ?? undefined;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -33,7 +38,7 @@ export default function SignupPage() {
 
     setIsLoading(true);
 
-    const result = await signUp(email, password);
+    const result = await signUp(email, password, inviteToken);
 
     if (result?.error) {
       setError(result.error);
@@ -77,9 +82,11 @@ export default function SignupPage() {
 
         {/* Brand */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {inviteOrg ? `Create an account to join ${inviteOrg}` : "Create your account"}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Free for up to 25 clients, no card required
+            {inviteOrg ? "You'll be taken straight to the invite after signing up." : "Free for up to 25 clients, no card required"}
           </p>
         </div>
 
@@ -175,11 +182,30 @@ export default function SignupPage() {
 
         <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <a href="/login" className="font-medium text-foreground hover:underline">
+          <a
+            href={inviteToken
+              ? `/login?invite=${encodeURIComponent(inviteToken)}${inviteOrg ? `&org=${encodeURIComponent(inviteOrg)}` : ""}`
+              : "/login"}
+            className="font-medium text-foreground hover:underline"
+          >
             Sign in
           </a>
         </p>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <SignupForm />
+    </Suspense>
   );
 }

@@ -22,6 +22,7 @@ export interface ClientStatusRow {
   id: string;
   company_name: string;
   status: TrafficLightStatus;
+  underlying_status?: TrafficLightStatus; // Status if reminders were not paused
   next_deadline: string | null;
   next_deadline_type: string | null;
   days_until_deadline: number | null;
@@ -284,14 +285,26 @@ export async function getClientStatusList(
       })
       .filter((f): f is NonNullable<typeof f> => f !== null);
 
+    const recordsReceived = Array.isArray(client.records_received_for)
+      ? client.records_received_for
+      : [];
+
     const status = calculateClientStatus({
       reminders_paused: client.reminders_paused || false,
-      records_received_for: Array.isArray(client.records_received_for)
-        ? client.records_received_for
-        : [],
+      records_received_for: recordsReceived,
       completed_for: [], // TODO: Add when migration is applied
       filings,
     });
+
+    // For paused clients, compute what status would be without the pause
+    const underlying_status: TrafficLightStatus | undefined = client.reminders_paused
+      ? calculateClientStatus({
+          reminders_paused: false,
+          records_received_for: recordsReceived,
+          completed_for: [],
+          filings,
+        })
+      : undefined;
 
     // Find next deadline across all filings (track both date and filing type)
     const earliestFiling = filings.length > 0
@@ -316,6 +329,7 @@ export async function getClientStatusList(
       id: client.id,
       company_name: client.company_name,
       status,
+      underlying_status,
       next_deadline,
       next_deadline_type,
       days_until_deadline,

@@ -58,6 +58,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // No org yet — new user, send straight to onboarding
-  return NextResponse.redirect(`${origin}/onboarding`);
+  // No org yet — new user, send straight to setup wizard
+  return NextResponse.redirect(`${origin}/setup/wizard`);
 }

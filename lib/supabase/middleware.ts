@@ -18,7 +18,7 @@ function getCookieDomain(): string | undefined {
 }
 
 // Routes that don't require org context or authentication
-const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/auth/signout", "/auth/reset-password", "/pricing", "/onboarding", "/invite/accept", "/portal"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/auth/signout", "/auth/reset-password", "/pricing", "/setup", "/invite/accept", "/portal"];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
@@ -98,6 +98,19 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isDev = process.env.NODE_ENV === "development";
 
+  // Step 2.5: If an auth code lands at the root (Supabase falls back to Site URL when
+  // the /auth/callback path isn't explicitly listed in its Redirect URLs allowlist),
+  // forward all query params to the real callback handler.
+  if (pathname === "/" && request.nextUrl.searchParams.has("code")) {
+    const callbackUrl = new URL("/auth/callback", request.url);
+    request.nextUrl.searchParams.forEach((value, key) => {
+      callbackUrl.searchParams.set(key, value);
+    });
+    const fwd = NextResponse.redirect(callbackUrl, 307);
+    copyCookies(supabaseResponse, fwd);
+    return fwd;
+  }
+
   // Step 3: Always allow public routes and API routes through (after session refresh)
   if (isPublicRoute(pathname) || isApiRoute(pathname)) {
     // For authenticated users hitting /login, redirect to home
@@ -173,11 +186,11 @@ export async function updateSession(request: NextRequest) {
         }
       }
 
-      // Fallback: no org found — redirect to onboarding so user can create an org
-      const onboardingUrl = new URL("/onboarding", request.url);
-      const onboardingRedirect = NextResponse.redirect(onboardingUrl, 307);
-      copyCookies(supabaseResponse, onboardingRedirect);
-      return onboardingRedirect;
+      // Fallback: no org found — redirect to setup wizard so user can create an org
+      const setupUrl = new URL("/setup/wizard", request.url);
+      const setupRedirect = NextResponse.redirect(setupUrl, 307);
+      copyCookies(supabaseResponse, setupRedirect);
+      return setupRedirect;
     } else {
       // Not authenticated, no slug:
       // In dev with no ?org=, redirect to /login

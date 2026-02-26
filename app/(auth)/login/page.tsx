@@ -17,13 +17,15 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   const urlError = searchParams?.get("error");
+  const inviteToken = searchParams?.get("invite") ?? undefined;
+  const inviteOrg = searchParams?.get("org") ?? undefined;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
 
-    const result = await signIn(email, password);
+    const result = await signIn(email, password, inviteToken);
 
     if (result?.error) {
       setError(result.error);
@@ -38,9 +40,13 @@ function LoginForm() {
 
         {/* Brand */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Sign in to Prompt</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {inviteOrg ? `Sign in to join ${inviteOrg}` : "Sign in to Prompt"}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Enter your email and password to continue
+            {inviteOrg
+              ? "Enter your credentials and you'll be taken straight to the invite."
+              : "Enter your email and password to continue"}
           </p>
         </div>
 
@@ -121,7 +127,12 @@ function LoginForm() {
 
         <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
-          <a href="/signup" className="font-medium text-foreground hover:underline">
+          <a
+            href={inviteToken
+              ? `/signup?invite=${encodeURIComponent(inviteToken)}${inviteOrg ? `&org=${encodeURIComponent(inviteOrg)}` : ""}`
+              : "/signup"}
+            className="font-medium text-foreground hover:underline"
+          >
             Get started
           </a>
         </p>

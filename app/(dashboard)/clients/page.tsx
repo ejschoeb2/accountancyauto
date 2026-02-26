@@ -20,13 +20,14 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     getClientFilingStatuses(supabase),
   ]);
 
-  // Build a lookup map: clientId -> { status, next_deadline, next_deadline_type }
-  const statusMap: Record<string, { status: string; next_deadline: string | null; next_deadline_type: string | null }> = {};
+  // Build a lookup map: clientId -> { status, next_deadline, next_deadline_type, underlying_status }
+  const statusMap: Record<string, { status: string; next_deadline: string | null; next_deadline_type: string | null; underlying_status?: string }> = {};
   for (const row of clientStatusList) {
     statusMap[row.id] = {
       status: row.status,
       next_deadline: row.next_deadline,
       next_deadline_type: row.next_deadline_type,
+      underlying_status: row.underlying_status,
     };
   }
 

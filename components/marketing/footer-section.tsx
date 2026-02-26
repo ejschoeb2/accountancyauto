@@ -49,7 +49,7 @@ export const FooterSection = () => {
             Ready to stop chasing?
           </h2>
           <a
-            href="/onboarding"
+            href="/setup/wizard"
             className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-8 py-4 text-lg font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
           >
             Get started
@@ -75,7 +75,7 @@ export const FooterSection = () => {
               <a href="/news" className="hover:text-white transition-colors">News</a>
               <a href="/changelog" className="hover:text-white transition-colors">Changelog</a>
               <a href="/login" className="hover:text-white transition-colors">Login</a>
-              <a href="/onboarding" className="hover:text-white transition-colors">Sign Up</a>
+              <a href="/setup/wizard" className="hover:text-white transition-colors">Sign Up</a>
               <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
             </nav>

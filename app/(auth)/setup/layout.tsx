@@ -15,15 +15,14 @@ export default async function SetupLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  // Unauthenticated users are allowed through — the wizard page shows the
+  // Account step so they can create an account without hitting /login first.
 
   // Gate: if member already completed wizard, redirect to their dashboard
   try {
     const setupComplete = await getMemberSetupComplete();
 
-    if (setupComplete) {
+    if (setupComplete && user) {
       // Resolve org slug for dashboard redirect
       const admin = createAdminClient();
       const { data: userOrg } = await admin

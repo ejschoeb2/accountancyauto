@@ -164,21 +164,21 @@ function AcceptInviteContent() {
                 )}
               </div>
 
-              <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
-                <p className="text-sm font-medium">Sign in to accept this invite</p>
-                <p className="text-sm text-muted-foreground">
-                  You need to sign in first. After signing in, click the invite
-                  link in your email again to accept and join {orgName}.
-                </p>
+              <div className="space-y-3">
+                <Button asChild className="w-full">
+                  <Link href={`/signup?invite=${encodeURIComponent(token)}&org=${encodeURIComponent(orgName)}`}>
+                    Create an account to join
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href={`/login?invite=${encodeURIComponent(token)}&org=${encodeURIComponent(orgName)}`}>
+                    Sign in to an existing account
+                  </Link>
+                </Button>
               </div>
 
-              <Button asChild className="w-full">
-                <Link href="/login">Sign In</Link>
-              </Button>
-
               <p className="text-xs text-muted-foreground text-center">
-                Don&apos;t have an account yet? Sign in with your email and we&apos;ll
-                create one for you.
+                After signing in or creating an account, you&apos;ll be taken straight back here to accept.
               </p>
             </CardContent>
           </Card>

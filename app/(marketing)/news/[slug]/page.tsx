@@ -119,7 +119,7 @@ export default async function ArticlePage({
                 </p>
               </div>
               <a
-                href="/onboarding"
+                href="/setup/wizard"
                 className="shrink-0 inline-flex items-center gap-2 rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
               >
                 Try Prompt free

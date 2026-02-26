@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 
-export async function signIn(email: string, password: string) {
+export async function signIn(email: string, password: string, inviteToken?: string) {
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -18,6 +18,11 @@ export async function signIn(email: string, password: string) {
           ? "Incorrect email or password."
           : "Failed to sign in. Please try again.",
     };
+  }
+
+  // If the user came from an invite link, send them back to accept it
+  if (inviteToken) {
+    redirect(`/invite/accept?token=${encodeURIComponent(inviteToken)}`);
   }
 
   // Derive base domain from NEXT_PUBLIC_APP_URL (e.g. prompt.qpon)
@@ -60,27 +65,32 @@ export async function signIn(email: string, password: string) {
     }
   }
 
-  // No org yet — new user, send to onboarding
-  redirect("/onboarding");
+  // No org yet — new user, send to setup wizard
+  redirect("/setup/wizard");
 }
 
-export async function signUp(email: string, password: string) {
+export async function signUp(email: string, password: string, inviteToken?: string) {
   const supabase = await createClient();
   const h = await headers();
   const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
-  // NEXT_PUBLIC_APP_URL is the most reliable source (set in Vercel env vars).
-  // Falls back to deriving from request headers if not set.
+  // Use the request's own origin as the callback base — NEXT_PUBLIC_APP_URL may
+  // point to the marketing apex domain (e.g. prompt.qpon) rather than the app
+  // subdomain (e.g. app.prompt.qpon), which would send the email link to a page
+  // with no callback handler. The signup request always originates from the app.
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
     h.get("origin") ||
-    `${proto}://${host}`;
+    `${proto}://${host}` ||
+    process.env.NEXT_PUBLIC_APP_URL;
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${appUrl}/auth/callback`,
+      // Use the root origin (not /auth/callback) so the URL is always allowed by
+      // Supabase — Supabase only allows the exact Site URL or explicitly listed paths.
+      // The middleware intercepts /?code=... and forwards it to /auth/callback.
+      emailRedirectTo: appUrl,
     },
   });
 
@@ -93,9 +103,13 @@ export async function signUp(email: string, password: string) {
     return { error: "Failed to create account. Please try again." };
   }
 
-  // Email confirmation disabled — user is immediately signed in, send to onboarding
+  // Email confirmation disabled — user is immediately signed in
   if (data.session) {
-    redirect("/onboarding");
+    // If the user came from an invite link, send them back to accept it
+    if (inviteToken) {
+      redirect(`/invite/accept?token=${encodeURIComponent(inviteToken)}`);
+    }
+    redirect("/setup/wizard");
   }
 
   return { success: true };
@@ -107,12 +121,14 @@ export async function forgotPassword(email: string) {
   const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
   const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
     h.get("origin") ||
-    `${proto}://${host}`;
+    `${proto}://${host}` ||
+    process.env.NEXT_PUBLIC_APP_URL;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${appUrl}/auth/callback?redirect=/auth/reset-password`,
+    // Use root + redirect param so Supabase treats this as the Site URL (always allowed).
+    // The middleware forwards /?code=&redirect=... to /auth/callback?code=&redirect=...
+    redirectTo: `${appUrl}?redirect=/auth/reset-password`,
   });
 
   if (error) {

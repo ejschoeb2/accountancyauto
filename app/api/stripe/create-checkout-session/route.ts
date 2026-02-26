@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    let body: { planTier?: string; orgId?: string };
+    let body: { planTier?: string; orgId?: string; successUrl?: string };
     try {
       body = await request.json();
     } catch {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { planTier, orgId } = body;
+    const { planTier, orgId, successUrl } = body;
 
     if (!planTier || !orgId) {
       return NextResponse.json(
@@ -106,8 +106,12 @@ export async function POST(request: NextRequest) {
       mode: "subscription",
       payment_method_collection: "always",
       line_items: [{ price: plan.priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+      success_url: successUrl
+        ? `${process.env.NEXT_PUBLIC_APP_URL}${successUrl}`
+        : `${process.env.NEXT_PUBLIC_APP_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: successUrl
+        ? `${process.env.NEXT_PUBLIC_APP_URL}${successUrl}`
+        : `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       metadata: {
         org_id: orgId,
         plan_tier: planTier,

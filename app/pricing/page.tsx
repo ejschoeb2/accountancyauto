@@ -175,7 +175,7 @@ export default function PricingPage() {
               <CardFooter>
                 {isFree ? (
                   <Button className="w-full" variant="outline" asChild>
-                    <Link href="/onboarding">Get Started Free</Link>
+                    <Link href="/setup/wizard">Get Started Free</Link>
                   </Button>
                 ) : isEnterprise ? (
                   <Button className="w-full" variant="outline" asChild>

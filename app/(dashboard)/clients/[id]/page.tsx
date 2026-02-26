@@ -87,6 +87,24 @@ export default function ClientPage() {
     setEditing(false);
   };
 
+  const handleToggleReminders = async () => {
+    try {
+      const response = await fetch(`/api/clients/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reminders_paused: !client!.reminders_paused }),
+      });
+      if (!response.ok) throw new Error('Failed to update reminders status');
+      const result = await response.json();
+      const updated = result.data || result;
+      setClient(updated);
+      setFormData(updated);
+      toast.success(client!.reminders_paused ? 'Reminders resumed' : 'Reminders paused');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update reminders');
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -138,10 +156,19 @@ export default function ClientPage() {
                 {client.client_type}
               </IconButtonWithText>
             )}
-            {client.reminders_paused && (
-              <Badge variant="outline" className="border-status-warning text-status-warning">
-                Reminders Paused
-              </Badge>
+            {client.reminders_paused ? (
+              <>
+                <Badge variant="outline" className="border-status-warning text-status-warning">
+                  Reminders Paused
+                </Badge>
+                <IconButtonWithText variant="green" onClick={handleToggleReminders}>
+                  Resume Reminders
+                </IconButtonWithText>
+              </>
+            ) : (
+              <IconButtonWithText variant="amber" onClick={handleToggleReminders}>
+                Pause Reminders
+              </IconButtonWithText>
             )}
           </div>
         </div>

@@ -78,6 +78,7 @@ export interface ClientStatusInfo {
   status: string;
   next_deadline: string | null;
   next_deadline_type: string | null;
+  underlying_status?: string;
 }
 
 const FILING_TYPE_LABELS: Record<string, string> = {
@@ -734,6 +735,72 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         enableSorting: false,
       },
       {
+        id: "reminders_paused",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Reminders
+          </span>
+        ),
+        cell: ({ row }) => {
+          const client = row.original;
+          const info = statusMap[client.id];
+
+          // View mode
+          if (!isEditMode) {
+            if (!client.reminders_paused) return <span className="text-sm text-muted-foreground">Active</span>;
+            // Show what status they'd have if resumed
+            const underlyingLabel = info?.underlying_status
+              ? STATUS_LABELS[info.underlying_status as TrafficLightStatus] ?? info.underlying_status
+              : null;
+            return (
+              <div className="space-y-0.5">
+                <Badge variant="outline" className="text-xs border-status-warning text-status-warning whitespace-nowrap">
+                  Paused
+                </Badge>
+                {underlyingLabel && (
+                  <div className="text-xs text-muted-foreground">→ {underlyingLabel}</div>
+                )}
+              </div>
+            );
+          }
+
+          // Edit mode: show select for all clients
+          return (
+            <EditableCell
+              value={client.reminders_paused ? "true" : "false"}
+              type="select"
+              options={[
+                { value: "false", label: "Active" },
+                { value: "true", label: "Paused (Inactive)" },
+              ]}
+              isEditMode={isEditMode}
+              onSave={async (value) => {
+                const newPaused = value === "true";
+                const previousData = [...data];
+                setData((prev) =>
+                  prev.map((c) =>
+                    c.id === client.id ? { ...c, reminders_paused: newPaused } : c
+                  )
+                );
+                try {
+                  const response = await fetch(`/api/clients/${client.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reminders_paused: newPaused }),
+                  });
+                  if (!response.ok) throw new Error('Failed to update reminders status');
+                  toast.success(newPaused ? 'Reminders paused' : 'Reminders resumed');
+                } catch (error) {
+                  setData(previousData);
+                  toast.error(error instanceof Error ? error.message : 'Failed to update');
+                }
+              }}
+            />
+          );
+        },
+        enableSorting: false,
+      },
+      {
         id: "status",
         header: () => (
           <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -769,11 +836,17 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
               icon: <CheckCircle className="h-4 w-4" />,
               label: 'Scheduled',
             },
+            violet: {
+              bg: 'bg-violet-500/10',
+              text: 'text-violet-600',
+              icon: <CheckCircle className="h-4 w-4" />,
+              label: 'Records Received',
+            },
             green: {
               bg: 'bg-green-500/10',
               text: 'text-green-600',
               icon: <CheckCircle className="h-4 w-4" />,
-              label: 'Records Received',
+              label: 'Completed',
             },
             grey: {
               bg: 'bg-status-neutral/10',
