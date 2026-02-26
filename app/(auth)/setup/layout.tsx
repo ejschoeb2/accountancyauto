@@ -45,7 +45,9 @@ export default async function SetupLayout({
           if (isDev) {
             redirect(`/?org=${org.slug}`);
           } else {
-            redirect(`https://${org.slug}.app.phasetwo.uk/`);
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
+            const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
+            redirect(`https://${org.slug}.app.${baseDomain}/`);
           }
         }
       }

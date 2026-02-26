@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function signIn(email: string, password: string) {
   const supabase = await createClient();
 
-  const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return {
@@ -24,8 +24,12 @@ export async function signIn(email: string, password: string) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
   const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
 
-  // Use org_id injected by the JWT Custom Access Token Hook
-  const orgId = user?.app_metadata?.org_id as string | undefined;
+  // Read org_id from the session JWT — signInWithPassword's returned user object has
+  // app_metadata from the database (raw_app_meta_data), which does NOT include values
+  // injected by the Custom Access Token Hook. getSession() decodes the JWT directly,
+  // so org_id is present when the hook has run.
+  const { data: { session } } = await supabase.auth.getSession();
+  const orgId = session?.user?.app_metadata?.org_id as string | undefined;
 
   if (orgId) {
     const { data: org } = await supabase
@@ -35,7 +39,7 @@ export async function signIn(email: string, password: string) {
       .single();
 
     if (org?.slug) {
-      redirect(`https://${org.slug}.app.${baseDomain}/`);
+      redirect(`https://${org.slug}.app.${baseDomain}/dashboard`);
     }
   }
 

@@ -85,7 +85,9 @@ function AcceptInviteContent() {
       if (isDev) {
         window.location.href = `/setup/wizard?org=${orgSlug}`;
       } else {
-        window.location.href = `https://${orgSlug}.app.phasetwo.uk/setup/wizard`;
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
+        const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
+        window.location.href = `https://${orgSlug}.app.${baseDomain}/setup/wizard`;
       }
     } else {
       // orgSlug missing — user was added but we couldn't resolve the slug
