@@ -561,7 +561,7 @@ export default function OnboardingPage() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Your workspace</span>
                 <span className="font-medium text-primary">
-                  {createdSlug}.app.phasetwo.uk
+                  {createdSlug}.app.{(process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon").replace(/^https?:\/\/(www\.)?/, "")}
                 </span>
               </div>
             </CardContent>
