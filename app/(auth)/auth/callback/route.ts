@@ -58,6 +58,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Fallback: redirect to origin root (middleware will handle org resolution)
-  return NextResponse.redirect(`${origin}/`);
+  // No org yet — new user, send straight to onboarding
+  return NextResponse.redirect(`${origin}/onboarding`);
 }

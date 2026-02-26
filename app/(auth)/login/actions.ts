@@ -72,10 +72,9 @@ export async function signUp(email: string, password: string) {
     return { error: "Failed to create account. Please try again." };
   }
 
-  // Email confirmation disabled — user is immediately signed in
+  // Email confirmation disabled — user is immediately signed in, send to onboarding
   if (data.session) {
-    revalidatePath("/", "layout");
-    redirect("/");
+    redirect("/onboarding");
   }
 
   return { success: true };
