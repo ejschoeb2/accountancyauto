@@ -92,7 +92,7 @@ export function EmailConfigForm({
             type="email"
             value={senderAddress}
             onChange={(e) => setSenderAddress(e.target.value)}
-            placeholder="hello@phasetwo.uk"
+            placeholder="hello@yourfirm.co.uk"
           />
           <p className="text-xs text-muted-foreground">
             Must be verified in Postmark before sending
@@ -111,7 +111,7 @@ export function EmailConfigForm({
             type="email"
             value={replyTo}
             onChange={(e) => setReplyTo(e.target.value)}
-            placeholder="hello@phasetwo.uk"
+            placeholder="hello@yourfirm.co.uk"
           />
           <p className="text-xs text-muted-foreground">
             Where client replies will be directed

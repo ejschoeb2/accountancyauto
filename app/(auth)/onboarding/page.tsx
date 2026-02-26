@@ -193,7 +193,9 @@ export default function OnboardingPage() {
     if (isDev) {
       window.location.href = `/?org=${orgSlug}`;
     } else {
-      window.location.href = `https://${orgSlug}.app.phasetwo.uk/`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
+      const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
+      window.location.href = `https://${orgSlug}.app.${baseDomain}/`;
     }
   };
 
@@ -350,7 +352,7 @@ export default function OnboardingPage() {
                 {/* Slug status message */}
                 {slug && slugStatus === "available" && (
                   <p className="text-xs text-green-600">
-                    Your workspace URL: <span className="font-medium">{slug}.app.phasetwo.uk</span>
+                    Your workspace URL: <span className="font-medium">{slug}.app.{(process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon").replace(/^https?:\/\/(www\.)?/, "")}</span>
                   </p>
                 )}
                 {slugStatus === "unavailable" && slugReason && (
@@ -546,7 +548,7 @@ export default function OnboardingPage() {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Your workspace</span>
                 <span className="font-medium text-primary">
-                  {createdSlug}.app.phasetwo.uk
+                  {createdSlug}.app.{(process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon").replace(/^https?:\/\/(www\.)?/, "")}
                 </span>
               </div>
             </CardContent>
