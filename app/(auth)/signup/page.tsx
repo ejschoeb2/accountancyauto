@@ -79,7 +79,7 @@ export default function SignupPage() {
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
           <p className="text-sm text-muted-foreground">
-            Start your 14-day free trial — no card required
+            Free for up to 25 clients, no card required
           </p>
         </div>
 

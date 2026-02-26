@@ -28,13 +28,18 @@ export async function signUp(email: string, password: string) {
   const h = await headers();
   const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
-  const origin = h.get("origin") || `${proto}://${host}`;
+  // NEXT_PUBLIC_APP_URL is the most reliable source (set in Vercel env vars).
+  // Falls back to deriving from request headers if not set.
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    h.get("origin") ||
+    `${proto}://${host}`;
 
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: `${appUrl}/auth/callback`,
     },
   });
 
@@ -61,10 +66,13 @@ export async function forgotPassword(email: string) {
   const h = await headers();
   const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
-  const origin = h.get("origin") || `${proto}://${host}`;
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    h.get("origin") ||
+    `${proto}://${host}`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?redirect=/auth/reset-password`,
+    redirectTo: `${appUrl}/auth/callback?redirect=/auth/reset-password`,
   });
 
   if (error) {
