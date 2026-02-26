@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { CheckCircle2, XCircle, ArrowRight } from "lucide-react";
 
 const ROWS: { oldWay: string; withPrompt: string }[] = [
@@ -43,7 +43,7 @@ const containerVariants = {
   },
 };
 
-const rowVariants = {
+const rowVariants: Variants = {
   hidden:  { opacity: 0, y: 16 },
   visible: {
     opacity: 1,
