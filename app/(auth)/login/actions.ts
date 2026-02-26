@@ -5,10 +5,11 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
+
 export async function signIn(email: string, password: string) {
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return {
@@ -19,8 +20,27 @@ export async function signIn(email: string, password: string) {
     };
   }
 
-  revalidatePath("/", "layout");
-  redirect("/");
+  // Derive base domain from NEXT_PUBLIC_APP_URL (e.g. prompt.qpon)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
+  const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
+
+  // Use org_id injected by the JWT Custom Access Token Hook
+  const orgId = user?.app_metadata?.org_id as string | undefined;
+
+  if (orgId) {
+    const { data: org } = await supabase
+      .from("organisations")
+      .select("slug")
+      .eq("id", orgId)
+      .single();
+
+    if (org?.slug) {
+      redirect(`https://${org.slug}.app.${baseDomain}/`);
+    }
+  }
+
+  // No org yet — new user, send to onboarding
+  redirect("/onboarding");
 }
 
 export async function signUp(email: string, password: string) {
