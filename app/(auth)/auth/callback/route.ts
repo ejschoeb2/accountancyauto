@@ -46,9 +46,11 @@ export async function GET(request: NextRequest) {
             devUrl.searchParams.set("org", org.slug);
             return NextResponse.redirect(devUrl);
           } else {
-            // Production: redirect to org's subdomain
+            // Production: derive base domain from current host
+            // e.g. app.prompt.qpon → prompt.qpon; {slug}.app.prompt.qpon → prompt.qpon
+            const baseDomain = hostname.replace(/^([^.]+\.)*app\./, "") || hostname;
             return NextResponse.redirect(
-              new URL(redirectPath, `https://${org.slug}.app.phasetwo.uk`)
+              new URL(redirectPath, `https://${org.slug}.app.${baseDomain}`)
             );
           }
         }

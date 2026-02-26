@@ -23,7 +23,7 @@ export const MarketingNav = () => {
               Login
             </a>
             <a
-              href="/login"
+              href="/signup"
               className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all duration-200"
             >
               Get started

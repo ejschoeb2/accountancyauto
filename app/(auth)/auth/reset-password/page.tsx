@@ -1,35 +1,43 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { signIn } from "./actions";
+import { resetPassword } from "../../login/actions";
 
-function LoginForm() {
-  const searchParams = useSearchParams();
-  const [email, setEmail] = useState("");
+export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const urlError = searchParams?.get("error");
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
 
-    const result = await signIn(email, password);
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    const result = await resetPassword(password);
 
     if (result?.error) {
       setError(result.error);
       setIsLoading(false);
     }
-    // On success, signIn() calls redirect() server-side — no client handling needed
+    // On success, resetPassword() calls redirect() server-side
   }
 
   return (
@@ -38,57 +46,33 @@ function LoginForm() {
 
         {/* Brand */}
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Sign in to Prompt</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Set a new password</h1>
           <p className="text-sm text-muted-foreground">
-            Enter your email and password to continue
+            Choose a strong password for your account
           </p>
         </div>
 
         {/* Form */}
         <div className="space-y-4">
-          {(error || urlError) && (
+          {error && (
             <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {error ||
-                (urlError === "auth_failed" && "Authentication failed. Please try again.") ||
-                "An error occurred. Please try again."}
+              {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <a
-                  href="/forgot-password"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Forgot password?
-                </a>
-              </div>
+              <Label htmlFor="password">New password</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
+                  placeholder="At least 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   className="pr-10"
                 />
                 <button
@@ -102,44 +86,48 @@ function LoginForm() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm new password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  autoComplete="new-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
             <Button
               type="submit"
-              disabled={isLoading || !email || !password}
+              disabled={isLoading || !password || !confirmPassword}
               className="w-full"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="size-4 mr-2 animate-spin" />
-                  Signing in...
+                  Updating password...
                 </>
               ) : (
-                "Sign in"
+                "Update password"
               )}
             </Button>
           </form>
         </div>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <a href="/signup" className="font-medium text-foreground hover:underline">
-            Get started
-          </a>
-        </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
-      <LoginForm />
-    </Suspense>
   );
 }
