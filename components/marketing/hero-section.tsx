@@ -14,7 +14,7 @@ export const HeroSection = () => {
           Text is z-10 so particles pass underneath naturally. */}
       <HeroParticles />
 
-      <div className="max-w-6xl mx-auto px-4 relative">
+      <div className="max-w-screen-xl mx-auto px-4 relative">
         {/* Constrained to left portion of the content area */}
         <div className="flex flex-col gap-4 max-w-[720px]">
           <h1 className="text-8xl lg:text-9xl font-bold tracking-tight text-foreground leading-none">

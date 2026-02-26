@@ -3,6 +3,20 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getOrgSlug, resolveOrgFromSlug } from "@/lib/middleware/subdomain";
 import { enforceSubscription } from "@/lib/middleware/access-gating";
 
+/**
+ * Returns a dot-prefixed root domain for cross-subdomain cookie sharing in production.
+ * e.g. NEXT_PUBLIC_APP_URL=https://prompt.qpon → ".prompt.qpon"
+ * Returns undefined in development so cookies use default host-only behaviour.
+ */
+function getCookieDomain(): string | undefined {
+  if (process.env.NODE_ENV !== "production") return undefined;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const match = appUrl.match(/^https?:\/\/([^/]+)/);
+  if (!match) return undefined;
+  const parts = match[1].split(".");
+  return parts.length >= 2 ? "." + parts.slice(-2).join(".") : undefined;
+}
+
 // Routes that don't require org context or authentication
 const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/auth/signout", "/auth/reset-password", "/pricing", "/onboarding", "/invite/accept", "/portal"];
 
@@ -47,6 +61,8 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  const cookieDomain = getCookieDomain();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -63,7 +79,11 @@ export async function updateSession(request: NextRequest) {
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(
+              name,
+              value,
+              cookieDomain ? { ...options, domain: cookieDomain } : options
+            )
           );
         },
       },

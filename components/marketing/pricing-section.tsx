@@ -82,7 +82,7 @@ export const PricingSection = () => {
 
   return (
     <section id="pricing" className="py-20 lg:py-28">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-screen-xl mx-auto px-4">
 
         {/* ── Top row: header (left) + card (right) ──────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 lg:gap-16 items-stretch mb-0 lg:mb-0">
@@ -90,7 +90,7 @@ export const PricingSection = () => {
           {/* Header + client count */}
           <div className="flex flex-col justify-between gap-8 lg:py-1">
             <div>
-              <p className="text-[11px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
+              <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
                 Pricing
               </p>
               <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
@@ -111,7 +111,26 @@ export const PricingSection = () => {
           </div>
 
           {/* Dynamic pricing card */}
-          <AnimatePresence mode="wait">
+          <div className="flex flex-col">
+            {/* "MOST POPULAR" label sits above the card box */}
+            <div className="h-5 flex items-center justify-center mb-2">
+              <AnimatePresence mode="wait">
+                {tier.featured && (
+                  <motion.p
+                    key="most-popular-label"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="text-[10px] font-semibold tracking-[0.25em] uppercase text-violet-500"
+                  >
+                    Most Popular
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <AnimatePresence mode="wait">
             <motion.div
               key={tier.key}
               initial={{ opacity: 0, y: 14 }}
@@ -121,17 +140,12 @@ export const PricingSection = () => {
               className={[
                 "flex flex-col p-7 rounded-2xl border shadow-lg",
                 tier.featured
-                  ? "bg-violet-500/[0.03] border-violet-500/40"
+                  ? "bg-card border-2 border-violet-500"
                   : tier.isEnterprise
                   ? "bg-card border-dashed border-border"
                   : "bg-card border-border/60",
               ].join(" ")}
             >
-              {tier.featured && (
-                <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-violet-500 mb-3">
-                  Most Popular
-                </p>
-              )}
 
               <h3 className="text-lg font-bold text-foreground tracking-tight mb-4">
                 {tier.name}
@@ -175,7 +189,7 @@ export const PricingSection = () => {
 
               <a
                 href={tier.ctaHref}
-                className="group self-start inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-sky-500 to-sky-400 text-white shadow-md shadow-sky-500/30 hover:shadow-sky-500/50 hover:from-sky-400 hover:to-sky-300 active:scale-95 transition-all duration-200 mb-5"
+                className="group self-start inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold bg-violet-600 text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200 mb-5"
               >
                 {tier.cta}
                 <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -187,6 +201,7 @@ export const PricingSection = () => {
 
             </motion.div>
           </AnimatePresence>
+          </div>
 
         </div>
 

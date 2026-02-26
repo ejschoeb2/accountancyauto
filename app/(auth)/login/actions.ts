@@ -23,13 +23,26 @@ export async function signIn(email: string, password: string) {
   // Derive base domain from NEXT_PUBLIC_APP_URL (e.g. prompt.qpon)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
   const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
+  const isDev = process.env.NODE_ENV === "development";
 
   // Read org_id from the session JWT — signInWithPassword's returned user object has
   // app_metadata from the database (raw_app_meta_data), which does NOT include values
   // injected by the Custom Access Token Hook. getSession() decodes the JWT directly,
   // so org_id is present when the hook has run.
   const { data: { session } } = await supabase.auth.getSession();
-  const orgId = session?.user?.app_metadata?.org_id as string | undefined;
+  let orgId = session?.user?.app_metadata?.org_id as string | undefined;
+
+  // Fallback: if the Custom Access Token Hook didn't inject org_id into the JWT
+  // (e.g. hook misconfigured or not yet run), query user_organisations directly.
+  if (!orgId && session?.user?.id) {
+    const { data: userOrg } = await supabase
+      .from("user_organisations")
+      .select("org_id")
+      .eq("user_id", session.user.id)
+      .limit(1)
+      .single();
+    orgId = userOrg?.org_id;
+  }
 
   if (orgId) {
     const { data: org } = await supabase
@@ -39,7 +52,11 @@ export async function signIn(email: string, password: string) {
       .single();
 
     if (org?.slug) {
-      redirect(`https://${org.slug}.app.${baseDomain}/dashboard`);
+      if (isDev) {
+        redirect(`/dashboard?org=${org.slug}`);
+      } else {
+        redirect(`https://${org.slug}.app.${baseDomain}/dashboard`);
+      }
     }
   }
 

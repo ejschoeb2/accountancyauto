@@ -85,13 +85,13 @@ const FeatureCard = ({ feature }: { feature: typeof features[number] }) => {
 export const FeaturesSection = () => {
   return (
     <section id="features" className="py-20 lg:py-28">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-screen-xl mx-auto px-4">
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start">
 
           {/* Left: section header */}
-          <div className="lg:col-span-4 lg:pt-2">
-            <p className="text-[11px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
+          <div className="lg:col-span-4 lg:pt-2 lg:sticky lg:top-24">
+            <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
               What We Do
             </p>
             <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">

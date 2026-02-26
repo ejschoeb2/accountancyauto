@@ -16,26 +16,57 @@ import {
   Receipt,
   Zap,
   Shield,
+  Building2,
+  Briefcase,
+  Calculator,
+  CreditCard,
+  TrendingUp,
+  BarChart3,
+  FolderOpen,
+  Percent,
+  FileCheck,
+  BadgeCheck,
 } from "lucide-react";
 
 // ── Colours ──────────────────────────────────────────────────────────────────
+// Matches hero-particles.tsx: violet/purple = brand, blue = Scheduled,
+// green = Records Received, amber = Approaching, orange = Critical, red = Overdue
 
-type ParticleColour = 'violet' | 'violet2' | 'blue' | 'blue2' | 'sky' | 'sky2';
+type ParticleColour =
+  | 'violet' | 'violet2' | 'purple'
+  | 'blue'
+  | 'green' | 'emerald'
+  | 'amber' | 'orange'
+  | 'red';
 
 const PARTICLE_COLOUR_CLASSES: Record<ParticleColour, string> = {
   violet:  'text-violet-500',
   violet2: 'text-violet-400',
+  purple:  'text-purple-500',
   blue:    'text-blue-500',
-  blue2:   'text-blue-400',
-  sky:     'text-sky-500',
-  sky2:    'text-sky-400',
+  green:   'text-green-500',
+  emerald: 'text-emerald-400',
+  amber:   'text-amber-500',
+  orange:  'text-orange-500',
+  red:     'text-red-500',
 };
 
-const PARTICLE_COLOURS: ParticleColour[] = ['violet', 'violet2', 'blue', 'blue2', 'sky', 'sky2'];
+const PARTICLE_COLOURS: ParticleColour[] = [
+  'violet', 'violet', 'violet2',
+  'purple',
+  'blue', 'blue',
+  'green', 'emerald',
+  'amber', 'orange',
+  'red',
+];
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
+// Full icon pool matching hero-particles.tsx
 
-const PROMPT_ICONS = [Brain, Bell, CalendarDays, MailOpen, CheckCircle, FileText, Users, Send, Clock, Receipt, Zap, Shield] as const;
+const PROMPT_ICONS = [
+  Brain, Bell, CalendarDays, MailOpen, CheckCircle, FileText, Users, Send, Clock, Receipt, Zap, Shield,
+  Building2, Briefcase, Calculator, CreditCard, TrendingUp, BarChart3, FolderOpen, Percent, FileCheck, BadgeCheck,
+] as const;
 
 // ── Physics constants ─────────────────────────────────────────────────────────
 
@@ -107,7 +138,7 @@ const generateParticles = (containerWidth: number, containerHeight: number): Par
           id:        particleId++,
           iconIndex: Math.floor(Math.random() * PROMPT_ICONS.length),
           colour:    PARTICLE_COLOURS[Math.floor(Math.random() * PARTICLE_COLOURS.length)],
-          size:      (55 + Math.random() * 35) * sizeScale,
+          size:      (40 + Math.random() * 20) * sizeScale,
           x,
           y,
           vx:        Math.cos(finalAngle) * speed,

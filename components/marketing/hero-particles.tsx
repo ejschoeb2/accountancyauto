@@ -16,6 +16,16 @@ import {
   Receipt,
   Zap,
   Shield,
+  Building2,
+  Briefcase,
+  Calculator,
+  CreditCard,
+  TrendingUp,
+  BarChart3,
+  FolderOpen,
+  Percent,
+  FileCheck,
+  BadgeCheck,
 } from "lucide-react";
 
 // ── Colours ──────────────────────────────────────────────────────────────────
@@ -52,7 +62,10 @@ const PARTICLE_COLOURS: ParticleColour[] = [
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
-const PROMPT_ICONS = [Brain, Bell, CalendarDays, MailOpen, CheckCircle, FileText, Users, Send, Clock, Receipt, Zap, Shield] as const;
+const PROMPT_ICONS = [
+  Brain, Bell, CalendarDays, MailOpen, CheckCircle, FileText, Users, Send, Clock, Receipt, Zap, Shield,
+  Building2, Briefcase, Calculator, CreditCard, TrendingUp, BarChart3, FolderOpen, Percent, FileCheck, BadgeCheck,
+] as const;
 
 // ── Physics constants ─────────────────────────────────────────────────────────
 
@@ -91,7 +104,7 @@ const generateParticles = (
   const sizeScale = Math.max(0.6, Math.min(1, containerWidth / baseWidth));
   const visibleHeight = Math.min(containerHeight, window.innerHeight * 0.7);
   const originX = containerWidth;
-  const originY = visibleHeight / 2;
+  const originY = visibleHeight * 0.58;
 
   const layers = [
     { count: 1,  radius: 0   },
@@ -320,7 +333,7 @@ export const HeroParticles = () => {
       };
 
       animFrameRef.current = requestAnimationFrame(animate);
-    }, 1100);
+    }, 700);
 
     window.addEventListener('resize', updateDimensions);
 

@@ -116,7 +116,7 @@ Plans:
 
 ---
 
-### Phase 11: Stripe Billing
+### Phase 11: Stripe Billing *(repurposed — billing management absorbed into Settings Billing tab)*
 
 **Goal:** Each organisation has a Stripe subscription (or active trial) that determines its plan tier and usage limits; failed payments trigger an admin notification and restrict access.
 
@@ -191,7 +191,7 @@ Plans:
 
 ---
 
-### Phase 14: Super-Admin Dashboard
+### Phase 14: Super-Admin Dashboard *(repurposed — org-level admin functionality moved into Settings; /admin route remains for platform super-admin only)*
 
 **Goal:** The platform operator can see all tenants at a glance — their plan, subscription status, usage, and health — without accessing the production database directly.
 

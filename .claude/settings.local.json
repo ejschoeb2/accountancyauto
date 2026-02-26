@@ -92,7 +92,9 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Skill(gsd:add-phase)",
       "Bash(python3 -m json.tool)",
-      "WebFetch(domain:www.mapbox.com)"
+      "WebFetch(domain:www.mapbox.com)",
+      "mcp__supabase__list_edge_functions",
+      "Bash(echo No errors found in first 50 log entries:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

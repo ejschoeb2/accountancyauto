@@ -36,11 +36,11 @@ export default async function OnboardingLayout({
       if (org?.slug) {
         const isDev = process.env.NODE_ENV === "development";
         if (isDev) {
-          redirect(`/?org=${org.slug}`);
+          redirect(`/dashboard?org=${org.slug}`);
         } else {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
           const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
-          redirect(`https://${org.slug}.app.${baseDomain}/`);
+          redirect(`https://${org.slug}.app.${baseDomain}/dashboard`);
         }
       }
     }
