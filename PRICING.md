@@ -109,9 +109,9 @@ Lite does not support overage — a firm exceeding 15 clients should move to Sol
 
 ---
 
-## Trial Period
+## Free Plan
 
-14-day free trial on all tiers, no card required. After trial, billing begins on the Stripe subscription. Firms that do not convert are moved to a read-only state (data retained for 30 days, then deleted in line with the privacy policy).
+A permanent free tier (up to 25 clients) is available with no card required. Users can upgrade to a paid plan at any time via Stripe Checkout. Firms on paid plans that lapse into `unpaid` / `past_due` are moved to a read-only state (data retained for 30 days, then deleted in line with the privacy policy).
 
 ---
 

@@ -134,17 +134,16 @@ All tables live in a single Supabase Postgres database. Migrations are in `supab
 
 | Table | Purpose |
 |-------|---------|
-| `organisations` | Root tenant entity — plan tier, Stripe subscription, trial dates, per-org Postmark config |
+| `organisations` | Root tenant entity — plan tier, Stripe subscription, per-org Postmark config |
 | `user_organisations` | User-to-org membership with `role` (admin/member) |
 | `invitations` | Pending org membership invitations (token + expiry) |
 
 Key columns on `organisations`:
 - `slug` — subdomain identifier
-- `plan_tier` — enum: `sole_trader` / `practice` / `firm`
+- `plan_tier` — enum: `free` / `starter` / `practice` / `firm` / `enterprise`
 - `client_count_limit` — int, null = unlimited
 - `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`
-- `subscription_status` — enum: `trialing` / `active` / `past_due` / `cancelled` / `unpaid`
-- `trial_ends_at`
+- `subscription_status` — enum: `active` / `past_due` / `cancelled` / `unpaid` (legacy: `trialing`)
 - `postmark_server_token`, `postmark_sender_domain` — org-specific Postmark config (fallback to env vars)
 
 ### Core Business Tables
@@ -262,8 +261,8 @@ These use `createAdminClient()` (service role, bypasses RLS) and verify `CRON_SE
 |-------|----------|---------|
 | `/api/cron/reminders` | Every hour at :00 | Scans clients + schedules per org, populates `reminder_queue` |
 | `/api/cron/send-emails` | Every hour at :10 | Reads pending queue entries, sends via Postmark (per-org token), logs to `email_log` |
-| `/api/cron/trial-expiry` | Daily | Transitions orgs past `trial_ends_at` from `trialing` to `unpaid` |
-| `/api/cron/trial-reminder` | Daily | Sends trial-expiring-soon emails to org admins |
+| `/api/cron/trial-expiry` | Daily | Legacy: transitions any remaining `trialing` orgs past `trial_ends_at` to `unpaid` |
+| `/api/cron/trial-reminder` | Daily | Legacy: sends expiry emails to any remaining `trialing` org admins |
 | `/api/cron/retention` | Weekly | Flags `client_documents` where `retain_until < NOW()` and `retention_hold = false`; notifies org admin |
 
 The reminders cron runs first; send-emails runs 10 minutes later to process what was queued. The send hour is configurable per org via `app_settings`.
@@ -320,13 +319,11 @@ Price IDs come from env vars so test-mode and production accounts can differ. Fr
 ### Subscription Lifecycle
 
 ```
-Sign up → trialing (14 days)
-             ↓ trial_ends_at passes (cron/trial-expiry)
-          unpaid ←──── payment_failed (Stripe webhook)
-             ↑                ↓
-          active ←────── checkout completed
-             ↓
-          past_due → cancelled
+Sign up → free (active)
+             ├── stays on free plan
+             └── checkout completed → active (paid tier)
+                                           ↓ payment_failed (Stripe webhook)
+                                        unpaid / past_due → cancelled
 ```
 
 `subscription_status` on `organisations` is the source of truth. The Stripe webhook handler syncs it on every relevant Stripe event. `processed_webhook_events` prevents duplicate processing.
@@ -492,7 +489,7 @@ Under `app/(auth)/`:
 ```
 lib/
 ├── auth/           — org-context helpers (getOrgId, getOrgRole)
-├── billing/        — usage limits, read-only mode, trial logic, notifications
+├── billing/        — usage limits, read-only mode, notifications
 ├── deadlines/      — UK HMRC deadline calculation formulas
 ├── documents/      — storage, metadata, checklist, classification, notifications, auto-records-received
 ├── email/          — rendering, sending, keyword detection, sender

@@ -16,7 +16,7 @@ This document outlines the planned development phases beyond the current foundat
 
 **Onboarding flow** — A new firm signing up needs a guided setup experience: create organisation, enter firm details, configure default reminder settings, and invite team members. This is the first thing a new customer sees and sets the tone for the product.
 
-**Billing integration** — Multi-tenancy only makes commercial sense with a subscription model. Stripe is the standard choice: monthly billing per firm, free trial period, and a billing management page within the app. This should be implemented in this phase so the infrastructure is ready when the marketing site launches.
+**Billing integration** — Multi-tenancy only makes commercial sense with a subscription model. Stripe is the standard choice: monthly billing per firm, a permanent free tier for smaller practices, and a billing management page within the app. This should be implemented in this phase so the infrastructure is ready when the marketing site launches.
 
 **Super-admin view** — A separate, protected internal view for managing all tenants: see active firms, handle billing issues, and monitor overall system health. Not customer-facing but essential for operating the platform.
 
