@@ -276,6 +276,7 @@ Recent decisions affecting v3.0:
 - Phase 20 added: Document Integration & Document-Aware Reminders — documents inside filing cards, {{documents_required}} + {{portal_link}} template variables, auto-set Records Received
 - Phase 21 added: Document Verification — OCR & Classification Pipeline — pdf-parse + regex extraction of tax year/employer/PAYE ref from P60/P45/SA302; populate structured metadata on client_documents
 - Phase 22 added: Document Verification — Portal Feedback & Dashboard Summary — client-facing wrong-year/integrity warnings at upload; accountant-facing pre-read summary in filing card
+- Phase 23 added: Unified pricing experience with slider calculator and upgrade prompts — replace static pricing cards on /pricing and setup wizard with shared slider calculator; add client-limit upgrade prompt; lead with "Start Free"
 
 ### Known Risks
 
@@ -337,7 +338,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 - CALV-01/02: Calendar view for scheduled reminders
 - QKSN-01: Ad-hoc email from client detail page
 - Inbound email intelligence (original v3.0 Phases 10-13) — deferred indefinitely
-- BILL-EXT-01: Stripe metered/usage-based overage billing — defer to v3.x
+- BILL-EXT-01: Stripe metered/usage-based overage billing — addressed in Phase 23
 - BILL-EXT-02: Annual billing option — defer to v3.x
 - ADMN-EXT-01: Super-admin impersonation — RLS complexity, defer to v3.x
 - ADMN-EXT-02: Super-admin manual plan override — defer to v3.x
@@ -346,10 +347,10 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 
 ## Session Continuity
 
-Last session: 2026-02-25 UTC
-Stopped at: Phase 22 Plan 03 — complete (dashboard extraction display — DocumentRow + EditableField + status badges + update-extraction API action)
-Resume file: .planning/phases/22-document-verification-portal-feedback-dashboard-summary/22-03-SUMMARY.md
-Next step: Phase 23 (next phase per ROADMAP)
+Last session: 2026-02-27 UTC
+Stopped at: Phase 23 context gathered
+Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-CONTEXT.md
+Next step: /gsd:plan-phase 23
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
