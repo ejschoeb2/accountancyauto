@@ -2,6 +2,16 @@ import { redirect } from "next/navigation";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { getUsageStats } from "@/lib/billing/usage-limits";
 import { getPlanByTier, type PlanTier } from "@/lib/stripe/plans";
+
+/**
+ * Maps legacy tier values to current valid tiers for display purposes.
+ * The 'firm' tier was removed in Phase 23 — existing orgs on 'firm' are
+ * displayed as 'practice' until their subscription is migrated.
+ */
+function getEffectivePlanTier(rawTier: string): PlanTier {
+  if (rawTier === "firm") return "practice"; // Legacy migration
+  return rawTier as PlanTier;
+}
 import { createClient } from "@/lib/supabase/server";
 import {
   Card,
@@ -54,7 +64,8 @@ export default async function BillingPage() {
   }
 
   // Get plan config and usage stats
-  const planConfig = getPlanByTier(org.plan_tier as PlanTier);
+  // getEffectivePlanTier maps legacy 'firm' -> 'practice' for display
+  const planConfig = getPlanByTier(getEffectivePlanTier(org.plan_tier));
   const usageStats = await getUsageStats(orgId);
 
   const isFree = org.plan_tier === "free";

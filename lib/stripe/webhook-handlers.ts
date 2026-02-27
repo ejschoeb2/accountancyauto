@@ -60,7 +60,10 @@ export async function handleCheckoutSessionCompleted(
     return;
   }
 
-  // Get plan limits from the tier configuration
+  // Get plan limits from the tier configuration.
+  // NOTE: Legacy Firm subscribers may have plan_tier = 'firm' in the database.
+  // The billing page maps 'firm' -> 'practice' for display via getEffectivePlanTier.
+  // New checkouts with tier='firm' are rejected by the checkout route (not in PAID_PLAN_TIERS).
   const plan = getPlanByTier(planTier);
 
   const { error } = await supabase
