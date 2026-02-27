@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -53,6 +53,7 @@ import {
   type CsvImportResult,
 } from "@/app/actions/csv";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { EditableCell } from "@/app/(dashboard)/clients/components/editable-cell";
@@ -111,6 +112,42 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
   const [bulkVatStagger, setBulkVatStagger] = useState<{ enabled: boolean; value: number | null }>({ enabled: false, value: null });
   const [bulkVatScheme, setBulkVatScheme] = useState<{ enabled: boolean; value: string | null }>({ enabled: false, value: null });
   const [bulkConfirmStep, setBulkConfirmStep] = useState(false);
+
+  // ── Client limit state (for pre-import warning) ────────────────────────
+  const [clientLimit, setClientLimit] = useState<number | null>(null);
+  const [currentClientCount, setCurrentClientCount] = useState(0);
+
+  // ── Fetch client limit when entering edit-data step ──────────────────
+  useEffect(() => {
+    if (stepState !== "edit-data") return;
+
+    async function fetchLimit() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const orgId = user?.app_metadata?.org_id;
+        if (!orgId) return;
+
+        const { data: org } = await supabase
+          .from("organisations")
+          .select("client_count_limit")
+          .eq("id", orgId)
+          .single();
+
+        const { count } = await supabase
+          .from("clients")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId);
+
+        setClientLimit(org?.client_count_limit ?? null);
+        setCurrentClientCount(count ?? 0);
+      } catch {
+        // Non-blocking — if we can't fetch, just don't show limit warning
+      }
+    }
+
+    fetchLimit();
+  }, [stepState]);
 
   // Auto-suggest column mapping based on header names
   const autoSuggestMapping = useCallback((headers: string[]): ColumnMapping => {
@@ -844,12 +881,29 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
               (row) => !row.client_type || !row.year_end_date
             );
 
+            // Calculate how many rows can be imported within the plan limit
+            const remainingCapacity = clientLimit === null ? Infinity : clientLimit - currentClientCount;
+            const overLimitCount = remainingCapacity === Infinity ? 0 : Math.max(0, editableRows.length - remainingCapacity);
+            const importableCount = remainingCapacity === Infinity ? editableRows.length : Math.min(editableRows.length, Math.max(0, remainingCapacity));
+
             return (
               <div className="space-y-4">
                 {error && (
                   <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
                     <AlertCircle className="size-4" />
                     {error}
+                  </div>
+                )}
+
+                {overLimitCount > 0 && (
+                  <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
+                    <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                    <span>
+                      Your plan allows <strong>{clientLimit}</strong> clients ({currentClientCount} existing).
+                      Only the first <strong>{importableCount}</strong> of {editableRows.length} rows will be imported.
+                      The <strong>{overLimitCount} highlighted row{overLimitCount !== 1 ? "s" : ""}</strong> below will be skipped.
+                      Upgrade your plan to import all clients.
+                    </span>
                   </div>
                 )}
 
@@ -916,19 +970,21 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {editableRows.map((row) => {
+                      {editableRows.map((row, rowIndex) => {
                         const isMissingType = !row.client_type;
                         const isMissingYearEnd = !row.year_end_date;
                         const rowIncomplete = isMissingType || isMissingYearEnd;
                         const isSelected = selectedRowIds.has(row.id);
+                        const isOverLimit = overLimitCount > 0 && rowIndex >= importableCount;
 
                         return (
                           <TableRow
                             key={row.id}
                             className={cn(
                               "group",
-                              rowIncomplete && "bg-amber-50/50",
-                              isSelected && "bg-blue-50/60"
+                              isOverLimit && "bg-red-50/80 opacity-60",
+                              !isOverLimit && rowIncomplete && "bg-amber-50/50",
+                              !isOverLimit && isSelected && "bg-blue-50/60"
                             )}
                           >
                             {/* Checkbox */}
@@ -1303,6 +1359,8 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                     <Sparkles className="h-5 w-5" />
                     {incompleteRows.length > 0
                       ? `Complete ${incompleteRows.length} remaining ${incompleteRows.length === 1 ? "row" : "rows"} first`
+                      : overLimitCount > 0
+                      ? `Import ${importableCount} of ${editableRows.length} Clients`
                       : `Import ${editableRows.length} ${editableRows.length === 1 ? "Client" : "Clients"}`}
                   </IconButtonWithText>
                 </div>
