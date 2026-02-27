@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +52,7 @@ import {
   type CsvImportResult,
 } from "@/app/actions/csv";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { EditableCell } from "./editable-cell";
@@ -105,6 +106,42 @@ export function CsvImportDialog({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Client limit state (for pre-import warning) ────────────────────────
+  const [clientLimit, setClientLimit] = useState<number | null>(null);
+  const [currentClientCount, setCurrentClientCount] = useState(0);
+
+  // ── Fetch client limit when entering edit-data step ──────────────────
+  useEffect(() => {
+    if (state !== "edit-data") return;
+
+    async function fetchLimit() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const orgId = user?.app_metadata?.org_id;
+        if (!orgId) return;
+
+        const { data: org } = await supabase
+          .from("organisations")
+          .select("client_count_limit")
+          .eq("id", orgId)
+          .single();
+
+        const { count } = await supabase
+          .from("clients")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId);
+
+        setClientLimit(org?.client_count_limit ?? null);
+        setCurrentClientCount(count ?? 0);
+      } catch {
+        // Non-blocking — if we can't fetch, just don't show limit warning
+      }
+    }
+
+    fetchLimit();
+  }, [state]);
+
   // Reset state when dialog opens
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {
@@ -120,6 +157,8 @@ export function CsvImportDialog({
           setError(null);
           setShowUnmatched(false);
           setShowErrors(false);
+          setClientLimit(null);
+          setCurrentClientCount(0);
         }, 200);
       }
       onOpenChange(newOpen);
@@ -482,6 +521,7 @@ export function CsvImportDialog({
 
       const formData = new FormData();
       formData.append("file", transformedFile);
+      formData.append("createIfMissing", "true");
 
       const importResult = await importClientMetadata(formData);
       setResult(importResult);
@@ -511,7 +551,7 @@ export function CsvImportDialog({
   // Handle done
   const handleDone = useCallback(() => {
     handleOpenChange(false);
-    if (result?.success && result.summary.updatedClients > 0) {
+    if (result?.success && (result.summary.updatedClients > 0 || result.summary.createdClients > 0)) {
       onImportComplete();
     }
   }, [handleOpenChange, onImportComplete, result]);
@@ -526,10 +566,9 @@ export function CsvImportDialog({
         {state === "upload" && (
           <>
             <DialogHeader>
-              <DialogTitle>Import Client Metadata</DialogTitle>
+              <DialogTitle>Import Clients</DialogTitle>
               <DialogDescription>
-                Upload a CSV or Excel file to set metadata for your clients. Rows are
-                matched by company name.
+                Upload a CSV or Excel file to import clients. Matching names update existing clients; new names create new clients.
               </DialogDescription>
             </DialogHeader>
 
@@ -726,12 +765,18 @@ export function CsvImportDialog({
           </>
         )}
 
-        {state === "edit-data" && (
+        {state === "edit-data" && (() => {
+          // Calculate how many rows can be imported within the plan limit
+          const remainingCapacity = clientLimit === null ? Infinity : clientLimit - currentClientCount;
+          const overLimitCount = remainingCapacity === Infinity ? 0 : Math.max(0, editableRows.length - remainingCapacity);
+          const importableCount = remainingCapacity === Infinity ? editableRows.length : Math.min(editableRows.length, Math.max(0, remainingCapacity));
+
+          return (
           <>
             <DialogHeader>
               <DialogTitle>Review & Edit Import Data</DialogTitle>
               <DialogDescription>
-                Review and edit your data before importing. Company names will be matched to existing clients.
+                Review and edit your data before importing. Matching company names will update existing clients; new names will create new clients.
               </DialogDescription>
             </DialogHeader>
 
@@ -740,6 +785,18 @@ export function CsvImportDialog({
                 <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
                   <AlertCircle className="size-4" />
                   {error}
+                </div>
+              )}
+
+              {overLimitCount > 0 && (
+                <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
+                  <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                  <span>
+                    Your plan allows <strong>{clientLimit}</strong> clients ({currentClientCount} existing).
+                    Only the first <strong>{importableCount}</strong> of {editableRows.length} rows will be imported.
+                    The <strong>{overLimitCount} highlighted row{overLimitCount !== 1 ? "s" : ""}</strong> below will be skipped.{" "}
+                    <a href="/billing" className="underline underline-offset-2 hover:text-red-900">Upgrade your plan</a> to import all clients.
+                  </span>
                 </div>
               )}
 
@@ -782,8 +839,17 @@ export function CsvImportDialog({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {editableRows.map((row) => (
-                      <TableRow key={row.id} className="group">
+                    {editableRows.map((row, rowIndex) => {
+                      const isOverLimit = overLimitCount > 0 && rowIndex >= importableCount;
+
+                      return (
+                      <TableRow
+                        key={row.id}
+                        className={cn(
+                          "group",
+                          isOverLimit && "bg-red-50/80 opacity-60"
+                        )}
+                      >
                         {/* Delete Button */}
                         <TableCell>
                           <div className="flex items-center justify-center">
@@ -872,7 +938,8 @@ export function CsvImportDialog({
                           />
                         </TableCell>
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -885,11 +952,14 @@ export function CsvImportDialog({
               </IconButtonWithText>
               <IconButtonWithText variant="green" onClick={handleImportEditedData}>
                 <Sparkles className="h-5 w-5" />
-                Import {editableRows.length} {editableRows.length === 1 ? "Client" : "Clients"}
+                {overLimitCount > 0
+                  ? `Import ${importableCount} of ${editableRows.length} Clients`
+                  : `Import ${editableRows.length} ${editableRows.length === 1 ? "Client" : "Clients"}`}
               </IconButtonWithText>
             </DialogFooter>
           </>
-        )}
+          );
+        })()}
 
         {state === "importing" && (
           <div className="py-12 flex flex-col items-center justify-center space-y-4">
@@ -915,7 +985,7 @@ export function CsvImportDialog({
 
             <div className="space-y-6 py-4">
               {/* Summary cards */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm text-muted-foreground">
                     Total rows processed
@@ -934,6 +1004,20 @@ export function CsvImportDialog({
                       <Badge variant="default" className="bg-green-500">
                         <CheckCircle className="size-4 mr-1" />
                         Success
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Clients created</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-2xl font-semibold">
+                      {result.summary.createdClients}
+                    </p>
+                    {result.summary.createdClients > 0 && (
+                      <Badge variant="default" className="bg-green-500">
+                        <CheckCircle className="size-4 mr-1" />
+                        New
                       </Badge>
                     )}
                   </div>
