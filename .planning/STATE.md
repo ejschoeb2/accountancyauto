@@ -24,14 +24,14 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 23 — Unified Pricing Experience with Slider Calculator and Upgrade Prompts
-Plan: 03 complete — Phase 23 in progress (3 of 4 plans done)
-Status: Phase 23 Plan 03 COMPLETE — Stripe metered billing infrastructure: PRACTICE_OVERAGE_PRICE_ID/PRACTICE_METER_EVENT_NAME in plans.ts, Practice checkout dual line items, metered-billing.ts utility, report-usage cron route, webhook initial usage report
-Last activity: 2026-02-27 — Plan 23-03 executed: lib/stripe/metered-billing.ts created, app/api/stripe/report-usage/route.ts created, vercel.json cron added, webhook-handlers.ts updated
+Plan: 04 tasks 1-2 complete, checkpoint pending — Phase 23 in progress (3.5 of 4 plans done)
+Status: Phase 23 Plan 04 TASKS 1-2 COMPLETE — UpgradeModal component, CLIENT_LIMIT_REACHED structured API error, onLimitReached callback, CSV partial import with limitInfo; awaiting checkpoint:human-verify (Task 3)
+Last activity: 2026-02-27 — Plan 23-04 tasks 1-2 executed: components/upgrade-modal.tsx created, usage-limits.ts updated, api/clients route updated, create-client-dialog/client-table wired, csv.ts limit-awareness added
 
-Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-03-SUMMARY.md
-Next step: Phase 23 Plan 04 (upgrade prompts and client-limit enforcement)
+Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-04-SUMMARY.md
+Next step: Phase 23 Plan 04 Task 3 checkpoint:human-verify — visual and functional verification of full Phase 23 implementation
 
-Progress: [##########] Phase 22: 3/3 plans complete | [######] Phase 23: 3/4 plans complete
+Progress: [##########] Phase 22: 3/3 plans complete | [#######] Phase 23: 3.5/4 plans complete (checkpoint pending)
 
 ## Performance Metrics
 
@@ -275,6 +275,10 @@ Recent decisions affecting v3.0:
 - [Phase 23]: [D-23-02-02] onSelectTier callback renders <button>; absence renders <a> — prevents double navigation in wizard
 - [Phase 23]: [D-23-02-03] Sparkles, PLAN_TIERS, PAID_PLAN_TIERS, formatPrice removed from wizard — tier logic now owned by PricingSlider
 - [Phase 23]: [D-23-02-04] Marketing PricingSection keeps section#pricing wrapper for anchor nav — only inline slider logic moved to shared component
+- [Phase 23]: [D-23-04-01] onLimitReached callback pattern: CreateClientDialog closes itself and delegates modal ownership to ClientTable — keeps dialog stateless regarding upgrade flow
+- [Phase 23]: [D-23-04-02] CLIENT_LIMIT_REACHED structured error: POST /api/clients returns { error, code, currentCount, limit } enabling typed client-side branching
+- [Phase 23]: [D-23-04-03] limitInfo returned in CsvImportResult (not thrown) — partial import is a success state with informational metadata, not a failure
+- [Phase 23]: [D-23-04-04] CSV partial import truncates unmatchedRows via splice to remainingCapacity before insert; matched client updates are never capacity-bounded
 
 ### Roadmap Evolution
 
@@ -360,9 +364,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-27 UTC
-Stopped at: Phase 23 context gathered
-Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-CONTEXT.md
-Next step: /gsd:plan-phase 23
+Stopped at: Phase 23 Plan 04 Tasks 1-2 complete — checkpoint:human-verify (Task 3) pending
+Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-04-SUMMARY.md
+Next step: Human verification of full Phase 23 implementation (9 verification steps), then final state update
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
