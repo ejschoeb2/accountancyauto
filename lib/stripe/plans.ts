@@ -9,10 +9,10 @@
  */
 
 // Matches the plan_tier_enum in the database
-export type PlanTier = "free" | "starter" | "practice" | "firm" | "enterprise";
+export type PlanTier = "free" | "starter" | "practice" | "enterprise";
 
 /** Tiers that go through Stripe Checkout (i.e. have a Stripe Price ID) */
-export const PAID_PLAN_TIERS: PlanTier[] = ["starter", "practice", "firm"];
+export const PAID_PLAN_TIERS: PlanTier[] = ["starter", "practice"];
 
 export interface PlanConfig {
   tier: PlanTier;
@@ -22,7 +22,7 @@ export interface PlanConfig {
   priceId: string;
   /** Monthly price in pence (for display purposes). 0 for free/enterprise. */
   monthlyPrice: number;
-  /** Maximum number of clients, null = unlimited */
+  /** Maximum number of clients, null = unlimited (overage billing applies for Practice) */
   clientLimit: number | null;
   /** Feature bullet points for pricing page */
   features: string[];
@@ -58,29 +58,15 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     tier: "practice",
     name: "Practice",
     priceId: process.env.STRIPE_PRICE_PRACTICE ?? "",
-    monthlyPrice: 8900, // £89/mo
-    clientLimit: 300,
+    monthlyPrice: 8900, // £89/mo base
+    clientLimit: null, // unlimited — overage billing above 300 via metered component
     features: [
-      "Up to 300 clients",
+      "Unlimited clients",
       "Email reminders",
       "Custom templates",
       "Filing tracking",
       "Priority support",
-    ],
-  },
-  firm: {
-    tier: "firm",
-    name: "Firm",
-    priceId: process.env.STRIPE_PRICE_FIRM ?? "",
-    monthlyPrice: 15900, // £159/mo
-    clientLimit: 500,
-    features: [
-      "Up to 500 clients",
-      "Email reminders",
-      "Custom templates",
-      "Filing tracking",
-      "Priority support",
-      "Dedicated account manager",
+      "£0.60/client above 300",
     ],
   },
   enterprise: {
@@ -100,6 +86,11 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     ],
   },
 };
+
+/** Practice tier overage threshold — clients above this count incur per-client charges */
+export const PRACTICE_OVERAGE_THRESHOLD = 300;
+/** Practice overage rate in pence per client per month */
+export const PRACTICE_OVERAGE_RATE_PENCE = 60; // £0.60
 
 /** Get the plan configuration for a specific tier. */
 export function getPlanByTier(tier: PlanTier): PlanConfig {

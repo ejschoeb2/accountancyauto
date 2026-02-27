@@ -289,7 +289,7 @@ When deploying for a new accounting firm, the following variables would change. 
 
 ## Stripe Variables
 
-Stripe handles subscription billing for paid plans (Starter, Practice, Firm).
+Stripe handles subscription billing for paid plans (Starter, Practice).
 
 ### `STRIPE_SECRET_KEY`
 
@@ -346,21 +346,25 @@ STRIPE_PRICE_STARTER=price_...
 STRIPE_PRICE_PRACTICE=price_...
 ```
 
-**What it is:** The Stripe Price ID for the **Practice** plan (£89/mo, up to 300 clients).
+**What it is:** The Stripe Price ID for the **Practice** plan (£89/mo base, unlimited clients with metered overage above 300). The base price covers the flat monthly charge; overage is billed separately via `STRIPE_PRICE_PRACTICE_OVERAGE`.
 
 **Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.practice.priceId`.
 
 ---
 
-### `STRIPE_PRICE_FIRM`
+### `STRIPE_PRICE_PRACTICE_OVERAGE`
 
 ```
-STRIPE_PRICE_FIRM=price_...
+STRIPE_PRICE_PRACTICE_OVERAGE=price_...
 ```
 
-**What it is:** The Stripe Price ID for the **Firm** plan (£159/mo, up to 500 clients).
+**What it is:** Stripe metered Price ID for Practice overage billing (£0.60/client above 300). Only used when a Practice tier subscription is created — added as a second line item alongside the base Practice price to enable usage-based billing for high-volume practices.
 
-**Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.firm.priceId`.
+**Used in:** `lib/stripe/plans.ts` / `app/api/stripe/create-checkout-session/route.ts` — wired in Plan 03 (metered billing). Not yet active.
+
+**How to get it:** Stripe Dashboard → Products → Create a new usage-based Price attached to the Practice product. Set billing scheme to "Per unit" with a unit amount of 60 (pence), and aggregation as "Sum of usage during period".
+
+**Source:** Stripe Dashboard > Products.
 
 ---
 

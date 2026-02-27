@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 
-const TIER_ORDER: PlanTier[] = ["free", "starter", "practice", "firm", "enterprise"];
+const TIER_ORDER: PlanTier[] = ["free", "starter", "practice", "enterprise"];
 const RECOMMENDED_TIER: PlanTier = "practice";
 
 /**
@@ -110,7 +110,7 @@ export default function PricingPage() {
       )}
 
       {/* Plan cards grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {TIER_ORDER.map((tier) => {
           const plan = PLAN_TIERS[tier];
           const isRecommended = tier === RECOMMENDED_TIER;
