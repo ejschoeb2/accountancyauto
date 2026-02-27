@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Overview
 status: unknown
-last_updated: "2026-02-27T01:47:49.610Z"
+last_updated: "2026-02-27T01:53:58.763Z"
 progress:
   total_phases: 24
   completed_phases: 21
   total_plans: 82
-  completed_plans: 76
+  completed_plans: 78
 ---
 
 # Project State
@@ -24,14 +24,14 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 23 — Unified Pricing Experience with Slider Calculator and Upgrade Prompts
-Plan: 01 complete — Phase 23 in progress (1 of 4 plans done)
-Status: Phase 23 Plan 01 COMPLETE — Firm tier removed from plan config, Practice restructured to unlimited + metered overage, billing page handles legacy firm orgs gracefully
-Last activity: 2026-02-27 — Plan 23-01 executed: lib/stripe/plans.ts restructured (4 tiers, no Firm), PRACTICE_OVERAGE_THRESHOLD/RATE_PENCE exported, billing page + upgrade section updated
+Plan: 03 complete — Phase 23 in progress (3 of 4 plans done)
+Status: Phase 23 Plan 03 COMPLETE — Stripe metered billing infrastructure: PRACTICE_OVERAGE_PRICE_ID/PRACTICE_METER_EVENT_NAME in plans.ts, Practice checkout dual line items, metered-billing.ts utility, report-usage cron route, webhook initial usage report
+Last activity: 2026-02-27 — Plan 23-03 executed: lib/stripe/metered-billing.ts created, app/api/stripe/report-usage/route.ts created, vercel.json cron added, webhook-handlers.ts updated
 
-Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-01-SUMMARY.md
-Next step: Phase 23 Plan 02 (slider calculator extraction and pricing page rework)
+Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-03-SUMMARY.md
+Next step: Phase 23 Plan 04 (upgrade prompts and client-limit enforcement)
 
-Progress: [##########] Phase 22: 3/3 plans complete | [##] Phase 23: 1/4 plans complete
+Progress: [##########] Phase 22: 3/3 plans complete | [######] Phase 23: 3/4 plans complete
 
 ## Performance Metrics
 
@@ -269,6 +269,8 @@ Recent decisions affecting v3.0:
 - [Phase 23]: Practice.clientLimit=null — overage billing handles capacity via metered Stripe component, not hard DB limit
 - [Phase 23]: getEffectivePlanTier() maps legacy firm -> practice for display without requiring DB migration
 - [Phase 23]: PRACTICE_OVERAGE_THRESHOLD=300, PRACTICE_OVERAGE_RATE_PENCE=60 exported as named constants for Plan 02 (slider) and Plan 03 (metered billing)
+- [Phase 23]: [D-23-03-01] Stripe Billing Meter Events API used instead of legacy subscriptionItems.createUsageRecord — stripe@20.x SDK removed old metered usage record API
+- [Phase 23]: [D-23-03-02] PRACTICE_METER_EVENT_NAME env var added to plans.ts — meter event name must match Stripe Billing Meter event_name; defaults to 'practice_overage_clients'
 
 ### Roadmap Evolution
 
@@ -311,6 +313,8 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | Phase 22-document-verification-portal-feedback-dashboard-summary P01 | 10 | 2 tasks | 3 files |
 | Phase 22 P02 | 9 | 2 tasks | 3 files |
 | Phase 23 P01 | 8 | 2 tasks | 6 files |
+| Phase 23 P03 | 15 | 2 tasks | 6 files |
+| Phase 23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts P02 | 4 | 2 tasks | 4 files |
 
 ### Tech Debt
 
