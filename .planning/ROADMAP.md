@@ -396,7 +396,7 @@ Plans:
 
 **Requirements**: —
 **Depends on:** Phase 22
-**Plans:** 4 plans in 3 waves
+**Plans:** 1/4 plans executed
 
 Plans:
 - [ ] 23-01-PLAN.md — Tier restructuring: remove Firm from plans.ts, update webhook handlers, checkout route, billing page components

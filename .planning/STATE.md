@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Overview
 status: unknown
-last_updated: "2026-02-25T22:49:57.818Z"
+last_updated: "2026-02-27T01:47:49.610Z"
 progress:
-  total_phases: 23
+  total_phases: 24
   completed_phases: 21
-  total_plans: 78
-  completed_plans: 75
+  total_plans: 82
+  completed_plans: 76
 ---
 
 # Project State
@@ -23,15 +23,15 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 22 — Document Verification — Portal Feedback & Dashboard Summary
-Plan: 03 complete — Phase 22 complete (3 of 3 plans done)
-Status: Phase 22 COMPLETE — 22-01 (schema + upload route), 22-02 (portal duplicate warning + OCR confirmation card), 22-03 (dashboard extraction display + inline editing) done
-Last activity: 2026-02-25 — Plan 22-02 formally executed: ExtractionConfirmationCard component, pendingDuplicate state, inline amber duplicate warning banner with confirm/cancel
+Phase: 23 — Unified Pricing Experience with Slider Calculator and Upgrade Prompts
+Plan: 01 complete — Phase 23 in progress (1 of 4 plans done)
+Status: Phase 23 Plan 01 COMPLETE — Firm tier removed from plan config, Practice restructured to unlimited + metered overage, billing page handles legacy firm orgs gracefully
+Last activity: 2026-02-27 — Plan 23-01 executed: lib/stripe/plans.ts restructured (4 tiers, no Firm), PRACTICE_OVERAGE_THRESHOLD/RATE_PENCE exported, billing page + upgrade section updated
 
-Resume file: .planning/phases/22-document-verification-portal-feedback-dashboard-summary/22-03-SUMMARY.md
-Next step: Phase 23 (next phase per ROADMAP)
+Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-01-SUMMARY.md
+Next step: Phase 23 Plan 02 (slider calculator extraction and pricing page rework)
 
-Progress: [##########] Phase 21 done | [##########] Phase 22: 3/3 plans complete
+Progress: [##########] Phase 22: 3/3 plans complete | [##] Phase 23: 1/4 plans complete
 
 ## Performance Metrics
 
@@ -266,6 +266,9 @@ Recent decisions affecting v3.0:
 - [Phase 22]: showConfirmationCard pre-computed in handleUpload and stored on UploadedFile to avoid re-evaluating hasOcrData on every render
 - [Phase 22]: pendingDuplicate is a single state slot (not per-item map) — prevents race conditions per RESEARCH.md Pitfall 2
 - [Phase 22]: [D-22-02-03] Disabled dropzone state communicated via explicit CSS branch (gray + cursor-not-allowed) — useDropzone disabled prop does not change visual
+- [Phase 23]: Practice.clientLimit=null — overage billing handles capacity via metered Stripe component, not hard DB limit
+- [Phase 23]: getEffectivePlanTier() maps legacy firm -> practice for display without requiring DB migration
+- [Phase 23]: PRACTICE_OVERAGE_THRESHOLD=300, PRACTICE_OVERAGE_RATE_PENCE=60 exported as named constants for Plan 02 (slider) and Plan 03 (metered billing)
 
 ### Roadmap Evolution
 
@@ -307,6 +310,7 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 | Phase 21-document-verification-ocr-classification-pipeline P03 | 14 | 2 tasks | 5 files |
 | Phase 22-document-verification-portal-feedback-dashboard-summary P01 | 10 | 2 tasks | 3 files |
 | Phase 22 P02 | 9 | 2 tasks | 3 files |
+| Phase 23 P01 | 8 | 2 tasks | 6 files |
 
 ### Tech Debt
 
