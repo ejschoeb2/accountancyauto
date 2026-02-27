@@ -93,6 +93,17 @@ export async function handleCheckoutSessionCompleted(
   console.log(
     `checkout.session.completed: org ${orgId} provisioned with plan ${planTier}, subscription ${subscriptionId}`
   );
+
+  // For Practice tier, report initial usage so metered billing starts accurately
+  if (planTier === "practice") {
+    try {
+      const { reportUsageForOrg } = await import("@/lib/stripe/metered-billing");
+      await reportUsageForOrg(orgId);
+    } catch (err) {
+      // Non-blocking — cron will catch up on the next daily run
+      console.warn(`Initial usage report for org ${orgId} failed:`, err);
+    }
+  }
 }
 
 /**
