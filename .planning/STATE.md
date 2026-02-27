@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Overview
 status: unknown
-last_updated: "2026-02-27T01:53:58.763Z"
+last_updated: "2026-02-27T01:54:09.732Z"
 progress:
   total_phases: 24
   completed_phases: 21
@@ -271,6 +271,10 @@ Recent decisions affecting v3.0:
 - [Phase 23]: PRACTICE_OVERAGE_THRESHOLD=300, PRACTICE_OVERAGE_RATE_PENCE=60 exported as named constants for Plan 02 (slider) and Plan 03 (metered billing)
 - [Phase 23]: [D-23-03-01] Stripe Billing Meter Events API used instead of legacy subscriptionItems.createUsageRecord — stripe@20.x SDK removed old metered usage record API
 - [Phase 23]: [D-23-03-02] PRACTICE_METER_EVENT_NAME env var added to plans.ts — meter event name must match Stripe Billing Meter event_name; defaults to 'practice_overage_clients'
+- [Phase 23]: [D-23-02-01] Practice overage card animates on key change (practice-overage vs practice) — triggers card transition at the 300 client threshold
+- [Phase 23]: [D-23-02-02] onSelectTier callback renders <button>; absence renders <a> — prevents double navigation in wizard
+- [Phase 23]: [D-23-02-03] Sparkles, PLAN_TIERS, PAID_PLAN_TIERS, formatPrice removed from wizard — tier logic now owned by PricingSlider
+- [Phase 23]: [D-23-02-04] Marketing PricingSection keeps section#pricing wrapper for anchor nav — only inline slider logic moved to shared component
 
 ### Roadmap Evolution
 
