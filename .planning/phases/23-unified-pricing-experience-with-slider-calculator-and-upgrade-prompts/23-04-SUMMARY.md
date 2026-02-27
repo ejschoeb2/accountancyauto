@@ -70,7 +70,7 @@ completed: 2026-02-27
 - **Duration:** ~20 min
 - **Started:** 2026-02-27T02:00:00Z
 - **Completed:** 2026-02-27T02:20:00Z
-- **Tasks:** 2 of 3 complete (Task 3 is checkpoint:human-verify)
+- **Tasks:** 3 of 3 complete
 - **Files modified:** 7
 
 ## Accomplishments
@@ -80,6 +80,7 @@ completed: 2026-02-27
 - Wired `UpgradeModal` into `ClientTable` — opens when `onLimitReached` fires, determines next tier from `currentLimit`, calls `/api/stripe/create-checkout-session`
 - Added `checkClientLimit` call in `importClientMetadata` — truncates new clients to remaining capacity, populates optional `limitInfo` in result
 - Amber warning shown in wizard `CsvImportStep` and dashboard `CsvImportDialog` when `limitInfo` is present, with upgrade link in dashboard version
+- Dashboard CSV import now creates new clients for unmatched rows (`createIfMissing=true`) with red-row limit highlighting, limit warning banner, and "Clients created" summary card
 
 ## Task Commits
 
@@ -87,7 +88,7 @@ Each task was committed atomically:
 
 1. **Task 1: UpgradeModal and client creation flow integration** - `9679cbd` (feat)
 2. **Task 2: CSV import limit-awareness and partial import** - `bac071d` (feat)
-3. **Task 3: Visual and functional verification** - CHECKPOINT (pending human verification)
+3. **Task 3: Dashboard CSV client creation + verification** - `7c5b5c9` (feat)
 
 ## Files Created/Modified
 - `components/upgrade-modal.tsx` — Reusable upgrade dialog with usage progress bar and next tier card
@@ -116,7 +117,7 @@ None.
 None - no external service configuration required.
 
 ## Next Phase Readiness
-- Task 3 (checkpoint:human-verify) is pending — awaiting visual and functional verification of the full Phase 23 implementation
+- All 3 tasks complete — Phase 23 fully shipped
 - All code changes committed and TypeScript compiles cleanly
 
 ---

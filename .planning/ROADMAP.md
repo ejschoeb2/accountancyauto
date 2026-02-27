@@ -390,7 +390,7 @@ Plans:
 - [x] 22-02-PLAN.md — Portal UI: duplicate warning state + ExtractionConfirmationCard component
 - [x] 22-03-PLAN.md — Dashboard: documents API Phase 21 column support + DocumentCard with DocumentRow, status badges, inline editing
 
-### Phase 23: Unified pricing experience with slider calculator and upgrade prompts
+### Phase 23: Unified pricing experience with slider calculator and upgrade prompts — COMPLETE
 
 **Goal:** Replace static pricing cards on `/pricing` and setup wizard with the shared slider calculator from the marketing page; remove the Firm tier entirely; implement Stripe metered/usage-based overage billing on Practice (£89/mo base + £0.60/client above 300); add client-limit upgrade modal; lead with "Start Free" messaging everywhere.
 
@@ -399,10 +399,10 @@ Plans:
 **Plans:** 4/4 plans complete
 
 Plans:
-- [ ] 23-01-PLAN.md — Tier restructuring: remove Firm from plans.ts, update webhook handlers, checkout route, billing page components
-- [ ] 23-02-PLAN.md — Shared PricingSlider: extract from marketing, replace /pricing page and wizard plan step
-- [ ] 23-03-PLAN.md — Stripe metered billing: Practice overage checkout, usage reporting utility, daily cron
-- [ ] 23-04-PLAN.md — Upgrade modal + CSV partial import limit enforcement + human verification checkpoint
+- [x] 23-01-PLAN.md — Tier restructuring: remove Firm from plans.ts, update webhook handlers, checkout route, billing page components
+- [x] 23-02-PLAN.md — Shared PricingSlider: extract from marketing, replace /pricing page and wizard plan step
+- [x] 23-03-PLAN.md — Stripe metered billing: Practice overage checkout, usage reporting utility, daily cron
+- [x] 23-04-PLAN.md — Upgrade modal + CSV partial import limit enforcement + dashboard CSV client creation
 
 ---
 

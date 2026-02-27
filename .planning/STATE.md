@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Overview
 status: unknown
-last_updated: "2026-02-27T01:54:09.732Z"
+last_updated: "2026-02-27T12:00:00.000Z"
 progress:
   total_phases: 24
-  completed_phases: 21
+  completed_phases: 23
   total_plans: 82
-  completed_plans: 78
+  completed_plans: 82
 ---
 
 # Project State
@@ -19,19 +19,19 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v4.0 Document Collection milestone COMPLETE — Phase 18 complete; Phase 19 all 4 plans complete
+**Current focus:** Phase 23 COMPLETE — Unified Pricing Experience shipped. All 82 plans across 23 phases complete.
 
 ## Current Position
 
-Phase: 23 — Unified Pricing Experience with Slider Calculator and Upgrade Prompts
-Plan: 04 tasks 1-2 complete, checkpoint pending — Phase 23 in progress (3.5 of 4 plans done)
-Status: Phase 23 Plan 04 TASKS 1-2 COMPLETE — UpgradeModal component, CLIENT_LIMIT_REACHED structured API error, onLimitReached callback, CSV partial import with limitInfo; awaiting checkpoint:human-verify (Task 3)
-Last activity: 2026-02-27 — Plan 23-04 tasks 1-2 executed: components/upgrade-modal.tsx created, usage-limits.ts updated, api/clients route updated, create-client-dialog/client-table wired, csv.ts limit-awareness added
+Phase: 23 — Unified Pricing Experience with Slider Calculator and Upgrade Prompts — COMPLETE
+Plan: 04 of 04 — all tasks complete
+Status: Phase 23 COMPLETE — Firm tier removed, PricingSlider shared component, Stripe metered billing for Practice overage, upgrade modal, CSV limit enforcement, dashboard CSV client creation
+Last activity: 2026-02-27 — Phase 23 Plan 04 Task 3 complete: dashboard CSV import now creates new clients with limit-aware red-row highlighting
 
-Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-04-SUMMARY.md
-Next step: Phase 23 Plan 04 Task 3 checkpoint:human-verify — visual and functional verification of full Phase 23 implementation
+Resume file: none
+Next step: All current phases complete. Ready for next milestone or new work.
 
-Progress: [##########] Phase 22: 3/3 plans complete | [#######] Phase 23: 3.5/4 plans complete (checkpoint pending)
+Progress: [##########] Phase 22: 3/3 plans complete | [##########] Phase 23: 4/4 plans complete
 
 ## Performance Metrics
 
@@ -364,9 +364,9 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 ## Session Continuity
 
 Last session: 2026-02-27 UTC
-Stopped at: Phase 23 Plan 04 Tasks 1-2 complete — checkpoint:human-verify (Task 3) pending
-Resume file: .planning/phases/23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts/23-04-SUMMARY.md
-Next step: Human verification of full Phase 23 implementation (9 verification steps), then final state update
+Stopped at: Phase 23 COMPLETE — all 4 plans shipped, checkpoint approved
+Resume file: none
+Next step: All phases complete. Ready for next milestone or new work.
 
 ---
 *v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
