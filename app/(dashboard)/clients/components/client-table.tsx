@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { CheckButton } from "@/components/ui/check-button";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { ButtonWithText } from "@/components/ui/button-with-text";
@@ -46,7 +45,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { TrafficLightBadge } from "@/app/(dashboard)/dashboard/components/traffic-light-badge";
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
@@ -73,6 +71,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { UpgradeModal } from "@/components/upgrade-modal";
+import type { PlanTier } from "@/lib/stripe/plans";
 
 export interface ClientStatusInfo {
   status: string;
@@ -173,6 +173,13 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   const [isPending, startTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Upgrade modal state
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeLimitData, setUpgradeLimitData] = useState<{
+    currentCount: number;
+    limit: number;
+  } | null>(null);
+
   const handleImportComplete = () => {
     window.location.reload();
   };
@@ -180,6 +187,49 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   const handleClientCreated = (newClient: Client) => {
     setData((prev) => [...prev, newClient]);
     router.refresh();
+  };
+
+  const handleLimitReached = (data: { currentCount: number; limit: number }) => {
+    setUpgradeLimitData(data);
+    setIsUpgradeModalOpen(true);
+  };
+
+  function getNextTierInfo(currentLimit: number): {
+    tier: PlanTier;
+    name: string;
+    price: string;
+    limitLabel: string;
+  } | null {
+    if (currentLimit <= 25)
+      return { tier: "starter", name: "Starter", price: "£39", limitLabel: "100 clients" };
+    if (currentLimit <= 100)
+      return { tier: "practice", name: "Practice", price: "£89", limitLabel: "Unlimited clients" };
+    return null;
+  }
+
+  function getCurrentTierName(currentLimit: number): string {
+    if (currentLimit <= 25) return "Free";
+    if (currentLimit <= 100) return "Starter";
+    return "Practice";
+  }
+
+  const handleUpgradeClick = async () => {
+    if (!upgradeLimitData) return;
+    const nextTier = getNextTierInfo(upgradeLimitData.limit);
+    if (!nextTier) return;
+
+    const response = await fetch("/api/stripe/create-checkout-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tier: nextTier.tier }),
+    });
+
+    if (response.ok) {
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      }
+    }
   };
 
   const handleDeleteClients = async () => {
@@ -575,20 +625,11 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         cell: ({ row }) => {
           const client = row.original;
           return (
-            <div>
-              <span
-                className="text-muted-foreground group-hover:text-foreground transition-colors"
-              >
-                {client.display_name || client.company_name}
-              </span>
-              {client.reminders_paused && (
-                <div className="mt-1">
-                  <Badge variant="outline" className="text-xs border-status-warning text-status-warning">
-                    Paused
-                  </Badge>
-                </div>
-              )}
-            </div>
+            <span
+              className="text-muted-foreground group-hover:text-foreground transition-colors"
+            >
+              {client.display_name || client.company_name}
+            </span>
           );
         },
       },
@@ -747,19 +788,22 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
 
           // View mode
           if (!isEditMode) {
-            if (!client.reminders_paused) return <span className="text-sm text-muted-foreground">Active</span>;
-            // Show what status they'd have if resumed
-            const underlyingLabel = info?.underlying_status
-              ? STATUS_LABELS[info.underlying_status as TrafficLightStatus] ?? info.underlying_status
-              : null;
+            if (!client.reminders_paused) {
+              return (
+                <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center gap-2">
+                  <span className="text-green-600">
+                    <CheckCircle className="h-4 w-4" />
+                  </span>
+                  <span className="text-sm font-medium text-green-600">Active</span>
+                </div>
+              );
+            }
             return (
-              <div className="space-y-0.5">
-                <Badge variant="outline" className="text-xs border-status-warning text-status-warning whitespace-nowrap">
-                  Paused
-                </Badge>
-                {underlyingLabel && (
-                  <div className="text-xs text-muted-foreground">→ {underlyingLabel}</div>
-                )}
+              <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center gap-2">
+                <span className="text-status-neutral">
+                  <Minus className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-medium text-status-neutral">Paused</span>
               </div>
             );
           }
@@ -771,7 +815,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
               type="select"
               options={[
                 { value: "false", label: "Active" },
-                { value: "true", label: "Paused (Inactive)" },
+                { value: "true", label: "Paused" },
               ]}
               isEditMode={isEditMode}
               onSave={async (value) => {
@@ -809,7 +853,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         ),
         cell: ({ row }) => {
           const info = statusMap[row.original.id];
-          if (!info) return <span className="text-muted-foreground">—</span>;
+          // No status info or grey (paused/no filings) — show dash
+          if (!info || info.status === 'grey') return <span className="text-muted-foreground">—</span>;
 
           const statusConfig: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {
             red: {
@@ -848,15 +893,10 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
               icon: <CheckCircle className="h-4 w-4" />,
               label: 'Completed',
             },
-            grey: {
-              bg: 'bg-status-neutral/10',
-              text: 'text-status-neutral',
-              icon: <Minus className="h-4 w-4" />,
-              label: 'Inactive',
-            },
           };
 
-          const config = statusConfig[info.status] || statusConfig.grey;
+          const config = statusConfig[info.status];
+          if (!config) return <span className="text-muted-foreground">—</span>;
 
           return (
             <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center gap-2`}>
@@ -1278,7 +1318,27 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onCreated={handleClientCreated}
+        onLimitReached={handleLimitReached}
       />
+
+      {/* Upgrade Modal — shown when client limit is reached */}
+      {upgradeLimitData && (() => {
+        const nextTier = getNextTierInfo(upgradeLimitData.limit);
+        if (!nextTier) return null;
+        return (
+          <UpgradeModal
+            open={isUpgradeModalOpen}
+            onOpenChange={setIsUpgradeModalOpen}
+            currentCount={upgradeLimitData.currentCount}
+            currentLimit={upgradeLimitData.limit}
+            currentTierName={getCurrentTierName(upgradeLimitData.limit)}
+            nextTierName={nextTier.name}
+            nextTierPrice={nextTier.price}
+            nextTierLimit={nextTier.limitLabel}
+            onUpgrade={handleUpgradeClick}
+          />
+        );
+      })()}
     </div>
   );
 }

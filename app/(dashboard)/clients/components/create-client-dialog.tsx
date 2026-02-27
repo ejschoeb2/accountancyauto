@@ -29,6 +29,7 @@ interface CreateClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: (client: Client) => void;
+  onLimitReached?: (data: { currentCount: number; limit: number }) => void;
 }
 
 const CLIENT_TYPE_OPTIONS = [
@@ -38,7 +39,7 @@ const CLIENT_TYPE_OPTIONS = [
   { value: "LLP", label: "LLP" },
 ];
 
-export function CreateClientDialog({ open, onOpenChange, onCreated }: CreateClientDialogProps) {
+export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReached }: CreateClientDialogProps) {
   const [companyName, setCompanyName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -88,6 +89,17 @@ export function CreateClientDialog({ open, onOpenChange, onCreated }: CreateClie
       const data = await response.json();
 
       if (!response.ok) {
+        // Check if the error is a client limit being reached
+        if (
+          data.code === "CLIENT_LIMIT_REACHED" &&
+          onLimitReached &&
+          typeof data.currentCount === "number" &&
+          typeof data.limit === "number"
+        ) {
+          onOpenChange(false);
+          onLimitReached({ currentCount: data.currentCount, limit: data.limit });
+          return;
+        }
         toast.error(data.error || "Failed to create client");
         return;
       }

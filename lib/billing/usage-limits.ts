@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 
+export interface OrgBillingInfo {
+  planTier: string;
+  clientCount: number;
+  clientLimit: number | null;
+}
+
 interface ClientLimitResult {
   allowed: boolean;
   currentCount: number;
@@ -75,6 +81,36 @@ export async function checkClientLimit(
   }
 
   return { allowed: true, currentCount, limit };
+}
+
+/**
+ * Get billing info for an organisation — tier, client count, and limit.
+ *
+ * Used by the upgrade modal to display current usage and next tier info.
+ */
+export async function getOrgBillingInfo(
+  orgId: string
+): Promise<OrgBillingInfo | null> {
+  const supabase = await createClient();
+
+  const { data: org } = await supabase
+    .from("organisations")
+    .select("plan_tier, client_count_limit")
+    .eq("id", orgId)
+    .single();
+
+  if (!org) return null;
+
+  const { count } = await supabase
+    .from("clients")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId);
+
+  return {
+    planTier: org.plan_tier,
+    clientCount: count ?? 0,
+    clientLimit: org.client_count_limit,
+  };
 }
 
 /**

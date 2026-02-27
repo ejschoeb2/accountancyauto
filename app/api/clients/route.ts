@@ -84,7 +84,12 @@ export async function POST(request: NextRequest) {
   const limitResult = await checkClientLimit(orgId);
   if (!limitResult.allowed) {
     return NextResponse.json(
-      { error: limitResult.message },
+      {
+        error: limitResult.message,
+        code: "CLIENT_LIMIT_REACHED",
+        currentCount: limitResult.currentCount,
+        limit: limitResult.limit,
+      },
       { status: 403 }
     );
   }
@@ -100,7 +105,6 @@ export async function POST(request: NextRequest) {
       year_end_date: year_end_date ?? null,
       vat_registered,
       display_name: display_name ?? null,
-      quickbooks_id: `DEMO-${Date.now()}`,
       active: true,
       reminders_paused: false,
     })
@@ -113,6 +117,38 @@ export async function POST(request: NextRequest) {
       { error: `Failed to create client: ${error.message}` },
       { status: 500 }
     );
+  }
+
+  // Auto-create filing assignments based on client_type
+  if (data && client_type) {
+    const { data: filingTypes } = await supabase
+      .from("filing_types")
+      .select("id, applicable_client_types");
+
+    if (filingTypes && filingTypes.length > 0) {
+      const applicable = filingTypes.filter((ft) => {
+        if (!ft.applicable_client_types.includes(client_type)) return false;
+        if (ft.id === "vat_return") return vat_registered === true;
+        return true;
+      });
+
+      if (applicable.length > 0) {
+        const assignmentsToInsert = applicable.map((ft) => ({
+          org_id: orgId,
+          client_id: data.id,
+          filing_type_id: ft.id,
+          is_active: true,
+        }));
+
+        const { error: assignError } = await supabase
+          .from("client_filing_assignments")
+          .insert(assignmentsToInsert);
+
+        if (assignError) {
+          console.error("Failed to auto-assign filing types:", assignError.message);
+        }
+      }
+    }
   }
 
   return NextResponse.json(data, { status: 201 });
