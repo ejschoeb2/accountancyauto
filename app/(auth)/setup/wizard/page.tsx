@@ -8,7 +8,6 @@ import {
   X,
   ArrowLeft,
   ArrowRight,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +18,8 @@ import { CsvImportStep } from "./components/csv-import-step";
 import { ConfigStep } from "./components/config-step";
 import { EmailSetupStep } from "./components/email-setup-step";
 import { createClient } from "@/lib/supabase/client";
-import { PLAN_TIERS, PAID_PLAN_TIERS } from "@/lib/stripe/plans";
 import type { PlanTier } from "@/lib/stripe/plans";
+import { PricingSlider } from "@/components/pricing-slider";
 import {
   sendSetupMagicLink,
   checkSlugAvailable,
@@ -41,7 +40,7 @@ import {
 type UserType = "new-admin" | "invited-member" | null;
 
 // New-admin step names (index matches ADMIN_STEPS position)
-type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "config";
+type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "config" | "complete";
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
@@ -52,11 +51,13 @@ const ADMIN_STEPS = [
   { label: "Import Clients" },
   { label: "Email Setup" },
   { label: "Configuration" },
+  { label: "Complete" },
 ];
 
 const MEMBER_STEPS = [
   { label: "Import Clients" },
   { label: "Configuration" },
+  { label: "Complete" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -71,10 +72,6 @@ function slugifyFirmName(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-function formatPrice(pence: number): string {
-  return `£${(pence / 100).toFixed(0)}`;
-}
-
 function adminStepToIndex(step: AdminStep): number {
   const map: Record<AdminStep, number> = {
     account: 0,
@@ -83,6 +80,7 @@ function adminStepToIndex(step: AdminStep): number {
     import: 3,
     email: 4,
     config: 5,
+    complete: 6,
   };
   return map[step];
 }
@@ -133,6 +131,9 @@ export default function WizardPage() {
   // ── Postmark settings (loaded alongside config defaults) ─────────────────
   const [orgDomain, setOrgDomain] = useState<string | undefined>(undefined);
   const [orgInboundAddress, setOrgInboundAddress] = useState<string | undefined>(undefined);
+
+  // ── Complete step ────────────────────────────────────────────────────────
+  const [dashboardUrl, setDashboardUrl] = useState("/dashboard");
 
   // ── On mount: detect user type and starting step ────────────────────────────
   useEffect(() => {
@@ -341,7 +342,49 @@ export default function WizardPage() {
       return;
     }
 
-    window.location.href = "/";
+    // Refresh session so the JWT carries the latest org_id
+    await supabase.auth.refreshSession();
+
+    // Resolve the org slug to build the correct dashboard URL
+    let url = "/dashboard";
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: membership } = await supabase
+        .from("user_organisations")
+        .select("org_id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (membership?.org_id) {
+        const { data: org } = await supabase
+          .from("organisations")
+          .select("slug")
+          .eq("id", membership.org_id)
+          .maybeSingle();
+
+        if (org?.slug) {
+          const isDev = window.location.hostname === "localhost";
+          if (isDev) {
+            url = `/dashboard?org=${org.slug}`;
+          } else {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
+            const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
+            url = `https://${org.slug}.app.${baseDomain}/dashboard`;
+          }
+        }
+      }
+    }
+
+    setDashboardUrl(url);
+    setIsCompleting(false);
+
+    // Advance to the complete step
+    if (userType === "new-admin") {
+      setAdminStep("complete");
+    } else {
+      setMemberStep(2);
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -390,6 +433,46 @@ export default function WizardPage() {
         {memberStep === 1 && (sendHour === null || emailSettings === null || inboundMode === null) && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {memberStep === 2 && (
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="text-center space-y-4">
+              <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center">
+                <CheckCircle className="size-8 text-green-600" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-2xl font-bold tracking-tight">
+                  You&apos;re all set!
+                </h1>
+                <p className="text-muted-foreground">
+                  Your account is configured and ready to go. You can start
+                  managing client reminders from your dashboard.
+                </p>
+              </div>
+            </div>
+
+            <Card>
+              <CardContent className="pt-6 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Check className="size-4 text-green-600 shrink-0" />
+                  <span className="text-sm">Client data imported</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="size-4 text-green-600 shrink-0" />
+                  <span className="text-sm">Email settings configured</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button
+              className="w-full active:scale-[0.97]"
+              onClick={() => { window.location.href = dashboardUrl; }}
+            >
+              Go to Dashboard
+              <ArrowRight className="size-4 ml-2" />
+            </Button>
           </div>
         )}
       </div>
@@ -592,102 +675,29 @@ export default function WizardPage() {
       {/* ── Step 3: Plan Selection ── */}
       {adminStep === "plan" && (
         <div className="space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight">
-              Choose your plan
-            </h1>
-            <p className="text-muted-foreground">
-              Start free forever, or choose a paid plan for more clients. No
-              credit card required.
-            </p>
-          </div>
-
           {planError && (
             <p className="text-sm text-destructive text-center">{planError}</p>
           )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(["free", ...PAID_PLAN_TIERS] as PlanTier[]).map((tier) => {
-              const plan = PLAN_TIERS[tier];
-              const isPopular = tier === "practice";
-              const isFree = tier === "free";
-              const isLoading = isCreatingOrg && selectedTier === tier;
-
-              return (
-                <Card
-                  key={tier}
-                  className={isPopular ? "ring-2 ring-primary relative" : "relative"}
-                >
-                  {isPopular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="inline-flex items-center gap-1 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
-                        <Sparkles className="size-3" />
-                        Popular
-                      </span>
-                    </div>
-                  )}
-                  <CardContent className="pt-6 flex flex-col h-full space-y-4">
-                    <div className="space-y-1">
-                      <h3 className="font-semibold text-lg">{plan.name}</h3>
-                      <div className="flex items-baseline gap-1">
-                        {isFree ? (
-                          <span className="text-3xl font-bold">Free</span>
-                        ) : (
-                          <>
-                            <span className="text-3xl font-bold">
-                              {formatPrice(plan.monthlyPrice)}
-                            </span>
-                            <span className="text-muted-foreground text-sm">
-                              /mo
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5 flex-1">
-                      <p className="text-sm text-muted-foreground">
-                        {plan.clientLimit === null
-                          ? "Unlimited clients"
-                          : `Up to ${plan.clientLimit} clients`}
-                      </p>
-                      <ul className="space-y-1 pt-2">
-                        {plan.features.map((feature) => (
-                          <li
-                            key={feature}
-                            className="flex items-center gap-2 text-sm"
-                          >
-                            <Check className="size-3.5 text-green-600 shrink-0" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <Button
-                      className="w-full active:scale-[0.97]"
-                      variant={isPopular ? "default" : "outline"}
-                      onClick={() => handleSelectPlan(tier)}
-                      disabled={isCreatingOrg}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="size-4 mr-2 animate-spin" />
-                          {isFree ? "Setting up..." : "Redirecting..."}
-                        </>
-                      ) : isFree ? (
-                        "Start for Free"
-                      ) : (
-                        "Get Started"
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          <div className="flex justify-start">
+          <PricingSlider
+            defaultClients={1}
+            onSelectTier={(tierKey) => {
+              if (tierKey === "enterprise") {
+                window.location.href = "mailto:hello@phasetwo.uk";
+                return;
+              }
+              handleSelectPlan(tierKey as PlanTier);
+            }}
+            ctaLabels={{
+              free: "Start Free",
+              starter: "Subscribe & Continue",
+              practice: "Subscribe & Continue",
+              enterprise: "Get in Touch",
+            }}
+            showUpgradeNote={true}
+            isLoading={isCreatingOrg}
+            loadingTier={selectedTier}
+          />
+          <div className="flex justify-start max-w-screen-xl mx-auto px-4">
             <Button
               variant="ghost"
               onClick={() => setAdminStep("firm")}
@@ -737,6 +747,59 @@ export default function WizardPage() {
       {adminStep === "config" && (sendHour === null || emailSettings === null || inboundMode === null) && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* ── Step 7: Complete ── */}
+      {adminStep === "complete" && (
+        <div className="max-w-md mx-auto space-y-6">
+          <div className="text-center space-y-4">
+            <div className="mx-auto w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center">
+              <CheckCircle className="size-8 text-green-600" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight">
+                Setup complete!
+              </h1>
+              <p className="text-muted-foreground">
+                Your firm is set up and ready to go. Start managing client
+                deadlines and sending reminders from your dashboard.
+              </p>
+            </div>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center gap-3">
+                <Check className="size-4 text-green-600 shrink-0" />
+                <span className="text-sm">Firm workspace created</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="size-4 text-green-600 shrink-0" />
+                <span className="text-sm">Plan selected</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="size-4 text-green-600 shrink-0" />
+                <span className="text-sm">Client data imported</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="size-4 text-green-600 shrink-0" />
+                <span className="text-sm">Email sending configured</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="size-4 text-green-600 shrink-0" />
+                <span className="text-sm">Reminder settings saved</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Button
+            className="w-full active:scale-[0.97]"
+            onClick={() => { window.location.href = dashboardUrl; }}
+          >
+            Go to Dashboard
+            <ArrowRight className="size-4 ml-2" />
+          </Button>
         </div>
       )}
     </div>
