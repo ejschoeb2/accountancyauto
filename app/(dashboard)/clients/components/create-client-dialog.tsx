@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 import {
   Dialog,
@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ButtonBase } from "@/components/ui/button-base";
+import { createClient } from "@/lib/supabase/client";
 
 import type { Client } from "@/app/actions/clients";
 
@@ -48,7 +49,15 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
   const [vatRegistered, setVatRegistered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Reset form fields when dialog closes
+  // Client limit state
+  const [clientLimit, setClientLimit] = useState<number | null>(null);
+  const [currentClientCount, setCurrentClientCount] = useState(0);
+  const [limitLoaded, setLimitLoaded] = useState(false);
+
+  const atLimit = clientLimit !== null && currentClientCount >= clientLimit;
+  const nearLimit = clientLimit !== null && !atLimit && currentClientCount >= clientLimit - 3;
+
+  // Fetch client limit when dialog opens
   useEffect(() => {
     if (!open) {
       setCompanyName("");
@@ -57,7 +66,38 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
       setClientType("");
       setYearEndDate("");
       setVatRegistered(false);
+      setLimitLoaded(false);
+      return;
     }
+
+    async function fetchLimit() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const orgId = user?.app_metadata?.org_id;
+        if (!orgId) return;
+
+        const { data: org } = await supabase
+          .from("organisations")
+          .select("client_count_limit")
+          .eq("id", orgId)
+          .single();
+
+        const { count } = await supabase
+          .from("clients")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId);
+
+        setClientLimit(org?.client_count_limit ?? null);
+        setCurrentClientCount(count ?? 0);
+      } catch {
+        // Non-blocking
+      } finally {
+        setLimitLoaded(true);
+      }
+    }
+
+    fetchLimit();
   }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,6 +166,25 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Client limit warnings */}
+          {limitLoaded && atLimit && (
+            <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
+              <AlertCircle className="size-4 mt-0.5 shrink-0" />
+              <span>
+                You&apos;ve reached your plan limit of <strong>{clientLimit}</strong> clients
+                ({currentClientCount}/{clientLimit} used). Upgrade your plan to add more.
+              </span>
+            </div>
+          )}
+          {limitLoaded && nearLimit && (
+            <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 border border-amber-200 text-amber-800 rounded-lg">
+              <AlertCircle className="size-4 mt-0.5 shrink-0" />
+              <span>
+                You&apos;re close to your plan limit ({currentClientCount}/{clientLimit} clients used).
+              </span>
+            </div>
+          )}
+
           {/* Company Name */}
           <div className="space-y-2">
             <Label htmlFor="company-name">Company Name *</Label>
@@ -214,7 +273,7 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
               type="submit"
               buttonType="text-only"
               variant="green"
-              disabled={isLoading || !companyName.trim() || !email.trim() || !clientType}
+              disabled={isLoading || atLimit || !companyName.trim() || !email.trim() || !clientType}
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
               Create
