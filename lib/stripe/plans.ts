@@ -92,6 +92,21 @@ export const PRACTICE_OVERAGE_THRESHOLD = 300;
 /** Practice overage rate in pence per client per month */
 export const PRACTICE_OVERAGE_RATE_PENCE = 60; // £0.60
 
+/**
+ * Stripe Price ID for Practice overage metered billing.
+ * Must be a Stripe metered price (usage_type: 'metered') configured in the Dashboard.
+ * Empty string if not configured — Practice checkout falls back to flat-rate only.
+ */
+export const PRACTICE_OVERAGE_PRICE_ID = process.env.STRIPE_PRICE_PRACTICE_OVERAGE ?? "";
+
+/**
+ * Stripe Billing Meter event name for Practice overage.
+ * Must match the `event_name` on the Billing Meter created in Stripe Dashboard.
+ * Used by the metered billing cron to report client overage counts.
+ */
+export const PRACTICE_METER_EVENT_NAME =
+  process.env.STRIPE_METER_EVENT_NAME ?? "practice_overage_clients";
+
 /** Get the plan configuration for a specific tier. */
 export function getPlanByTier(tier: PlanTier): PlanConfig {
   return PLAN_TIERS[tier];
