@@ -3,6 +3,7 @@
 import Papa from "papaparse";
 import { csvRowSchema, type CsvValidationError } from "@/lib/validations/csv";
 import { createClient } from "@/lib/supabase/server";
+import { checkClientLimit } from "@/lib/billing/usage-limits";
 import { z } from "zod";
 
 /**
@@ -15,6 +16,7 @@ export interface CsvImportSummary {
   unmatchedRows: number;
   validationErrors: number;
   updatedClients: number;
+  createdClients: number;
 }
 
 /**
@@ -32,18 +34,28 @@ export interface CsvImportResult {
   success: boolean;
   summary: CsvImportSummary;
   details: CsvImportDetails;
+  /** Present when import was limited by plan capacity */
+  limitInfo?: {
+    totalNewClients: number;
+    importedClients: number;
+    skippedClients: number;
+    currentCount: number;
+    limit: number;
+  };
 }
 
 const MAX_FILE_SIZE = 1024 * 1024; // 1MB
 
 /**
- * Import client metadata from a CSV file
- * @param formData - FormData containing the CSV file
- * @returns Result of the import operation
+ * Import client metadata from a CSV file.
+ * When createIfMissing is set in FormData, new clients are created for
+ * company names that don't match existing records (used by the setup wizard).
  */
 export async function importClientMetadata(
   formData: FormData
 ): Promise<CsvImportResult> {
+  const createIfMissing = formData.get("createIfMissing") === "true";
+
   const result: CsvImportResult = {
     success: false,
     summary: {
@@ -53,6 +65,7 @@ export async function importClientMetadata(
       unmatchedRows: 0,
       validationErrors: 0,
       updatedClients: 0,
+      createdClients: 0,
     },
     details: {
       unmatchedCompanies: [],
@@ -152,6 +165,7 @@ export async function importClientMetadata(
 
     // 6. Match valid CSV rows to existing clients
     const matchedUpdates: Array<{ id: string; metadata: Record<string, unknown> }> = [];
+    const unmatchedRows: Array<z.infer<typeof csvRowSchema>> = [];
     const unmatchedCompanies: string[] = [];
 
     for (const { data: row } of validRows) {
@@ -167,11 +181,7 @@ export async function importClientMetadata(
         }
 
         if (row.year_end_date !== undefined && row.year_end_date !== "") {
-          // Convert YYYY-MM-DD to MM/DD format for storage
-          const dateParts = row.year_end_date.split("-");
-          if (dateParts.length === 3) {
-            metadata.year_end_date = `${dateParts[1]}/${dateParts[2]}`;
-          }
+          metadata.year_end_date = row.year_end_date; // Already YYYY-MM-DD from schema
         }
 
         if (row.vat_registered !== undefined) {
@@ -194,13 +204,14 @@ export async function importClientMetadata(
           });
         }
       } else {
-        unmatchedCompanies.push(row.company_name);
+        unmatchedRows.push(row);
+        if (!createIfMissing) {
+          unmatchedCompanies.push(row.company_name);
+        }
       }
     }
 
     result.summary.matchedClients = matchedUpdates.length;
-    result.summary.unmatchedRows = unmatchedCompanies.length;
-    result.details.unmatchedCompanies = unmatchedCompanies;
 
     // 7. Apply updates using bulk_update_client_metadata RPC
     if (matchedUpdates.length > 0) {
@@ -216,6 +227,131 @@ export async function importClientMetadata(
       }
 
       result.summary.updatedClients = matchedUpdates.length;
+    }
+
+    // 8. Create new clients for unmatched rows (wizard mode)
+    if (createIfMissing && unmatchedRows.length > 0) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Get org_id from user_organisations
+      const { data: membership } = await supabase
+        .from("user_organisations")
+        .select("org_id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (!membership?.org_id) {
+        throw new Error("No organisation found. Please complete firm setup first.");
+      }
+
+      // Check client limit before creating new clients
+      const limitResult = await checkClientLimit(membership.org_id);
+      const totalNewClients = unmatchedRows.length;
+
+      if (limitResult.limit !== null) {
+        const remainingCapacity = limitResult.limit - limitResult.currentCount;
+
+        if (remainingCapacity <= 0) {
+          // At limit — skip all new clients
+          result.limitInfo = {
+            totalNewClients,
+            importedClients: 0,
+            skippedClients: totalNewClients,
+            currentCount: limitResult.currentCount,
+            limit: limitResult.limit,
+          };
+          result.success = true;
+          return result;
+        }
+
+        if (unmatchedRows.length > remainingCapacity) {
+          // Partial import — only create up to remaining capacity
+          const skipped = unmatchedRows.length - remainingCapacity;
+          unmatchedRows.splice(remainingCapacity); // Truncate to remaining capacity
+          result.limitInfo = {
+            totalNewClients,
+            importedClients: remainingCapacity,
+            skippedClients: skipped,
+            currentCount: limitResult.currentCount,
+            limit: limitResult.limit,
+          };
+        }
+      }
+
+      const newClients = unmatchedRows.map((row) => ({
+        company_name: row.company_name,
+        org_id: membership.org_id,
+        owner_id: user.id,
+        active: true,
+        reminders_paused: false,
+        client_type: row.client_type || null,
+        year_end_date: row.year_end_date && row.year_end_date !== "" ? row.year_end_date : null,
+        vat_registered: row.vat_registered ?? false,
+        vat_stagger_group: row.vat_stagger_group ?? null,
+        vat_scheme: row.vat_scheme || null,
+      }));
+
+      const { data: createdClients, error: insertError } = await supabase
+        .from("clients")
+        .insert(newClients)
+        .select("id, client_type, vat_registered");
+
+      if (insertError) {
+        throw new Error(`Failed to create clients: ${insertError.message}`);
+      }
+
+      result.summary.createdClients = createdClients?.length ?? 0;
+
+      // Auto-create filing assignments for new clients based on client_type
+      if (createdClients && createdClients.length > 0) {
+        const { data: filingTypes } = await supabase
+          .from("filing_types")
+          .select("id, applicable_client_types");
+
+        if (filingTypes && filingTypes.length > 0) {
+          const assignmentsToInsert: Array<{
+            org_id: string;
+            client_id: string;
+            filing_type_id: string;
+            is_active: boolean;
+          }> = [];
+
+          for (const client of createdClients) {
+            if (!client.client_type) continue;
+
+            const applicable = filingTypes.filter((ft) => {
+              if (!ft.applicable_client_types.includes(client.client_type)) return false;
+              if (ft.id === "vat_return") return client.vat_registered === true;
+              return true;
+            });
+
+            for (const ft of applicable) {
+              assignmentsToInsert.push({
+                org_id: membership.org_id,
+                client_id: client.id,
+                filing_type_id: ft.id,
+                is_active: true,
+              });
+            }
+          }
+
+          if (assignmentsToInsert.length > 0) {
+            const { error: assignError } = await supabase
+              .from("client_filing_assignments")
+              .insert(assignmentsToInsert);
+
+            if (assignError) {
+              console.error("Failed to auto-assign filing types:", assignError.message);
+              // Non-fatal: clients were created, assignments can be created later
+            }
+          }
+        }
+      }
+    } else {
+      result.summary.unmatchedRows = unmatchedCompanies.length;
+      result.details.unmatchedCompanies = unmatchedCompanies;
     }
 
     result.success = true;

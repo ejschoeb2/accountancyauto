@@ -1009,9 +1009,33 @@ export function CsvImportDialog({
                 </div>
               )}
 
+              {/* Plan limit warning */}
+              {result.limitInfo && (
+                <div className="rounded-md bg-amber-500/10 px-4 py-3 text-sm space-y-2">
+                  <p className="font-medium text-amber-700">
+                    Plan limit reached
+                  </p>
+                  <p className="text-amber-600">
+                    {result.limitInfo.importedClients} of {result.limitInfo.totalNewClients} new
+                    clients were imported. {result.limitInfo.skippedClients} clients were skipped
+                    because your plan allows up to {result.limitInfo.limit} clients.
+                  </p>
+                  <p className="text-amber-600">
+                    <a
+                      href="/billing"
+                      className="underline underline-offset-2 hover:text-amber-700"
+                    >
+                      Upgrade your plan
+                    </a>{" "}
+                    to import all clients.
+                  </p>
+                </div>
+              )}
+
               {/* Success message if no issues */}
               {result.summary.unmatchedRows === 0 &&
-                result.summary.validationErrors === 0 && (
+                result.summary.validationErrors === 0 &&
+                !result.limitInfo && (
                   <div className="flex items-center gap-2 p-4 bg-green-500/10 rounded-lg">
                     <CheckCircle className="size-5 text-green-600" />
                     <p className="text-sm text-green-600">

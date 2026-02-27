@@ -22,6 +22,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { CheckButton } from "@/components/ui/check-button";
+import {
   FileText,
   AlertCircle,
   Loader2,
@@ -34,6 +44,8 @@ import {
   ArrowRight,
   Sparkles,
   Trash2,
+  Pencil,
+  X,
 } from "lucide-react";
 import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
 import {
@@ -89,6 +101,16 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
   const [showErrors, setShowErrors] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Selection & bulk edit state ──────────────────────────────────────────
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkClientType, setBulkClientType] = useState<{ enabled: boolean; value: string | null }>({ enabled: false, value: null });
+  const [bulkYearEnd, setBulkYearEnd] = useState<{ enabled: boolean; value: string | null }>({ enabled: false, value: null });
+  const [bulkVatRegistered, setBulkVatRegistered] = useState<{ enabled: boolean; value: boolean }>({ enabled: false, value: true });
+  const [bulkVatStagger, setBulkVatStagger] = useState<{ enabled: boolean; value: number | null }>({ enabled: false, value: null });
+  const [bulkVatScheme, setBulkVatScheme] = useState<{ enabled: boolean; value: string | null }>({ enabled: false, value: null });
+  const [bulkConfirmStep, setBulkConfirmStep] = useState(false);
 
   // Auto-suggest column mapping based on header names
   const autoSuggestMapping = useCallback((headers: string[]): ColumnMapping => {
@@ -406,12 +428,135 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
   // Handle row deletion in edit-data step
   const handleDeleteRow = useCallback((rowId: string) => {
     setEditableRows((prev) => prev.filter((row) => row.id !== rowId));
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      next.delete(rowId);
+      return next;
+    });
   }, []);
+
+  // ── Selection handlers ───────────────────────────────────────────────────
+  const toggleRowSelection = useCallback((rowId: string) => {
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleAllSelection = useCallback(() => {
+    setSelectedRowIds((prev) => {
+      if (prev.size === editableRows.length) {
+        return new Set();
+      }
+      return new Set(editableRows.map((r) => r.id));
+    });
+  }, [editableRows]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedRowIds(new Set());
+  }, []);
+
+  const handleBulkDelete = useCallback(() => {
+    setEditableRows((prev) => prev.filter((row) => !selectedRowIds.has(row.id)));
+    setSelectedRowIds(new Set());
+  }, [selectedRowIds]);
+
+  // ── Bulk edit handlers ───────────────────────────────────────────────────
+  const resetBulkEditFields = useCallback(() => {
+    setBulkClientType({ enabled: false, value: null });
+    setBulkYearEnd({ enabled: false, value: null });
+    setBulkVatRegistered({ enabled: false, value: true });
+    setBulkVatStagger({ enabled: false, value: null });
+    setBulkVatScheme({ enabled: false, value: null });
+    setBulkConfirmStep(false);
+  }, []);
+
+  const handleOpenBulkEdit = useCallback(() => {
+    resetBulkEditFields();
+    setIsBulkEditOpen(true);
+  }, [resetBulkEditFields]);
+
+  const handleCloseBulkEdit = useCallback(() => {
+    setIsBulkEditOpen(false);
+    resetBulkEditFields();
+  }, [resetBulkEditFields]);
+
+  const bulkHasChanges =
+    (bulkClientType.enabled && bulkClientType.value) ||
+    (bulkYearEnd.enabled && bulkYearEnd.value) ||
+    bulkVatRegistered.enabled ||
+    (bulkVatStagger.enabled && bulkVatStagger.value) ||
+    (bulkVatScheme.enabled && bulkVatScheme.value);
+
+  const bulkPreviewChanges = (() => {
+    const changes: string[] = [];
+    if (bulkClientType.enabled && bulkClientType.value) {
+      changes.push(`Client Type → ${bulkClientType.value}`);
+    }
+    if (bulkYearEnd.enabled && bulkYearEnd.value) {
+      const [y, m, d] = bulkYearEnd.value.split("-");
+      changes.push(`Year End Date → ${d}/${m}/${y}`);
+    }
+    if (bulkVatRegistered.enabled) {
+      changes.push(`VAT Registered → ${bulkVatRegistered.value ? "Yes" : "No"}`);
+    }
+    if (bulkVatStagger.enabled && bulkVatStagger.value) {
+      const labels: Record<number, string> = {
+        1: "Stagger 1 (Mar/Jun/Sep/Dec)",
+        2: "Stagger 2 (Jan/Apr/Jul/Oct)",
+        3: "Stagger 3 (Feb/May/Aug/Nov)",
+      };
+      changes.push(`VAT Stagger → ${labels[bulkVatStagger.value]}`);
+    }
+    if (bulkVatScheme.enabled && bulkVatScheme.value) {
+      changes.push(`VAT Scheme → ${bulkVatScheme.value}`);
+    }
+    return changes;
+  })();
+
+  const handleApplyBulkEdit = useCallback(() => {
+    if (!bulkConfirmStep && bulkHasChanges) {
+      setBulkConfirmStep(true);
+      return;
+    }
+
+    setEditableRows((prev) =>
+      prev.map((row) => {
+        if (!selectedRowIds.has(row.id)) return row;
+        const updated = { ...row };
+        if (bulkClientType.enabled && bulkClientType.value) {
+          updated.client_type = bulkClientType.value;
+        }
+        if (bulkYearEnd.enabled && bulkYearEnd.value) {
+          updated.year_end_date = bulkYearEnd.value;
+        }
+        if (bulkVatRegistered.enabled) {
+          updated.vat_registered = bulkVatRegistered.value;
+        }
+        if (bulkVatStagger.enabled) {
+          updated.vat_stagger_group = bulkVatStagger.value ? Number(bulkVatStagger.value) : null;
+        }
+        if (bulkVatScheme.enabled) {
+          updated.vat_scheme = bulkVatScheme.value;
+        }
+        return updated;
+      })
+    );
+
+    setSelectedRowIds(new Set());
+    handleCloseBulkEdit();
+  }, [selectedRowIds, bulkClientType, bulkYearEnd, bulkVatRegistered, bulkVatStagger, bulkVatScheme, bulkConfirmStep, bulkHasChanges, handleCloseBulkEdit]);
 
   // Import with edited data
   const handleImportEditedData = useCallback(async () => {
     setStepState("importing");
     setError(null);
+    setSelectedRowIds(new Set());
 
     try {
       // Transform editableRows back to CSV format
@@ -445,6 +590,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
 
       const formData = new FormData();
       formData.append("file", transformedFile);
+      formData.append("createIfMissing", "true");
 
       const importResult = await importClientMetadata(formData);
       setResult(importResult);
@@ -469,6 +615,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
   const handleBackToMapping = useCallback(() => {
     setStepState("mapping");
     setError(null);
+    setSelectedRowIds(new Set());
   }, []);
 
   // Required and optional columns for display
@@ -688,163 +835,480 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
           <div className="space-y-1">
             <h2 className="text-xl font-semibold">Review &amp; Edit Import Data</h2>
             <p className="text-sm text-muted-foreground">
-              Review and edit your data before importing. Company names will be matched to existing clients.
+              Review and complete your data before importing. Company names will be matched to existing clients.
             </p>
           </div>
 
-          <div className="space-y-4">
-            {error && (
-              <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
-                <AlertCircle className="size-4" />
-                {error}
-              </div>
-            )}
+          {(() => {
+            const incompleteRows = editableRows.filter(
+              (row) => !row.client_type || !row.year_end_date
+            );
 
-            {/* Editable data table */}
-            <div className="max-h-[500px] overflow-y-auto border shadow-sm rounded-lg bg-white">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[60px]" />
-                    <TableHead>
-                      <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        Company Name
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        Client Type
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        Year End
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        VAT Registered
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        VAT Stagger
-                      </span>
-                    </TableHead>
-                    <TableHead>
-                      <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                        VAT Scheme
-                      </span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {editableRows.map((row) => (
-                    <TableRow key={row.id} className="group">
-                      {/* Delete Button */}
-                      <TableCell>
-                        <div className="flex items-center justify-center">
-                          <ButtonBase
-                            variant="destructive"
-                            buttonType="icon-only"
-                            onClick={() => handleDeleteRow(row.id)}
-                            title="Delete this row"
+            return (
+              <div className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
+                    <AlertCircle className="size-4" />
+                    {error}
+                  </div>
+                )}
+
+                {incompleteRows.length > 0 && (
+                  <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 border border-amber-200 text-amber-800 rounded-lg">
+                    <AlertTriangle className="size-4 mt-0.5 shrink-0" />
+                    <span>
+                      <strong>{incompleteRows.length} {incompleteRows.length === 1 ? "row is" : "rows are"}</strong> missing required fields.
+                      Fill in <strong>Client Type</strong> and <strong>Year End Date</strong> for every row before importing.
+                    </span>
+                  </div>
+                )}
+
+                {/* Editable data table — horizontal scroll so all columns are reachable */}
+                <div className="max-h-[560px] overflow-auto border shadow-sm rounded-lg bg-white">
+                  <Table className="min-w-[1320px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[52px]">
+                          <div className="flex items-center justify-center">
+                            <CheckButton
+                              checked={
+                                editableRows.length > 0 && selectedRowIds.size === editableRows.length
+                                  ? true
+                                  : selectedRowIds.size > 0
+                                  ? "indeterminate"
+                                  : false
+                              }
+                              onCheckedChange={() => toggleAllSelection()}
+                              aria-label="Select all"
+                            />
+                          </div>
+                        </TableHead>
+                        <TableHead className="min-w-[220px]">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            Company Name
+                          </span>
+                        </TableHead>
+                        <TableHead className="min-w-[200px]">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            Client Type <span className="text-destructive">*</span>
+                          </span>
+                        </TableHead>
+                        <TableHead className="min-w-[180px]">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            Year End <span className="text-destructive">*</span>
+                          </span>
+                        </TableHead>
+                        <TableHead className="min-w-[150px]">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            VAT Registered
+                          </span>
+                        </TableHead>
+                        <TableHead className="min-w-[200px]">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            VAT Stagger
+                          </span>
+                        </TableHead>
+                        <TableHead className="min-w-[210px]">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            VAT Scheme
+                          </span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {editableRows.map((row) => {
+                        const isMissingType = !row.client_type;
+                        const isMissingYearEnd = !row.year_end_date;
+                        const rowIncomplete = isMissingType || isMissingYearEnd;
+                        const isSelected = selectedRowIds.has(row.id);
+
+                        return (
+                          <TableRow
+                            key={row.id}
+                            className={cn(
+                              "group",
+                              rowIncomplete && "bg-amber-50/50",
+                              isSelected && "bg-blue-50/60"
+                            )}
                           >
-                            <Trash2 className="h-5 w-5" />
-                          </ButtonBase>
+                            {/* Checkbox */}
+                            <TableCell>
+                              <div className="flex items-center justify-center">
+                                <CheckButton
+                                  checked={isSelected}
+                                  onCheckedChange={() => toggleRowSelection(row.id)}
+                                  aria-label="Select row"
+                                />
+                              </div>
+                            </TableCell>
+
+                            {/* Company Name - readonly */}
+                            <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                              {row.company_name || "—"}
+                            </TableCell>
+
+                            {/* Client Type - select (required) */}
+                            <TableCell className={cn(
+                              "transition-colors",
+                              isMissingType && "bg-amber-100/60"
+                            )}>
+                              <EditableCell
+                                value={row.client_type || ""}
+                                onSave={(value) => handleCellEdit(row.id, "client_type", value)}
+                                type="select"
+                                options={[
+                                  { value: "Limited Company", label: "Limited Company" },
+                                  { value: "Sole Trader", label: "Sole Trader" },
+                                  { value: "Partnership", label: "Partnership" },
+                                  { value: "LLP", label: "LLP" },
+                                ]}
+                                isEditMode
+                              />
+                            </TableCell>
+
+                            {/* Year End Date - date (required) */}
+                            <TableCell className={cn(
+                              "transition-colors",
+                              isMissingYearEnd && "bg-amber-100/60"
+                            )}>
+                              <EditableCell
+                                value={row.year_end_date || ""}
+                                onSave={(value) => handleCellEdit(row.id, "year_end_date", value)}
+                                type="date"
+                                isEditMode
+                              />
+                            </TableCell>
+
+                            {/* VAT Registered - boolean */}
+                            <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                              <EditableCell
+                                value={row.vat_registered ?? ""}
+                                onSave={(value) => handleCellEdit(row.id, "vat_registered", value)}
+                                type="boolean"
+                                isEditMode
+                              />
+                            </TableCell>
+
+                            {/* VAT Stagger Group - select */}
+                            <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                              <EditableCell
+                                value={row.vat_stagger_group ? String(row.vat_stagger_group) : ""}
+                                onSave={(value) =>
+                                  handleCellEdit(row.id, "vat_stagger_group", value ? parseInt(String(value), 10) : null)
+                                }
+                                type="select"
+                                options={[
+                                  { value: "1", label: "1 (Mar/Jun/Sep/Dec)" },
+                                  { value: "2", label: "2 (Jan/Apr/Jul/Oct)" },
+                                  { value: "3", label: "3 (Feb/May/Aug/Nov)" },
+                                ]}
+                                isEditMode
+                              />
+                            </TableCell>
+
+                            {/* VAT Scheme - select */}
+                            <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                              <EditableCell
+                                value={row.vat_scheme || ""}
+                                onSave={(value) => handleCellEdit(row.id, "vat_scheme", value)}
+                                type="select"
+                                options={[
+                                  { value: "Standard", label: "Standard" },
+                                  { value: "Flat Rate", label: "Flat Rate" },
+                                  { value: "Cash Accounting", label: "Cash Accounting" },
+                                  { value: "Annual Accounting", label: "Annual Accounting" },
+                                ]}
+                                isEditMode
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* ── Bottom selection toolbar ── */}
+                <div
+                  className={cn(
+                    "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-in-out",
+                    selectedRowIds.size > 0
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-20 opacity-0 pointer-events-none"
+                  )}
+                >
+                  <div className="bg-background border shadow-lg rounded-lg px-4 py-3 flex items-center gap-4">
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      {selectedRowIds.size} row{selectedRowIds.size !== 1 ? "s" : ""} selected
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <ButtonBase
+                        variant="blue"
+                        buttonType="icon-text"
+                        onClick={handleOpenBulkEdit}
+                      >
+                        <Pencil className="size-4" />
+                        Bulk Edit
+                      </ButtonBase>
+
+                      <ButtonBase
+                        variant="destructive"
+                        buttonType="icon-text"
+                        onClick={handleBulkDelete}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </ButtonBase>
+
+                      <div className="h-8 w-px bg-border" />
+
+                      <ButtonBase
+                        variant="amber"
+                        buttonType="icon-text"
+                        onClick={clearSelection}
+                      >
+                        <X className="size-4" />
+                        Clear
+                      </ButtonBase>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Bulk edit modal ── */}
+                <Dialog open={isBulkEditOpen} onOpenChange={(isOpen) => !isOpen && handleCloseBulkEdit()}>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>
+                        Bulk Edit {selectedRowIds.size} Row{selectedRowIds.size !== 1 ? "s" : ""}
+                      </DialogTitle>
+                      <DialogDescription>
+                        Select which fields to update. Only checked fields will be applied to all selected rows.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    {!bulkConfirmStep ? (
+                      <div className="space-y-4 py-4">
+                        {/* Client Type */}
+                        <div className="flex items-start gap-4">
+                          <CheckButton
+                            checked={bulkClientType.enabled}
+                            onCheckedChange={(checked) =>
+                              setBulkClientType((prev) => ({ ...prev, enabled: checked === true }))
+                            }
+                            aria-label="Enable Client Type"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Label>Client Type</Label>
+                            <Select
+                              disabled={!bulkClientType.enabled}
+                              value={bulkClientType.value || ""}
+                              onValueChange={(value) =>
+                                setBulkClientType((prev) => ({ ...prev, value: value || null }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select client type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Limited Company">Limited Company</SelectItem>
+                                <SelectItem value="Sole Trader">Sole Trader</SelectItem>
+                                <SelectItem value="Partnership">Partnership</SelectItem>
+                                <SelectItem value="LLP">LLP</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                      </TableCell>
 
-                      {/* Company Name - readonly */}
-                      <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                        {row.company_name || "—"}
-                      </TableCell>
+                        {/* Year End Date */}
+                        <div className="flex items-start gap-4">
+                          <CheckButton
+                            checked={bulkYearEnd.enabled}
+                            onCheckedChange={(checked) =>
+                              setBulkYearEnd((prev) => ({ ...prev, enabled: checked === true }))
+                            }
+                            aria-label="Enable Year End Date"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Label>Year End Date</Label>
+                            <Input
+                              type="date"
+                              disabled={!bulkYearEnd.enabled}
+                              value={bulkYearEnd.value || ""}
+                              onChange={(e) =>
+                                setBulkYearEnd((prev) => ({ ...prev, value: e.target.value || null }))
+                              }
+                            />
+                          </div>
+                        </div>
 
-                      {/* Client Type - select */}
-                      <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                        <EditableCell
-                          value={row.client_type || ""}
-                          onSave={(value) => handleCellEdit(row.id, "client_type", value)}
-                          type="select"
-                          options={[
-                            { value: "Limited Company", label: "Limited Company" },
-                            { value: "Sole Trader", label: "Sole Trader" },
-                            { value: "Partnership", label: "Partnership" },
-                            { value: "LLP", label: "LLP" },
-                          ]}
-                          isEditMode
-                        />
-                      </TableCell>
+                        {/* VAT Registered */}
+                        <div className="flex items-start gap-4">
+                          <CheckButton
+                            checked={bulkVatRegistered.enabled}
+                            onCheckedChange={(checked) =>
+                              setBulkVatRegistered((prev) => ({ ...prev, enabled: checked === true }))
+                            }
+                            aria-label="Enable VAT Registered"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Label>VAT Registered</Label>
+                            <div className="flex items-center gap-2">
+                              <CheckButton
+                                disabled={!bulkVatRegistered.enabled}
+                                checked={bulkVatRegistered.value}
+                                onCheckedChange={(checked) =>
+                                  setBulkVatRegistered((prev) => ({ ...prev, value: checked === true }))
+                                }
+                                aria-label="VAT Registered value"
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                {bulkVatRegistered.value ? "Yes" : "No"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
-                      {/* Year End Date - date */}
-                      <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                        <EditableCell
-                          value={row.year_end_date || ""}
-                          onSave={(value) => handleCellEdit(row.id, "year_end_date", value)}
-                          type="date"
-                          isEditMode
-                        />
-                      </TableCell>
+                        {/* VAT Stagger Group */}
+                        <div className="flex items-start gap-4">
+                          <CheckButton
+                            checked={bulkVatStagger.enabled}
+                            onCheckedChange={(checked) =>
+                              setBulkVatStagger((prev) => ({ ...prev, enabled: checked === true }))
+                            }
+                            aria-label="Enable VAT Stagger Group"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Label>VAT Stagger Group</Label>
+                            <Select
+                              disabled={!bulkVatStagger.enabled}
+                              value={bulkVatStagger.value?.toString() || ""}
+                              onValueChange={(value) =>
+                                setBulkVatStagger((prev) => ({ ...prev, value: value ? parseInt(value) : null }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select stagger group" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">Stagger 1 (Mar/Jun/Sep/Dec)</SelectItem>
+                                <SelectItem value="2">Stagger 2 (Jan/Apr/Jul/Oct)</SelectItem>
+                                <SelectItem value="3">Stagger 3 (Feb/May/Aug/Nov)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
 
-                      {/* VAT Registered - boolean */}
-                      <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                        <EditableCell
-                          value={row.vat_registered ?? ""}
-                          onSave={(value) => handleCellEdit(row.id, "vat_registered", value)}
-                          type="boolean"
-                          isEditMode
-                        />
-                      </TableCell>
+                        {/* VAT Scheme */}
+                        <div className="flex items-start gap-4">
+                          <CheckButton
+                            checked={bulkVatScheme.enabled}
+                            onCheckedChange={(checked) =>
+                              setBulkVatScheme((prev) => ({ ...prev, enabled: checked === true }))
+                            }
+                            aria-label="Enable VAT Scheme"
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Label>VAT Scheme</Label>
+                            <Select
+                              disabled={!bulkVatScheme.enabled}
+                              value={bulkVatScheme.value || ""}
+                              onValueChange={(value) =>
+                                setBulkVatScheme((prev) => ({ ...prev, value: value || null }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select VAT scheme" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Standard">Standard</SelectItem>
+                                <SelectItem value="Flat Rate">Flat Rate</SelectItem>
+                                <SelectItem value="Cash Accounting">Cash Accounting</SelectItem>
+                                <SelectItem value="Annual Accounting">Annual Accounting</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-4">
+                        <div className="bg-muted p-4 rounded-lg">
+                          <p className="text-sm font-medium mb-2">Confirm bulk update:</p>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            This will update <strong>{selectedRowIds.size}</strong> row{selectedRowIds.size !== 1 ? "s" : ""} with the following changes:
+                          </p>
+                          <ul className="text-sm space-y-1">
+                            {bulkPreviewChanges.map((change, index) => (
+                              <li key={index} className="flex items-center gap-2">
+                                <span className="text-primary">•</span>
+                                {change}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
 
-                      {/* VAT Stagger Group - select */}
-                      <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                        <EditableCell
-                          value={row.vat_stagger_group ? String(row.vat_stagger_group) : ""}
-                          onSave={(value) =>
-                            handleCellEdit(row.id, "vat_stagger_group", value ? parseInt(String(value), 10) : null)
-                          }
-                          type="select"
-                          options={[
-                            { value: "1", label: "1 (Mar/Jun/Sep/Dec)" },
-                            { value: "2", label: "2 (Jan/Apr/Jul/Oct)" },
-                            { value: "3", label: "3 (Feb/May/Aug/Nov)" },
-                          ]}
-                          isEditMode
-                        />
-                      </TableCell>
+                    <DialogFooter>
+                      {bulkConfirmStep ? (
+                        <>
+                          <ButtonBase
+                            variant="neutral"
+                            buttonType="text-only"
+                            onClick={() => setBulkConfirmStep(false)}
+                          >
+                            Back
+                          </ButtonBase>
+                          <ButtonBase
+                            variant="blue"
+                            buttonType="text-only"
+                            onClick={handleApplyBulkEdit}
+                          >
+                            Apply Changes
+                          </ButtonBase>
+                        </>
+                      ) : (
+                        <>
+                          <ButtonBase
+                            variant="neutral"
+                            buttonType="text-only"
+                            onClick={handleCloseBulkEdit}
+                          >
+                            Close
+                          </ButtonBase>
+                          <ButtonBase
+                            variant="blue"
+                            buttonType="text-only"
+                            onClick={handleApplyBulkEdit}
+                            disabled={!bulkHasChanges}
+                          >
+                            Continue
+                          </ButtonBase>
+                        </>
+                      )}
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
-                      {/* VAT Scheme - select */}
-                      <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                        <EditableCell
-                          value={row.vat_scheme || ""}
-                          onSave={(value) => handleCellEdit(row.id, "vat_scheme", value)}
-                          type="select"
-                          options={[
-                            { value: "Standard", label: "Standard" },
-                            { value: "Flat Rate", label: "Flat Rate" },
-                            { value: "Cash Accounting", label: "Cash Accounting" },
-                            { value: "Annual Accounting", label: "Annual Accounting" },
-                          ]}
-                          isEditMode
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3">
-            <IconButtonWithText variant="destructive" onClick={handleBackToMapping}>
-              <ArrowLeft className="h-5 w-5" />
-              Back
-            </IconButtonWithText>
-            <IconButtonWithText variant="green" onClick={handleImportEditedData}>
-              <Sparkles className="h-5 w-5" />
-              Import {editableRows.length} {editableRows.length === 1 ? "Client" : "Clients"}
-            </IconButtonWithText>
-          </div>
+                <div className="flex justify-between gap-3">
+                  <IconButtonWithText variant="destructive" onClick={handleBackToMapping}>
+                    <ArrowLeft className="h-5 w-5" />
+                    Back
+                  </IconButtonWithText>
+                  <IconButtonWithText
+                    variant="green"
+                    onClick={handleImportEditedData}
+                    disabled={incompleteRows.length > 0}
+                  >
+                    <Sparkles className="h-5 w-5" />
+                    {incompleteRows.length > 0
+                      ? `Complete ${incompleteRows.length} remaining ${incompleteRows.length === 1 ? "row" : "rows"} first`
+                      : `Import ${editableRows.length} ${editableRows.length === 1 ? "Client" : "Clients"}`}
+                  </IconButtonWithText>
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
 
@@ -872,7 +1336,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
 
           <div className="space-y-6">
             {/* Summary cards */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">
                   Total rows processed
@@ -881,20 +1345,34 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                   {result.summary.totalRows}
                 </p>
               </div>
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="text-sm text-muted-foreground">Clients updated</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-2xl font-semibold">
-                    {result.summary.updatedClients}
-                  </p>
-                  {result.summary.updatedClients > 0 && (
+              {result.summary.createdClients > 0 && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Clients created</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-2xl font-semibold">
+                      {result.summary.createdClients}
+                    </p>
                     <Badge variant="default" className="bg-green-500">
                       <CheckCircle className="size-4 mr-1" />
-                      Success
+                      New
                     </Badge>
-                  )}
+                  </div>
                 </div>
-              </div>
+              )}
+              {result.summary.updatedClients > 0 && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">Clients updated</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-2xl font-semibold">
+                      {result.summary.updatedClients}
+                    </p>
+                    <Badge variant="default" className="bg-green-500">
+                      <CheckCircle className="size-4 mr-1" />
+                      Updated
+                    </Badge>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Unmatched rows */}
@@ -966,9 +1444,28 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
               </div>
             )}
 
+            {/* Plan limit warning */}
+            {result.limitInfo && (
+              <div className="rounded-md bg-amber-500/10 px-4 py-3 text-sm space-y-2">
+                <p className="font-medium text-amber-700">
+                  Plan limit reached
+                </p>
+                <p className="text-amber-600">
+                  {result.limitInfo.importedClients} of {result.limitInfo.totalNewClients} new
+                  clients were imported. {result.limitInfo.skippedClients} clients were skipped
+                  because your plan allows up to {result.limitInfo.limit} clients.
+                </p>
+                <p className="text-amber-600">
+                  Upgrade your plan to import all clients.
+                </p>
+              </div>
+            )}
+
             {/* Success message if no issues */}
             {result.summary.unmatchedRows === 0 &&
-              result.summary.validationErrors === 0 && (
+              result.summary.validationErrors === 0 &&
+              !result.limitInfo &&
+              (result.summary.createdClients > 0 || result.summary.updatedClients > 0) && (
                 <div className="flex items-center gap-2 p-4 bg-green-500/10 rounded-lg">
                   <CheckCircle className="size-5 text-green-600" />
                   <p className="text-sm text-green-600">
