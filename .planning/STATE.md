@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T13:44:19.090Z"
+last_updated: "2026-02-28T13:56:08.233Z"
 progress:
   total_phases: 28
   completed_phases: 25
   total_plans: 96
-  completed_plans: 91
+  completed_plans: 92
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 26 Plan 01 complete — MSAL foundation built. OneDrive MSAL cache plugin, schema migration, and MS env var docs done. Phase 26 Plan 02 (OneDriveProvider) is next.
+**Current focus:** Phase 26 Plan 02 complete — OneDriveProvider implemented and wired into resolveProvider. Phase 26 Plan 03 (if any) or next phase is next.
 
 ## Current Position
 
 Phase: 26 (in progress)
-Plan: 01 complete
-Status: Phase 26 Plan 01 complete — @azure/msal-node installed, ms_home_account_id column added, PostgresMsalCachePlugin created with encrypted Postgres token cache persistence, MS env vars documented
-Last activity: 2026-02-28 — Phase 26-01 MSAL foundation implemented
+Plan: 02 complete
+Status: Phase 26 Plan 02 complete — OneDriveProvider implemented with MSAL acquireTokenSilent + PostgresMsalCachePlugin; resolveProvider 'onedrive' case wired; all four upload/download/DSAR routes updated
+Last activity: 2026-02-28 — Phase 26-02 OneDriveProvider and route wiring implemented
 
 Resume file: none
-Next step: Execute Phase 26 Plan 02 (OneDriveProvider)
+Next step: Execute Phase 26 Plan 03 (if any — check ROADMAP.md)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -277,6 +277,9 @@ Recent decisions affecting v3.0:
 - [Phase 27-03]: [D-27-03-03] Dropbox download route uses storage_backend: 'dropbox' explicitly (per-document routing per D-24-01-02, not org.storage_backend)
 - [Phase 26-01]: PostgresMsalCachePlugin encrypts entire serialized MSAL cache as single AES-256-GCM blob via lib/crypto/tokens.ts — no per-token encryption
 - [Phase 26-01]: cacheHasChanged guard in afterCacheAccess prevents unnecessary DB writes on read-only token operations
+- [Phase 26]: [D-26-02-01] Fresh MSAL client per request — PostgresMsalCachePlugin.beforeCacheAccess fires once per client instance; reusing across requests would serve stale cache
+- [Phase 26]: [D-26-02-02] OneDrive item ID as storagePath — stored in client_documents.storage_path; stable identifier for getBytes, getDownloadUrl, and delete
+- [Phase 26]: [D-26-02-03] OneDrive download uses getDownloadUrl (temporary link) not getBytes — OneDrive natively provides @microsoft.graph.downloadUrl under Files.ReadWrite scope
 
 ### Roadmap Evolution
 
@@ -322,6 +325,7 @@ Recent decisions affecting v3.0:
 | Phase 27-dropbox-integration P02 | 9 | 2 tasks | 4 files |
 | Phase 27 P01 | 19 | 2 tasks | 6 files |
 | Phase 26 P01 | 25 | 3 tasks | 3 files |
+| Phase 26 P02 | 548 | 2 tasks | 6 files |
 
 ### Tech Debt
 
@@ -363,9 +367,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 27-03-PLAN.md — DSAR export and document download routed through resolveProvider for all backends including Dropbox; portal upload and Postmark inbound confirmed already routed through resolveProvider from Phase 25
+Stopped at: Completed 26-02-PLAN.md — OneDriveProvider implemented and wired into resolveProvider; all four routes (download, portal upload, Postmark inbound, DSAR) updated with ms_home_account_id and OneDrive support
 Resume file: none
-Next step: Execute Phase 25 Plan 05 (if any — check ROADMAP.md)
+Next step: Execute Phase 26 Plan 03 (if any — check ROADMAP.md)
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*

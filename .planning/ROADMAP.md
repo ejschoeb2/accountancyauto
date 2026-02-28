@@ -441,7 +441,7 @@ Phases execute in numeric order: 18 -> 19
 | 23. Unified Pricing Experience | v4.0 | 4/4 | Complete | 2026-02-28 |
 | 24. Storage Abstraction Layer | 3/3 | Complete    | 2026-02-28 | - |
 | 25. Google Drive Integration | 5/5 | Complete    | 2026-02-28 | - |
-| 26. Microsoft OneDrive Integration | 1/3 | In Progress|  | - |
+| 26. Microsoft OneDrive Integration | 2/3 | In Progress|  | - |
 | 27. Dropbox Integration | 2/3 | Complete    | 2026-02-28 | - |
 | 28. Settings UI & Token Lifecycle | v5.0 | 0/TBD | Not started | - |
 | 29. Hardening & Integration Testing | v5.0 | 0/TBD | Not started | - |
