@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v5.0
-milestone_name: Third-Party Storage Integrations
-status: in_progress
-last_updated: "2026-02-28T03:08:00.000Z"
+milestone: v3.0
+milestone_name: Multi-Tenancy & SaaS Platform
+status: unknown
+last_updated: "2026-02-28T03:07:30.327Z"
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 1
-  completed_plans: 1
+  total_phases: 25
+  completed_phases: 22
+  total_plans: 85
+  completed_plans: 81
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 24 in progress — Plan 01 (schema migration) complete. Plan 02 (TypeScript interface + crypto) next.
+**Current focus:** Phase 24 in progress — Plan 02 (StorageProvider interface) complete. Plan 03 (crypto tokens) next.
 
 ## Current Position
 
 Phase: 24 (in progress)
-Plan: 01 complete
-Status: Phase 24 Plan 01 complete — schema foundation applied to remote database
-Last activity: 2026-02-28 — Phase 24-01 storage abstraction schema migration applied
+Plan: 02 complete
+Status: Phase 24 Plan 02 complete — StorageProvider interface, SupabaseStorageProvider class, and resolveProvider factory in lib/documents/storage.ts
+Last activity: 2026-02-28 — Phase 24-02 storage abstraction TypeScript interface extracted
 
 Resume file: none
-Next step: Execute Phase 24 Plan 02 (StorageProvider interface + lib/crypto/tokens.ts)
+Next step: Execute Phase 24 Plan 03 (lib/crypto/tokens.ts — AES-256-GCM token encryption)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -240,6 +240,10 @@ Recent decisions affecting v3.0:
 - Privacy policy hard gate: Google LLC, Microsoft Corporation, Dropbox Inc. added to sub-processor list before any provider goes to production (UK GDPR Art. 13/14)
 - Portal upload for large files: provider-native chunked upload session APIs — Vercel 4.5 MB request body limit applies to any proxied upload through Next.js
 - Postmark inbound handler: always returns 200; provider upload is async or size-guarded to prevent webhook timeout; idempotency guard on `client_documents` insert against Postmark retries
+- [Phase 24-02]: [D-24-02-01] StorageProvider interface defines upload(), getDownloadUrl(), delete(), getBytes() — four methods sufficient for all current and Phase 25-27 use cases
+- [Phase 24-02]: [D-24-02-02] resolveProvider() defaults to SupabaseStorageProvider for null storage_backend — safe default for pre-migration rows
+- [Phase 24-02]: [D-24-02-03] Backwards-compatible named exports use @deprecated JSDoc — signals intent to new callers; existing callers unchanged
+- [Phase 24-02]: [D-24-02-04] getBytes() reuses getDownloadUrl() internally — avoids duplicating signed URL logic; consistent with DSAR export pattern
 
 ### Roadmap Evolution
 
@@ -277,6 +281,7 @@ Recent decisions affecting v3.0:
 | OneDrive M365 admin consent UX: exact error display, partial consent states, real M365 tenant validation needed | Phase 26 plan |
 | Postmark webhook timeout mitigation: async queue vs early-ack + background upload — decide before Phase 29 coding | Phase 29 plan |
 | DSAR export scale threshold: at what document count does synchronous DSAR assembly risk Vercel timeout? Add document count guard above threshold | Phase 29 plan |
+| Phase 24 P02 | 8 | 1 tasks | 2 files |
 
 ### Tech Debt
 
