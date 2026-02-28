@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { uploadDocument } from '@/lib/documents/storage';
+import { resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import { classifyDocument } from '@/lib/documents/classify';
 import { runIntegrityChecks } from '@/lib/documents/integrity';
 import { calculateRetainUntil } from '@/lib/documents/metadata';
@@ -15,15 +15,54 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
   const supabase = createServiceClient();
 
-  // Validate token
+  // Validate token — join org storage config and client name for resolveProvider
+  // Note: If PostgREST FK join fails (PGRST200 cache issue — see MEMORY.md), fall back to
+  // separate queries below.
   const { data: portalToken } = await supabase
     .from('upload_portal_tokens')
-    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at')
+    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at, organisations!inner(storage_backend, google_drive_folder_id), clients!inner(company_name, display_name)')
     .eq('token_hash', tokenHash)
     .single();
 
   if (!portalToken || portalToken.revoked_at || new Date(portalToken.expires_at) < new Date()) {
     return NextResponse.json({ error: 'Invalid or expired token' }, { status: 403 });
+  }
+
+  // Resolve org storage config — may come from the join or a fallback query
+  let orgStorageBackend: string | null = null;
+  let orgGoogleDriveFolderId: string | null = null;
+  let clientDisplayName: string | null = null;
+  let clientCompanyName: string | null = null;
+
+  // Check if join data is present (PostgREST may return null if FK join cache stale)
+  // PostgREST !inner joins return an array — cast through unknown to handle the inferred array type
+  const orgJoin = (portalToken.organisations as unknown) as { storage_backend: string | null; google_drive_folder_id: string | null } | null;
+  const clientJoin = (portalToken.clients as unknown) as { company_name: string | null; display_name: string | null } | null;
+
+  if (orgJoin && clientJoin) {
+    // FK join succeeded — use joined data
+    orgStorageBackend = orgJoin.storage_backend;
+    orgGoogleDriveFolderId = orgJoin.google_drive_folder_id;
+    clientDisplayName = clientJoin.display_name;
+    clientCompanyName = clientJoin.company_name;
+  } else {
+    // FK join failed (PGRST200 cache issue) — fall back to separate queries
+    const [orgResult, clientResult] = await Promise.all([
+      supabase
+        .from('organisations')
+        .select('storage_backend, google_drive_folder_id')
+        .eq('id', portalToken.org_id)
+        .single(),
+      supabase
+        .from('clients')
+        .select('company_name, display_name')
+        .eq('id', portalToken.client_id)
+        .single(),
+    ]);
+    orgStorageBackend = orgResult.data?.storage_backend ?? null;
+    orgGoogleDriveFolderId = orgResult.data?.google_drive_folder_id ?? null;
+    clientDisplayName = clientResult.data?.display_name ?? null;
+    clientCompanyName = clientResult.data?.company_name ?? null;
   }
 
   // Parse multipart form data
@@ -71,7 +110,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const retainUntil = calculateRetainUntil(filingTypeId, taxPeriodEndDate);
 
   try {
-    const { storagePath } = await uploadDocument({
+    // Phase 25: route upload through resolveProvider for Google Drive support
+    const provider = resolveProvider({
+      id: portalToken.org_id,
+      storage_backend: (orgStorageBackend ?? 'supabase') as StorageBackend,
+      google_drive_folder_id: orgGoogleDriveFolderId,
+    });
+
+    const { storagePath } = await provider.upload({
       orgId: portalToken.org_id,
       clientId: portalToken.client_id,
       filingTypeId: portalToken.filing_type_id,
@@ -79,6 +125,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       file: fileBuffer,
       originalFilename: file.name,
       mimeType: file.type,
+      // Phase 25: clientName for Google Drive folder hierarchy
+      clientName: clientDisplayName ?? clientCompanyName ?? portalToken.client_id,
     });
 
     const { data: docRow } = await supabase.from('client_documents').insert({
@@ -92,6 +140,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       retain_until: retainUntil.toISOString().split('T')[0],
       classification_confidence: classification.confidence,
       source: 'portal_upload',
+      // Phase 25: capture storage backend at insert time (D-24-01-02)
+      storage_backend: orgStorageBackend ?? 'supabase',
       // Phase 21 fields
       extracted_tax_year: classification.extractedTaxYear,
       extracted_employer: classification.extractedEmployer,

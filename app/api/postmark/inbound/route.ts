@@ -208,8 +208,13 @@ export async function POST(request: NextRequest) {
  * It MUST NOT throw — all errors are caught and logged per-attachment so that
  * a single failing attachment does not prevent others from being processed.
  *
+ * Phase 25: routes storage through resolveProvider() so Google Drive orgs write to Drive.
+ * Fetches org storage config once (before the loop) — not per-attachment.
+ * Falls back to Supabase if orgConfig is null (safe default).
+ *
  * Each attachment produces one client_documents row with:
  *   - source = 'inbound_email'
+ *   - storage_backend = org's current backend at time of upload (D-24-01-02)
  *   - classification_confidence derived from classifyDocument()
  *   - tax_period_end_date derived from client.year_end_date (best-effort; accountant can correct)
  *   - retain_until calculated by calculateRetainUntil()
@@ -220,13 +225,31 @@ export async function POST(request: NextRequest) {
 async function processAttachments(
   attachments: PostmarkInboundWebhook['Attachments'],
   inboundEmailId: string,
-  client: { id: string; org_id: string; year_end_date?: string | null } | null,
+  client: { id: string; org_id: string; company_name?: string | null; year_end_date?: string | null } | null,
   orgId: string | undefined,
   supabase: ReturnType<typeof createServiceClient>
 ): Promise<void> {
-  const { uploadDocument } = await import('@/lib/documents/storage');
+  const { resolveProvider } = await import('@/lib/documents/storage');
   const { classifyDocument } = await import('@/lib/documents/classify');
   const { calculateRetainUntil } = await import('@/lib/documents/metadata');
+
+  // Phase 25: fetch org storage config once before the attachment loop
+  // If orgConfig is null, fall back to Supabase (safe default)
+  let orgStorageBackend: string | null = 'supabase';
+  let orgGoogleDriveFolderId: string | null = null;
+
+  if (orgId) {
+    const { data: orgConfig } = await supabase
+      .from('organisations')
+      .select('id, storage_backend, google_drive_folder_id')
+      .eq('id', orgId)
+      .single();
+
+    if (orgConfig) {
+      orgStorageBackend = orgConfig.storage_backend ?? 'supabase';
+      orgGoogleDriveFolderId = orgConfig.google_drive_folder_id ?? null;
+    }
+  }
 
   for (const attachment of attachments) {
     try {
@@ -267,7 +290,14 @@ async function processAttachments(
         continue;
       }
 
-      const { storagePath } = await uploadDocument({
+      // Phase 25: route through resolveProvider for Google Drive support
+      const provider = resolveProvider({
+        id: orgId,
+        storage_backend: (orgStorageBackend ?? 'supabase') as import('@/lib/documents/storage').StorageBackend,
+        google_drive_folder_id: orgGoogleDriveFolderId,
+      });
+
+      const { storagePath } = await provider.upload({
         orgId,
         clientId: client.id,
         filingTypeId,
@@ -275,6 +305,8 @@ async function processAttachments(
         file: fileBuffer,
         originalFilename: attachment.Name,
         mimeType: attachment.ContentType,
+        // Phase 25: clientName for Google Drive folder hierarchy
+        clientName: client.company_name ?? client.id,
       });
 
       const retainUntil = calculateRetainUntil(filingTypeId, taxPeriodEndDate);
@@ -290,6 +322,8 @@ async function processAttachments(
         retain_until: retainUntil.toISOString().split('T')[0],
         classification_confidence: classification.confidence,
         source: 'inbound_email',
+        // Phase 25: capture storage backend at insert time (D-24-01-02)
+        storage_backend: orgStorageBackend ?? 'supabase',
         // Phase 21 fields
         extracted_tax_year: classification.extractedTaxYear,
         extracted_employer: classification.extractedEmployer,
