@@ -443,7 +443,7 @@ Phases execute in numeric order: 18 -> 19
 | 25. Google Drive Integration | 5/5 | Complete    | 2026-02-28 | - |
 | 26. Microsoft OneDrive Integration | 3/3 | Complete    | 2026-02-28 | - |
 | 27. Dropbox Integration | 2/3 | Complete    | 2026-02-28 | - |
-| 28. Settings UI & Token Lifecycle | v5.0 | 0/TBD | Not started | - |
+| 28. Settings UI & Token Lifecycle | 2/3 | In Progress|  | - |
 | 29. Hardening & Integration Testing | v5.0 | 0/TBD | Not started | - |
 
 ---
@@ -538,9 +538,9 @@ Plans:
   5. The privacy policy at `/privacy` lists Google LLC, Microsoft Corporation, and Dropbox Inc. in the sub-processor table with their service description and data location before any provider integration is available to production orgs.
 **Plans**: 3 plans (28-01: Storage tab unification + provider-generic re-auth banner, 28-02: Disconnect confirmation modal with document count, 28-03: Storage health-check cron + privacy policy update)
 Plans:
-- [ ] 28-01-PLAN.md — Wire Dropbox card into Storage tab, add error status badges, fix re-auth banner to be provider-generic
-- [ ] 28-02-PLAN.md — Disconnect confirmation modal with document count for all three providers
-- [ ] 28-03-PLAN.md — Daily storage health-check cron + privacy policy sub-processor update
+- [ ] 28-01-PLAN.md ï¿½ Wire Dropbox card into Storage tab, add error status badges, fix re-auth banner to be provider-generic
+- [ ] 28-02-PLAN.md ï¿½ Disconnect confirmation modal with document count for all three providers
+- [ ] 28-03-PLAN.md ï¿½ Daily storage health-check cron + privacy policy sub-processor update
 
 ### Phase 29: Hardening & Integration Testing
 **Goal**: All cross-cutting edge cases are resolved: portal uploads exceeding the Vercel 4.5 MB body limit use provider-native chunked upload sessions; the Postmark inbound handler never times out regardless of provider upload latency; DSAR export correctly assembles a ZIP spanning multiple storage backends; end-to-end integration is verified for each provider with a mixed-backend document set.
