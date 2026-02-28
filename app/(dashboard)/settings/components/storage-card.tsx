@@ -3,11 +3,15 @@
 import { useState, useTransition, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { Cloud, CheckCircle, XCircle, Loader2, HardDrive, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, HardDrive, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
-import { disconnectGoogleDrive, disconnectOneDrive, getDocumentCountByBackend } from "@/app/actions/settings";
-import { DropboxConnectCard } from "./dropbox-connect-card";
+import {
+  disconnectGoogleDrive,
+  disconnectOneDrive,
+  disconnectDropbox,
+  getDocumentCountByBackend,
+} from "@/app/actions/settings";
 import { DisconnectConfirmModal } from "./disconnect-confirm-modal";
 
 interface StorageCardProps {
@@ -22,25 +26,26 @@ function StorageCardInner({
   storageBackend,
   googleDriveFolderExists,
   storageBackendStatus,
-  oneDriveConnected,
   dropboxConnected,
 }: StorageCardProps) {
   const router = useRouter();
+
   const [isGooglePending, startGoogleTransition] = useTransition();
   const [isOneDrivePending, startOneDriveTransition] = useTransition();
+  const [isDropboxPending, startDropboxTransition] = useTransition();
+
   const [googleDisconnectError, setGoogleDisconnectError] = useState<string | null>(null);
   const [oneDriveDisconnectError, setOneDriveDisconnectError] = useState<string | null>(null);
+  const [dropboxDisconnectError, setDropboxDisconnectError] = useState<string | null>(null);
 
-  // Google Drive modal state
   const [googleModalOpen, setGoogleModalOpen] = useState(false);
   const [googleDocCount, setGoogleDocCount] = useState<number | null>(null);
-
-  // OneDrive modal state
   const [oneDriveModalOpen, setOneDriveModalOpen] = useState(false);
   const [oneDriveDocCount, setOneDriveDocCount] = useState<number | null>(null);
+  const [dropboxModalOpen, setDropboxModalOpen] = useState(false);
+  const [dropboxDocCount, setDropboxDocCount] = useState<number | null>(null);
 
   const searchParams = useSearchParams();
-
   const error = searchParams.get("error");
   const connected = searchParams.get("connected");
 
@@ -70,12 +75,28 @@ function StorageCardInner({
     });
   }
 
+  function handleDropboxDisconnect() {
+    setDropboxDisconnectError(null);
+    startDropboxTransition(async () => {
+      const result = await disconnectDropbox();
+      if (result.error) {
+        setDropboxDisconnectError(result.error);
+        setDropboxModalOpen(false);
+      } else {
+        setDropboxModalOpen(false);
+        router.refresh();
+      }
+    });
+  }
+
   const isGoogleConnected = storageBackend === "google_drive";
   const isOneDriveConnected = storageBackend === "onedrive";
+  const isDropboxConnected = dropboxConnected;
+  const isSupabaseActive = !storageBackend;
 
   return (
     <div className="space-y-4">
-      {/* Error banners */}
+      {/* Error / success banners */}
       {error === "conditional_access_blocked" && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-amber-500/10 border border-amber-500/20">
           <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
@@ -85,7 +106,6 @@ function StorageCardInner({
           </p>
         </div>
       )}
-
       {error === "invalid_state" && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-red-500/10 border border-red-500/20">
           <AlertTriangle className="size-4 text-red-500 mt-0.5 shrink-0" />
@@ -94,7 +114,6 @@ function StorageCardInner({
           </p>
         </div>
       )}
-
       {error === "auth_failed" && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-red-500/10 border border-red-500/20">
           <AlertTriangle className="size-4 text-red-500 mt-0.5 shrink-0" />
@@ -103,214 +122,265 @@ function StorageCardInner({
           </p>
         </div>
       )}
-
       {connected === "onedrive" && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-green-500/10 border border-green-500/20">
           <CheckCircle className="size-4 text-green-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-green-700 dark:text-green-400">
-            OneDrive connected successfully.
-          </p>
+          <p className="text-sm text-green-700 dark:text-green-400">OneDrive connected successfully.</p>
         </div>
       )}
-
       {connected === "google_drive" && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-green-500/10 border border-green-500/20">
           <CheckCircle className="size-4 text-green-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-green-700 dark:text-green-400">
-            Google Drive connected successfully.
-          </p>
+          <p className="text-sm text-green-700 dark:text-green-400">Google Drive connected successfully.</p>
         </div>
       )}
 
-      {/* Google Drive Card */}
       <Card className="p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex items-center justify-center size-12 rounded-lg bg-sky-500/10 shrink-0">
-            <Cloud className="size-6 text-sky-500" />
+        <div className="flex items-start gap-4 mb-6">
+          <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
+            <HardDrive className="size-6 text-violet-500" />
           </div>
-          <div className="flex-1 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Google Drive</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Store client documents in your Google Drive instead of Prompt&apos;s built-in storage
-              </p>
-            </div>
+          <div>
+            <h2 className="text-lg font-semibold">Document Storage</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Connect a cloud storage provider to store client documents in your own storage. Only one provider can be active at a time.
+            </p>
+          </div>
+        </div>
 
-            {isGoogleConnected ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10">
-                    <span className="text-sm font-medium text-green-600">Connected</span>
+        <div className="divide-y divide-border">
+          {/* Supabase (built-in default) */}
+          <div className="py-4 first:pt-0 last:pb-0">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Supabase Storage</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isSupabaseActive
+                    ? "Documents are stored in Prompt's built-in secure database. No external account needed."
+                    : "Prompt's built-in storage — used automatically if you disconnect your connected provider."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {isSupabaseActive && (
+                  <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
+                    <span className="text-xs font-medium text-green-600">Active</span>
                   </div>
-                  {storageBackendStatus === "reauth_required" && (
-                    <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10">
-                      <span className="text-sm font-medium text-red-500">Re-authentication required</span>
-                    </div>
-                  )}
-                  {storageBackendStatus === "error" && (
-                    <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
-                      <span className="text-sm font-medium text-amber-600">Connection error — checking automatically</span>
-                    </div>
-                  )}
-                </div>
-
-                {googleDriveFolderExists && (
-                  <p className="text-sm text-muted-foreground">
-                    Files are stored in the Prompt/ folder in your Google Drive.
-                  </p>
                 )}
-
-                <div className="flex flex-wrap items-center gap-3">
-                  {storageBackendStatus === "reauth_required" && (
-                    <ButtonBase
-                      variant="blue"
-                      buttonType="icon-text"
-                      onClick={() => window.location.href = "/api/auth/google-drive/connect"}
-                    >
-                      <CheckCircle className="size-4" />
-                      Reconnect Google Drive
-                    </ButtonBase>
-                  )}
-                  <ButtonBase
-                    variant="destructive"
-                    buttonType="icon-text"
-                    onClick={async () => {
-                      setGoogleDocCount(null);
-                      setGoogleModalOpen(true);
-                      const count = await getDocumentCountByBackend('google_drive');
-                      setGoogleDocCount(count);
-                    }}
-                    disabled={isGooglePending}
-                  >
-                    <XCircle className="size-4" />
-                    Disconnect
-                  </ButtonBase>
-                  {googleDisconnectError && (
-                    <span className="text-sm font-medium text-status-danger">
-                      {googleDisconnectError}
-                    </span>
-                  )}
-                </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="px-3 py-2 rounded-md inline-flex items-center bg-status-neutral/10">
-                  <span className="text-sm font-medium text-status-neutral">Not connected</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Documents are stored in Prompt&apos;s built-in secure storage. Connect Google Drive to use your own storage instead.
-                </p>
-                <ButtonBase
-                  variant="sky"
-                  buttonType="icon-text"
-                  onClick={() => window.location.href = "/api/auth/google-drive/connect"}
-                >
-                  <Cloud className="size-4" />
-                  Connect Google Drive
-                </ButtonBase>
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* OneDrive Card */}
-      <Card className="p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex items-center justify-center size-12 rounded-lg bg-blue-500/10 shrink-0">
-            <HardDrive className="size-6 text-blue-500" />
-          </div>
-          <div className="flex-1 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Microsoft OneDrive</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Store client documents in your Microsoft OneDrive instead of Prompt&apos;s built-in storage
-              </p>
             </div>
+          </div>
 
-            {isOneDriveConnected ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10">
-                    <span className="text-sm font-medium text-green-600">Connected</span>
-                  </div>
-                  {storageBackendStatus === "reauth_required" && (
-                    <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10">
-                      <span className="text-sm font-medium text-red-500">Re-authentication required</span>
-                    </div>
-                  )}
-                  {storageBackendStatus === "error" && (
-                    <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
-                      <span className="text-sm font-medium text-amber-600">Connection error — checking automatically</span>
-                    </div>
-                  )}
-                </div>
-
-                <p className="text-sm text-muted-foreground">
-                  Files are stored in the Apps/Prompt/ folder in your OneDrive.
+          {/* Google Drive */}
+          <div className="py-4 first:pt-0 last:pb-0">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Google Drive</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isGoogleConnected
+                    ? googleDriveFolderExists
+                      ? "Stored in the Prompt/ folder in your Google Drive"
+                      : "Connected"
+                    : "Store documents in your Google Drive"}
                 </p>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  {storageBackendStatus === "reauth_required" && (
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {isGoogleConnected ? (
+                  <>
+                    <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
+                      <span className="text-xs font-medium text-green-600">Connected</span>
+                    </div>
+                    {storageBackendStatus === "reauth_required" && (
+                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-red-500/10">
+                        <span className="text-xs font-medium text-red-500">Re-auth required</span>
+                      </div>
+                    )}
+                    {storageBackendStatus === "error" && (
+                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-amber-500/10">
+                        <span className="text-xs font-medium text-amber-600">Connection error</span>
+                      </div>
+                    )}
+                    {storageBackendStatus === "reauth_required" && (
+                      <ButtonBase
+                        variant="violet"
+                        buttonType="icon-text"
+                        onClick={() => (window.location.href = "/api/auth/google-drive/connect")}
+                      >
+                        <HardDrive className="size-4" />
+                        Reconnect
+                      </ButtonBase>
+                    )}
                     <ButtonBase
-                      variant="blue"
+                      variant="destructive"
                       buttonType="icon-text"
-                      onClick={() => window.location.href = "/api/auth/onedrive/connect"}
+                      onClick={async () => {
+                        setGoogleDocCount(null);
+                        setGoogleModalOpen(true);
+                        const count = await getDocumentCountByBackend("google_drive");
+                        setGoogleDocCount(count);
+                      }}
+                      disabled={isGooglePending}
                     >
-                      <CheckCircle className="size-4" />
-                      Reconnect OneDrive
+                      <XCircle className="size-4" />
+                      Disconnect
                     </ButtonBase>
-                  )}
+                    {googleDisconnectError && (
+                      <span className="text-sm font-medium text-status-danger">{googleDisconnectError}</span>
+                    )}
+                  </>
+                ) : (
                   <ButtonBase
-                    variant="destructive"
+                    variant="violet"
                     buttonType="icon-text"
-                    onClick={async () => {
-                      setOneDriveDocCount(null);
-                      setOneDriveModalOpen(true);
-                      const count = await getDocumentCountByBackend('onedrive');
-                      setOneDriveDocCount(count);
-                    }}
-                    disabled={isOneDrivePending}
+                    onClick={() => (window.location.href = "/api/auth/google-drive/connect")}
                   >
-                    <XCircle className="size-4" />
-                    Disconnect
+                    <HardDrive className="size-4" />
+                    Connect
                   </ButtonBase>
-                  {oneDriveDisconnectError && (
-                    <span className="text-sm font-medium text-status-danger">
-                      {oneDriveDisconnectError}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="px-3 py-2 rounded-md inline-flex items-center bg-status-neutral/10">
-                  <span className="text-sm font-medium text-status-neutral">Not connected</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Documents are stored in Prompt&apos;s built-in secure storage. Connect OneDrive to use your own storage instead.
+            </div>
+          </div>
+
+          {/* Microsoft OneDrive */}
+          <div className="py-4 first:pt-0 last:pb-0">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Microsoft OneDrive</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isOneDriveConnected
+                    ? "Stored in Apps/Prompt/ in your OneDrive"
+                    : "Store documents in your Microsoft OneDrive"}
                 </p>
-                <ButtonBase
-                  variant="blue"
-                  buttonType="icon-text"
-                  onClick={() => window.location.href = "/api/auth/onedrive/connect"}
-                >
-                  <HardDrive className="size-4" />
-                  Connect OneDrive
-                </ButtonBase>
               </div>
-            )}
+              <div className="flex items-center gap-2 shrink-0">
+                {isOneDriveConnected ? (
+                  <>
+                    <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
+                      <span className="text-xs font-medium text-green-600">Connected</span>
+                    </div>
+                    {storageBackendStatus === "reauth_required" && (
+                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-red-500/10">
+                        <span className="text-xs font-medium text-red-500">Re-auth required</span>
+                      </div>
+                    )}
+                    {storageBackendStatus === "error" && (
+                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-amber-500/10">
+                        <span className="text-xs font-medium text-amber-600">Connection error</span>
+                      </div>
+                    )}
+                    {storageBackendStatus === "reauth_required" && (
+                      <ButtonBase
+                        variant="violet"
+                        buttonType="icon-text"
+                        onClick={() => (window.location.href = "/api/auth/onedrive/connect")}
+                      >
+                        <HardDrive className="size-4" />
+                        Reconnect
+                      </ButtonBase>
+                    )}
+                    <ButtonBase
+                      variant="destructive"
+                      buttonType="icon-text"
+                      onClick={async () => {
+                        setOneDriveDocCount(null);
+                        setOneDriveModalOpen(true);
+                        const count = await getDocumentCountByBackend("onedrive");
+                        setOneDriveDocCount(count);
+                      }}
+                      disabled={isOneDrivePending}
+                    >
+                      <XCircle className="size-4" />
+                      Disconnect
+                    </ButtonBase>
+                    {oneDriveDisconnectError && (
+                      <span className="text-sm font-medium text-status-danger">{oneDriveDisconnectError}</span>
+                    )}
+                  </>
+                ) : (
+                  <ButtonBase
+                    variant="violet"
+                    buttonType="icon-text"
+                    onClick={() => (window.location.href = "/api/auth/onedrive/connect")}
+                  >
+                    <HardDrive className="size-4" />
+                    Connect
+                  </ButtonBase>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Dropbox */}
+          <div className="py-4 first:pt-0 last:pb-0">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Dropbox</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isDropboxConnected
+                    ? "Stored in the Prompt folder in your Dropbox"
+                    : "Store documents in your Dropbox App folder"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {isDropboxConnected ? (
+                  <>
+                    <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
+                      <span className="text-xs font-medium text-green-600">Connected</span>
+                    </div>
+                    {storageBackendStatus === "reauth_required" && (
+                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-red-500/10">
+                        <span className="text-xs font-medium text-red-500">Re-auth required</span>
+                      </div>
+                    )}
+                    {storageBackendStatus === "error" && (
+                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-amber-500/10">
+                        <span className="text-xs font-medium text-amber-600">Connection error</span>
+                      </div>
+                    )}
+                    {storageBackendStatus === "reauth_required" && (
+                      <ButtonBase
+                        variant="violet"
+                        buttonType="icon-text"
+                        onClick={() => (window.location.href = "/api/auth/dropbox/connect")}
+                      >
+                        <HardDrive className="size-4" />
+                        Reconnect
+                      </ButtonBase>
+                    )}
+                    <ButtonBase
+                      variant="destructive"
+                      buttonType="icon-text"
+                      onClick={async () => {
+                        setDropboxDocCount(null);
+                        setDropboxModalOpen(true);
+                        const count = await getDocumentCountByBackend("dropbox");
+                        setDropboxDocCount(count);
+                      }}
+                      disabled={isDropboxPending}
+                    >
+                      <XCircle className="size-4" />
+                      Disconnect
+                    </ButtonBase>
+                    {dropboxDisconnectError && (
+                      <span className="text-sm font-medium text-status-danger">{dropboxDisconnectError}</span>
+                    )}
+                  </>
+                ) : (
+                  <ButtonBase
+                    variant="violet"
+                    buttonType="icon-text"
+                    onClick={() => (window.location.href = "/api/auth/dropbox/connect")}
+                  >
+                    <HardDrive className="size-4" />
+                    Connect
+                  </ButtonBase>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </Card>
 
-      {/* Dropbox Card */}
-      <DropboxConnectCard
-        isConnected={dropboxConnected}
-        storageBackendStatus={storageBackendStatus}
-      />
-
-      {/* Google Drive Disconnect Confirmation Modal */}
       <DisconnectConfirmModal
         isOpen={googleModalOpen}
         onClose={() => setGoogleModalOpen(false)}
@@ -319,8 +389,6 @@ function StorageCardInner({
         isLoading={isGooglePending}
         onConfirm={handleGoogleDisconnect}
       />
-
-      {/* OneDrive Disconnect Confirmation Modal */}
       <DisconnectConfirmModal
         isOpen={oneDriveModalOpen}
         onClose={() => setOneDriveModalOpen(false)}
@@ -328,6 +396,14 @@ function StorageCardInner({
         documentCount={oneDriveDocCount}
         isLoading={isOneDrivePending}
         onConfirm={handleOneDriveDisconnect}
+      />
+      <DisconnectConfirmModal
+        isOpen={dropboxModalOpen}
+        onClose={() => setDropboxModalOpen(false)}
+        providerName="Dropbox"
+        documentCount={dropboxDocCount}
+        isLoading={isDropboxPending}
+        onConfirm={handleDropboxDisconnect}
       />
     </div>
   );

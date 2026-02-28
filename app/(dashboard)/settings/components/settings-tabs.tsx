@@ -74,11 +74,17 @@ export function SettingsTabs({
             <TabsTrigger value="general" className="px-4">General</TabsTrigger>
             <TabsTrigger value="email" className="px-4">Email</TabsTrigger>
             <TabsTrigger value="billing" className="px-4">Billing</TabsTrigger>
-            <TabsTrigger value="storage" className="px-4">Storage</TabsTrigger>
           </TabsList>
         </div>
 
         <TabsContent value="general" className="space-y-8 mt-6">
+          <StorageCard
+            storageBackend={storageBackend}
+            googleDriveFolderExists={googleDriveFolderExists}
+            storageBackendStatus={storageBackendStatus}
+            oneDriveConnected={oneDriveConnected}
+            dropboxConnected={dropboxConnected}
+          />
           <SendHourPicker defaultHour={sendHour} />
           <TeamCard
             accountants={accountants}
@@ -127,15 +133,6 @@ export function SettingsTabs({
           </Card>
         </TabsContent>
 
-        <TabsContent value="storage" className="space-y-8 mt-6">
-          <StorageCard
-            storageBackend={storageBackend}
-            googleDriveFolderExists={googleDriveFolderExists}
-            storageBackendStatus={storageBackendStatus}
-            oneDriveConnected={oneDriveConnected}
-            dropboxConnected={dropboxConnected}
-          />
-        </TabsContent>
       </Tabs>
     </div>
   );
