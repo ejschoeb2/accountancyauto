@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T13:55:00.000Z"
+last_updated: "2026-02-28T13:44:19.090Z"
 progress:
   total_phases: 28
-  completed_phases: 24
+  completed_phases: 25
   total_plans: 96
-  completed_plans: 90
+  completed_plans: 91
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 27 complete — all 3 plans executed. DropboxProvider, OAuth2 routes, file-handling route wiring done. Phase 28 (Settings UI & Token Lifecycle) is next.
+**Current focus:** Phase 26 Plan 01 complete — MSAL foundation built. OneDrive MSAL cache plugin, schema migration, and MS env var docs done. Phase 26 Plan 02 (OneDriveProvider) is next.
 
 ## Current Position
 
-Phase: 27 (complete)
-Plan: 03 complete
-Status: Phase 27 Plan 03 complete — DSAR export and document download route updated for Dropbox support; all file-handling routes now route through resolveProvider for all backends
-Last activity: 2026-02-28 — Phase 27-03 Dropbox file route wiring implemented
+Phase: 26 (in progress)
+Plan: 01 complete
+Status: Phase 26 Plan 01 complete — @azure/msal-node installed, ms_home_account_id column added, PostgresMsalCachePlugin created with encrypted Postgres token cache persistence, MS env vars documented
+Last activity: 2026-02-28 — Phase 26-01 MSAL foundation implemented
 
 Resume file: none
-Next step: Execute Phase 28 (Settings UI & Token Lifecycle)
+Next step: Execute Phase 26 Plan 02 (OneDriveProvider)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -275,6 +275,8 @@ Recent decisions affecting v3.0:
 - [Phase 27-03]: [D-27-03-01] DSAR branching changed to supabase-as-default: if (!storage_backend || === 'supabase') rather than if (=== 'google_drive') — forward-compatible for any future backend
 - [Phase 27-03]: [D-27-03-02] Dropbox download returns { signedUrl: url } (temporary link) not proxied bytes — filesGetTemporaryLink works under app folder scope, unlike Google Drive drive.file scope
 - [Phase 27-03]: [D-27-03-03] Dropbox download route uses storage_backend: 'dropbox' explicitly (per-document routing per D-24-01-02, not org.storage_backend)
+- [Phase 26-01]: PostgresMsalCachePlugin encrypts entire serialized MSAL cache as single AES-256-GCM blob via lib/crypto/tokens.ts — no per-token encryption
+- [Phase 26-01]: cacheHasChanged guard in afterCacheAccess prevents unnecessary DB writes on read-only token operations
 
 ### Roadmap Evolution
 
@@ -319,6 +321,7 @@ Recent decisions affecting v3.0:
 | Phase 25-google-drive-integration P05 | 8 | 2 tasks | 6 files |
 | Phase 27-dropbox-integration P02 | 9 | 2 tasks | 4 files |
 | Phase 27 P01 | 19 | 2 tasks | 6 files |
+| Phase 26 P01 | 25 | 3 tasks | 3 files |
 
 ### Tech Debt
 
