@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T03:13:40.168Z"
+last_updated: "2026-02-28T12:19:22.926Z"
 progress:
-  total_phases: 25
+  total_phases: 28
   completed_phases: 23
-  total_plans: 85
-  completed_plans: 82
+  total_plans: 91
+  completed_plans: 83
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 24 in progress — Plan 03 (AES-256-GCM token encryption) complete. Plan 04 next.
+**Current focus:** Phase 25 in progress — Plan 01 (Google Drive foundation) complete. Plan 02 next.
 
 ## Current Position
 
-Phase: 24 (in progress)
-Plan: 03 complete
-Status: Phase 24 Plan 03 complete — lib/crypto/tokens.ts with AES-256-GCM encryptToken/decryptToken; ENCRYPTION_KEY documented in ENV_VARIABLES.md
-Last activity: 2026-02-28 — Phase 24-03 AES-256-GCM token encryption module created
+Phase: 25 (in progress)
+Plan: 01 complete
+Status: Phase 25 Plan 01 complete — @googleapis/drive installed, google_drive_folder_id + google_token_expires_at schema columns, withTokenRefresh utility with proactive refresh and invalid_grant nullification
+Last activity: 2026-02-28 — Phase 25-01 Google Drive foundation created
 
 Resume file: none
-Next step: Execute Phase 24 Plan 04 (next plan in storage abstraction layer)
+Next step: Execute Phase 25 Plan 02 (next plan in Google Drive integration)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -250,6 +250,9 @@ Recent decisions affecting v3.0:
 - [Phase 24-02]: [D-24-02-02] resolveProvider() defaults to SupabaseStorageProvider for null storage_backend — safe default for pre-migration rows
 - [Phase 24-02]: [D-24-02-03] Backwards-compatible named exports use @deprecated JSDoc — signals intent to new callers; existing callers unchanged
 - [Phase 24-02]: [D-24-02-04] getBytes() reuses getDownloadUrl() internally — avoids duplicating signed URL logic; consistent with DSAR export pattern
+- [Phase 25-01]: [D-25-01-01] Use auth.OAuth2 (named export from @googleapis/drive) not google.auth.OAuth2 — google is not a named export from the scoped package
+- [Phase 25-01]: [D-25-01-02] OAuth2Client construction is lazy (inside withTokenRefresh) — mirrors D-11-05-01 Stripe pattern; prevents build failures when Google env vars absent
+- [Phase 25-01]: [D-25-01-03] invalid_grant detection checks err.response.data.error AND err.message string — covers both google-auth-library response format and edge-case string messages
 
 ### Roadmap Evolution
 
@@ -288,6 +291,7 @@ Recent decisions affecting v3.0:
 | Postmark webhook timeout mitigation: async queue vs early-ack + background upload — decide before Phase 29 coding | Phase 29 plan |
 | DSAR export scale threshold: at what document count does synchronous DSAR assembly risk Vercel timeout? Add document count guard above threshold | Phase 29 plan |
 | Phase 24 P02 | 8 | 1 tasks | 2 files |
+| Phase 25-google-drive-integration P01 | 9 | 3 tasks | 5 files |
 
 ### Tech Debt
 
