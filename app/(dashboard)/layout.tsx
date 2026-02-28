@@ -31,6 +31,7 @@ export default async function DashboardLayout({
   let needsReauth = false;
   let orgName = '';
   let orgRole = 'member';
+  let providerName = 'your storage provider';
   try {
     const { orgId, orgRole: role } = await getOrgContext();
     orgRole = role;
@@ -47,11 +48,16 @@ export default async function DashboardLayout({
 
     const { data: org } = await supabase
       .from('organisations')
-      .select('name, storage_backend_status')
+      .select('name, storage_backend_status, storage_backend')
       .eq('id', orgId)
       .single();
     orgName = org?.name || '';
     needsReauth = org?.storage_backend_status === 'reauth_required';
+    providerName =
+      org?.storage_backend === 'google_drive' ? 'Google Drive'
+      : org?.storage_backend === 'onedrive' ? 'Microsoft OneDrive'
+      : org?.storage_backend === 'dropbox' ? 'Dropbox'
+      : 'your storage provider';
   } catch {
     // If org context fails, don't block the layout — just skip the banner and org name
   }
@@ -98,15 +104,15 @@ export default async function DashboardLayout({
         </div>
       )}
 
-      {/* Google Drive re-auth banner */}
+      {/* Storage re-auth banner */}
       {needsReauth && (
         <div className="bg-red-50 border-b border-red-200 px-8 py-3">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <p className="text-sm text-red-800">
-              Your Google Drive connection has expired. Re-connect to continue storing documents in Google Drive.
+              Your {providerName} connection has expired. Re-connect to continue storing documents in {providerName}.
             </p>
             <a href="/settings?tab=storage" className="text-sm font-medium text-red-900 hover:text-red-700 underline">
-              Reconnect Google Drive
+              Reconnect {providerName}
             </a>
           </div>
         </div>
