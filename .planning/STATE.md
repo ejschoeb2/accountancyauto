@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T13:05:00.000Z"
+last_updated: "2026-02-28T13:14:00.392Z"
 progress:
   total_phases: 28
-  completed_phases: 23
+  completed_phases: 24
   total_plans: 96
   completed_plans: 87
 ---
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 25 in progress — Plans 01, 02, 03, and 04 complete. Plan 05 next (if any).
+**Current focus:** Phase 25 complete — all 5 plans executed. Phase 26 (OneDrive Integration) is next.
 
 ## Current Position
 
-Phase: 25 (in progress)
-Plan: 04 complete
-Status: Phase 25 Plan 04 complete — server-proxied Google Drive downloads, portal upload and Postmark inbound routed through resolveProvider(), storage_backend captured at INSERT time
-Last activity: 2026-02-28 — Phase 25-04 file route wiring implemented
+Phase: 25 (complete)
+Plan: 05 complete
+Status: Phase 25 Plan 05 complete — DSAR multi-backend routing, StorageCard settings UI, disconnectGoogleDrive server action, re-auth banner in dashboard layout
+Last activity: 2026-02-28 — Phase 25-05 settings UI and DSAR fix implemented
 
 Resume file: none
-Next step: Execute Phase 25 Plan 05 (if any — check ROADMAP.md)
+Next step: Execute Phase 26 (Microsoft OneDrive Integration)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -264,6 +264,8 @@ Recent decisions affecting v3.0:
 - [Phase 25-04]: [D-25-04-02] PostgREST !inner join cast through unknown: SDK infers array type for joined relations; direct as { ... } assertion fails; routing through unknown first avoids TypeScript overlap error
 - [Phase 25-04]: [D-25-04-03] maxDuration = 60 on documents/route.ts — Google Drive getBytes() streams a full file; Vercel default 10s timeout too short for large PDFs
 - [Phase 25-04]: [D-25-04-04] orgConfig fetched once before attachment loop in processAttachments — prevents N extra DB round-trips for multi-attachment emails
+- [Phase 25-05]: Per-document storage_backend routing in DSAR: org config fetched once before loop; doc.storage_backend determines google_drive vs supabase byte-fetch strategy
+- [Phase 25-05]: disconnectGoogleDrive uses admin client and clears all 6 token/config columns; revalidatePath('/settings') ensures StorageCard re-renders with updated state
 
 ### Roadmap Evolution
 
@@ -305,6 +307,7 @@ Recent decisions affecting v3.0:
 | Phase 25-google-drive-integration P01 | 9 | 3 tasks | 5 files |
 | Phase 25-google-drive-integration P02 | 8 | 2 tasks | 2 files |
 | Phase 25 P03 | 12 | 2 tasks | 2 files |
+| Phase 25-google-drive-integration P05 | 8 | 2 tasks | 6 files |
 
 ### Tech Debt
 

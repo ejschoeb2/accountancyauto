@@ -440,7 +440,7 @@ Phases execute in numeric order: 18 -> 19
 | 22. Document Verification — Portal Feedback & Dashboard Summary | v4.0 | 3/3 | Complete | 2026-02-25 |
 | 23. Unified Pricing Experience | v4.0 | 4/4 | Complete | 2026-02-28 |
 | 24. Storage Abstraction Layer | 3/3 | Complete    | 2026-02-28 | - |
-| 25. Google Drive Integration | 4/5 | In Progress|  | - |
+| 25. Google Drive Integration | 5/5 | Complete   | 2026-02-28 | - |
 | 26. Microsoft OneDrive Integration | v5.0 | 0/TBD | Not started | - |
 | 27. Dropbox Integration | v5.0 | 0/TBD | Not started | - |
 | 28. Settings UI & Token Lifecycle | v5.0 | 0/TBD | Not started | - |
@@ -459,7 +459,7 @@ Phases execute in numeric order: 18 -> 19
 ## Phase Summaries
 
 - [x] **Phase 24: Storage Abstraction Layer** - Provider-agnostic interface, schema migrations, token encryption utility (completed 2026-02-28)
-- [ ] **Phase 25: Google Drive Integration** - OAuth2 connect/disconnect, GoogleDriveProvider, withTokenRefresh utility, portal/inbound/DSAR updated
+- [x] **Phase 25: Google Drive Integration** - OAuth2 connect/disconnect, GoogleDriveProvider, withTokenRefresh utility, portal/inbound/DSAR updated (completed 2026-02-28)
 - [ ] **Phase 26: Microsoft OneDrive Integration** - MSAL OAuth2, OneDriveProvider, M365/personal account support, AADSTS53003 handling
 - [ ] **Phase 27: Dropbox Integration** - OAuth2 with offline token, DropboxProvider, app folder boundary, temporary link downloads
 - [ ] **Phase 28: Settings UI & Token Lifecycle** - Unified Storage tab, re-auth banner, disconnect modal, daily health-check cron, privacy policy update

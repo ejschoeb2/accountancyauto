@@ -23,8 +23,8 @@
 - [x] **GDRV-05**: `withTokenRefresh(orgId, call)` utility in `lib/storage/token-refresh.ts` proactively refreshes access token before expiry; on `invalid_grant` fatal error: sets `storage_backend_status = 'reauth_required'`, nulls encrypted token columns, never retries
 - [x] **GDRV-06**: Document downloads served via server-proxied API response when Google Drive backend is active (`drive.file` scope does not produce publicly accessible temporary URLs)
 - [x] **GDRV-07**: Portal upload route and Postmark inbound email attachment handler route file bytes to Google Drive API when org has `storage_backend = 'google_drive'`
-- [ ] **GDRV-08**: DSAR export fetches file bytes from Google Drive API for `client_documents` rows where `storage_backend = 'google_drive'`
-- [ ] **GDRV-09**: Accountant can disconnect Google Drive from Settings; encrypted token columns cleared from `organisations`; `storage_backend` reset to `supabase`
+- [x] **GDRV-08**: DSAR export fetches file bytes from Google Drive API for `client_documents` rows where `storage_backend = 'google_drive'`
+- [x] **GDRV-09**: Accountant can disconnect Google Drive from Settings; encrypted token columns cleared from `organisations`; `storage_backend` reset to `supabase`
 
 ### OneDrive Integration (ONDRV)
 
@@ -93,8 +93,8 @@
 | GDRV-05 | Phase 25 | Complete |
 | GDRV-06 | Phase 25 | Complete |
 | GDRV-07 | Phase 25 | Complete |
-| GDRV-08 | Phase 25 | Pending |
-| GDRV-09 | Phase 25 | Pending |
+| GDRV-08 | Phase 25 | Complete |
+| GDRV-09 | Phase 25 | Complete |
 | ONDRV-01 | Phase 26 | Pending |
 | ONDRV-02 | Phase 26 | Pending |
 | ONDRV-03 | Phase 26 | Pending |
