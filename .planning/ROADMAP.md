@@ -440,7 +440,7 @@ Phases execute in numeric order: 18 -> 19
 | 22. Document Verification — Portal Feedback & Dashboard Summary | v4.0 | 3/3 | Complete | 2026-02-25 |
 | 23. Unified Pricing Experience | v4.0 | 4/4 | Complete | 2026-02-28 |
 | 24. Storage Abstraction Layer | 3/3 | Complete    | 2026-02-28 | - |
-| 25. Google Drive Integration | v5.0 | 0/TBD | Not started | - |
+| 25. Google Drive Integration | v5.0 | 0/5 | Not started | - |
 | 26. Microsoft OneDrive Integration | v5.0 | 0/TBD | Not started | - |
 | 27. Dropbox Integration | v5.0 | 0/TBD | Not started | - |
 | 28. Settings UI & Token Lifecycle | v5.0 | 0/TBD | Not started | - |
@@ -489,7 +489,14 @@ Phases execute in numeric order: 18 -> 19
   3. Downloading a document from the client detail page when `storage_backend = 'google_drive'` serves file bytes via a server-proxied response; the raw Drive file ID is not exposed to the browser; `document_access_log` is written as before.
   4. Forcing a Google `invalid_grant` error causes the system to set `storage_backend_status = 'reauth_required'`, null out the encrypted token columns, and display a persistent re-auth banner in the dashboard layout; no retry is attempted after the fatal error.
   5. An accountant clicking "Disconnect Google Drive" in Settings clears the encrypted token columns and resets `storage_backend` to `supabase`; subsequent uploads go to Supabase Storage; previously uploaded Drive documents remain accessible via their stored file IDs.
-**Plans**: TBD
+**Plans**: 5 plans in 3 waves
+
+Plans:
+- [ ] 25-01-PLAN.md — Install @googleapis/drive, schema migration (google_drive_folder_id + google_token_expires_at), withTokenRefresh utility, ENV_VARIABLES.md
+- [ ] 25-02-PLAN.md — GoogleDriveProvider class (upload, getBytes, delete, getDownloadUrl throws), resolveProvider factory updated, UploadParams.clientName added
+- [ ] 25-03-PLAN.md — OAuth2 connect route (CSRF state) and callback route (code exchange, folder creation, encrypted token store)
+- [ ] 25-04-PLAN.md — Document download route (server-proxy for Google Drive), portal upload and Postmark inbound updated to resolveProvider
+- [ ] 25-05-PLAN.md — DSAR export per-backend routing, StorageCard component, disconnectGoogleDrive action, Storage settings tab, re-auth banner in layout
 
 ### Phase 26: Microsoft OneDrive Integration
 **Goal**: Accountants can connect OneDrive from Settings using a single OAuth flow that supports both M365 business and personal Microsoft accounts; the MSAL token cache is persisted to Postgres between Vercel invocations; all uploads are constrained to `Apps/Prompt/`; Conditional Access errors are surfaced with an actionable message; portal uploads, inbound email attachments, and DSAR exports all route through OneDrive when configured.
