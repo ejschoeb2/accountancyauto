@@ -130,6 +130,9 @@ export async function POST(request: NextRequest) {
     const detectedFilingType = detectFilingType(subject, body);
 
     // Step 4: Store in inbound_emails table
+    // Phase 29 HRDN-02: include postmark_message_id for idempotency on delivery retries
+    const messageId = payload.MessageID || null;
+
     const { data: inboundEmail, error: insertError } = await supabase
       .from('inbound_emails')
       .insert({
@@ -143,11 +146,23 @@ export async function POST(request: NextRequest) {
         read: false,
         records_received_detected: detection.documentsDetected,
         raw_postmark_data: payload,
+        postmark_message_id: messageId,
       })
       .select()
       .single();
 
     if (insertError) {
+      // Phase 29 HRDN-02: unique constraint violation = duplicate delivery retry
+      // Supabase returns code '23505' for unique_violation
+      if (insertError.code === '23505') {
+        console.warn('[Postmark Inbound] Duplicate delivery detected (idempotency), skipping:', messageId);
+        // Return 200 to Postmark — we already processed this message
+        return NextResponse.json({
+          success: true,
+          message: 'Email already processed (duplicate delivery)',
+          duplicate: true,
+        });
+      }
       console.error('[Postmark Inbound] Failed to insert email:', insertError);
       return NextResponse.json({ error: 'Database insert failed' }, { status: 500 });
     }
@@ -267,6 +282,37 @@ async function processAttachments(
       // Phase 21: compute SHA-256 hash for deduplication metadata
       const sha256Hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
 
+      // Phase 29 HRDN-02: Size guard — skip oversized attachments rather than failing silently
+      const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25 MB (Postmark inbound limit)
+      if (fileBuffer.length > MAX_ATTACHMENT_BYTES) {
+        console.warn('[Postmark Inbound] Attachment exceeds size limit, skipping:', {
+          filename: attachment.Name,
+          sizeBytes: fileBuffer.length,
+          maxBytes: MAX_ATTACHMENT_BYTES,
+        });
+        continue;
+      }
+
+      // Phase 29 HRDN-02: Idempotency guard — skip if this exact attachment was already stored
+      // Keyed on (client_id, file_hash, source) — if a row exists, this is a Postmark retry
+      if (client?.id) {
+        const { data: existingDoc } = await supabase
+          .from('client_documents')
+          .select('id')
+          .eq('client_id', client.id)
+          .eq('file_hash', sha256Hash)
+          .eq('source', 'inbound_email')
+          .maybeSingle();
+
+        if (existingDoc) {
+          console.warn('[Postmark Inbound] Idempotency: duplicate attachment skipped', {
+            filename: attachment.Name,
+            existingDocumentId: existingDoc.id,
+          });
+          continue;
+        }
+      }
+
       // Derive tax period end from client year_end_date (best-effort; accountant can correct)
       // Use the most recently completed year end before today
       const now = new Date();
@@ -344,7 +390,10 @@ async function processAttachments(
         inboundEmailId,
       });
     } catch (err) {
-      console.error('[Postmark Inbound] Failed to process attachment:', attachment.Name, err);
+      console.error('[Postmark Inbound] Failed to process attachment:', attachment.Name, {
+        backend: orgStorageBackend,
+        error: err instanceof Error ? err.message : String(err),
+      });
       // Continue to next attachment — never throw from this loop
     }
   }
