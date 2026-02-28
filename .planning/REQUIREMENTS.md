@@ -8,9 +8,9 @@
 ### Storage Foundation (STOR)
 
 - [ ] **STOR-01**: StorageProvider interface extracted from `lib/documents/storage.ts` with `upload()`, `getDownloadUrl()`, `delete()`, `getBytes()` methods; existing Supabase implementation unchanged and all existing functionality verified unaffected
-- [ ] **STOR-02**: `organisations` table gains `storage_backend` enum column (`supabase | google_drive | onedrive | dropbox`, default `supabase`) and `storage_backend_status` column (`active | error | null`)
-- [ ] **STOR-03**: `organisations` table gains encrypted token columns per provider (`_enc` suffix): `google_refresh_token_enc`, `google_access_token_enc`, `ms_token_cache_enc`, `dropbox_refresh_token_enc`, `dropbox_access_token_enc`
-- [ ] **STOR-04**: `client_documents` table gains `storage_backend` column recording which backend was active at upload time; value is set at insert time, never derived from org's current `storage_backend` setting
+- [x] **STOR-02**: `organisations` table gains `storage_backend` enum column (`supabase | google_drive | onedrive | dropbox`, default `supabase`) and `storage_backend_status` column (`active | error | null`)
+- [x] **STOR-03**: `organisations` table gains encrypted token columns per provider (`_enc` suffix): `google_refresh_token_enc`, `google_access_token_enc`, `ms_token_cache_enc`, `dropbox_refresh_token_enc`, `dropbox_access_token_enc`
+- [x] **STOR-04**: `client_documents` table gains `storage_backend` column recording which backend was active at upload time; value is set at insert time, never derived from org's current `storage_backend` setting
 - [ ] **STOR-05**: `lib/crypto/tokens.ts` exports `encryptToken(plaintext)` and `decryptToken(ciphertext)` using AES-256-GCM with `ENCRYPTION_KEY` env var; env var documented in ENV_VARIABLES.md; no plaintext token ever written to any DB column outside this module
 - [ ] **STOR-06**: `resolveProvider(orgConfig)` factory in `lib/documents/storage.ts` returns the correct `StorageProvider` implementation based on `org.storage_backend`; Supabase is the default when no third-party backend is configured
 
@@ -81,9 +81,9 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | STOR-01 | Phase 24 | Pending |
-| STOR-02 | Phase 24 | Pending |
-| STOR-03 | Phase 24 | Pending |
-| STOR-04 | Phase 24 | Pending |
+| STOR-02 | Phase 24 | Complete |
+| STOR-03 | Phase 24 | Complete |
+| STOR-04 | Phase 24 | Complete |
 | STOR-05 | Phase 24 | Pending |
 | STOR-06 | Phase 24 | Pending |
 | GDRV-01 | Phase 25 | Pending |

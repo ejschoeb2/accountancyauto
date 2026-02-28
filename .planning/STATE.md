@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Third-Party Storage Integrations
-status: roadmap_ready
-last_updated: "2026-02-28T00:00:00.000Z"
+status: in_progress
+last_updated: "2026-02-28T03:08:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** v5.0 Roadmap created — 6 phases (24-29), 36 requirements mapped. Ready to plan Phase 24.
+**Current focus:** Phase 24 in progress — Plan 01 (schema migration) complete. Plan 02 (TypeScript interface + crypto) next.
 
 ## Current Position
 
-Phase: 24 (not started)
-Plan: —
-Status: Roadmap created, ready for /gsd:plan-phase 24
-Last activity: 2026-02-28 — v5.0 roadmap created (Phases 24-29)
+Phase: 24 (in progress)
+Plan: 01 complete
+Status: Phase 24 Plan 01 complete — schema foundation applied to remote database
+Last activity: 2026-02-28 — Phase 24-01 storage abstraction schema migration applied
 
 Resume file: none
-Next step: /gsd:plan-phase 24
+Next step: Execute Phase 24 Plan 02 (StorageProvider interface + lib/crypto/tokens.ts)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -213,6 +213,12 @@ Recent decisions affecting v3.0:
 - DSAR covers all personal data categories: `client_documents`, `inbound_emails`, `email_log`, `clients` profile, `audit_log`
 - Postmark webhook extension is non-blocking: email stored in `inbound_emails` first; attachment extraction is Step 6; Storage failure does not prevent 200 response
 
+**Phase 24-01 Decisions:**
+- [D-24-01-01] storage_backend_status uses TEXT + CHECK constraint (not enum) — values can be added without ALTER TYPE; CHECK includes 'reauth_required' from the start for Phase 25 use
+- [D-24-01-02] Per-document storage_backend column on client_documents set at INSERT time, never derived from org's current storage_backend — prevents broken routing after backend switches
+- [D-24-01-03] All _enc columns are TEXT DEFAULT NULL, nullable — written only by lib/crypto/tokens.ts (Plan 02)
+- [D-24-01-04] Enum type and all dependent columns in a single migration to avoid ordering failures
+
 **v5.0 Decisions (from research — pre-committed before implementation):**
 - Use `@googleapis/drive@^20.1.0` (scoped package, 2.3 MB) NOT `googleapis` (199 MB — Vercel function size limit risk)
 - Use `@azure/msal-node@^5.0.5` NOT `@azure/msal-browser` (browser-only, crashes in Node.js serverless)
@@ -312,9 +318,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: v5.0 roadmap created — Phases 24-29 defined, 36 requirements mapped
+Stopped at: Completed 24-01-PLAN.md — storage abstraction schema migration applied to remote database
 Resume file: none
-Next step: /gsd:plan-phase 24
+Next step: Execute Phase 24 Plan 02 (StorageProvider interface + lib/crypto/tokens.ts)
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
