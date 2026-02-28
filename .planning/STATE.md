@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T13:15:10.012Z"
+last_updated: "2026-02-28T13:29:38.163Z"
 progress:
   total_phases: 28
   completed_phases: 24
   total_plans: 96
-  completed_plans: 87
+  completed_plans: 88
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 25 complete — all 5 plans executed. Phase 26 (OneDrive Integration) is next.
+**Current focus:** Phase 27 in progress — Plan 02 complete (OAuth2 routes + settings card). Plan 03 (DropboxProvider uploads/downloads) is next.
 
 ## Current Position
 
-Phase: 25 (complete)
-Plan: 05 complete
-Status: Phase 25 Plan 05 complete — DSAR multi-backend routing, StorageCard settings UI, disconnectGoogleDrive server action, re-auth banner in dashboard layout
-Last activity: 2026-02-28 — Phase 25-05 settings UI and DSAR fix implemented
+Phase: 27 (in progress)
+Plan: 02 complete
+Status: Phase 27 Plan 02 complete — Dropbox OAuth2 connect/callback routes, disconnectDropbox server action, DropboxConnectCard settings component
+Last activity: 2026-02-28 — Phase 27-02 Dropbox OAuth2 flow and settings UI implemented
 
 Resume file: none
-Next step: Execute Phase 26 (Microsoft OneDrive Integration)
+Next step: Execute Phase 27 Plan 03 (DropboxProvider upload/download wiring)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -266,6 +266,8 @@ Recent decisions affecting v3.0:
 - [Phase 25-04]: [D-25-04-04] orgConfig fetched once before attachment loop in processAttachments — prevents N extra DB round-trips for multi-attachment emails
 - [Phase 25-05]: Per-document storage_backend routing in DSAR: org config fetched once before loop; doc.storage_backend determines google_drive vs supabase byte-fetch strategy
 - [Phase 25-05]: disconnectGoogleDrive uses admin client and clears all 6 token/config columns; revalidatePath('/settings') ensures StorageCard re-renders with updated state
+- [Phase 27-02]: DB-based CSRF state (organisations.dropbox_oauth_state) used for Dropbox — differs from Google Drive's HttpOnly cookie approach; plan requirement
+- [Phase 27-02]: disconnectDropbox uses getOrgContext() for admin role guard (orgRole \!== admin); Google Drive disconnectGoogleDrive omitted this guard historically
 
 ### Roadmap Evolution
 
@@ -308,6 +310,7 @@ Recent decisions affecting v3.0:
 | Phase 25-google-drive-integration P02 | 8 | 2 tasks | 2 files |
 | Phase 25 P03 | 12 | 2 tasks | 2 files |
 | Phase 25-google-drive-integration P05 | 8 | 2 tasks | 6 files |
+| Phase 27-dropbox-integration P02 | 9 | 2 tasks | 4 files |
 
 ### Tech Debt
 

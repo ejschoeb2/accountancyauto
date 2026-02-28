@@ -442,7 +442,7 @@ Phases execute in numeric order: 18 -> 19
 | 24. Storage Abstraction Layer | 3/3 | Complete    | 2026-02-28 | - |
 | 25. Google Drive Integration | 5/5 | Complete    | 2026-02-28 | - |
 | 26. Microsoft OneDrive Integration | v5.0 | 0/TBD | Not started | - |
-| 27. Dropbox Integration | v5.0 | 0/TBD | Not started | - |
+| 27. Dropbox Integration | 1/3 | In Progress|  | - |
 | 28. Settings UI & Token Lifecycle | v5.0 | 0/TBD | Not started | - |
 | 29. Hardening & Integration Testing | v5.0 | 0/TBD | Not started | - |
 
