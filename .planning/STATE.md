@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T18:54:43.990Z"
+last_updated: "2026-02-28T18:55:49.597Z"
 progress:
   total_phases: 30
   completed_phases: 27
   total_plans: 102
-  completed_plans: 97
+  completed_plans: 98
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 29 Plan 02 complete — Postmark inbound webhook idempotency: postmark_message_id column + UNIQUE(org_id, postmark_message_id) constraint on inbound_emails; 23505 early return with duplicate:true; 25 MB attachment size guard; maybeSingle() attachment dedup on (client_id, file_hash, source='inbound_email') (HRDN-02 complete).
+**Current focus:** Phase 29 Plan 01 complete — Provider-native chunked upload sessions for portal files > 4 MB: upload-session route (Drive resumable session + OneDrive createUploadSession), upload-finalize route (client_documents insert), chunked upload routing in portal-checklist.tsx with uploadInChunks + computeSha256 (HRDN-01 complete).
 
 ## Current Position
 
 Phase: 29 (in progress)
-Plan: 02 complete
-Status: Phase 29 Plans 01/02 complete — Research and Postmark inbound idempotency hardening
-Last activity: 2026-02-28 — Phase 29-02 Postmark webhook idempotency implemented (HRDN-02)
+Plan: 01 complete
+Status: Phase 29 Plan 01 complete — Chunked portal uploads for large files (Google Drive + OneDrive)
+Last activity: 2026-02-28 — Phase 29-01 upload-session, upload-finalize, and portal-checklist chunked routing implemented (HRDN-01)
 
 Resume file: none
-Next step: Execute Phase 29 Plan 03 (if any remaining hardening plans)
+Next step: Execute Phase 29 Plan 02 (Postmark webhook idempotency hardening)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -291,6 +291,7 @@ Recent decisions affecting v3.0:
 - [Phase 28]: [D-28-02-02] Document count fetched async after modal opens — avoids blocking button click; modal shows Loading then count
 - [Phase 28]: [D-28-02-03] Confirm button disabled while documentCount === null — prevents disconnect before count is known
 - [Phase 29]: NULLS DISTINCT (standard Postgres default) instead of NULLS NOT DISTINCT for uq_inbound_emails_org_message_id — existing rows all have NULL postmark_message_id; NULLS NOT DISTINCT would treat same-org NULLs as duplicates and fail constraint creation
+- [Phase 29]: LARGE_FILE_THRESHOLD = 4 MB; CHUNK_SIZE = 1.25 MB (LCM of Drive/OneDrive alignment); three-step session+chunks+finalize pattern for large portal uploads
 
 ### Roadmap Evolution
 
@@ -342,6 +343,7 @@ Recent decisions affecting v3.0:
 | Phase 28 P01 | 207 | 2 tasks | 6 files |
 | Phase 28 P02 | 5 | 2 tasks | 4 files |
 | Phase 29 P02 | 18 | 2 tasks | 2 files |
+| Phase 29 P01 | 4 | 2 tasks | 3 files |
 
 ### Tech Debt
 

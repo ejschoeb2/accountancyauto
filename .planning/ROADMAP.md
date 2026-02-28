@@ -444,7 +444,7 @@ Phases execute in numeric order: 18 -> 19
 | 26. Microsoft OneDrive Integration | 3/3 | Complete    | 2026-02-28 | - |
 | 27. Dropbox Integration | 2/3 | Complete    | 2026-02-28 | - |
 | 28. Settings UI & Token Lifecycle | 3/3 | Complete    | 2026-02-28 | - |
-| 29. Hardening & Integration Testing | 1/3 | In Progress|  | - |
+| 29. Hardening & Integration Testing | 2/3 | In Progress|  | - |
 
 ---
 
