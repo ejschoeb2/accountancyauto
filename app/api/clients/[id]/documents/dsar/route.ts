@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { getSignedDownloadUrl } from '@/lib/documents/storage';
+import { getSignedDownloadUrl, resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import JSZip from 'jszip';
 
 export const maxDuration = 60;
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // Use the authenticated supabase for org-scoped query
   const { data: docs, error: docsError } = await supabase
     .from('client_documents')
-    .select('id, storage_path, original_filename, filing_type_id, document_type_id, classification_confidence, source, created_at, retain_until, retention_hold, retention_flagged, tax_period_end_date')
+    .select('id, storage_path, original_filename, filing_type_id, document_type_id, classification_confidence, source, created_at, retain_until, retention_hold, retention_flagged, tax_period_end_date, storage_backend')
     .eq('client_id', clientId)
     .order('created_at', { ascending: true });
 
@@ -32,11 +32,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .in('document_id', docs.map(d => d.id))
     .order('accessed_at', { ascending: true });
 
-  // Fetch client details for the manifest
+  // Fetch client details for the manifest (include org_id for resolveProvider)
   const { data: clientRow } = await supabase
     .from('clients')
-    .select('company_name, display_name, primary_email')
+    .select('company_name, display_name, primary_email, org_id')
     .eq('id', clientId)
+    .single();
+
+  // Fetch org config once before the document loop — needed for Google Drive documents
+  const { data: org } = await supabase
+    .from('organisations')
+    .select('id, storage_backend, google_drive_folder_id')
+    .eq('id', clientRow?.org_id ?? '')
     .single();
 
   const zip = new JSZip();
@@ -44,13 +51,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // Add each document to the ZIP
   for (const doc of docs) {
     try {
-      const { signedUrl } = await getSignedDownloadUrl(doc.storage_path);
-      const response = await fetch(signedUrl);
-      if (!response.ok) {
-        console.warn(`[DSAR] Failed to fetch document ${doc.id}: ${response.status}`);
-        continue;
+      let buffer: ArrayBuffer;
+      if (doc.storage_backend === 'google_drive') {
+        // Google Drive: use provider.getBytes() directly — no public URL available
+        const provider = resolveProvider({
+          id: org?.id ?? '',
+          storage_backend: (org?.storage_backend ?? 'supabase') as StorageBackend,
+          google_drive_folder_id: org?.google_drive_folder_id ?? null,
+        });
+        const bytes = await provider.getBytes(doc.storage_path);
+        buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      } else {
+        // Supabase: existing signed URL fetch
+        const { signedUrl } = await getSignedDownloadUrl(doc.storage_path);
+        const response = await fetch(signedUrl);
+        if (!response.ok) {
+          console.warn(`[DSAR] Failed to fetch document ${doc.id}: ${response.status}`);
+          continue;
+        }
+        buffer = await response.arrayBuffer();
       }
-      const buffer = await response.arrayBuffer();
       // Prefix with filing type to avoid filename collisions
       const safeFilename = `${doc.filing_type_id}/${doc.original_filename}`;
       zip.file(safeFilename, buffer);
