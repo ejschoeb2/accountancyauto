@@ -381,6 +381,37 @@ STRIPE_TAX_ENABLED=false
 
 ---
 
+---
+
+## Cryptography Variables
+
+### `ENCRYPTION_KEY`
+
+```
+ENCRYPTION_KEY=<64-character-hex-string>
+```
+
+**What it is:** A 32-byte (256-bit) symmetric encryption key, hex-encoded as a 64-character string. Used by `lib/crypto/tokens.ts` to encrypt and decrypt OAuth refresh tokens and access tokens before they are stored in the database.
+
+**Format:** Must be exactly 64 hexadecimal characters (0–9, a–f). Generate with:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Used in:** `lib/crypto/tokens.ts` — `encryptToken()` and `decryptToken()` functions only. No other module reads this variable.
+
+**Security requirements:**
+- MUST NOT be stored in Supabase (not in `app_settings` or any database table)
+- MUST NOT be committed to source control
+- Store only in Vercel environment variables (encrypted at rest by Vercel)
+- If rotated: all existing `_enc` columns must be re-encrypted before the old key is discarded
+
+**Required:** Yes (at runtime) — `lib/crypto/tokens.ts` throws at call time if absent or wrong length. Absence does not crash the build (lazy validation), but any token encrypt/decrypt operation will fail at runtime with a clear error message.
+
+**First used:** Phase 25 (Google Drive OAuth token storage). Phase 24 creates the module but has no callers yet.
+
+---
+
 ### Future Architecture Path
 
 The current model is **one deployment per tenant** (simple, isolated, no shared infrastructure risk). This approach:
