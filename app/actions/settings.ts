@@ -469,8 +469,10 @@ export async function disconnectGoogleDrive(): Promise<{ error?: string }> {
 
 // --- OneDrive Storage ---
 
-export async function disconnectOneDrive(): Promise<void> {
-  const { orgId } = await getOrgContext();
+export async function disconnectOneDrive(): Promise<{ error?: string }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Admin only' };
+
   const admin = createAdminClient();
   const { error } = await admin.from('organisations').update({
     storage_backend: 'supabase',
@@ -478,8 +480,9 @@ export async function disconnectOneDrive(): Promise<void> {
     ms_token_cache_enc: null,
     ms_home_account_id: null,
   }).eq('id', orgId);
-  if (error) throw new Error(`Disconnect failed: ${error.message}`);
+  if (error) return { error: `Disconnect failed: ${error.message}` };
   revalidatePath('/settings');
+  return {};
 }
 
 // --- Dropbox Storage ---
@@ -500,4 +503,20 @@ export async function disconnectDropbox(): Promise<{ error?: string }> {
   if (error) return { error: error.message };
   revalidatePath('/settings');
   return {};
+}
+
+// --- Storage: Document Count by Backend ---
+
+export async function getDocumentCountByBackend(
+  backend: 'google_drive' | 'onedrive' | 'dropbox'
+): Promise<number> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return 0;
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from('client_documents')
+    .select('*', { count: 'exact', head: true })
+    .eq('org_id', orgId)
+    .eq('storage_backend', backend);
+  return count ?? 0;
 }
