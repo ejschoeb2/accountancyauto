@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T13:39:08.650Z"
+last_updated: "2026-02-28T13:55:00.000Z"
 progress:
   total_phases: 28
   completed_phases: 24
   total_plans: 96
-  completed_plans: 89
+  completed_plans: 90
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 27 in progress — Plan 02 complete (OAuth2 routes + settings card). Plan 03 (DropboxProvider uploads/downloads) is next.
+**Current focus:** Phase 27 complete — all 3 plans executed. DropboxProvider, OAuth2 routes, file-handling route wiring done. Phase 28 (Settings UI & Token Lifecycle) is next.
 
 ## Current Position
 
-Phase: 27 (in progress)
-Plan: 02 complete
-Status: Phase 27 Plan 02 complete — Dropbox OAuth2 connect/callback routes, disconnectDropbox server action, DropboxConnectCard settings component
-Last activity: 2026-02-28 — Phase 27-02 Dropbox OAuth2 flow and settings UI implemented
+Phase: 27 (complete)
+Plan: 03 complete
+Status: Phase 27 Plan 03 complete — DSAR export and document download route updated for Dropbox support; all file-handling routes now route through resolveProvider for all backends
+Last activity: 2026-02-28 — Phase 27-03 Dropbox file route wiring implemented
 
 Resume file: none
-Next step: Execute Phase 27 Plan 03 (DropboxProvider upload/download wiring)
+Next step: Execute Phase 28 (Settings UI & Token Lifecycle)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -272,6 +272,9 @@ Recent decisions affecting v3.0:
 - [Phase 27]: [D-27-01-02] App folder path convention: no /Apps/Prompt/ prefix in paths — Dropbox platform enforces boundary for App folder access type
 - [Phase 27]: [D-27-01-03] getBytes() reuses getDownloadUrl() temporary link then fetches bytes — consistent with SupabaseStorageProvider pattern
 - [Phase 27]: [D-27-01-04] Schema migration uses IF NOT EXISTS — columns were already present from Phase 24; migration is idempotent
+- [Phase 27-03]: [D-27-03-01] DSAR branching changed to supabase-as-default: if (!storage_backend || === 'supabase') rather than if (=== 'google_drive') — forward-compatible for any future backend
+- [Phase 27-03]: [D-27-03-02] Dropbox download returns { signedUrl: url } (temporary link) not proxied bytes — filesGetTemporaryLink works under app folder scope, unlike Google Drive drive.file scope
+- [Phase 27-03]: [D-27-03-03] Dropbox download route uses storage_backend: 'dropbox' explicitly (per-document routing per D-24-01-02, not org.storage_backend)
 
 ### Roadmap Evolution
 
@@ -357,7 +360,7 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 25-04-PLAN.md — server-proxied Google Drive downloads, portal upload and Postmark inbound routed through resolveProvider(), storage_backend captured at INSERT time on client_documents
+Stopped at: Completed 27-03-PLAN.md — DSAR export and document download routed through resolveProvider for all backends including Dropbox; portal upload and Postmark inbound confirmed already routed through resolveProvider from Phase 25
 Resume file: none
 Next step: Execute Phase 25 Plan 05 (if any — check ROADMAP.md)
 

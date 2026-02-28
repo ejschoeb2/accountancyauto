@@ -461,7 +461,7 @@ Phases execute in numeric order: 18 -> 19
 - [x] **Phase 24: Storage Abstraction Layer** - Provider-agnostic interface, schema migrations, token encryption utility (completed 2026-02-28)
 - [x] **Phase 25: Google Drive Integration** - OAuth2 connect/disconnect, GoogleDriveProvider, withTokenRefresh utility, portal/inbound/DSAR updated (completed 2026-02-28)
 - [ ] **Phase 26: Microsoft OneDrive Integration** - MSAL OAuth2, OneDriveProvider, M365/personal account support, AADSTS53003 handling
-- [ ] **Phase 27: Dropbox Integration** - OAuth2 with offline token, DropboxProvider, app folder boundary, temporary link downloads
+- [x] **Phase 27: Dropbox Integration** - OAuth2 with offline token, DropboxProvider, app folder boundary, temporary link downloads (completed 2026-02-28)
 - [ ] **Phase 28: Settings UI & Token Lifecycle** - Unified Storage tab, re-auth banner, disconnect modal, daily health-check cron, privacy policy update
 - [ ] **Phase 29: Hardening & Integration Testing** - Large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification per provider
 
@@ -524,7 +524,7 @@ Plans:
   2. Uploading a document via the client portal when `storage_backend = 'dropbox'` stores the file within `/Apps/Prompt/`; the `client_documents` row has `storage_backend = 'dropbox'` and `storage_path` set to the Dropbox path; the file is downloadable via a `filesGetTemporaryLink` response (4-hour TTL).
   3. The `DropboxAuth` instance is rehydrated from encrypted Postgres token columns on each Vercel function invocation; `checkAndRefreshAccessToken()` refreshes the access token when needed and the refreshed token is persisted back via `encryptToken()`.
   4. Disconnecting Dropbox clears the encrypted token columns and resets `storage_backend` to `supabase`; subsequent uploads go to Supabase Storage.
-**Plans**: TBD
+**Plans**: 3 plans complete (27-01: DropboxProvider + schema + factory wiring, 27-02: OAuth2 routes + settings card, 27-03: DSAR export + document download Dropbox routing)
 
 ### Phase 28: Settings UI & Token Lifecycle
 **Goal**: The Settings page has a Storage tab showing connect/disconnect cards for all three providers with live connection status; a persistent re-auth banner appears in the dashboard layout when any provider token is revoked; the disconnect modal shows document count and requires explicit confirmation; a daily health-check cron detects silent revocations and emails the org admin; the privacy policy sub-processor list includes all three providers before any goes to production.

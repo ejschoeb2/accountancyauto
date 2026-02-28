@@ -41,7 +41,7 @@
 - [x] **DRPBX-01**: Accountant can connect Dropbox from Settings > Storage via OAuth2; authorization URL explicitly includes `token_access_type=offline`; OAuth callback rejects and shows error if no refresh token is present in exchange response
 - [x] **DRPBX-02**: `DropboxProvider` implements the `StorageProvider` interface; uses `checkAndRefreshAccessToken()` with Postgres-rehydrated `DropboxAuth` instance; downloads via `filesGetTemporaryLink` (4-hour TTL)
 - [x] **DRPBX-03**: All Dropbox uploads scoped to `/Apps/Prompt/` — provider-enforced app folder boundary
-- [ ] **DRPBX-04**: Portal upload route, Postmark inbound email attachment handler, and DSAR export all updated to route through `DropboxProvider` when `storage_backend = 'dropbox'`
+- [x] **DRPBX-04**: Portal upload route, Postmark inbound email attachment handler, and DSAR export all updated to route through `DropboxProvider` when `storage_backend = 'dropbox'`
 - [x] **DRPBX-05**: Accountant can disconnect Dropbox from Settings; encrypted token columns cleared from `organisations`; `storage_backend` reset to `supabase`
 
 ### Settings UI & Token Lifecycle (TOKEN)
@@ -105,7 +105,7 @@
 | DRPBX-01 | Phase 27 | Complete |
 | DRPBX-02 | Phase 27 | Complete |
 | DRPBX-03 | Phase 27 | Complete |
-| DRPBX-04 | Phase 27 | Pending |
+| DRPBX-04 | Phase 27 | Complete |
 | DRPBX-05 | Phase 27 | Complete |
 | TOKEN-01 | Phase 28 | Pending |
 | TOKEN-02 | Phase 28 | Pending |
