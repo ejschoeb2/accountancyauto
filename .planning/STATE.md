@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T13:29:38.163Z"
+last_updated: "2026-02-28T13:39:08.650Z"
 progress:
   total_phases: 28
   completed_phases: 24
   total_plans: 96
-  completed_plans: 88
+  completed_plans: 89
 ---
 
 # Project State
@@ -268,6 +268,10 @@ Recent decisions affecting v3.0:
 - [Phase 25-05]: disconnectGoogleDrive uses admin client and clears all 6 token/config columns; revalidatePath('/settings') ensures StorageCard re-renders with updated state
 - [Phase 27-02]: DB-based CSRF state (organisations.dropbox_oauth_state) used for Dropbox — differs from Google Drive's HttpOnly cookie approach; plan requirement
 - [Phase 27-02]: disconnectDropbox uses getOrgContext() for admin role guard (orgRole \!== admin); Google Drive disconnectGoogleDrive omitted this guard historically
+- [Phase 27]: [D-27-01-01] DropboxAuth.checkAndRefreshAccessToken() used (no custom wrapper needed unlike Google Drive Phase 25)
+- [Phase 27]: [D-27-01-02] App folder path convention: no /Apps/Prompt/ prefix in paths — Dropbox platform enforces boundary for App folder access type
+- [Phase 27]: [D-27-01-03] getBytes() reuses getDownloadUrl() temporary link then fetches bytes — consistent with SupabaseStorageProvider pattern
+- [Phase 27]: [D-27-01-04] Schema migration uses IF NOT EXISTS — columns were already present from Phase 24; migration is idempotent
 
 ### Roadmap Evolution
 
@@ -311,6 +315,7 @@ Recent decisions affecting v3.0:
 | Phase 25 P03 | 12 | 2 tasks | 2 files |
 | Phase 25-google-drive-integration P05 | 8 | 2 tasks | 6 files |
 | Phase 27-dropbox-integration P02 | 9 | 2 tasks | 4 files |
+| Phase 27 P01 | 19 | 2 tasks | 6 files |
 
 ### Tech Debt
 
