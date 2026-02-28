@@ -93,6 +93,8 @@ export default async function BillingPage() {
         }
         trialEndsAt={org.trial_ends_at}
         monthlyPrice={planConfig.monthlyPrice}
+        orgId={orgId}
+        hasSubscription={hasActiveSubscription}
       />
 
       {/* Usage metrics */}
