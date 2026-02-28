@@ -46,6 +46,25 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .eq('id', clientRow?.org_id ?? '')
     .single();
 
+  // Phase 29 HRDN-03: Explicit null-guard — if org is null and any document uses a
+  // third-party backend, we cannot instantiate the provider. Return 500 early rather than
+  // silently assembling an empty or partial ZIP.
+  // Per-document routing (doc.storage_backend, not org.storage_backend) is already correct —
+  // this guard only fires when the org config itself is unreachable.
+  const needsThirdPartyOrg = (docs ?? []).some(
+    d => d.storage_backend && d.storage_backend !== 'supabase'
+  );
+  if (!org && needsThirdPartyOrg) {
+    console.error('[DSAR] Cannot resolve org config for third-party documents', {
+      clientId,
+      orgId: clientRow?.org_id,
+    });
+    return NextResponse.json(
+      { error: 'Storage configuration unavailable for this client' },
+      { status: 500 }
+    );
+  }
+
   const zip = new JSZip();
 
   // Add each document to the ZIP
@@ -78,8 +97,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const safeFilename = `${doc.filing_type_id}/${doc.original_filename}`;
       zip.file(safeFilename, buffer);
     } catch (err) {
-      console.error(`[DSAR] Error fetching document ${doc.id}:`, err);
-      // Continue — add remaining documents
+      console.error(`[DSAR] Error fetching document ${doc.id} (backend: ${doc.storage_backend ?? 'supabase'}):`, err);
+      // Continue — add remaining documents; omission is noted in server logs
     }
   }
 
