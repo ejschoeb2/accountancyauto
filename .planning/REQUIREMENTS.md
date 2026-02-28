@@ -28,13 +28,13 @@
 
 ### OneDrive Integration (ONDRV)
 
-- [ ] **ONDRV-01**: Accountant can connect OneDrive from Settings > Storage via MSAL OAuth2 using `/common` authority, supporting both M365 business and personal Microsoft accounts from a single app registration
+- [x] **ONDRV-01**: Accountant can connect OneDrive from Settings > Storage via MSAL OAuth2 using `/common` authority, supporting both M365 business and personal Microsoft accounts from a single app registration
 - [x] **ONDRV-02**: MSAL token cache serialized as JSON blob and persisted to `organisations.ms_token_cache_enc` (encrypted) between Vercel function invocations via `ICachePlugin` interface
 - [x] **ONDRV-03**: All OneDrive uploads constrained to `Apps/Prompt/` folder path enforced in application code (not at OAuth scope level — `Files.ReadWrite.AppFolder` is unavailable for M365 business accounts)
-- [ ] **ONDRV-04**: `AADSTS53003` Conditional Access error caught in OAuth flow and surfaced in Settings as actionable message directing accountant to obtain IT admin consent
+- [x] **ONDRV-04**: `AADSTS53003` Conditional Access error caught in OAuth flow and surfaced in Settings as actionable message directing accountant to obtain IT admin consent
 - [x] **ONDRV-05**: `OneDriveProvider` implements the `StorageProvider` interface using `withTokenRefresh` wrapper; downloads via Microsoft Graph `@microsoft.graph.downloadUrl` temporary link
 - [x] **ONDRV-06**: Portal upload route, Postmark inbound email attachment handler, and DSAR export all updated to route through `OneDriveProvider` when `storage_backend = 'onedrive'`
-- [ ] **ONDRV-07**: Accountant can disconnect OneDrive from Settings; `ms_token_cache_enc` cleared from `organisations`; `storage_backend` reset to `supabase`
+- [x] **ONDRV-07**: Accountant can disconnect OneDrive from Settings; `ms_token_cache_enc` cleared from `organisations`; `storage_backend` reset to `supabase`
 
 ### Dropbox Integration (DRPBX)
 
@@ -95,13 +95,13 @@
 | GDRV-07 | Phase 25 | Complete |
 | GDRV-08 | Phase 25 | Complete |
 | GDRV-09 | Phase 25 | Complete |
-| ONDRV-01 | Phase 26 | Pending |
+| ONDRV-01 | Phase 26 | Complete |
 | ONDRV-02 | Phase 26 | Complete |
 | ONDRV-03 | Phase 26 | Complete |
-| ONDRV-04 | Phase 26 | Pending |
+| ONDRV-04 | Phase 26 | Complete |
 | ONDRV-05 | Phase 26 | Complete |
 | ONDRV-06 | Phase 26 | Complete |
-| ONDRV-07 | Phase 26 | Pending |
+| ONDRV-07 | Phase 26 | Complete |
 | DRPBX-01 | Phase 27 | Complete |
 | DRPBX-02 | Phase 27 | Complete |
 | DRPBX-03 | Phase 27 | Complete |

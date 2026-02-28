@@ -441,7 +441,7 @@ Phases execute in numeric order: 18 -> 19
 | 23. Unified Pricing Experience | v4.0 | 4/4 | Complete | 2026-02-28 |
 | 24. Storage Abstraction Layer | 3/3 | Complete    | 2026-02-28 | - |
 | 25. Google Drive Integration | 5/5 | Complete    | 2026-02-28 | - |
-| 26. Microsoft OneDrive Integration | 2/3 | In Progress|  | - |
+| 26. Microsoft OneDrive Integration | 3/3 | Complete   | 2026-02-28 | - |
 | 27. Dropbox Integration | 2/3 | Complete    | 2026-02-28 | - |
 | 28. Settings UI & Token Lifecycle | v5.0 | 0/TBD | Not started | - |
 | 29. Hardening & Integration Testing | v5.0 | 0/TBD | Not started | - |
@@ -460,7 +460,7 @@ Phases execute in numeric order: 18 -> 19
 
 - [x] **Phase 24: Storage Abstraction Layer** - Provider-agnostic interface, schema migrations, token encryption utility (completed 2026-02-28)
 - [x] **Phase 25: Google Drive Integration** - OAuth2 connect/disconnect, GoogleDriveProvider, withTokenRefresh utility, portal/inbound/DSAR updated (completed 2026-02-28)
-- [ ] **Phase 26: Microsoft OneDrive Integration** - MSAL OAuth2, OneDriveProvider, M365/personal account support, AADSTS53003 handling
+- [x] **Phase 26: Microsoft OneDrive Integration** - MSAL OAuth2, OneDriveProvider, M365/personal account support, AADSTS53003 handling (completed 2026-02-28)
 - [x] **Phase 27: Dropbox Integration** - OAuth2 with offline token, DropboxProvider, app folder boundary, temporary link downloads (completed 2026-02-28)
 - [ ] **Phase 28: Settings UI & Token Lifecycle** - Unified Storage tab, re-auth banner, disconnect modal, daily health-check cron, privacy policy update
 - [ ] **Phase 29: Hardening & Integration Testing** - Large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification per provider

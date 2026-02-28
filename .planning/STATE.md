@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T13:56:08.233Z"
+last_updated: "2026-02-28T14:05:25.690Z"
 progress:
   total_phases: 28
-  completed_phases: 25
+  completed_phases: 26
   total_plans: 96
-  completed_plans: 92
+  completed_plans: 93
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 26 Plan 02 complete — OneDriveProvider implemented and wired into resolveProvider. Phase 26 Plan 03 (if any) or next phase is next.
+**Current focus:** Phase 26 Plan 03 complete — MSAL OAuth2 connect/callback routes, disconnectOneDrive action, StorageCard updated with OneDrive section. Phase 26 complete (all 3 plans done).
 
 ## Current Position
 
-Phase: 26 (in progress)
-Plan: 02 complete
-Status: Phase 26 Plan 02 complete — OneDriveProvider implemented with MSAL acquireTokenSilent + PostgresMsalCachePlugin; resolveProvider 'onedrive' case wired; all four upload/download/DSAR routes updated
-Last activity: 2026-02-28 — Phase 26-02 OneDriveProvider and route wiring implemented
+Phase: 26 (complete)
+Plan: 03 complete
+Status: Phase 26 Plan 03 complete — MSAL OAuth2 connect route with CSRF state, callback with acquireTokenByCode + PostgresMsalCachePlugin + homeAccountId persistence + AADSTS53003 handling; disconnectOneDrive action; StorageCard OneDrive section
+Last activity: 2026-02-28 — Phase 26-03 OneDrive OAuth routes and StorageCard implemented
 
 Resume file: none
-Next step: Execute Phase 26 Plan 03 (if any — check ROADMAP.md)
+Next step: Execute Phase 27 (Dropbox Integration)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -280,6 +280,10 @@ Recent decisions affecting v3.0:
 - [Phase 26]: [D-26-02-01] Fresh MSAL client per request — PostgresMsalCachePlugin.beforeCacheAccess fires once per client instance; reusing across requests would serve stale cache
 - [Phase 26]: [D-26-02-02] OneDrive item ID as storagePath — stored in client_documents.storage_path; stable identifier for getBytes, getDownloadUrl, and delete
 - [Phase 26]: [D-26-02-03] OneDrive download uses getDownloadUrl (temporary link) not getBytes — OneDrive natively provides @microsoft.graph.downloadUrl under Files.ReadWrite scope
+- [Phase 26]: [D-26-03-01] MSAL client created lazily inside handler (not module scope) — mirrors D-11-05-01 Stripe pattern; prevents build failures when MS env vars absent at build time
+- [Phase 26]: [D-26-03-02] PostgresMsalCachePlugin injected in callback only, not connect — connect only generates auth URL, no tokens involved; plugin added for callback so afterCacheAccess fires to persist initial cache
+- [Phase 26]: [D-26-03-03] StorageCard uses Suspense boundary wrapping inner component — required for useSearchParams in Next.js App Router without blocking static rendering
+- [Phase 26]: [D-26-03-04] oneDriveConnected prop derived from ms_home_account_id IS NOT NULL — homeAccountId is reliable presence indicator; ms_token_cache_enc could be null during re-auth flows
 
 ### Roadmap Evolution
 
@@ -326,6 +330,7 @@ Recent decisions affecting v3.0:
 | Phase 27 P01 | 19 | 2 tasks | 6 files |
 | Phase 26 P01 | 25 | 3 tasks | 3 files |
 | Phase 26 P02 | 548 | 2 tasks | 6 files |
+| Phase 26 P03 | 7 | 2 tasks | 6 files |
 
 ### Tech Debt
 
