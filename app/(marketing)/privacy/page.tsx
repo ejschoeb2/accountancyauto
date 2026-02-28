@@ -136,7 +136,7 @@ export default function PrivacyPage() {
           {/* 7. Sub-processors */}
           <h2 className="text-2xl font-bold mt-10 mb-4">7. Sub-processors</h2>
           <p className="text-base text-muted-foreground leading-relaxed mb-4">
-            We engage the following sub-processors to provide the Prompt service. Each has been assessed for compliance with UK GDPR requirements:
+            We engage the following sub-processors to provide the Prompt service. Each has been assessed for compliance with UK GDPR requirements. Google LLC, Microsoft Corporation, and Dropbox Inc. are optional sub-processors — they are only engaged when an accountant explicitly enables the corresponding document storage integration for their organisation.
           </p>
           <div className="overflow-x-auto mb-4">
             <table className="w-full text-sm border-collapse">
@@ -163,10 +163,25 @@ export default function PrivacyPage() {
                   <td className="py-3 pr-4">USA</td>
                   <td className="py-3">Payment processing, subscription management</td>
                 </tr>
-                <tr>
+                <tr className="border-b border-border">
                   <td className="py-3 pr-4">Vercel Inc.</td>
                   <td className="py-3 pr-4">USA</td>
                   <td className="py-3">Application hosting, CDN, serverless functions</td>
+                </tr>
+                <tr className="border-b border-border">
+                  <td className="py-3 pr-4">Google LLC</td>
+                  <td className="py-3 pr-4">USA</td>
+                  <td className="py-3">Optional document storage — client documents stored in the accountant&apos;s Google Drive when the Google Drive integration is enabled by the accountant</td>
+                </tr>
+                <tr className="border-b border-border">
+                  <td className="py-3 pr-4">Microsoft Corporation</td>
+                  <td className="py-3 pr-4">USA</td>
+                  <td className="py-3">Optional document storage — client documents stored in the accountant&apos;s Microsoft OneDrive when the OneDrive integration is enabled by the accountant</td>
+                </tr>
+                <tr>
+                  <td className="py-3 pr-4">Dropbox Inc.</td>
+                  <td className="py-3 pr-4">USA</td>
+                  <td className="py-3">Optional document storage — client documents stored in the accountant&apos;s Dropbox App Folder when the Dropbox integration is enabled by the accountant</td>
                 </tr>
               </tbody>
             </table>
