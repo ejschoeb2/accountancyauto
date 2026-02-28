@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T18:04:25.685Z"
+last_updated: "2026-02-28T18:54:43.990Z"
 progress:
-  total_phases: 29
+  total_phases: 30
   completed_phases: 27
-  total_plans: 99
-  completed_plans: 96
+  total_plans: 102
+  completed_plans: 97
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 28 Plan 02 complete — DisconnectConfirmModal with live document count wired into all three provider cards (Google Drive, OneDrive, Dropbox); disconnectOneDrive return type updated to { error?: string } with admin role guard (TOKEN-03). Phase 28 Plan 03 previously complete — storage health-check cron (GET /api/cron/storage-health-check), vercel.json updated to 7 crons, privacy policy updated (TOKEN-04, TOKEN-05).
+**Current focus:** Phase 29 Plan 02 complete — Postmark inbound webhook idempotency: postmark_message_id column + UNIQUE(org_id, postmark_message_id) constraint on inbound_emails; 23505 early return with duplicate:true; 25 MB attachment size guard; maybeSingle() attachment dedup on (client_id, file_hash, source='inbound_email') (HRDN-02 complete).
 
 ## Current Position
 
-Phase: 28 (in progress)
-Plan: 02 complete (executed out-of-order after 03 — both complete)
-Status: Phase 28 Plans 01/02/03 complete — Storage UI wiring, disconnect confirmation modal, storage health-check cron, privacy policy update
-Last activity: 2026-02-28 — Phase 28-02 DisconnectConfirmModal and getDocumentCountByBackend implemented (TOKEN-03)
+Phase: 29 (in progress)
+Plan: 02 complete
+Status: Phase 29 Plans 01/02 complete — Research and Postmark inbound idempotency hardening
+Last activity: 2026-02-28 — Phase 29-02 Postmark webhook idempotency implemented (HRDN-02)
 
 Resume file: none
-Next step: Execute remaining Phase 28 plans (if any) or Phase 29 (Hardening & Integration Testing)
+Next step: Execute Phase 29 Plan 03 (if any remaining hardening plans)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -290,6 +290,7 @@ Recent decisions affecting v3.0:
 - [Phase 28]: [D-28-02-01] disconnectOneDrive returns Promise<{ error?: string }> with admin role guard — consistent with disconnectGoogleDrive and disconnectDropbox
 - [Phase 28]: [D-28-02-02] Document count fetched async after modal opens — avoids blocking button click; modal shows Loading then count
 - [Phase 28]: [D-28-02-03] Confirm button disabled while documentCount === null — prevents disconnect before count is known
+- [Phase 29]: NULLS DISTINCT (standard Postgres default) instead of NULLS NOT DISTINCT for uq_inbound_emails_org_message_id — existing rows all have NULL postmark_message_id; NULLS NOT DISTINCT would treat same-org NULLs as duplicates and fail constraint creation
 
 ### Roadmap Evolution
 
@@ -340,6 +341,7 @@ Recent decisions affecting v3.0:
 | Phase 28 P03 | 20 | 2 tasks | 3 files |
 | Phase 28 P01 | 207 | 2 tasks | 6 files |
 | Phase 28 P02 | 5 | 2 tasks | 4 files |
+| Phase 29 P02 | 18 | 2 tasks | 2 files |
 
 ### Tech Debt
 
@@ -381,9 +383,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 28-02-PLAN.md — DisconnectConfirmModal with live document count for all three providers; getDocumentCountByBackend server action; disconnectOneDrive updated to return { error?: string } with admin role guard (TOKEN-03 complete)
+Stopped at: Completed 29-02-PLAN.md — Postmark inbound webhook idempotency: postmark_message_id column + unique constraint on inbound_emails, 23505 early return, 25 MB size guard, maybeSingle attachment dedup (HRDN-02 complete)
 Resume file: none
-Next step: Execute remaining Phase 28 plans (if any) or Phase 29 (Hardening & Integration Testing)
+Next step: Execute Phase 29 Plan 03 (if any remaining hardening plans)
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
