@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { GoogleDriveProvider } from '@/lib/storage/google-drive';
 
 /**
  * Private Supabase Storage bucket for client documents.
@@ -22,6 +23,8 @@ export type StorageBackend = 'supabase' | 'google_drive' | 'onedrive' | 'dropbox
 export interface OrgStorageConfig {
   id: string;
   storage_backend: StorageBackend | null;
+  /** Phase 25: Drive file ID of the org's Prompt/ root folder in Google Drive. */
+  google_drive_folder_id?: string | null;
 }
 
 /**
@@ -35,6 +38,9 @@ export interface UploadParams {
   file: Buffer | Uint8Array;
   originalFilename: string;
   mimeType: string;
+  /** Phase 25: Used by GoogleDriveProvider to build the folder hierarchy in Drive.
+   * Optional — SupabaseStorageProvider ignores this field. */
+  clientName?: string;
 }
 
 // ── StorageProvider interface ─────────────────────────────────────────────────
@@ -137,10 +143,16 @@ export class SupabaseStorageProvider implements StorageProvider {
  */
 export function resolveProvider(orgConfig: OrgStorageConfig): StorageProvider {
   switch (orgConfig.storage_backend) {
+    case 'google_drive':
+      if (!orgConfig.google_drive_folder_id) {
+        throw new Error(
+          'Google Drive is connected but google_drive_folder_id is missing from org config',
+        );
+      }
+      return new GoogleDriveProvider(orgConfig.id, orgConfig.google_drive_folder_id);
     case 'supabase':
     default:
       return new SupabaseStorageProvider();
-    // Phase 25: case 'google_drive': return new GoogleDriveProvider(orgConfig);
     // Phase 26: case 'onedrive': return new OneDriveProvider(orgConfig);
     // Phase 27: case 'dropbox': return new DropboxProvider(orgConfig);
   }
