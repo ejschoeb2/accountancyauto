@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { getSignedDownloadUrl } from '@/lib/documents/storage';
+import { getSignedDownloadUrl, resolveProvider } from '@/lib/documents/storage';
+
+// Google Drive downloads may be large PDFs — allow up to 60 seconds on Vercel
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: clientId } = await params;
@@ -48,15 +51,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // ── Download action (existing logic, unchanged) ──────────────────────────
+  // ── Download action ──────────────────────────────────────────────────────
   if (action === 'download') {
     const { documentId } = body as { documentId: string };
 
     // Fetch document using service client (bypasses RLS) — also verifies client_id matches
+    // Phase 25: include storage_backend, mime_type, original_filename for Google Drive branch
     const serviceSupabase = createServiceClient();
     const { data: doc } = await serviceSupabase
       .from('client_documents')
-      .select('id, storage_path, org_id')
+      .select('id, storage_path, org_id, storage_backend, mime_type, original_filename')
       .eq('id', documentId)
       .eq('client_id', clientId)
       .single();
@@ -65,6 +69,46 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
+    // ── Google Drive: server-proxied bytes response ────────────────────────
+    if (doc.storage_backend === 'google_drive') {
+      // Fetch org storage config (needed to construct the provider)
+      const { data: orgData } = await serviceSupabase
+        .from('organisations')
+        .select('id, storage_backend, google_drive_folder_id')
+        .eq('id', doc.org_id)
+        .single();
+
+      if (!orgData) {
+        return NextResponse.json({ error: 'Org config not found' }, { status: 500 });
+      }
+
+      const provider = resolveProvider({
+        id: orgData.id,
+        storage_backend: orgData.storage_backend,
+        google_drive_folder_id: orgData.google_drive_folder_id,
+      });
+
+      const bytes = await provider.getBytes(doc.storage_path);
+
+      // Write access log before returning bytes — same as Supabase path
+      await serviceSupabase.from('document_access_log').insert({
+        org_id: doc.org_id,
+        document_id: documentId,
+        user_id: user.id,
+        action: 'download',
+      });
+
+      // Return raw bytes — do NOT return { signedUrl } for Google Drive documents
+      // Convert Buffer to Uint8Array: Response BodyInit accepts Uint8Array but not Buffer directly
+      return new Response(new Uint8Array(bytes), {
+        headers: {
+          'Content-Type': doc.mime_type ?? 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${doc.original_filename ?? 'document'}"`,
+        },
+      });
+    }
+
+    // ── Supabase (default): signed URL response ───────────────────────────
     const { signedUrl } = await getSignedDownloadUrl(doc.storage_path);
 
     // Insert access log (INSERT-only per DOCS-04 RLS design)
