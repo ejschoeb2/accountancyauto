@@ -508,7 +508,12 @@ Plans:
   3. The MSAL token cache is serialized, encrypted, and persisted to `organisations.ms_token_cache_enc` after each token operation; rehydrating the cache on a fresh Vercel function invocation restores the authenticated session without re-authorization.
   4. An M365 account blocked by a Conditional Access policy (`AADSTS53003`) triggers a visible, actionable error message in Settings directing the accountant to obtain IT admin consent; the error is not displayed as a generic failure.
   5. Disconnecting OneDrive clears `ms_token_cache_enc` and resets `storage_backend` to `supabase`; subsequent uploads go to Supabase Storage.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Install @azure/msal-node, schema migration (ms_home_account_id), PostgresMsalCachePlugin, env var docs
+- [ ] 26-02-PLAN.md — OneDriveProvider class implementing StorageProvider, wire into resolveProvider factory, update route call sites
+- [ ] 26-03-PLAN.md — MSAL OAuth2 connect/callback routes with AADSTS53003 handling, disconnectOneDrive action, StorageCard OneDrive UI
 
 ### Phase 27: Dropbox Integration
 **Goal**: Accountants can connect Dropbox from Settings using OAuth2 with offline access; all uploads are scoped to `/Apps/Prompt/` enforced by the provider; downloads use `filesGetTemporaryLink` (4-hour TTL); portal uploads, inbound email attachments, and DSAR exports all route through Dropbox when configured; a missing refresh token in the OAuth response is caught and surfaced as an error before any token is stored.
