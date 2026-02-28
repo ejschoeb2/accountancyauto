@@ -464,6 +464,21 @@ export async function disconnectGoogleDrive(): Promise<void> {
   revalidatePath('/settings');
 }
 
+// --- OneDrive Storage ---
+
+export async function disconnectOneDrive(): Promise<void> {
+  const { orgId } = await getOrgContext();
+  const admin = createAdminClient();
+  const { error } = await admin.from('organisations').update({
+    storage_backend: 'supabase',
+    storage_backend_status: null,
+    ms_token_cache_enc: null,
+    ms_home_account_id: null,
+  }).eq('id', orgId);
+  if (error) throw new Error(`Disconnect failed: ${error.message}`);
+  revalidatePath('/settings');
+}
+
 // --- Dropbox Storage ---
 
 export async function disconnectDropbox(): Promise<{ error?: string }> {

@@ -37,6 +37,7 @@ interface SettingsTabsProps {
   storageBackend: string | null;
   googleDriveFolderExists: boolean;
   storageBackendStatus: string | null;
+  oneDriveConnected: boolean;
 }
 
 export function SettingsTabs({
@@ -57,6 +58,7 @@ export function SettingsTabs({
   storageBackend,
   googleDriveFolderExists,
   storageBackendStatus,
+  oneDriveConnected,
 }: SettingsTabsProps) {
   return (
     <div className="space-y-8">
@@ -128,6 +130,7 @@ export function SettingsTabs({
             storageBackend={storageBackend}
             googleDriveFolderExists={googleDriveFolderExists}
             storageBackendStatus={storageBackendStatus}
+            oneDriveConnected={oneDriveConnected}
           />
         </TabsContent>
       </Tabs>
