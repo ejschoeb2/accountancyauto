@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T12:29:52.908Z"
+last_updated: "2026-02-28T12:45:05.039Z"
 progress:
   total_phases: 28
   completed_phases: 23
   total_plans: 96
-  completed_plans: 84
+  completed_plans: 86
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 25 in progress — Plans 01 and 02 (Google Drive foundation + GoogleDriveProvider) complete. Plan 03 next.
+**Current focus:** Phase 25 in progress — Plans 01, 02, and 03 complete. Plan 04 next.
 
 ## Current Position
 
 Phase: 25 (in progress)
-Plan: 02 complete
-Status: Phase 25 Plan 02 complete — GoogleDriveProvider class with findOrCreateFolder, upload/getBytes/delete, and resolveProvider factory wired for google_drive backend
-Last activity: 2026-02-28 — Phase 25-02 GoogleDriveProvider implemented
+Plan: 03 complete
+Status: Phase 25 Plan 03 complete — Google Drive OAuth2 connect + callback routes with CSRF state, encrypted token storage, and Prompt/ folder creation
+Last activity: 2026-02-28 — Phase 25-03 OAuth2 routes implemented
 
 Resume file: none
-Next step: Execute Phase 25 Plan 03 (next plan in Google Drive integration)
+Next step: Execute Phase 25 Plan 04 (next plan in Google Drive integration)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -257,6 +257,9 @@ Recent decisions affecting v3.0:
 - [Phase 25-02]: [D-25-02-02] Drive file ID is the storagePath for Google Drive — stored in client_documents.storage_path, used directly for getBytes() and delete()
 - [Phase 25-02]: [D-25-02-03] clientName is optional in UploadParams with fallback to clientId — backwards compatible; SupabaseStorageProvider ignores the field
 - [Phase 25-02]: [D-25-02-04] getDownloadUrl() throws with clear error — drive.file scope cannot produce public URLs; download routes must use getBytes() via server-proxy
+- [Phase 25]: [D-25-03-01] Use extracted string variables after getToken() — avoids TypeScript mismatch between Credentials type and returned token shape; setCredentials() called with original tokens object
+- [Phase 25]: [D-25-03-02] All callback error paths redirect to /settings?tab=storage&error=X — OAuth callbacks must never expose raw error state to users
+- [Phase 25]: [D-25-03-03] Guard both access_token AND refresh_token absence after getToken() — plan only specified refresh_token guard but access_token is equally required for Drive API use
 
 ### Roadmap Evolution
 
@@ -297,6 +300,7 @@ Recent decisions affecting v3.0:
 | Phase 24 P02 | 8 | 1 tasks | 2 files |
 | Phase 25-google-drive-integration P01 | 9 | 3 tasks | 5 files |
 | Phase 25-google-drive-integration P02 | 8 | 2 tasks | 2 files |
+| Phase 25 P03 | 12 | 2 tasks | 2 files |
 
 ### Tech Debt
 
@@ -338,9 +342,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 24-03-PLAN.md — AES-256-GCM token encryption module (lib/crypto/tokens.ts) and ENV_VARIABLES.md documentation
+Stopped at: Completed 25-03-PLAN.md — Google Drive OAuth2 connect and callback routes (app/api/auth/google-drive/connect/route.ts, app/api/auth/google-drive/callback/route.ts)
 Resume file: none
-Next step: Execute Phase 24 Plan 04
+Next step: Execute Phase 25 Plan 04
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*

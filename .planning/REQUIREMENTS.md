@@ -16,8 +16,8 @@
 
 ### Google Drive Integration (GDRV)
 
-- [ ] **GDRV-01**: Accountant can initiate Google Drive connection from Settings > Storage via OAuth2 authorization URL using `drive.file` scope (not full `drive` scope — avoids Google restricted-scope verification process)
-- [ ] **GDRV-02**: OAuth2 callback route validates `state` parameter for CSRF protection, exchanges authorization code for tokens, and stores encrypted refresh and access tokens in `organisations` via `encryptToken()`
+- [x] **GDRV-01**: Accountant can initiate Google Drive connection from Settings > Storage via OAuth2 authorization URL using `drive.file` scope (not full `drive` scope — avoids Google restricted-scope verification process)
+- [x] **GDRV-02**: OAuth2 callback route validates `state` parameter for CSRF protection, exchanges authorization code for tokens, and stores encrypted refresh and access tokens in `organisations` via `encryptToken()`
 - [x] **GDRV-03**: Root folder `Prompt/` is auto-created in accountant's Google Drive on first OAuth connect; folder ID stored in `organisations.google_drive_folder_id`; no manual setup required
 - [x] **GDRV-04**: Files uploaded to human-readable folder structure: `Prompt/{client_name}/{filing_type}/{tax_year}/filename`
 - [x] **GDRV-05**: `withTokenRefresh(orgId, call)` utility in `lib/storage/token-refresh.ts` proactively refreshes access token before expiry; on `invalid_grant` fatal error: sets `storage_backend_status = 'reauth_required'`, nulls encrypted token columns, never retries
@@ -86,8 +86,8 @@
 | STOR-04 | Phase 24 | Complete |
 | STOR-05 | Phase 24 | Complete |
 | STOR-06 | Phase 24 | Complete |
-| GDRV-01 | Phase 25 | Pending |
-| GDRV-02 | Phase 25 | Pending |
+| GDRV-01 | Phase 25 | Complete |
+| GDRV-02 | Phase 25 | Complete |
 | GDRV-03 | Phase 25 | Complete |
 | GDRV-04 | Phase 25 | Complete |
 | GDRV-05 | Phase 25 | Complete |
