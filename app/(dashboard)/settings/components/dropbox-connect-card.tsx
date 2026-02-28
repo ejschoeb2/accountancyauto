@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { HardDrive, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { HardDrive, CheckCircle, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
-import { disconnectDropbox } from "@/app/actions/settings";
+import { disconnectDropbox, getDocumentCountByBackend } from "@/app/actions/settings";
+import { DisconnectConfirmModal } from "./disconnect-confirm-modal";
 
 interface DropboxConnectCardProps {
   /** true when the org's storage_backend === 'dropbox' */
@@ -22,13 +23,19 @@ export function DropboxConnectCard({
   const [isPending, startTransition] = useTransition();
   const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
+  // Dropbox modal state
+  const [dropboxModalOpen, setDropboxModalOpen] = useState(false);
+  const [dropboxDocCount, setDropboxDocCount] = useState<number | null>(null);
+
   function handleDisconnect() {
     setDisconnectError(null);
     startTransition(async () => {
       const result = await disconnectDropbox();
       if (result.error) {
         setDisconnectError(result.error);
+        setDropboxModalOpen(false);
       } else {
+        setDropboxModalOpen(false);
         router.refresh();
       }
     });
@@ -90,15 +97,16 @@ export function DropboxConnectCard({
                 <ButtonBase
                   variant="destructive"
                   buttonType="icon-text"
-                  onClick={handleDisconnect}
+                  onClick={async () => {
+                    setDropboxDocCount(null);
+                    setDropboxModalOpen(true);
+                    const count = await getDocumentCountByBackend('dropbox');
+                    setDropboxDocCount(count);
+                  }}
                   disabled={isPending}
                 >
-                  {isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <XCircle className="size-4" />
-                  )}
-                  {isPending ? "Disconnecting..." : "Disconnect"}
+                  <XCircle className="size-4" />
+                  Disconnect
                 </ButtonBase>
                 {disconnectError && (
                   <span className="text-sm font-medium text-status-danger">
@@ -127,6 +135,16 @@ export function DropboxConnectCard({
           )}
         </div>
       </div>
+
+      {/* Dropbox Disconnect Confirmation Modal */}
+      <DisconnectConfirmModal
+        isOpen={dropboxModalOpen}
+        onClose={() => setDropboxModalOpen(false)}
+        providerName="Dropbox"
+        documentCount={dropboxDocCount}
+        isLoading={isPending}
+        onConfirm={handleDisconnect}
+      />
     </Card>
   );
 }

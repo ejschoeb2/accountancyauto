@@ -6,8 +6,9 @@ import { useSearchParams } from "next/navigation";
 import { Cloud, CheckCircle, XCircle, Loader2, HardDrive, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
-import { disconnectGoogleDrive, disconnectOneDrive } from "@/app/actions/settings";
+import { disconnectGoogleDrive, disconnectOneDrive, getDocumentCountByBackend } from "@/app/actions/settings";
 import { DropboxConnectCard } from "./dropbox-connect-card";
+import { DisconnectConfirmModal } from "./disconnect-confirm-modal";
 
 interface StorageCardProps {
   storageBackend: string | null;
@@ -28,26 +29,44 @@ function StorageCardInner({
   const [isGooglePending, startGoogleTransition] = useTransition();
   const [isOneDrivePending, startOneDriveTransition] = useTransition();
   const [googleDisconnectError, setGoogleDisconnectError] = useState<string | null>(null);
+  const [oneDriveDisconnectError, setOneDriveDisconnectError] = useState<string | null>(null);
+
+  // Google Drive modal state
+  const [googleModalOpen, setGoogleModalOpen] = useState(false);
+  const [googleDocCount, setGoogleDocCount] = useState<number | null>(null);
+
+  // OneDrive modal state
+  const [oneDriveModalOpen, setOneDriveModalOpen] = useState(false);
+  const [oneDriveDocCount, setOneDriveDocCount] = useState<number | null>(null);
+
   const searchParams = useSearchParams();
 
   const error = searchParams.get("error");
   const connected = searchParams.get("connected");
 
-  function handleGoogleDisconnect() {
-    setGoogleDisconnectError(null);
+  async function handleGoogleDisconnect() {
     startGoogleTransition(async () => {
       const result = await disconnectGoogleDrive();
       if (result.error) {
         setGoogleDisconnectError(result.error);
+        setGoogleModalOpen(false);
       } else {
+        setGoogleModalOpen(false);
         router.refresh();
       }
     });
   }
 
-  function handleOneDriveDisconnect() {
+  async function handleOneDriveDisconnect() {
     startOneDriveTransition(async () => {
-      await disconnectOneDrive();
+      const result = await disconnectOneDrive();
+      if (result.error) {
+        setOneDriveDisconnectError(result.error);
+        setOneDriveModalOpen(false);
+      } else {
+        setOneDriveModalOpen(false);
+        router.refresh();
+      }
     });
   }
 
@@ -155,15 +174,16 @@ function StorageCardInner({
                   <ButtonBase
                     variant="destructive"
                     buttonType="icon-text"
-                    onClick={handleGoogleDisconnect}
+                    onClick={async () => {
+                      setGoogleDocCount(null);
+                      setGoogleModalOpen(true);
+                      const count = await getDocumentCountByBackend('google_drive');
+                      setGoogleDocCount(count);
+                    }}
                     disabled={isGooglePending}
                   >
-                    {isGooglePending ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <XCircle className="size-4" />
-                    )}
-                    {isGooglePending ? "Disconnecting..." : "Disconnect"}
+                    <XCircle className="size-4" />
+                    Disconnect
                   </ButtonBase>
                   {googleDisconnectError && (
                     <span className="text-sm font-medium text-status-danger">
@@ -244,16 +264,22 @@ function StorageCardInner({
                   <ButtonBase
                     variant="destructive"
                     buttonType="icon-text"
-                    onClick={handleOneDriveDisconnect}
+                    onClick={async () => {
+                      setOneDriveDocCount(null);
+                      setOneDriveModalOpen(true);
+                      const count = await getDocumentCountByBackend('onedrive');
+                      setOneDriveDocCount(count);
+                    }}
                     disabled={isOneDrivePending}
                   >
-                    {isOneDrivePending ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <XCircle className="size-4" />
-                    )}
-                    {isOneDrivePending ? "Disconnecting..." : "Disconnect"}
+                    <XCircle className="size-4" />
+                    Disconnect
                   </ButtonBase>
+                  {oneDriveDisconnectError && (
+                    <span className="text-sm font-medium text-status-danger">
+                      {oneDriveDisconnectError}
+                    </span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -282,6 +308,26 @@ function StorageCardInner({
       <DropboxConnectCard
         isConnected={dropboxConnected}
         storageBackendStatus={storageBackendStatus}
+      />
+
+      {/* Google Drive Disconnect Confirmation Modal */}
+      <DisconnectConfirmModal
+        isOpen={googleModalOpen}
+        onClose={() => setGoogleModalOpen(false)}
+        providerName="Google Drive"
+        documentCount={googleDocCount}
+        isLoading={isGooglePending}
+        onConfirm={handleGoogleDisconnect}
+      />
+
+      {/* OneDrive Disconnect Confirmation Modal */}
+      <DisconnectConfirmModal
+        isOpen={oneDriveModalOpen}
+        onClose={() => setOneDriveModalOpen(false)}
+        providerName="Microsoft OneDrive"
+        documentCount={oneDriveDocCount}
+        isLoading={isOneDrivePending}
+        onConfirm={handleOneDriveDisconnect}
       />
     </div>
   );
