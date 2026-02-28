@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T03:07:30.327Z"
+last_updated: "2026-02-28T03:11:30Z"
 progress:
   total_phases: 25
   completed_phases: 22
   total_plans: 85
-  completed_plans: 81
+  completed_plans: 82
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 24 in progress — Plan 02 (StorageProvider interface) complete. Plan 03 (crypto tokens) next.
+**Current focus:** Phase 24 in progress — Plan 03 (AES-256-GCM token encryption) complete. Plan 04 next.
 
 ## Current Position
 
 Phase: 24 (in progress)
-Plan: 02 complete
-Status: Phase 24 Plan 02 complete — StorageProvider interface, SupabaseStorageProvider class, and resolveProvider factory in lib/documents/storage.ts
-Last activity: 2026-02-28 — Phase 24-02 storage abstraction TypeScript interface extracted
+Plan: 03 complete
+Status: Phase 24 Plan 03 complete — lib/crypto/tokens.ts with AES-256-GCM encryptToken/decryptToken; ENCRYPTION_KEY documented in ENV_VARIABLES.md
+Last activity: 2026-02-28 — Phase 24-03 AES-256-GCM token encryption module created
 
 Resume file: none
-Next step: Execute Phase 24 Plan 03 (lib/crypto/tokens.ts — AES-256-GCM token encryption)
+Next step: Execute Phase 24 Plan 04 (next plan in storage abstraction layer)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -213,6 +213,12 @@ Recent decisions affecting v3.0:
 - DSAR covers all personal data categories: `client_documents`, `inbound_emails`, `email_log`, `clients` profile, `audit_log`
 - Postmark webhook extension is non-blocking: email stored in `inbound_emails` first; attachment extraction is Step 6; Storage failure does not prevent 200 response
 
+**Phase 24-03 Decisions:**
+- [D-24-03-01] getKey() called lazily inside each function, not at module scope — mirrors D-11-05-01 Stripe client; prevents build failures when ENCRYPTION_KEY absent at build/CI time
+- [D-24-03-02] Ciphertext format iv_hex:authTag_hex:encrypted_hex (self-contained single TEXT string) — no external metadata required for decryption
+- [D-24-03-03] GCM auth tag errors NOT suppressed in decryptToken() — wrong key or tampered ciphertext must throw immediately
+- [D-24-03-04] 12-byte (96-bit) IV via randomBytes(12) per encryptToken() call — GCM standard; fresh IV per call is non-negotiable for semantic security
+
 **Phase 24-01 Decisions:**
 - [D-24-01-01] storage_backend_status uses TEXT + CHECK constraint (not enum) — values can be added without ALTER TYPE; CHECK includes 'reauth_required' from the start for Phase 25 use
 - [D-24-01-02] Per-document storage_backend column on client_documents set at INSERT time, never derived from org's current storage_backend — prevents broken routing after backend switches
@@ -323,9 +329,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 24-01-PLAN.md — storage abstraction schema migration applied to remote database
+Stopped at: Completed 24-03-PLAN.md — AES-256-GCM token encryption module (lib/crypto/tokens.ts) and ENV_VARIABLES.md documentation
 Resume file: none
-Next step: Execute Phase 24 Plan 02 (StorageProvider interface + lib/crypto/tokens.ts)
+Next step: Execute Phase 24 Plan 04
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
