@@ -70,6 +70,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // ── Google Drive: server-proxied bytes response ────────────────────────
+    // drive.file scope cannot produce public or short-lived sharing links.
+    // All Google Drive downloads must be proxied through the server.
     if (doc.storage_backend === 'google_drive') {
       // Fetch org storage config (needed to construct the provider)
       const { data: orgData } = await serviceSupabase
@@ -90,7 +92,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       const bytes = await provider.getBytes(doc.storage_path);
 
-      // Write access log before returning bytes — same as Supabase path
+      // Write access log before returning bytes — audit trail requirement
       await serviceSupabase.from('document_access_log').insert({
         org_id: doc.org_id,
         document_id: documentId,
@@ -106,6 +108,41 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           'Content-Disposition': `attachment; filename="${doc.original_filename ?? 'document'}"`,
         },
       });
+    }
+
+    // ── Dropbox: temporary link response (4-hour TTL) ─────────────────────
+    // Unlike Google Drive, Dropbox CAN produce direct download URLs via
+    // filesGetTemporaryLink. Return the same { signedUrl } shape for client compatibility.
+    if (doc.storage_backend === 'dropbox') {
+      // Use per-document storage_backend for routing (D-24-01-02)
+      // Org config needed to instantiate the DropboxProvider
+      const { data: orgData } = await serviceSupabase
+        .from('organisations')
+        .select('id, storage_backend')
+        .eq('id', doc.org_id)
+        .single();
+
+      if (!orgData) {
+        return NextResponse.json({ error: 'Org config not found' }, { status: 500 });
+      }
+
+      const provider = resolveProvider({
+        id: orgData.id,
+        storage_backend: 'dropbox', // Always dropbox — routing by doc.storage_backend
+      });
+
+      const { url } = await provider.getDownloadUrl(doc.storage_path);
+
+      // Insert access log BEFORE returning URL — audit trail requirement
+      await serviceSupabase.from('document_access_log').insert({
+        org_id: doc.org_id,
+        document_id: documentId,
+        user_id: user.id,
+        action: 'download',
+      });
+
+      // Return same response shape as Supabase signed URL for client-side compatibility
+      return NextResponse.json({ signedUrl: url });
     }
 
     // ── Supabase (default): signed URL response ───────────────────────────

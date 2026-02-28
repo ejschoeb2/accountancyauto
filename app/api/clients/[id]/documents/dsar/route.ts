@@ -52,17 +52,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   for (const doc of docs) {
     try {
       let buffer: ArrayBuffer;
-      if (doc.storage_backend === 'google_drive') {
-        // Google Drive: use provider.getBytes() directly — no public URL available
-        const provider = resolveProvider({
-          id: org?.id ?? '',
-          storage_backend: (org?.storage_backend ?? 'supabase') as StorageBackend,
-          google_drive_folder_id: org?.google_drive_folder_id ?? null,
-        });
-        const bytes = await provider.getBytes(doc.storage_path);
-        buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-      } else {
-        // Supabase: existing signed URL fetch
+      if (!doc.storage_backend || doc.storage_backend === 'supabase') {
+        // Supabase (default): existing signed URL fetch
         const { signedUrl } = await getSignedDownloadUrl(doc.storage_path);
         const response = await fetch(signedUrl);
         if (!response.ok) {
@@ -70,6 +61,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           continue;
         }
         buffer = await response.arrayBuffer();
+      } else {
+        // All third-party backends (google_drive, dropbox, onedrive): use resolveProvider().getBytes()
+        // This is forward-compatible — any new backend added in the future routes through here automatically.
+        // Per-document routing: use doc.storage_backend (NOT org.storage_backend) — D-24-01-02
+        const provider = resolveProvider({
+          id: org?.id ?? '',
+          storage_backend: (doc.storage_backend ?? 'supabase') as StorageBackend,
+          google_drive_folder_id: org?.google_drive_folder_id ?? null,
+        });
+        const bytes = await provider.getBytes(doc.storage_path);
+        buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
       }
       // Prefix with filing type to avoid filename collisions
       const safeFilename = `${doc.filing_type_id}/${doc.original_filename}`;
