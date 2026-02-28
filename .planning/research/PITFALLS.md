@@ -1,393 +1,253 @@
 # Pitfalls Research
 
-**Domain:** Document collection added to an existing multi-tenant UK accounting SaaS (Supabase Storage, Postmark attachment extraction, token-based client upload portal, UK GDPR compliance, HMRC retention)
-**Researched:** 2026-02-23
-**Confidence:** HIGH (Supabase Storage docs, Postmark docs, ICO guidance, HMRC manuals, OWASP; patterns verified against current codebase)
+**Domain:** Adding Google Drive, Microsoft OneDrive, and Dropbox as configurable per-org storage backends to an existing Next.js + Supabase SaaS for UK accounting practices (v5.0 — Third-Party Storage Integrations)
+**Researched:** 2026-02-28
+**Confidence:** HIGH (Google, Microsoft, Dropbox official docs; ICO guidance; verified against existing codebase)
 
 ---
 
 ## Scope Note
 
-This file supersedes the previous PITFALLS.md (which covered multi-tenancy migration for v3.0). These pitfalls are specific to the v4.0 Document Collection milestone — adding Supabase Storage, Postmark attachment extraction, a token-based client upload portal, document classification, UK GDPR compliance, and HMRC retention enforcement to an already multi-tenant system.
+This file supersedes the v4.0 PITFALLS.md (which covered Supabase Storage, Postmark attachment extraction, and UK GDPR compliance for document collection). These pitfalls are specific to the v5.0 milestone — adding Google Drive, Microsoft OneDrive, and Dropbox as selectable per-org storage backends to a system that already stores documents in Supabase Storage.
 
 **Phase references used throughout:**
-- Phase 18 = Document Collection Foundation (schema, storage, compliance groundwork, privacy policy amendments)
-- Phase 19 = Collection Mechanisms (passive inbound extraction, active client portal, classification, dashboard surfacing)
+- Phase 24 = Storage Abstraction Layer (provider-agnostic interface, organisations table schema, token columns)
+- Phase 25 = Google Drive Integration (OAuth2, Drive API v3, folder structure, token refresh)
+- Phase 26 = Microsoft OneDrive Integration (Microsoft Graph API, MSAL OAuth2, personal vs M365 complexity)
+- Phase 27 = Dropbox Integration (Dropbox API v2, OAuth2 offline tokens)
+- Phase 28 = Settings UI + Token Lifecycle Management (connect/disconnect UI, refresh token cron, re-auth prompts)
+- Phase 29 = Portal, Inbound Email, and DSAR Integration (route file bytes through provider APIs)
+
+Note: Phase numbers are provisional. The roadmap will assign final numbers after this research is complete.
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause data breaches, regulatory violations, or require architectural rewrites.
+Mistakes that cause data loss, silent upload failures, security breaches, or architectural rewrites.
 
 ---
 
-### Pitfall 1: `storage.objects` RLS Policies Not Written — Private Bucket Is Still Accessible
+### Pitfall 1: Silent Upload Failures When Access Tokens Expire Mid-Cron
 
 **What goes wrong:**
-You create a private Supabase Storage bucket (`documents`), which correctly disables the public CDN URL. You then add organisation-scoped RLS to every database table. But you forget that Supabase Storage uses a separate RLS system on the `storage.objects` table in the `storage` schema — and by default that table has NO policies. Without policies, the Supabase Storage API rejects all uploads and downloads by non-service-role clients, so the feature appears broken. The typical response is to make the bucket public, which instead exposes every uploaded document with a predictable URL.
-
-Even with a private bucket and correctly written `storage.objects` RLS, if the policy does not constrain to the authenticated user's `org_id`, a user from Org A can download a document belonging to Org B simply by guessing or constructing the correct storage path.
+The portal upload route and the Postmark inbound attachment handler both call the storage abstraction layer. If the access token for the configured provider expires between a cron run starting and the upload call executing, the provider API returns a 401. Without explicit token refresh logic wrapping every upload call, the error is swallowed and `client_documents` never gets a `storage_path` — the metadata row is written but the file is gone. The accountant sees a document listed in the system but cannot download it.
 
 **Why it happens:**
-- Database RLS and storage RLS are managed separately. Adding `org_id` isolation to all application tables does not protect objects in `storage.objects`.
-- The Supabase Dashboard's "private" toggle gives a false sense of security. Private only disables public CDN URLs — it does not create any RLS policies.
-- Developers test uploads using the service role key (which bypasses RLS), see it working, and ship without testing with an authenticated user JWT.
+Google, OneDrive, and Dropbox access tokens are short-lived (Google: 1 hour; OneDrive/MSAL: 1 hour; Dropbox: 4 hours). Developers often refresh tokens reactively — only when a 401 is received — but do not implement the retry that re-attempts the upload after the refresh. The result: the 401 is logged but no file is stored.
 
 **How to avoid:**
-Write storage RLS policies on `storage.objects` that enforce both authentication and org-scoped path prefix checks:
+Wrap every provider API call in a `withTokenRefresh(orgId, call)` utility that:
+1. Reads the stored access token and its `token_expires_at` timestamp.
+2. If `expires_at < now + 5 minutes` (proactive buffer), refreshes before the call.
+3. Executes the call with the fresh token.
+4. If the provider still returns 401 (rare race condition), retries once after another refresh.
+5. If still failing, marks the org's `storage_token_status = 'reauth_required'` and throws — never silently swallows.
 
+This wrapper lives at `lib/storage/token-refresh.ts` and is the only place any provider API credential is used.
+
+**Warning signs:**
+- `client_documents` rows with a `null` `storage_path` column after creation.
+- Provider error logs showing 401 responses near cron execution windows.
+- Accountants reporting "document listed but download fails."
+
+**Phase to address:** Phase 25 (Google Drive) — implement the `withTokenRefresh` pattern there; Phase 26 and 27 reuse the same wrapper with provider-specific refresh calls.
+
+---
+
+### Pitfall 2: Unencrypted Refresh Tokens Stored in the Organisations Table
+
+**What goes wrong:**
+The `organisations` table gains columns such as `google_refresh_token`, `onedrive_refresh_token`, and `dropbox_refresh_token`. If these are stored as plaintext `text` columns, a Supabase data breach, a misconfigured RLS policy, or a SQL injection exposes every accounting firm's cloud storage credentials simultaneously. A refresh token grants permanent access to a firm's Google Drive or OneDrive — including all their client financial documents.
+
+**Why it happens:**
+Storing OAuth tokens in a relational database column is the simplest implementation. Developers assume Supabase's RLS policies are sufficient protection, which they are not — RLS protects row-level access within the application but does not protect against database-level breaches, service role leaks, or debug log exposure.
+
+**How to avoid:**
+Encrypt refresh tokens before writing to the database using AES-256-GCM with a server-side key that is NOT stored in Supabase. Use an `ENCRYPTION_KEY` environment variable (32-byte hex) held only in Vercel environment variables. Implement `encryptToken(plaintext): string` and `decryptToken(ciphertext): string` utilities in `lib/crypto/tokens.ts`. The IV is stored alongside the ciphertext (standard GCM practice). Never log decrypted tokens. Use Node.js `crypto.createCipheriv` — no external dependencies needed.
+
+Schema pattern: `google_refresh_token_enc TEXT` (not `google_refresh_token`) signals to all developers that the value is always encrypted.
+
+**Warning signs:**
+- Token columns named without `_enc` suffix — no encryption signal.
+- Any server action or API route that `console.log`s request bodies containing token fields.
+- Supabase Dashboard showing readable token strings in the table editor.
+
+**Phase to address:** Phase 24 (Storage Abstraction Layer) — add encrypted token columns in the schema migration and the crypto utility before any provider-specific token is ever written.
+
+---
+
+### Pitfall 3: Google Refresh Token Silently Invalidated — No Re-Auth Signal to Accountant
+
+**What goes wrong:**
+Google silently invalidates a refresh token without notifying the application when:
+- The user changes their Google account password.
+- The user manually revokes access via myaccount.google.com.
+- The application has fewer than 100 users and the OAuth app status is "Testing" — Google revokes tokens after 7 days in Testing status.
+- The user has accumulated 50+ refresh tokens for the same Google OAuth client (Google enforces a per-user limit and silently revokes the oldest).
+
+When the next upload attempt runs, `invalid_grant` is returned from `https://oauth2.googleapis.com/token`. If the system does not catch this specific error code and translate it to a re-auth required state, all subsequent uploads for that org silently fail.
+
+**Why it happens:**
+`invalid_grant` looks like a transient network error to developers unfamiliar with Google's OAuth behaviour. It is treated as a generic failure rather than a terminal credential state requiring user action.
+
+**How to avoid:**
+In the `withTokenRefresh` wrapper, specifically catch `invalid_grant` from Google's token endpoint (HTTP 400, `error: "invalid_grant"`). On receiving this:
+1. Set `organisations.google_token_status = 'reauth_required'` and `google_refresh_token_enc = NULL`.
+2. Do not retry.
+3. Log the event to an audit table.
+4. Surface a persistent warning banner in the dashboard Settings > Storage tab.
+
+Before going to production, publish the Google OAuth app — move it out of "Testing" status. Testing apps have a 7-day token expiry that breaks any firm that does not re-authenticate weekly.
+
+**Warning signs:**
+- `invalid_grant` errors appearing in server logs.
+- Org's `google_token_status` cycling rapidly between `active` and `reauth_required`.
+- Any Google OAuth app remaining in "Testing" status after initial development.
+
+**Phase to address:** Phase 25 (Google Drive Integration) — `invalid_grant` handling must be implemented before Phase 25 is considered complete. Phase 28 adds the Settings UI that surfaces the re-auth banner.
+
+---
+
+### Pitfall 4: Dropbox OAuth Without `token_access_type=offline` — No Refresh Token Issued
+
+**What goes wrong:**
+Dropbox's OAuth2 flow defaults to `token_access_type=online` if the parameter is omitted. In online mode, Dropbox issues only a short-lived access token (4-hour expiry) with no refresh token. The first upload after 4 hours fails. There is no refresh token to use, meaning the firm must re-authenticate every 4 hours to continue storing documents.
+
+This is a silent configuration mistake — the OAuth flow completes successfully, the user is redirected back, but no refresh token appears in the response payload.
+
+**Why it happens:**
+The Dropbox documentation does not make `token_access_type=offline` the default or the obvious choice. It requires explicitly reading the offline access guide. Dropbox deprecated long-lived access tokens in September 2021, so most tutorial content pre-dating that change shows patterns that no longer work.
+
+**How to avoid:**
+The Dropbox authorization URL must include `token_access_type=offline`:
+```
+https://www.dropbox.com/oauth2/authorize?client_id=APP_KEY&response_type=code&token_access_type=offline&redirect_uri=...
+```
+
+Write a test immediately after the OAuth callback: verify the token exchange response contains a `refresh_token` field. If it does not, reject the connection and show an error — do not store the access token alone.
+
+**Warning signs:**
+- No `refresh_token` field in Dropbox OAuth token response.
+- Uploads succeeding for 4 hours then failing universally for an org.
+- Dropbox access token expiry timestamps all clustered exactly 4 hours after OAuth connection time.
+
+**Phase to address:** Phase 27 (Dropbox Integration) — add this check as a success criterion for the OAuth callback handler.
+
+---
+
+### Pitfall 5: Microsoft OneDrive Personal vs Business Account OAuth Complexity
+
+**What goes wrong:**
+OneDrive for personal Microsoft accounts (MSA) uses a completely different authentication endpoint (`login.live.com`) versus OneDrive for Business / Microsoft 365 accounts which use Azure Active Directory (`login.microsoftonline.com/common` or a tenant-specific URL). A single OAuth flow cannot transparently handle both. Accounting firms running Microsoft 365 (the majority of UK accountants) encounter errors when the app is configured for personal accounts only, or vice versa.
+
+Additionally, Microsoft 365 tenants may have Conditional Access policies that block third-party OAuth apps from receiving tokens — the token request returns `AADSTS53003` with no user-facing explanation, leaving the firm unable to connect their OneDrive at all.
+
+**Why it happens:**
+The Microsoft Graph documentation presents the `/common` endpoint as universal, but it only works for Entra ID (work/school) accounts. Personal Microsoft account OneDrive uses a separate Live SDK OAuth path. Developers test with personal accounts during development and the integration fails for the M365 business accounts that are the target audience.
+
+Conditional Access failures are invisible during development because personal developer tenants do not have CA policies. They appear only when real firm admins attempt to connect.
+
+**How to avoid:**
+Target Microsoft 365 / Entra ID accounts only (use `login.microsoftonline.com/common`, `signInAudience: AzureADandPersonalMicrosoftAccount`). Do not attempt to support personal MSA OneDrive — UK accounting practices use M365.
+
+For Conditional Access: document the requirement that the firm's M365 admin must grant the app consent via an admin consent URL (not just individual user consent). Provide a pre-flight check in the Settings UI that explains this requirement. If a `AADSTS53003` is received during OAuth callback, display a specific, actionable error: "Your Microsoft 365 administrator has restricted third-party app access. Ask your M365 admin to grant admin consent for Prompt."
+
+Register the app in Azure portal with `Files.ReadWrite.AppFolder` permission (for M365 delegated access to OneDrive) to stay within least-privilege scope.
+
+**Warning signs:**
+- `AADSTS53003` error codes in the OAuth callback handler.
+- OAuth callback receiving an authorization code but token exchange failing for work accounts.
+- Firms with M365 unable to complete OAuth flow while personal account testing succeeds.
+
+**Phase to address:** Phase 26 (Microsoft OneDrive Integration) — test against an M365 developer tenant (not a personal account) from day one. Document the admin consent requirement in the Settings UI.
+
+---
+
+### Pitfall 6: `drive.file` Scope Loses Access to Files Uploaded by Server-Side Code
+
+**What goes wrong:**
+Google's `drive.file` scope grants access only to files the app created using that specific user's OAuth token. Files uploaded by the server using a service account or a different user's token are not visible under `drive.file`. In this application, the portal upload, Postmark inbound handler, and cron-triggered operations all run server-side — they upload files on behalf of the org, not in response to a user-initiated action.
+
+If `drive.file` is used and the server-side upload uses the org's stored refresh token, Google Drive will store the file successfully but subsequent calls to list or retrieve that file using a different access token (even from the same org) may return 404 depending on how the folder permissions are set.
+
+**Why it happens:**
+`drive.file` sounds like the correct minimal-privilege choice and Google explicitly recommends it over the full `drive` scope. But `drive.file` was designed for user-initiated file picking flows (Google Picker API), not for server-side document management.
+
+**How to avoid:**
+Use `https://www.googleapis.com/auth/drive.file` but ensure that:
+1. All uploads use the same org's refresh token (the token obtained during the OAuth connection flow).
+2. Create a dedicated app folder in Drive at OAuth connection time using `spaces=appDataFolder` or create an explicitly named `Prompt Documents` folder and store its folder ID in the organisations table.
+3. All subsequent operations (upload, download metadata retrieval, delete) use the same org's stored token.
+4. Never use a service account for Drive access — this breaks `drive.file` ownership.
+
+Alternatively, if this proves too complex during implementation, use `https://www.googleapis.com/auth/drive` (full scope) — but this requires Google's restricted scope verification process (which takes 2-4 weeks and requires a security assessment for apps storing user data on servers). Plan for this verification timeline if the full Drive scope is needed.
+
+**Warning signs:**
+- Files successfully uploaded but returning 404 on subsequent GET requests.
+- Drive API returning `insufficientPermissions` on file download even though the upload succeeded.
+- `drive.file` scope returning empty file lists when listing files created by the server.
+
+**Phase to address:** Phase 25 (Google Drive Integration) — resolve the folder strategy and scope choice before writing any upload code.
+
+---
+
+### Pitfall 7: Storage Path Incompatibility When Orgs Switch Backends (Supabase to Provider)
+
+**What goes wrong:**
+Existing documents stored in Supabase Storage have `storage_path` values like `orgs/{orgId}/clients/{clientId}/corp-tax/2025/{uuid}.pdf`. When an org connects Google Drive and switches their `storage_backend` to `google_drive`, the new uploads get Drive file IDs like `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms` as their `storage_path`. The DSAR export ZIP builder and the download handler must now handle two completely different `storage_path` formats within the same org's document set. The format leaks the backend type into application code everywhere `storage_path` is used.
+
+This is not a theoretical edge case — any org that connects a new backend mid-lifecycle will have a mixed document set.
+
+**Why it happens:**
+The `storage_path` column stores a path string that made perfect sense for Supabase Storage (filesystem-style path) but is semantically different for Google Drive (opaque file ID) and OneDrive (item ID or drive path). Treating `storage_path` as a universal file reference without encoding which backend to use means every piece of code reading `storage_path` must infer the backend from the org's current `storage_backend` setting — which may have changed since the document was stored.
+
+**How to avoid:**
+Add a `storage_backend` column to `client_documents` — not just on `organisations`. Every document row records the backend it was stored on at upload time. The download handler uses `doc.storage_backend`, not `org.storage_backend`. The DSAR export reads the per-document backend to determine how to fetch the file.
+
+Schema addition in Phase 24:
 ```sql
--- Only allow authenticated users to read objects in their own org's folder
-CREATE POLICY "org_documents_select" ON storage.objects
-  FOR SELECT TO authenticated
-  USING (
-    bucket_id = 'documents'
-    AND (storage.foldername(name))[1] = 'orgs'
-    AND (storage.foldername(name))[2] = (auth.jwt() -> 'app_metadata' ->> 'org_id')
-  );
-
--- Only allow authenticated users to insert into their own org's folder
-CREATE POLICY "org_documents_insert" ON storage.objects
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    bucket_id = 'documents'
-    AND (storage.foldername(name))[1] = 'orgs'
-    AND (storage.foldername(name))[2] = (auth.jwt() -> 'app_metadata' ->> 'org_id')
-  );
-
--- Service role bypasses RLS — used for cron deletion, DSAR export, attachment ingestion
+ALTER TABLE client_documents
+  ADD COLUMN storage_backend text NOT NULL DEFAULT 'supabase'
+    CHECK (storage_backend IN ('supabase', 'google_drive', 'onedrive', 'dropbox'));
 ```
 
-For the token-based client portal (unauthenticated uploads), service-role API routes must handle the upload server-side — never expose the Supabase storage client to the browser for unauthenticated uploads. The portal route validates the token, extracts the org_id from the portal_tokens table, then uploads via service role with the full org-scoped path. See Pitfall 6 for token-side details.
+Backfill: `UPDATE client_documents SET storage_backend = 'supabase' WHERE storage_backend IS NULL`.
 
 **Warning signs:**
-- Storage uploads work with service role key but fail with authenticated user session
-- Developer solves upload failures by switching bucket to public
-- No policies visible on `storage.objects` table in Supabase Dashboard
-- Fetching another org's file path with a valid (but different-org) JWT returns 200
+- Download handler routing logic based on `org.storage_backend` rather than `doc.storage_backend`.
+- DSAR export failing for orgs that switched backends mid-usage.
+- `storage_path` values that look like Drive file IDs being passed to the Supabase Storage download function.
 
-**Phase to address:** Phase 18 (Foundation) — storage RLS must be in place before any document is uploaded to the bucket. Do not proceed to Phase 19 without testing cross-org file access from client SDK with two different org users.
+**Phase to address:** Phase 24 (Storage Abstraction Layer) — this schema change must be done in Phase 24's migration before any provider-specific code is written.
 
 ---
 
-### Pitfall 2: Signed URLs Generated Without Expiry Bound — Documents Downloadable Indefinitely
+### Pitfall 8: User Revokes Provider Access in Provider Settings — Orphaned Documents With No Recovery Path
 
 **What goes wrong:**
-You generate a signed URL to serve a document to the accountant: `supabase.storage.from('documents').createSignedUrl(path, 86400)`. The accountant copies the URL and pastes it into a shared Slack message, a client email, or an email chain forwarded outside the firm. The signed URL continues to work for 24 hours (or 604800 seconds if someone uses 7 days). Worse, once a signed URL is generated, Supabase has no mechanism to revoke it — the URL goes directly to the underlying S3 infrastructure and bypasses all RLS policies for its lifetime.
+An accountant connects their Google Drive, uploads 200 client documents, then manually revokes Prompt's access in Google Account settings (myaccount.google.com). The `client_documents` rows still exist in Postgres with `storage_backend = 'google_drive'` and `storage_path` = file IDs, but every download attempt returns 401. The accountant sees 200 documents listed in Prompt with no way to download any of them. This is the worst-case data availability failure for a practice — client records are inaccessible ahead of filing deadlines.
 
 **Why it happens:**
-- Signed URLs feel like a safe middle ground (not fully public) but the expiry is the only control mechanism once issued.
-- Long expiry windows are chosen for convenience ("so the user doesn't need to reload").
-- The RLS bypass nature of signed URLs (they authenticate against S3 directly, not via Supabase RLS) is not documented prominently and surprises developers.
+Cloud storage integrations assume the connection persists. There is no webhook from Google, OneDrive, or Dropbox notifying the application when access is revoked externally. The failure is discovered only when the next download attempt fails.
 
 **How to avoid:**
-- Use short signed URL expiry: 300 seconds (5 minutes) for document preview/download. Never exceed 3600 seconds for anything other than bulk export.
-- Never cache signed URLs on the client or in the database. Generate fresh ones server-side on each document access request.
-- Log every signed URL generation in `document_access_log` (who requested it, when, for which document) — this satisfies the GDPR audit trail requirement and provides forensic visibility.
-- For DSAR ZIP exports, generate a signed URL for the ZIP with a 1-hour expiry and send the link via email. Revoke by deleting the ZIP object from storage after download or expiry.
+Three mitigations:
+
+1. **Health check cron**: A daily lightweight API call (e.g., list the app folder) per org that has an active third-party backend. If the call fails with 401/invalid_grant, set `storage_token_status = 'reauth_required'` and send an email to the org admin: "Your Google Drive connection has been disconnected. Documents stored in Drive are inaccessible until you reconnect."
+
+2. **Download-time detection**: The download handler catches 401/403 from the provider and immediately sets `storage_token_status = 'reauth_required'`, returns an error to the UI with a specific message, and does not attempt retries.
+
+3. **Settings UI warning**: The Settings > Storage tab prominently shows "X documents stored in this provider. Disconnecting will make them inaccessible." This is shown as a persistent reminder, not only at disconnect time.
+
+There is no automatic recovery path once documents are deleted from the provider — this is by design (the provider is the source of truth for bytes). The only recovery is the user reconnecting their account.
 
 **Warning signs:**
-- Signed URL expiry > 3600 seconds anywhere in the codebase
-- Signed URLs stored in application state, sessionStorage, or the database
-- No `document_access_log` entries for download events
-- Signed URLs passed as props into client components (where they may be serialized)
-
-**Phase to address:** Phase 18 (Foundation) — establish the signed URL generation policy in the access log service before Phase 19 builds any download UI.
-
----
-
-### Pitfall 3: Storage Path Does Not Include `org_id` — Cross-Tenant Path Collisions and Unauthorised Access
-
-**What goes wrong:**
-Storage paths are constructed from only `client_id` and `filing_type`: `clients/{client_id}/{filing_type}/{filename}`. Two orgs whose clients happen to have similar-looking IDs (unlikely with UUIDs but possible with sequential IDs or slugs) would share path namespace. More critically, if RLS on `storage.objects` is ever misconfigured or bypassed, there is no org-level segmentation in the path itself — a single RLS gap exposes all orgs' documents simultaneously.
-
-Even with correct RLS, the `client_documents` metadata table needs the storage path to resolve the file. If the path does not contain `org_id`, a service-role query that mistakenly joins across orgs would retrieve valid paths for all orgs with no way to detect the cross-org access from the path alone.
-
-**Why it happens:**
-- Paths are designed to be human-readable and minimal. `org_id` is "handled by RLS anyway" so developers omit it.
-- The path convention is established early and painful to migrate (every existing file must be moved).
-
-**How to avoid:**
-Enforce this path convention from day one and never deviate:
-
-```
-orgs/{org_id}/clients/{client_id}/{filing_type}/{tax_year}/{uuid}_{original_filename}
-```
-
-This provides defence-in-depth: even if RLS fails or is bypassed, the path itself segments by org. It also makes `storage.objects` RLS policies trivially auditable — the policy simply checks that path segment 2 equals the JWT `org_id`.
-
-The `uuid_` prefix on the filename (generated server-side) prevents path enumeration and removes any dependence on the client-supplied filename for uniqueness.
-
-**Warning signs:**
-- Storage path convention does not include `org_id` as the first segment
-- Path convention established in Phase 19 without being codified in Phase 18
-- `client_documents.storage_path` column values lack `org_id` prefix
-- Storage paths use client-supplied filenames directly (without UUID prefix)
-
-**Phase to address:** Phase 18 (Foundation) — the path convention is a schema decision. Define it, document it in ARCHITECTURE.md, and write a path construction helper function before any upload code is written.
-
----
-
-### Pitfall 4: Postmark Inbound Webhook Extended Without Handling Attachment Size — Vercel Function Timeout
-
-**What goes wrong:**
-The existing `/api/postmark/inbound` webhook receives the full attachment `Content` (base64-encoded bytes) inline in the JSON body. Postmark's inbound limit is 35 MB total message size. A client sends a 30 MB batch of scanned documents. The webhook receives 30 MB of base64 JSON (which decodes to ~22 MB of binary data), then attempts to decode each attachment and upload them to Supabase Storage sequentially. The Vercel serverless function has a 60-second execution limit (or 300 seconds on Pro). With a slow Supabase Storage upload on a large payload, the function times out. Postmark does not receive a 200, marks the delivery as failed, and retries — re-uploading the same attachments. Files are duplicated in Storage and `client_documents` contains duplicate entries.
-
-**Why it happens:**
-- The existing webhook is designed for text email processing (keyword detection) and is not resource-constrained.
-- Postmark delivers attachments inline in the webhook JSON, unlike some other email services that provide a separate download URL.
-- Vercel Pro's 300-second limit feels generous but 35 MB of sequential base64-decode + upload can exceed it under load.
-
-**How to avoid:**
-1. Add a per-attachment size cap (e.g. reject attachments > 20 MB with a logged warning, still return 200 to Postmark).
-2. Process attachments asynchronously: store the raw Postmark payload in `inbound_emails.raw_postmark_data` (already done), return 200 immediately, then process attachments via a separate edge function or queue job.
-3. Add idempotency on `inbound_emails.message_id` (Postmark's `MessageID` field): before inserting, check if this MessageID already exists. If it does, skip processing and return 200.
-4. Implement deduplication in `client_documents`: before inserting, check for existing rows with the same `inbound_email_id` and `original_filename`. If found, skip the upload.
-
-**Warning signs:**
-- Postmark webhook logs show repeated delivery attempts for the same MessageID
-- Duplicate rows in `client_documents` with the same `inbound_email_id`
-- Vercel function logs show timeout errors on the inbound route
-- No check on `inbound_emails.message_id` uniqueness before insert
-
-**Phase to address:** Phase 19 (Collection Mechanisms) — but the idempotency constraint (`UNIQUE(message_id)` on `inbound_emails`, `UNIQUE(inbound_email_id, original_filename)` on `client_documents`) should be defined in Phase 18 migrations.
-
----
-
-### Pitfall 5: Privacy Policy Not Updated Before Document Storage Goes Live — UK GDPR Transparency Violation
-
-**What goes wrong:**
-The current privacy policy covers reminder emails and contact data only. Phase 18 adds document storage and Phase 19 adds a client-facing upload portal. If either goes live without the policy being updated, the system is processing personal data (financial documents, identification documents, tax records) in ways not disclosed to data subjects. Under UK GDPR Article 13/14 (transparency principle) and Article 5(1)(a) (lawfulness, fairness, transparency), this is a violation regardless of whether harm occurs.
-
-ICO enforcement records show fines for inadequate transparency even where no data breach occurred. The Data (Use and Access) Act 2025 (in force 19 June 2025) has not changed this obligation — the transparency principle is unchanged in the new regime.
-
-**Why it happens:**
-- Privacy policy updates feel like a task that can be done "alongside" or "after" the technical work.
-- The seven specific gaps were identified at the end of v3.0 (documented in ROADMAP.md Phase 2 → Phase 3) but are easy to deprioritise when technical tasks dominate.
-- Developers think "no one reads the privacy policy" — but the obligation is to the ICO, not to users' reading habits.
-
-**How to avoid:**
-The privacy policy amendments are a hard dependency for Phase 18. The seven identified gaps must all be resolved before any storage bucket receives a real document:
-
-1. Add documents/files as a data category in Section 3, naming what types are stored and why.
-2. Add the 6-year statutory carve-out in Section 9 (Article 17(3)(b) UK GDPR exemption — legal obligation under TMA 1970 s.12B and FA 1998 Sch.18 para.21).
-3. Broaden the processing scope in Section 4 to include document storage and client portal interactions.
-4. Add the firm's clients (the accounting practice's own clients) as a recognised category of data subject for portal interactions.
-5. Update the Supabase sub-processor entry to include file storage as a distinct use.
-6. Qualify Terms Section 6's special category data restriction: P60s, SA302s, bank statements, and dividend vouchers are necessary for the stated service purpose and are therefore permitted.
-7. Add retention periods specific to document types (6 years for HMRC-relevant documents; shorter for working documents not required for a filed return).
-
-**Warning signs:**
-- Storage bucket created but privacy policy still says "specifically for sending reminders" as the processing scope
-- Phase 18 migrations run in production with no corresponding privacy policy deployment
-- Client portal token links sent to a client before the policy is updated
-- `document_types` catalog includes financial documents not mentioned in the policy
-
-**Phase to address:** Phase 18 (Foundation) — must be completed AND deployed before the first document is stored. This is a deployment dependency, not just a code dependency.
-
----
-
-### Pitfall 6: Upload Portal Token Is Reusable, Guessable, or Leaked via Referrer Header
-
-**What goes wrong:**
-Three distinct failure modes in one pattern family:
-
-**Reuse:** The portal token is not invalidated after a client submits their documents. The link remains active until expiry, so a forwarded email or shared link allows anyone to add or view documents for that client-filing pair.
-
-**Brute force:** The token is a short numeric code (e.g. 6 digits), a sequential ID, or a UUID without rate limiting. An automated script can enumerate valid tokens and access other clients' portals. HackerOne report #252544 demonstrates this class of attack on token-gated pages.
-
-**Referrer leak:** The portal page at `prompt.app/portal?token=abc123xyz` includes any third-party analytics (e.g. Plausible, Segment, Google Analytics), or the page has an external link. The browser sends the full URL including the token in the `Referer` header when the user navigates to an external resource. The token is now logged in the third party's servers. This is a documented HackerOne bug class (reports #252544, #342693, #6884).
-
-**Why it happens:**
-- "No login required" is a feature, but it creates a token-as-credential model that requires explicit security consideration.
-- Token expiry feels sufficient — developers don't consider the token-as-shareable-link problem.
-- Analytics scripts are added globally to the Next.js layout without considering that some routes contain sensitive tokens in query parameters.
-
-**How to avoid:**
-1. **Token generation:** Use `crypto.randomBytes(32).toString('hex')` (64-character hex = 256 bits of entropy). Never use UUIDs (too recognisable) or short codes (too enumerable).
-2. **Token storage:** Store a SHA-256 hash of the token in the database, not the token itself. Verify by hashing the submitted token and comparing. This way a database breach doesn't expose valid tokens.
-3. **Token scope:** Tokens must be scoped to a specific `client_id` + `filing_type` + `org_id` tuple. A token for one filing must not grant access to any other.
-4. **Single-use for sensitive actions:** Uploads can be additive (multiple uploads during the token's valid window is fine), but once the accountant marks the checklist complete, invalidate the token.
-5. **Expiry:** 30 days maximum. Store `expires_at` in the `portal_tokens` table and check on every request.
-6. **Rate limiting:** Apply rate limiting on the token validation endpoint: max 5 failed attempts per IP per minute, then 429 with exponential backoff.
-7. **Referrer suppression:** Set `<meta name="referrer" content="no-referrer">` in the portal page `<head>`. Verify no analytics scripts fire on portal routes — exclude `/portal` from any global analytics.
-8. **Token not in server logs:** Postmark includes the token in the upload link sent to the client. Ensure portal URL construction uses POST bodies or query parameter stripping before logging.
-
-**Warning signs:**
-- `portal_tokens` table stores plain-text token (not hash)
-- Token is a UUID or short numeric code
-- Portal page includes any `<script>` from a third-party analytics domain
-- Token expiry is not checked on every request (checked only at link click, not at upload time)
-- No rate limiting on the token validation route
-- Token appears in Vercel access logs
-
-**Phase to address:** Phase 18 (Foundation) — portal_tokens table schema and security model; Phase 19 (Collection Mechanisms) — portal route implementation and rate limiting.
-
----
-
-### Pitfall 7: Files Stored Without Server-Side MIME Type Validation — Malware Upload Vector
-
-**What goes wrong:**
-The client upload portal accepts files via a browser file input with `accept=".pdf,.doc,.docx,.xlsx,.csv"`. The browser enforces this loosely (it can be bypassed with DevTools or a direct HTTP request). The server receives the upload, reads `Content-Type: application/pdf` from the request headers, and stores the file. But `Content-Type` is set by the browser and trivially spoofable. An attacker uploads `malware.exe` with `Content-Type: application/pdf` and a `.pdf` extension. The file is stored in Supabase Storage. An accountant generates a signed URL and downloads it, expecting a PDF.
-
-Even without malicious intent, this creates data quality problems: clients routinely misname files (e.g. a .pages file renamed to .pdf) that cannot be opened by the accountant's tools.
-
-**Why it happens:**
-- Browser-side `accept` attribute feels like validation.
-- The server trusts the `Content-Type` header from the multipart upload.
-- OWASP's File Upload Cheat Sheet documents this as one of the most common upload vulnerabilities.
-
-**How to avoid:**
-Perform multi-layer validation server-side in the Phase 19 upload route:
-
-```typescript
-// Layer 1: Extension allowlist (case-insensitive)
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.doc', '.docx', '.xlsx', '.xls', '.csv', '.png', '.jpg', '.jpeg', '.tiff']);
-const ext = path.extname(file.name).toLowerCase();
-if (!ALLOWED_EXTENSIONS.has(ext)) {
-  return { error: 'File type not accepted' };
-}
-
-// Layer 2: File signature (magic bytes) — read first 8 bytes
-const buffer = await file.slice(0, 8).arrayBuffer();
-const bytes = new Uint8Array(buffer);
-// PDF: %PDF (25 50 44 46)
-// ZIP/Office: PK (50 4B) — docx/xlsx are ZIP-based
-const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
-const isZip = bytes[0] === 0x50 && bytes[1] === 0x4B;
-// ... etc for each allowed type
-if (!isPdf && !isZip && /* ... */) {
-  return { error: 'File content does not match expected format' };
-}
-
-// Layer 3: Size cap — reject files > 50 MB
-if (file.size > 50 * 1024 * 1024) {
-  return { error: 'File too large. Maximum size is 50 MB.' };
-}
-```
-
-Never execute uploaded files. Store uploads in Supabase Storage (which does not serve files with execute permissions). Generate a server-side UUID filename — never use the original filename as the storage key. Store the original filename separately in `client_documents.original_filename` for display purposes only.
-
-**Warning signs:**
-- Upload route trusts the `Content-Type` request header as the source of truth
-- No magic byte check on file content
-- Original client-supplied filename used as the storage path key
-- No file size limit enforced server-side
-- `accept` attribute on `<input type="file">` treated as the security boundary
-
-**Phase to address:** Phase 19 (Collection Mechanisms) — upload route implementation. Allowlist definition in Phase 18 (in the `document_types` catalog, which specifies expected MIME types per document type).
-
----
-
-### Pitfall 8: HMRC 6-Year Retention Requirement Not Implemented — Active Deletion Too Early
-
-**What goes wrong:**
-Retention enforcement is designed as "delete after 6 years from the relevant tax year end." The cron job calculates this as `document.received_at + 6 years`. A P60 for tax year 2024/25 received in May 2025 would be deleted in May 2031. But the HMRC requirement is that records are kept until the sixth anniversary of the end of the **accounting period they relate to**, not the date they were received. The accounting period for 2024/25 ends 5 April 2025. The sixth anniversary is 5 April 2031. Using `received_at` gives a correct-ish result in this case, but for documents received late (e.g. a bank statement for Q1 2024 received in 2026), the calculation is 2032, when the legal requirement ended in 2030.
-
-The subtler risk: deleting documents that are under an active HMRC enquiry. Once HMRC opens an enquiry, records must be retained until the enquiry concludes — potentially well beyond 6 years. The cron job has no way to know about open enquiries.
-
-**Why it happens:**
-- "6 years" sounds simple, but the anchor date is the tax period end, not the document receipt date.
-- HMRC enquiry awareness requires either manual intervention or integration with HMRC systems (which does not exist).
-- Automated retention enforcement is built to be fire-and-forget; edge cases like active enquiries are not considered.
-
-**How to avoid:**
-1. Store `tax_period_end_date` on `client_documents` at the time of upload/classification. This is the anchor for the 6-year calculation.
-2. Retention formula: `delete_after = tax_period_end_date + 6 years`, not `received_at + 6 years`.
-3. Add a `retention_hold` boolean to `client_documents`. Accountant can set this flag on any document to prevent automated deletion (for open enquiry or litigation hold scenarios).
-4. Cron must check `WHERE retention_hold = false AND delete_after < NOW()` — never delete held documents.
-5. The retention cron must NOT delete immediately — it should flag documents as `deletion_pending`, notify the accountant, and give a 30-day window for review. Actual deletion occurs at the end of that window if no hold is placed.
-6. Log every deletion in `document_access_log` with `action = 'deleted_retention_enforcement'` for audit trail.
-
-**Warning signs:**
-- Retention calculation uses `received_at` as the anchor rather than `tax_period_end_date`
-- No `retention_hold` column on `client_documents`
-- Retention cron deletes documents immediately without a review window
-- No accountant notification before documents are deleted
-- No deletion audit trail in `document_access_log`
-
-**Phase to address:** Phase 18 (Foundation) — `client_documents` schema must include `tax_period_end_date` and `retention_hold`. Retention cron design must be specified (even if not implemented until later).
-
----
-
-### Pitfall 9: DSAR Export Misses Documents — Partial Compliance
-
-**What goes wrong:**
-An accounting firm's client submits a Subject Access Request (SAR) under UK GDPR Article 15. The accountant triggers the DSAR export for that client from the client detail page. The export produces a ZIP containing files from `client_documents` and metadata from the `document_access_log`. But the SAR also covers personal data held in:
-- `inbound_emails` (the client's email content and body)
-- `email_log` (what emails were sent to this client and when)
-- The client's contact details and filing metadata in `clients`
-- Any notes or audit entries in `audit_log` relating to this client
-
-If the DSAR export only covers uploaded documents, the response is incomplete. Under UK GDPR, an incomplete SAR response is itself a breach — the ICO considers it the same as not responding. The 30-day (one calendar month) deadline still applies.
-
-**Why it happens:**
-- DSAR export is designed to answer "what documents do you hold about this client?"
-- The broader personal data scope (email content, sent reminders, audit trail) is not considered during document collection feature design.
-- Each data type lives in a different table, and pulling them all together requires deliberate cross-table joining.
-
-**How to avoid:**
-Design the DSAR export as a comprehensive personal data export, not just a document export. The export ZIP must include:
-
-```
-dsar-{client_id}-{date}/
-  manifest.json            — all included data categories, dates, counts
-  documents/               — all files from client_documents
-    {filename}             — original files
-    index.json             — metadata for each file
-  email-history/
-    sent-emails.json       — all outbound emails from email_log for this client
-    inbound-emails.json    — all inbound emails from inbound_emails for this client
-  client-profile/
-    profile.json           — name, email, filing assignments, deadline overrides
-  audit-trail/
-    access-log.json        — all document_access_log entries for this client
-    audit-log.json         — all audit_log entries for this client_id
-```
-
-The manifest.json must state the date range covered and any data categories that were searched but found empty.
-
-**Warning signs:**
-- DSAR export only queries `client_documents` and not `inbound_emails`, `email_log`, or `audit_log`
-- No manifest.json in the export
-- No automation — the export requires manual SQL queries
-- DSAR export not accessible from the client detail page (requiring admin SQL access means it cannot meet the 30-day window reliably)
-
-**Phase to address:** Phase 18 (Foundation) — DSAR export data model and format defined before any data is collected. Phase 19 or later — export mechanism built.
-
----
-
-### Pitfall 10: Document Classification Confidence Not Stored — Wrong Type Labels Surface in UI
-
-**What goes wrong:**
-The classification logic identifies a file as "P60" based on the filename `p60_final_2024.pdf` with high confidence. But another file, `bank statement march.pdf`, is classified as "bank statement" based solely on the filename string match — which has lower reliability. Both are stored with the same `document_type_id` label in `client_documents`, with no indication of classification reliability. The accountant sees both files labelled confidently in the dashboard.
-
-The P60 classification is correct. The "bank statement" classification might be wrong — it could be a credit card statement, a savings account summary, or a completely mislabelled file. The accountant, trusting the automatic label, does not review the file before using it in the filing preparation. An incorrect document type leads to the wrong document being requested from the client, or worse, a wrong assumption about what was received.
-
-**Why it happens:**
-- Classification systems are designed to label. The concept of "I don't know" is not built into the initial schema.
-- Low-confidence classifications look identical to high-confidence ones in the data model.
-- MIME type + filename matching is coarser than it appears: many HMRC documents (SA302, P60, tax computations) are all PDFs with non-standardised filenames.
-
-**How to avoid:**
-1. Store `classification_confidence` (enum: `high`, `medium`, `low`, `unclassified`) on `client_documents`.
-2. Classification logic must be explicit about its evidence:
-   - HIGH: filename matches known HMRC patterns AND magic bytes match expected format
-   - MEDIUM: filename matches OR MIME type matches but not both
-   - LOW: one weak signal (e.g. a word in the filename)
-   - UNCLASSIFIED: no match against any document type in catalog
-3. In the UI, show classification confidence. LOW and UNCLASSIFIED documents must be flagged for accountant review, not quietly labelled.
-4. Never auto-mark a filing requirement as "received" based on a LOW-confidence classification. Require accountant confirmation.
-5. Allow the accountant to manually correct the classification label — store `classification_override` separately from `classification_auto`.
-
-**Warning signs:**
-- `client_documents` has no `classification_confidence` column
-- All documents surface in the dashboard with equal visual weight regardless of classification certainty
-- Auto-marking of "records received" triggers on LOW-confidence classifications
-- No "unclassified — review needed" state in the document checklist UI
-
-**Phase to address:** Phase 18 (Foundation) — schema must include confidence column; Phase 19 (Collection Mechanisms) — classification logic must populate it; dashboard must surface review flags.
+- `storage_token_status` not being updated on provider 401 responses.
+- No daily health check cron for provider connectivity.
+- Settings UI allowing disconnect without warning about stored document count.
+
+**Phase to address:** Phase 28 (Settings UI + Token Lifecycle Management) — health check cron and disconnect warning. Phase 25-27 — download-time 401 detection.
 
 ---
 
@@ -397,46 +257,46 @@ Shortcuts that seem reasonable but create long-term problems.
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Using `received_at` instead of `tax_period_end_date` for retention anchor | Simpler schema, no need to classify tax year | Documents deleted too early or too late; HMRC compliance gap | Never |
-| Making storage bucket public during development | Eliminates RLS debugging | Every document exposed with predictable URL; extremely painful to revert once in production | Never — use service role for dev testing instead |
-| Storing plain-text portal token in `portal_tokens` table | Simpler to debug | Database breach exposes all valid tokens → any client's documents accessible | Never |
-| Generating signed URLs with 7-day expiry | Fewer page reloads | Signed URLs forwarded outside the firm; no revocation possible | Only for DSAR bulk export (1 hour max), immediately invalidated after download |
-| Skipping magic byte validation and trusting `Content-Type` header | Simpler upload route | Malformed or malicious files accepted; accountant downloads unexpected content | Never — magic byte check is 10 lines of code |
-| DSAR export covers only `client_documents` | Faster to implement | SAR response is incomplete; ICO enforcement risk | Never — partial SAR response is itself a violation |
-| Privacy policy updates deferred until "after launch" | Ship faster | Processing personal data outside the declared scope; ICO transparency violation; legal liability for the firm | Never |
-| Single storage path without `org_id` prefix | Cleaner URLs | Defence-in-depth lost; any RLS misconfiguration exposes all orgs' documents | Never |
+| Store access token only (no refresh token) | Simpler OAuth flow, no token rotation needed | Every upload fails after 1-4 hours; firm must re-authenticate constantly | Never — always request offline access |
+| Use `org.storage_backend` to route downloads | One column to maintain | DSAR and downloads break for orgs that switched backends | Never — add `storage_backend` to `client_documents` |
+| Plaintext refresh tokens in `organisations` | Simpler read/write code | Full cloud access exposure on any DB breach | Never for production |
+| Single OAuth app registration for all envs | No credential juggling | Test tokens pollute production token limits; Google dev app tokens expire in 7 days | Never — separate app registrations per environment |
+| Skip token expiry proactive check, rely on 401 retry | Less code | Mid-upload 401 failures on large files; Postmark webhook times out waiting for retry | Never for server-side upload flows |
+| Reuse Supabase Storage `storage_path` format for provider paths | Familiar column semantics | Provider file IDs look nothing like file paths; routing logic becomes ambiguous | Never — `storage_path` stores whatever the provider returns as its identifier |
+| Route file bytes through Next.js server for all providers | Consistent upload code | Portal uploads will hit Vercel's 4.5MB request body limit for large accounting documents | Acceptable only for small file inbound email; portal uploads must use provider direct upload |
 
 ---
 
 ## Integration Gotchas
 
-Common mistakes when connecting to existing services or extending existing handlers.
+Common mistakes when connecting to external services.
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Postmark inbound webhook | Adding attachment extraction in the same synchronous handler that currently returns 200 immediately | Store the Postmark payload immediately, return 200, process attachments asynchronously via a separate function/queue triggered from the stored payload |
-| Postmark inbound webhook | Not checking `Attachments` array for null or empty before iterating | Guard with `if (!payload.Attachments?.length) return` before attachment processing loop |
-| Postmark inbound webhook | Trusting `ContentType` field from Postmark as ground truth for file type | ContentType comes from the sending email client and is not verified; validate magic bytes server-side |
-| Postmark inbound webhook | Processing the same email twice when Postmark retries | Add `UNIQUE(message_id)` constraint on `inbound_emails` and check before processing |
-| Supabase Storage signed URL | Generating signed URL client-side using the browser Supabase client | The storage policy must allow the authenticated user to `createSignedUrl` — easier to generate server-side in a Server Action and return the short-lived URL |
-| Supabase Storage | Uploading client-supplied filename as the storage key | Always generate a server-side UUID filename; store original in `client_documents.original_filename` |
-| Client portal route (unauthenticated) | Using the authenticated Supabase client in the portal API route | The portal route has no user session; use service role client with the org_id extracted from the validated token row |
-| Client portal route | Token validation not atomic — read-then-write creates race condition | Use a single `UPDATE portal_tokens SET last_used_at = NOW() WHERE token_hash = $1 AND expires_at > NOW() RETURNING *` — if no rows returned, token is invalid |
-| `document_access_log` | Skipping log writes for "minor" operations like list views | Every access (including list views) must be logged; the log is the GDPR audit trail for DSAR and ICO enquiries |
+| Google Drive | Requesting `drive` (full) scope instead of `drive.file` | Use `drive.file` — avoid Google's restricted scope verification process (weeks of delay) |
+| Google Drive | Not storing the root folder ID returned after creating the org's Drive folder | Store Drive folder ID in `organisations.google_drive_folder_id` at connection time; do not recreate the folder on every upload |
+| Google Drive | Not handling token rotation — Google sometimes rotates refresh tokens | Always check if the token response contains a new `refresh_token`; if so, update the stored value |
+| OneDrive | Using personal MSA OAuth endpoint for business M365 accounts | Use `login.microsoftonline.com/common` for M365 delegated auth; do not target `login.live.com` |
+| OneDrive | Not requesting admin consent — individual user consent insufficient for M365 tenants with CA policies | Provide an admin consent URL in Settings UI; document this as a prerequisite for M365 firms |
+| OneDrive | Using the OneDrive `path`-based API instead of item IDs | Always store and use item IDs (`items/{id}`) — paths break when users rename or move folders |
+| Dropbox | Omitting `token_access_type=offline` from authorization URL | Explicitly set `token_access_type=offline`; verify response contains `refresh_token` |
+| Dropbox | Using `/files/upload` for files over 150MB | Use upload session API (`upload_session/start`, `append_v2`, `finish`) for accounting documents that may be large PDFs |
+| All providers | Making upload calls directly from the Postmark inbound webhook handler | The Postmark webhook has a short response window; upload to the provider asynchronously (queue the bytes, upload in background) or risk timeout |
+| All providers | Assuming `storage_path` is always a filesystem-style path | `storage_path` stores whatever the provider returns: Drive file ID, OneDrive item ID, or Dropbox path string |
 
 ---
 
 ## Performance Traps
 
-Patterns that work at small scale but fail as data grows.
+Patterns that work at small scale but fail as usage grows.
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Generating signed URLs for every document in a list view | List of 50 documents triggers 50 sequential signed URL API calls; page load > 5 seconds | Generate signed URLs lazily on demand (user clicks "Download"), not on list render | At ~20+ documents per client filing |
-| No index on `client_documents(client_id, filing_type_id)` | Dashboard document counts cause sequential table scans | Add composite index on `(org_id, client_id, filing_type_id)` in Phase 18 migration | At ~500+ documents across all clients |
-| Retention cron queries all `client_documents` without index on `delete_after` | Cron runs slowly, potentially timing out | Add index on `(delete_after, retention_hold)` where `retention_hold = false` (partial index) | At ~10,000+ documents |
-| DSAR export generates ZIP in-memory in a serverless function | Large exports (client with many years of documents) exhaust function memory | Generate ZIP as a stream, upload directly to a temp Supabase Storage path, return a signed URL | At ~50+ files per DSAR export |
-| Storage path includes the original filename with unicode/spaces | Storage API errors on non-ASCII filenames; inconsistent URL encoding | Always use `{uuid}_{sanitised_extension}` as the storage key; map to original filename via DB | First non-ASCII filename encountered |
+| Refreshing tokens on-demand inside API route handlers | Occasional slow page loads; timeouts on Vercel Pro (default 30s) | Pre-emptively refresh tokens in background cron before they expire | At high traffic when multiple simultaneous requests all trigger token refresh |
+| Sequential uploads for DSAR export across provider API | DSAR export takes minutes for firms with hundreds of documents; Vercel function timeout | Stream files from provider and add to ZIP incrementally; use `after()` for background processing | At 50+ documents in a DSAR export |
+| Listing provider folders to find files by name | Works for < 10 files; breaks at hundreds | Always store and use provider-specific file IDs/item IDs; never find-by-name | At any scale above a handful of documents |
+| Google Drive API: 12,000 requests per 60-second project-wide | Batch imports of documents hitting quota | Implement exponential backoff with jitter; batch Drive API calls; monitor quota dashboard | Any org migrating or bulk-importing >100 files |
+| Dropbox API rate limit: 25,000 calls/hour for Business | Silent throttling with HTTP 429 | Implement retry with `Retry-After` header respect; do not ignore 429 responses | At scale with multiple orgs simultaneously uploading |
 
 ---
 
@@ -446,13 +306,12 @@ Domain-specific security issues beyond general web security.
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Portal token in server-side access logs | Token leaked to log aggregation systems (Vercel logs, Datadog, etc.); anyone with log access can access any client's portal | Strip token from URL before logging; use `X-Forwarded-Token` header pattern or POST body for token submission |
-| Signed URL returned in a JSON API response that is cached | CDN or browser caches the signed URL; served stale after expiry causes confusing errors, but worse, caches it alive longer than intended | Set `Cache-Control: no-store` on any API response containing a signed URL |
-| Analytics scripts on portal route | Token leaked via `Referer` header to analytics provider | Exclude `/portal/*` from analytics tracking; add `<meta name="referrer" content="no-referrer">` |
-| Service role key used in a client component | Service role bypasses all RLS; if exposed via the browser it compromises every tenant's data | Service role key must never appear in `NEXT_PUBLIC_` env vars or client-side code; only used in server actions, API routes, and edge functions |
-| `document_access_log` writable by authenticated users | An accountant could delete or modify audit entries, compromising the GDPR audit trail | RLS on `document_access_log` must be INSERT-only for authenticated users — never UPDATE or DELETE |
-| Cross-org IDOR via `client_documents` ID | A user who knows a document UUID could access it via the download API if org_id is not checked | Every document download API must verify `org_id` from JWT matches the document's `org_id` in addition to relying on RLS |
-| Retention cron runs as service role and deletes without checking retention_hold | Documents under HMRC enquiry hold are destroyed | Cron query must include `AND retention_hold = false`; log every deletion; send notification before deletion |
+| Logging decrypted refresh tokens in server error handlers | Full cloud storage access exposure in log aggregation tools (Vercel logs, Sentry) | Strip all `*_token*` and `*_refresh*` fields from error contexts before logging; never `console.log(org)` in code that handles tokens |
+| Storing Drive folder ID or OneDrive item ID in a public-facing API response | Attacker enumerates provider file paths without auth | Provider IDs are not secrets but should not be exposed; always proxy downloads through the application — never pass provider IDs to the client |
+| Not validating the OAuth `state` parameter on callback | CSRF attack on OAuth flow; attacker connects their cloud account to a victim org | Generate a cryptographically random `state` for each OAuth initiation; store it in an httpOnly session cookie; verify on callback |
+| Using the service role client to call provider APIs | Service role token stored in provider OAuth flow; accidental provider API key/org confusion | Provider OAuth tokens are per-org user credentials; use a dedicated non-service-role lookup to retrieve and decrypt them |
+| Allowing org members to connect/disconnect storage backends | A rogue member disconnects the backend, making 200 documents inaccessible | Restrict storage backend connection and disconnection to org admins only; enforce in the Settings UI and the API route |
+| GDPR: not updating the privacy policy to list each provider as a sub-processor | ICO regulatory violation if an audit finds providers processing personal data without disclosure | When Phase 28 ships, add Google LLC (Google Drive), Microsoft Corporation (OneDrive), and Dropbox Inc. to the sub-processor list in `/privacy` |
 
 ---
 
@@ -462,88 +321,85 @@ Common user experience mistakes in this domain.
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Expired token shows generic 404 or 500 error | Client confused, contacts accountant, delays document collection | Show a clear expiry message: "This link has expired. Please contact your accountant to request a new one." Include the firm name in the message. |
-| Low-confidence classification silently labelled as document type | Accountant trusts wrong label; uses wrong document in filing preparation | Show classification confidence badge; flag LOW and UNCLASSIFIED for review with a distinct visual state |
-| Document checklist shows all filing requirements for every client | Clients who are employees see Corporation Tax document requirements that don't apply to them | Per-client checklist customisation: toggle items off for inapplicable requirements; portal shows only enabled items |
-| Upload progress not shown for large files | Client unsure if upload succeeded; submits again; creates duplicates | Show upload progress bar; confirm each file individually; show final confirmation screen |
-| Accountant notified of every single file upload | Email noise if client uploads 10 files in one session | Batch notifications: debounce to one notification per session/hour rather than one per file |
+| Showing "Connect Google Drive" with no explanation of what access is granted | Accountants refuse to connect due to vague permissions scope | Show the exact scope requested ("Prompt will create and manage files in a dedicated Prompt folder in your Drive") before initiating OAuth |
+| No feedback after OAuth callback completes | Accountant lands back on Settings page with no confirmation | Show a success state ("Google Drive connected — documents will now be stored in your Drive") with the folder name visible |
+| Allowing disconnect with no warning about inaccessible documents | Accountant disconnects, panics when downloads fail | Show a modal: "X documents are stored in Google Drive. Disconnecting will make them inaccessible until you reconnect." Require explicit confirmation. |
+| Not showing which backend each document was stored on | Accountant cannot tell why some downloads work and others fail after a backend switch | Show a small provider badge (Supabase, Drive, OneDrive, Dropbox) on each document row in the document list |
+| Re-auth required state only visible in Settings | Accountant misses the notification; uploads silently fail for days | Show a persistent warning banner in the main dashboard layout when `storage_token_status = 'reauth_required'` — same pattern as the Postmark failed-email banner |
+| OAuth window opening in the same tab | Navigating back loses form state; confusing redirect chain | Always open provider OAuth in a popup window; use `window.postMessage` to signal completion to the parent; close popup on success |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces specific to this milestone.
+Things that appear complete but are missing critical pieces.
 
-- [ ] **Supabase Storage bucket created:** Does it have RLS policies on `storage.objects`? Private bucket + no RLS = all uploads rejected. Test with an authenticated user JWT, not service role.
-- [ ] **Privacy policy updated:** Are all 7 identified gaps from ROADMAP.md Phase 2 resolved? Is the updated policy deployed before any document is stored in production?
-- [ ] **Portal token works:** Is the stored value a SHA-256 hash of the token (not the token itself)? Does it expire? Is rate limiting on the validation route implemented?
-- [ ] **Classification has confidence levels:** Does `client_documents` have a `classification_confidence` column? Do LOW/UNCLASSIFIED documents require accountant review before auto-marking "received"?
-- [ ] **DSAR export is complete:** Does it include `inbound_emails`, `email_log`, `clients` profile, and `audit_log` — not just `client_documents`?
-- [ ] **Retention uses tax period end date:** Is `tax_period_end_date` on `client_documents`? Is there a `retention_hold` flag? Does the cron notify before deleting?
-- [ ] **Attachment extraction is idempotent:** Is there a `UNIQUE(message_id)` constraint on `inbound_emails`? Would Postmark retries create duplicate files?
-- [ ] **File upload has server-side validation:** Are magic bytes checked (not just `Content-Type` header)? Is there a file size cap enforced server-side? Are storage keys UUID-based (not client filenames)?
-- [ ] **Signed URLs are short-lived:** Are all signed URLs generated with <= 300 second expiry? Is every generation logged in `document_access_log`?
-- [ ] **Storage paths include org_id as first segment:** Do all `client_documents.storage_path` values follow `orgs/{org_id}/clients/...`?
-- [ ] **document_access_log is INSERT-only:** Is UPDATE and DELETE blocked by RLS for authenticated users?
+- [ ] **Google Drive OAuth connected:** Verify `refresh_token` is present in the token response — not just `access_token`. Check that the app is in Production status (not Testing) to avoid 7-day expiry.
+- [ ] **OneDrive OAuth connected:** Verify the token was obtained via M365/Entra ID (`login.microsoftonline.com`) not Live (`login.live.com`). Confirm `offline_access` scope was included to receive a refresh token.
+- [ ] **Dropbox OAuth connected:** Verify `refresh_token` is in the response (only present when `token_access_type=offline` was in the auth URL). Test that a refresh call 5 hours later succeeds.
+- [ ] **Token encryption:** Verify the `_enc` suffix columns contain ciphertext, not plaintext. Verify decryption works by completing a full upload/download cycle.
+- [ ] **Backend switching:** Upload a document to Supabase, switch org to Google Drive, upload another document — verify DSAR export downloads both correctly.
+- [ ] **Portal upload routing:** With Google Drive configured, upload a file through the client portal — verify bytes go to Drive API, not Supabase Storage.
+- [ ] **Postmark inbound routing:** Send an email attachment while org uses OneDrive — verify the attachment lands in OneDrive, not Supabase.
+- [ ] **DSAR export:** Verify the ZIP builder fetches bytes from the correct backend per document (not just per org's current setting).
+- [ ] **Disconnect warning:** Disconnect Google Drive with stored documents — verify the modal shows the document count and refuses to proceed without confirmation.
+- [ ] **Re-auth banner:** Set an org's `storage_token_status = 'reauth_required'` manually — verify the dashboard shows the banner without navigating to Settings.
+- [ ] **Privacy policy:** Verify `/privacy` sub-processor list includes all three new providers by name with their registered country.
 
 ---
 
 ## Recovery Strategies
 
-| Incident | Recovery Cost | Recovery Steps |
-|----------|---------------|----------------|
-| Storage bucket made public during development, left public in production | HIGH | 1. Immediately switch bucket to private. 2. Audit Supabase access logs for any file downloads. 3. Rotate any signed URLs that were generated. 4. Notify ICO if real client documents were exposed (72-hour breach notification window under UK GDPR). |
-| Privacy policy not updated before documents stored in production | MEDIUM | 1. Update and deploy privacy policy immediately. 2. Document the gap duration in a remediation log. 3. Assess whether affected data subjects need to be notified under UK GDPR transparency obligations. 4. Seek legal advice on ICO notification. |
-| Portal token leaked via referrer header to analytics | MEDIUM | 1. Rotate all active portal tokens immediately (expire them). 2. Remove analytics from portal routes. 3. Add `<meta name="referrer" content="no-referrer">` to portal layout. 4. Request analytics provider delete the captured URLs. |
-| Retention cron deleted documents still under HMRC enquiry | CRITICAL | 1. Immediately disable retention cron. 2. Check Supabase Storage version history (if enabled) for deleted objects. 3. Notify affected accounting firms. 4. Consult solicitor — destruction of records under enquiry is a criminal offence under TMA 1970 s.20BB. 5. Add `retention_hold` flag and re-enable cron only after testing. |
-| Duplicate documents from Postmark webhook retries | LOW | 1. Add `UNIQUE(message_id)` constraint on `inbound_emails`. 2. Query for duplicate rows sharing `inbound_email_id` + `original_filename`. 3. Delete Storage objects for duplicates. 4. Remove duplicate `client_documents` rows. |
-| Wrong document type classification led to incorrect filing assumption | MEDIUM | 1. Allow accountants to manually correct classification. 2. Audit all classifications where `classification_confidence = 'low'`. 3. Add confidence badge to dashboard UI. 4. Require accountant confirmation before auto-marking "records received" for LOW confidence matches. |
-| Cross-org file access via misconfigured storage RLS | CRITICAL | 1. Immediately revoke service role client key and rotate. 2. Audit `document_access_log` and Supabase Storage access logs. 3. Fix `storage.objects` RLS policies. 4. Notify ICO within 72 hours (personal data breach). 5. Notify affected data subjects. |
+When pitfalls occur despite prevention, how to recover.
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Token expired, uploads failed silently | MEDIUM | Set `storage_token_status = 'reauth_required'`; notify org admin; admin reconnects OAuth; no data loss (files never uploaded) |
+| Refresh token revoked externally | MEDIUM | Same as above — re-auth flow; documents uploaded before revocation remain accessible in provider; documents that failed upload are lost |
+| Plaintext tokens exposed in logs | HIGH | Immediately revoke all affected OAuth tokens from provider dashboards; alert affected firms; force re-authentication; rotate ENCRYPTION_KEY and re-encrypt all remaining tokens |
+| Files uploaded to wrong provider backend | HIGH | Manual migration: download from actual provider, re-upload to correct provider, update `storage_path` and `storage_backend` per row — no automated recovery path |
+| Org disconnected Drive with orphaned documents | HIGH | Admin must reconnect the same account to restore access; if the provider account was deleted, documents are permanently inaccessible — explain clearly in Settings UI |
+| OneDrive files moved/renamed breaking paths | LOW | Item ID-based access is path-independent; no recovery needed if item IDs are stored correctly |
+| Google Drive quota exceeded mid-upload | LOW | Retry with exponential backoff; if quota persists, request quota increase from Google Cloud Console; no data loss (failed uploads not committed to client_documents) |
 
 ---
 
 ## Pitfall-to-Phase Mapping
 
+How roadmap phases should address these pitfalls.
+
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| `storage.objects` RLS not written | Phase 18 | Test cross-org download with two separate authenticated JWTs; confirm 403 |
-| Signed URLs without expiry bound | Phase 18 | Grep codebase for `createSignedUrl` and assert second argument (expiry) <= 300; check access log entries |
-| Storage path without org_id prefix | Phase 18 | Check all `client_documents.storage_path` values follow `orgs/{org_id}/...`; SQL assertion |
-| Postmark webhook timeout / no idempotency | Phase 18 (schema constraints), Phase 19 (async processing) | Add `UNIQUE(message_id)` to migration; test by replaying same webhook payload twice |
-| Privacy policy not updated before go-live | Phase 18 (as hard deployment dependency) | Confirm policy is live at /privacy before any document is stored in production; milestone gate |
-| Portal token reuse / brute force / referrer leak | Phase 18 (token schema), Phase 19 (portal route) | Pen test: verify token stored as hash; confirm rate limiting; check network tab for referrer on portal page |
-| No server-side MIME/magic byte validation | Phase 19 | Upload a .exe renamed to .pdf; confirm rejection; upload legit PDF; confirm acceptance |
-| HMRC retention wrong anchor date | Phase 18 | Schema review: `tax_period_end_date` column exists; retention formula audited in cron spec |
-| DSAR export misses data categories | Phase 18 (design) | Walk through DSAR export for a test client; confirm `inbound_emails`, `email_log`, `audit_log` present |
-| Classification confidence not stored | Phase 18 (schema), Phase 19 (classifier) | Verify `classification_confidence` column in `client_documents`; UI shows review flag for low-confidence |
+| Silent upload failures on token expiry | Phase 25 (first `withTokenRefresh` impl), reused in 26+27 | Manually expire a test access token; verify upload retries successfully and org remains connected |
+| Unencrypted refresh tokens | Phase 24 (schema + crypto utility) | Read `organisations` row in Supabase Dashboard; verify token columns contain ciphertext |
+| Google `invalid_grant` with no re-auth signal | Phase 25 | Revoke test token from Google Account settings; verify dashboard shows re-auth banner within 24 hours |
+| Dropbox missing `token_access_type=offline` | Phase 27 | Inspect raw token exchange response; verify `refresh_token` field is present |
+| OneDrive personal vs M365 complexity | Phase 26 | Test OAuth flow using an M365 developer tenant; verify admin consent URL is documented in Settings UI |
+| `drive.file` scope access confusion | Phase 25 | Upload via server; verify same org token can download the file; confirm no 404 on subsequent retrieval |
+| Backend incompatibility when switching providers | Phase 24 (per-document `storage_backend` column) | Switch org backend mid-usage; verify DSAR and downloads use per-document backend column |
+| Orphaned documents on revocation | Phase 28 (health check cron + disconnect warning) | Revoke access in provider settings; verify warning banner appears within 24 hours; verify disconnect confirmation shows document count |
+| File bytes through Next.js server (size limit) | Phase 29 (portal + inbound integration) | Upload a 10MB PDF via portal with Drive configured; verify it uses Drive's upload API, not Next.js request body |
+| Missing privacy policy sub-processor entries | Phase 28 | Load `/privacy` in browser; verify all three provider names appear in sub-processor table |
 
 ---
 
 ## Sources
 
-- [Supabase Storage Access Control](https://supabase.com/docs/guides/storage/security/access-control) — storage.objects RLS requirements, private bucket behaviour
-- [Supabase Storage Buckets Fundamentals](https://supabase.com/docs/guides/storage/buckets/fundamentals) — private vs public bucket access model
-- [Supabase Storage Create Signed URL](https://supabase.com/docs/reference/javascript/storage-from-createsignedurl) — signed URL expiry and revocation limitations
-- [Supabase Security Pentesting Guide 2025](https://github.com/orgs/supabase/discussions/38690) — RLS misconfiguration patterns from real pentests
-- [Supabase 170+ Apps Security Flaw (Missing RLS)](https://byteiota.com/supabase-security-flaw-170-apps-exposed-by-missing-rls/) — real-world impact of missing storage RLS
-- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html) — MIME type spoofing, magic byte validation, allowlist approach
-- [Postmark Inbound Attachment Limits](https://postmarkapp.com/support/article/1056-what-are-the-attachment-and-email-size-limits) — 35 MB total inbound size limit, base64 inline content
-- [Postmark Parse an Email](https://postmarkapp.com/developer/user-guide/inbound/parse-an-email) — attachment content structure, Content field
-- [ICO Storage Limitation Principle](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/storage-limitation) — UK GDPR retention and deletion obligations
-- [ICO Right of Access (DSAR)](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-of-access/) — SAR scope and 30-day response requirement
-- [ICO Time Limits for DSAR Responses](https://ico.org.uk/for-the-public/time-limits-for-responding-to-data-protection-rights-requests/) — one calendar month deadline
-- [HMRC CH14600 Corporation Tax Record Retention](https://www.gov.uk/hmrc-internal-manuals/compliance-handbook/ch14600) — 6 years from end of accounting period
-- [HMRC Record Retention and Disposal Policy](https://www.gov.uk/government/publications/hmrc-records-management-and-retention-and-disposal-policy/records-management-and-retention-and-disposal-policy) — 6 year + current standard retention period
-- [UK Document Retention Guide GDPR and HMRC](https://yousign.com/blog/document-retention-policies-uk-compliance) — overlap and tension between GDPR data minimisation and HMRC mandatory retention
-- [ICO UK GDPR and EU Adequacy](https://ico.org.uk/for-organisations/data-protection-and-the-eu/) — EU adequacy decisions renewed December 2025; Ireland (EU West) adequacy confirmed
-- [Token Leakage via Referrer Header (HackerOne)](https://hackerone.com/reports/252544) — referrer leak of sensitive tokens to analytics
-- [Password Reset Token Leak via Referrer (HackerOne)](https://hackerone.com/reports/342693) — documented attack class
-- [IDOR via Brute Force (PortSwigger)](https://portswigger.net/web-security/access-control/idor) — IDOR enumeration of token-gated resources
-- [UK Data Protection Reform 2025](https://www.dataprotectionreport.com/2025/07/uk-data-protection-reform-what-you-need-to-know-and-do/) — Data (Use and Access) Act 2025 does not change transparency obligations
-- [ICO Enforcement 2025 Analysis](https://www.urmconsulting.com/blog/analysis-of-ico-enforcement-action-january-june-2025) — fines for non-compliance including inadequate transparency
+- [Google Drive API Scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth) — authoritative guidance on `drive.file` vs restricted scopes
+- [Google OAuth2 Production Readiness — Restricted Scope Verification](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification) — verification timeline and requirements
+- [Google OAuth2 Best Practices](https://developers.google.com/identity/protocols/oauth2/resources/best-practices) — token rotation handling
+- [Nango: Google OAuth invalid_grant](https://nango.dev/blog/google-oauth-invalid-grant-token-has-been-expired-or-revoked) — MEDIUM confidence — explains common revocation causes
+- [OneDrive API Authorization via Microsoft Graph](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/getting-started/graph-oauth?view=odsp-graph-online) — official Microsoft auth documentation
+- [OneDrive API Authorization for Personal MSA Accounts](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/getting-started/msa-oauth?view=odsp-graph-online) — confirms separate endpoint for personal vs work accounts
+- [Microsoft: Resolve Microsoft Graph authorization errors](https://learn.microsoft.com/en-us/graph/resolve-auth-errors) — AADSTS53003 and Conditional Access handling
+- [Dropbox OAuth Guide](https://developers.dropbox.com/oauth-guide) — official `token_access_type=offline` documentation
+- [Dropbox: Using OAuth 2.0 with Offline Access](https://dropbox.tech/developers/using-oauth-2-0-with-offline-access) — confirms offline requirement for long-lived tokens
+- [Dropbox DBX Performance Guide](https://developers.dropbox.com/dbx-performance-guide) — rate limits and upload session guidance
+- [Google Drive API Usage Limits](https://developers.google.com/workspace/drive/api/guides/limits) — 12,000 requests per 60s quota
+- [ICO Security Outcomes Guidance](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/security/a-guide-to-data-security/security-outcomes/) — encryption requirements for personal data at rest
+- [OneDrive API Permissions Reference](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/permissions_reference?view=odsp-graph-online) — scope differences between personal and work accounts
+- [GitHub: Big upload fails because of expired access token (OneDrive)](https://github.com/abraunegg/onedrive/issues/3355) — MEDIUM confidence — documents mid-upload token expiry failure
 
 ---
-
-*Pitfalls research for: Prompt v4.0 Document Collection*
-*Researched: 2026-02-23*
-*Confidence: HIGH — storage RLS patterns verified against Supabase official docs; UK GDPR/ICO guidance verified against official ICO sources; HMRC retention verified against HMRC internal manual CH14600; token security patterns verified against OWASP and HackerOne disclosures; all pitfalls traced to specific failure modes in the existing codebase or confirmed attack patterns*
+*Pitfalls research for: v5.0 Third-Party Storage Integrations (Google Drive, OneDrive, Dropbox)*
+*Researched: 2026-02-28*

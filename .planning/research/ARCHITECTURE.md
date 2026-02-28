@@ -775,7 +775,7 @@ The component signature and existing props remain unchanged. The documents count
 
 The Supabase free tier includes 1GB of Storage. The Pro plan includes 100GB with pay-as-you-go beyond that. For accounting documents (mostly PDFs, <5MB each), 100GB supports approximately 20,000 documents — well beyond the scale of any single UK accounting practice on the current plan.
 
-The first bottleneck is the DSAR ZIP export for clients with hundreds of documents: fetching all files server-side and zipping in memory will hit Vercel's 256MB function memory limit. Mitigation: write the ZIP to a temp Storage path and stream it, or cap in-memory ZIP at 50 files and paginate.
+The first bottleneck is the DSAR ZIP export for clients with hundreds of documents: fetching all files server-side and zipping in memory will hit Vercel's 256MB function memory limit. Mitigation: write the ZIP to a temp path in Storage (`orgs/{org_id}/_exports/{uuid}.zip`) and stream it, or cap in-memory ZIP at 50 files and paginate.
 
 ---
 
@@ -798,3 +798,585 @@ The first bottleneck is the DSAR ZIP export for clients with hundreds of documen
 
 *Architecture research for: v4.0 Document Collection — Prompt UK Accounting SaaS*
 *Researched: 2026-02-23*
+
+---
+---
+
+# Architecture Research: v5.0 Third-Party Cloud Storage Integration
+
+**Domain:** Provider-agnostic storage abstraction for Next.js + Supabase multi-tenant document system
+**Researched:** 2026-02-28
+**Confidence:** HIGH (provider APIs verified against official documentation; integration patterns derived from direct codebase analysis of existing routes and storage.ts)
+
+---
+
+## Context: What Exists Today
+
+`lib/documents/storage.ts` exposes three functions, all Supabase-only:
+
+```
+uploadDocument(params)       → { storagePath: string }
+getSignedDownloadUrl(path)   → { signedUrl: string }
+deleteDocument(path)         → void
+```
+
+Two routes call `uploadDocument` after running OCR and integrity checks on a Buffer already held in memory:
+
+- `app/api/portal/[token]/upload/route.ts` — multipart form, `fileBuffer` in RAM, calls `uploadDocument`
+- `app/api/postmark/inbound/route.ts` — base64 decoded to Buffer, calls `uploadDocument`
+
+Two places call `getSignedDownloadUrl`:
+
+- `app/api/clients/[id]/documents/route.ts` (POST action='download') — single document download
+- `app/api/clients/[id]/documents/dsar/route.ts` — iterates all client documents, fetches bytes via signed URL, ZIPs them
+
+`storage_path` in `client_documents` currently stores a Supabase Storage path string (e.g., `orgs/{org_id}/clients/{client_id}/...`). After this milestone it will store a provider-specific identifier — a file ID for Google Drive and OneDrive, or a canonical path string for Dropbox and Supabase.
+
+---
+
+## System Overview: Post-Integration Architecture
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                         Vercel (Next.js)                           │
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │  lib/documents/storage.ts  (StorageProvider interface)        │  │
+│  │                                                               │  │
+│  │   uploadDocument()         ─┐                                │  │
+│  │   getDownloadUrl()          ├─ resolveProvider(orgConfig)    │  │
+│  │   getBytes()                │    → SupabaseProvider          │  │
+│  │   deleteDocument()         ─┘    → GoogleDriveProvider       │  │
+│  │                                   → OneDriveProvider         │  │
+│  │                                   → DropboxProvider          │  │
+│  └───────────────────────────────────────────────────────────────┘ │
+│          ↑                    ↑                   ↑                 │
+│   portal/[token]/upload   postmark/inbound   clients/[id]/         │
+│   (Buffer in memory)      (Buffer in memory) documents/dsar        │
+│                                                                     │
+└──────┬─────────────────────────┬────────────────┬──────────────────┘
+       │                         │                │
+  Supabase Storage          Google Drive      OneDrive / Dropbox
+  (default, unchanged)      Drive API v3      Graph API / API v2
+```
+
+---
+
+## Pattern 1: Provider Abstraction Interface
+
+**What:** A TypeScript interface and a factory function in `lib/documents/storage.ts`. All four provider operations (upload, getDownloadUrl, getBytes, delete) are defined on the interface. The factory resolves the org's `storage_backend` value and returns the correct implementation.
+
+**When to use:** Always. All callers use the four public functions — they never import provider implementations directly.
+
+**Trade-offs:** Adds one async DB lookup per storage call (fetching org config). Mitigate by passing `orgConfig` into functions from the caller — the caller already has the DB client and org context.
+
+**Implementation:**
+
+```typescript
+// lib/documents/storage.ts
+
+export interface StorageProvider {
+  upload(params: UploadParams): Promise<{ storagePath: string }>;
+  getDownloadUrl(storagePath: string): Promise<{ url: string; expiresInSeconds: number }>;
+  getBytes(storagePath: string): Promise<Buffer>;   // Used by DSAR export
+  delete(storagePath: string): Promise<void>;
+}
+
+export type StorageBackend = 'supabase' | 'google_drive' | 'onedrive' | 'dropbox';
+
+export interface OrgStorageConfig {
+  org_id: string;
+  storage_backend: StorageBackend;
+  storage_access_token: string | null;
+  storage_refresh_token: string | null;
+  storage_token_expires_at: string | null;
+  storage_folder_id: string | null;   // Google Drive / OneDrive root folder ID
+}
+
+export function resolveProvider(config: OrgStorageConfig): StorageProvider {
+  switch (config.storage_backend) {
+    case 'google_drive': return new GoogleDriveProvider(config);
+    case 'onedrive':     return new OneDriveProvider(config);
+    case 'dropbox':      return new DropboxProvider(config);
+    case 'supabase':
+    default:             return new SupabaseProvider();
+  }
+}
+
+// Public API — callers pass orgConfig (fetched from organisations table):
+export async function uploadDocument(params: UploadParams & { orgConfig: OrgStorageConfig }) {
+  const provider = resolveProvider(params.orgConfig);
+  return provider.upload(params);
+}
+
+export async function getDownloadUrl(storagePath: string, orgConfig: OrgStorageConfig) {
+  const provider = resolveProvider(orgConfig);
+  return provider.getDownloadUrl(storagePath);
+}
+
+export async function getDocumentBytes(storagePath: string, orgConfig: OrgStorageConfig) {
+  const provider = resolveProvider(orgConfig);
+  return provider.getBytes(storagePath);
+}
+
+export async function deleteDocument(storagePath: string, orgConfig: OrgStorageConfig) {
+  const provider = resolveProvider(orgConfig);
+  return provider.delete(storagePath);
+}
+```
+
+**Key design decision:** Callers must supply `orgConfig`. This avoids hidden DB lookups inside storage functions and keeps providers stateless (safe for serverless). The portal upload route already fetches `portalToken` which includes `org_id`; one additional `organisations` select to get storage config is sufficient.
+
+---
+
+## Pattern 2: OAuth Token Storage on `organisations`
+
+**What:** Provider-agnostic OAuth token columns added directly to the `organisations` table. One set of shared columns for whichever provider is active.
+
+**Rationale for `organisations` over a separate table:** The existing pattern for Postmark credentials (`postmark_server_token`, `postmark_sender_domain`) is columns on `organisations`. Following this keeps access patterns consistent. A separate `org_storage_tokens` table would be cleaner only if multiple providers could be active simultaneously — the requirement is exactly one active backend per org, so a separate table adds complexity without benefit.
+
+**Migration — new columns on `organisations`:**
+
+```sql
+ALTER TABLE organisations
+  ADD COLUMN storage_backend TEXT NOT NULL DEFAULT 'supabase'
+    CHECK (storage_backend IN ('supabase', 'google_drive', 'onedrive', 'dropbox')),
+  ADD COLUMN storage_access_token  TEXT,
+  ADD COLUMN storage_refresh_token TEXT,
+  ADD COLUMN storage_token_expires_at TIMESTAMPTZ,
+  ADD COLUMN storage_folder_id     TEXT,   -- Drive/OneDrive root folder ID; unused for Dropbox
+  ADD COLUMN storage_connected_at  TIMESTAMPTZ,
+  ADD COLUMN storage_connected_by  UUID REFERENCES auth.users(id);
+```
+
+**Token fields by provider:**
+
+| Provider | access_token | refresh_token | expires_at | folder_id |
+|----------|-------------|---------------|------------|-----------|
+| Google Drive | OAuth2 access token (~1h) | OAuth2 refresh token | Required | Drive folder ID |
+| OneDrive | OAuth2 access token (~1h) | OAuth2 refresh token | Required | OneDrive item ID |
+| Dropbox | Short-lived token (~4h) | OAuth2 refresh token | Required | Not used (path-based) |
+| Supabase | — | — | — | — |
+
+**Security:** `storage_access_token` and `storage_refresh_token` are sensitive. The minimum acceptable approach: RLS ensures the `authenticated` role SELECT policy on `organisations` never returns token columns (Supabase RLS can restrict columns via views; alternatively use a separate service-role-only fetch). In practice, fetch org storage config using `createAdminClient()` (service role) — never through the session-scoped client that could surface to frontend code.
+
+These columns must never appear in RLS SELECT policies for `authenticated` role. The settings page shows only `storage_backend` and `storage_connected_at` — never token values.
+
+**Token refresh:** A shared utility `lib/documents/storage-token-refresh.ts` checks `storage_token_expires_at`, and if within 5 minutes of expiry calls the provider's token endpoint, then UPDATEs `organisations`. Called before `resolveProvider()` in any route that performs storage operations.
+
+```typescript
+// lib/documents/storage-token-refresh.ts
+export async function ensureFreshToken(
+  orgId: string,
+  config: OrgStorageConfig,
+  adminClient: SupabaseClient
+): Promise<OrgStorageConfig> {
+  if (!config.storage_token_expires_at) return config;
+  const expiresAt = new Date(config.storage_token_expires_at);
+  const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+  if (expiresAt > fiveMinutesFromNow) return config;   // still fresh
+
+  const newTokens = await refreshProviderToken(config); // provider-specific
+  await adminClient.from('organisations').update({
+    storage_access_token: newTokens.accessToken,
+    storage_token_expires_at: newTokens.expiresAt,
+  }).eq('id', orgId);
+  return { ...config, storage_access_token: newTokens.accessToken, storage_token_expires_at: newTokens.expiresAt };
+}
+```
+
+---
+
+## Pattern 3: Portal Upload Route — What Changes
+
+**Current flow:**
+```
+POST /api/portal/[token]/upload
+  → validate token → runIntegrityChecks(fileBuffer) → classifyDocument(fileBuffer)
+  → uploadDocument({ file: fileBuffer })   ← Supabase only
+  → INSERT client_documents
+```
+
+**New flow:**
+```
+POST /api/portal/[token]/upload
+  → validate token
+  → SELECT organisations WHERE id = portalToken.org_id → orgStorageConfig
+  → ensureFreshToken(orgStorageConfig)
+  → fileBuffer = Buffer.from(await file.arrayBuffer())   ← unchanged
+  → runIntegrityChecks(fileBuffer)                       ← unchanged
+  → classifyDocument(fileBuffer)                         ← unchanged
+  → uploadDocument({ file: fileBuffer, orgConfig })      ← provider-routed
+  → INSERT client_documents (storagePath = provider identifier)
+```
+
+**What changes in the route file:** One additional `organisations` SELECT for storage config before calling `uploadDocument`. The integrity checks and classification are unchanged.
+
+**Important architecture note:** The existing ARCHITECTURE.md states "file bytes never pass through the Next.js server." This was only true for the original portal flow (Supabase signed upload URLs). With the abstraction, the portal route already receives file bytes into `fileBuffer` for OCR/integrity checks regardless of provider. For non-Supabase backends, those bytes are then forwarded to the provider API. The ARCHITECTURE.md note should be updated to reflect that bytes pass through the server for all current upload paths.
+
+**Upload size for provider APIs:** Google Drive multipart upload supports files under 5 MB in one request; above that requires a resumable upload using the Buffer as a readable stream. OneDrive simple PUT supports under 4 MB; above that requires an upload session. Dropbox `filesUpload` handles up to 150 MB directly. Since accounting documents (PDFs, Word, Excel) are typically under 5 MB, multipart/simple upload covers the common case. Provider implementations should check size and route accordingly.
+
+---
+
+## Pattern 4: Inbound Email Route — What Changes
+
+**Current flow in `processAttachments()`:**
+```
+for each attachment:
+  fileBuffer = Buffer.from(attachment.Content, 'base64')
+  classifyDocument(fileBuffer)
+  uploadDocument({ file: fileBuffer })   ← Supabase only
+  INSERT client_documents
+```
+
+**New flow:**
+```
+// Before the loop — one SELECT per inbound email, not per attachment
+orgConfig = await fetchOrgStorageConfig(orgId, adminClient)
+orgConfig = await ensureFreshToken(orgId, orgConfig, adminClient)
+
+for each attachment:
+  fileBuffer = Buffer.from(attachment.Content, 'base64')   ← unchanged
+  classifyDocument(fileBuffer)                              ← unchanged
+  uploadDocument({ file: fileBuffer, orgConfig })           ← provider-routed
+  INSERT client_documents
+```
+
+**What changes:** `processAttachments()` receives `orgConfig` passed from the caller (the caller already has `orgId`). Add one `organisations` SELECT before the loop (outside the per-attachment loop). The fire-and-forget error handling pattern is unchanged.
+
+---
+
+## Pattern 5: Download — Provider Temporary Links
+
+**The core problem:** Supabase Storage provides `createSignedUrl(path, 300)` — a 300-second URL. Provider equivalents vary significantly:
+
+| Provider | Method | Expiry | Notes |
+|----------|--------|--------|-------|
+| Supabase | `createSignedUrl(path, 300)` | 300 seconds, configurable | Exact |
+| Google Drive | Server proxy via new `/api/documents/proxy` route | ~300s (proxy enforces short window) | No public temp URL for `drive.file`-scoped files |
+| OneDrive | `@microsoft.graph.downloadUrl` from item GET | ~1 hour | Pre-authenticated URL embedded in item response |
+| Dropbox | `filesGetTemporaryLink({ path })` | Fixed 4 hours | Cannot be shortened via API |
+
+**Google Drive — server proxy required:**
+
+`drive.file` scope restricts access to files the app created. There is no API to generate a publicly accessible temporary URL for these files — the Google Drive `webContentLink` is not suitable for private files. The only correct approach is a server-side proxy:
+
+```typescript
+// GoogleDriveProvider.getDownloadUrl()
+getDownloadUrl(fileId: string): Promise<{ url: string; expiresInSeconds: number }> {
+  // Return an internal authenticated proxy URL
+  // The proxy route validates the session and streams bytes from Drive
+  return Promise.resolve({
+    url: `/api/documents/proxy?fileId=${fileId}&orgId=${this.config.org_id}`,
+    expiresInSeconds: 300
+  });
+}
+```
+
+The new `app/api/documents/proxy/route.ts`:
+- Validates the authenticated accountant session
+- Verifies the document belongs to the accountant's org
+- Streams bytes from Drive via `drive.files.get(fileId, { alt: 'media' }, { responseType: 'stream' })`
+- Returns `Content-Disposition: attachment` response
+
+**OneDrive — return `@microsoft.graph.downloadUrl` directly:**
+
+Fetching a driveItem with `?$select=@microsoft.graph.downloadUrl` returns a pre-authenticated download URL valid for approximately 1 hour. This URL can be returned directly to the browser — it is the Graph API's equivalent of a signed URL.
+
+```typescript
+const item = await graphClient.api(`/me/drive/items/${fileId}`)
+  .select('@microsoft.graph.downloadUrl,name')
+  .get();
+return { url: item['@microsoft.graph.downloadUrl'], expiresInSeconds: 3600 };
+```
+
+**Dropbox — return `filesGetTemporaryLink` result:**
+
+```typescript
+const result = await dbx.filesGetTemporaryLink({ path: storagePath });
+return { url: result.result.link, expiresInSeconds: 4 * 3600 };
+```
+
+The 4-hour expiry is longer than the existing 300-second Supabase baseline, but it is a fixed platform constraint — there is no API to configure a shorter expiry.
+
+**Impact on `document_access_log`:** INSERT happens immediately after `getDownloadUrl()` in the documents route. This remains correct for all providers — log access at URL generation time. No change needed.
+
+---
+
+## Pattern 6: DSAR Export — What Changes
+
+**Current flow:**
+```
+for each doc:
+  { signedUrl } = await getSignedDownloadUrl(doc.storage_path)
+  response = await fetch(signedUrl)
+  buffer = await response.arrayBuffer()
+  zip.file(safeFilename, buffer)
+```
+
+**New flow:**
+```
+orgConfig = await fetchOrgStorageConfig(orgId, adminClient)
+provider = resolveProvider(orgConfig)
+
+for each doc:
+  buffer = await provider.getBytes(doc.storage_path)   // direct — no intermediate URL
+  zip.file(safeFilename, buffer)
+```
+
+**Why `getBytes` instead of `getDownloadUrl` + `fetch`:** The Google Drive proxy approach would cause the DSAR route to call back into the same Next.js deployment, creating a looping server-to-server HTTP call. Using `getBytes` directly avoids this and is simpler for all providers.
+
+**`getBytes` implementations:**
+- Supabase: `adminClient.storage.from(BUCKET).download(path)` → convert Blob to Buffer
+- Google Drive: `drive.files.get(fileId, { alt: 'media', responseType: 'stream' })` → collect chunks to Buffer
+- OneDrive: `fetch(item['@microsoft.graph.downloadUrl'])` → Buffer
+- Dropbox: `dbx.filesDownload({ path })` → the result contains binary content
+
+**Timeout concern:** `dsar/route.ts` has `maxDuration = 60`. For Google Drive and OneDrive, each `getBytes` call makes an authenticated API request. For a client with 50 documents: ~50 requests × ~500ms each = ~25 seconds. Still within 60 seconds for typical cases. For orgs migrating large document sets, raise `maxDuration` to 120 or stream the ZIP incrementally. Flag for implementation decision.
+
+---
+
+## Pattern 7: `storage_path` Convention per Provider
+
+`client_documents.storage_path` stores enough information to retrieve the file from the provider. The provider is resolved from `organisations.storage_backend` at runtime — it is NOT encoded in `storage_path`.
+
+| Provider | `storage_path` value | Example |
+|----------|---------------------|---------|
+| Supabase | Supabase Storage object path | `orgs/abc/clients/def/ct600/2025/uuid.pdf` |
+| Google Drive | Drive file ID | `1aBcDeFgHiJkLmNoPqRsTuVwXyZ_12345` |
+| OneDrive | Drive item ID | `01ABCDEF1234567890ABCDEF` |
+| Dropbox | Canonical Dropbox path | `/Prompt/orgs/abc/clients/def/ct600/2025/uuid.pdf` |
+
+**Key property:** `storage_path` does not encode the provider name. If an org changes `storage_backend`, existing documents still reference their old provider's identifier. Old files stay on the old provider; new files go to the new provider. No automatic migration is performed — this is intentional and correct. (See Anti-Patterns.)
+
+For Google Drive and OneDrive: the opaque file ID is the entire `storage_path`. Folder structure is maintained by the provider implementation at upload time and is transparent to the rest of the system.
+
+For Dropbox: the path IS the reference. Convention: `/Prompt/orgs/{org_id}/clients/{client_id}/{filing_type_id}/{tax_year}/{uuid}.ext`. Dropbox auto-creates intermediate directories on upload.
+
+---
+
+## Provider Implementation Details
+
+### Google Drive (`lib/documents/providers/google-drive.ts`)
+
+**Package:** `googleapis` — official Google Node.js client, includes TypeScript types.
+
+**OAuth scope:** `https://www.googleapis.com/auth/drive.file`. This is the minimal required scope — it grants read/write access only to files the app created or opened. The broader `https://www.googleapis.com/auth/drive` scope (full access to all Drive files) is unnecessary and requires Google's restricted scope verification for production apps. Use `drive.file`.
+
+**Folder structure:** At OAuth connection time, create a root folder for the org in Drive and store its ID in `storage_folder_id`. Subfolders for `clients/{id}/{filing}/{year}` are created lazily at upload time via `files.create` with `mimeType: 'application/vnd.google-apps.folder'` and `parents: [parentFolderId]`. Cache folder IDs in an in-memory map within the provider instance for the lifetime of the serverless invocation (typically one request), or accept the overhead of a `files.list` query to find-or-create.
+
+**Upload:** Files under 5 MB: `drive.files.create` with `uploadType=multipart` (metadata + stream in one request). Files above 5 MB: resumable upload (`uploadType=resumable`). Create a `Readable` stream from the Buffer for the `media.body` parameter.
+
+**Download for browser (proxy):** Stream bytes from Drive in the new `/api/documents/proxy` route. The `getDownloadUrl` method returns an internal proxy URL; the proxy route handles authentication and streaming.
+
+**Download for DSAR (`getBytes`):** `drive.files.get(fileId, { alt: 'media' }, { responseType: 'stream' })` — collect stream chunks via `Buffer.concat`.
+
+**Token refresh:** Set `oauth2Client.setCredentials({ refresh_token })`. The googleapis library automatically refreshes the access token when it expires. Listen to the `oauth2Client.on('tokens', callback)` event to detect when a new access token is issued, then persist it to `organisations` via the admin client. This avoids the need for manual token expiry polling.
+
+**Confidence:** HIGH — verified against [Google Drive API upload docs](https://developers.google.com/workspace/drive/api/guides/manage-uploads), [download docs](https://developers.google.com/workspace/drive/api/guides/manage-downloads), and [scope reference](https://developers.google.com/workspace/drive/api/guides/api-specific-auth).
+
+### OneDrive (`lib/documents/providers/onedrive.ts`)
+
+**Package:** `@microsoft/microsoft-graph-client` for API calls; `@azure/msal-node` for OAuth token management (optional — can use raw `fetch` to the token endpoint with the stored refresh token).
+
+**OAuth flow:** Authorization Code flow with `offline_access` scope. Client Credentials flow is NOT suitable — it cannot access per-user OneDrive files. The connecting accountant authenticates once; the resulting refresh token is stored in `organisations` and used for all subsequent storage operations for that org.
+
+**OAuth scopes:** `Files.ReadWrite offline_access`. `Files.ReadWrite` grants read/write access to the signed-in user's OneDrive. `Files.ReadWrite.All` (access to all users' files in a tenant) is not needed.
+
+**Upload:** Files under 4 MB: simple PUT to `/me/drive/root:/{path}:/content`. Files above 4 MB: create upload session via `POST /me/drive/root:/{path}:/createUploadSession`, then PUT byte ranges in multiples of 320 KB, up to 60 MB per range.
+
+**`storage_path` value:** After upload, extract the item `id` from the response. Store the item ID. Future downloads use `/me/drive/items/{id}/content`.
+
+**Download URL:** GET `/me/drive/items/{id}?$select=@microsoft.graph.downloadUrl` — returns a pre-authenticated ~1-hour download URL. Return this to the browser; no proxy needed.
+
+**Download for DSAR (`getBytes`):** Fetch the `@microsoft.graph.downloadUrl` server-side with `fetch()` → Buffer.
+
+**Folder structure:** Create a root folder `/Prompt/{org_id}` at connection time, stored as `storage_folder_id`. Subfolders are created lazily or auto-created by the upload session path. For personal OneDrive (non-M365), use tenant `common` in the OAuth endpoints; for M365 work accounts, the tenant ID must be collected at connection time.
+
+**Token refresh:** POST to `https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token` with `grant_type=refresh_token`, `refresh_token`, `client_id`, `client_secret`, `scope`. Store the new `access_token` and `expires_in` result in `organisations`.
+
+**Confidence:** HIGH — verified against [Microsoft Graph file upload docs](https://learn.microsoft.com/en-us/graph/sdks/large-file-upload), [OneDrive permissions reference](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/permissions_reference), and [MSAL authentication flows](https://learn.microsoft.com/en-us/entra/identity-platform/msal-authentication-flows).
+
+### Dropbox (`lib/documents/providers/dropbox.ts`)
+
+**Package:** `dropbox` — official Dropbox SDK for JavaScript, includes TypeScript types.
+
+**OAuth flow:** Authorization Code flow with `token_access_type=offline` query parameter on the authorization URL. Using `response_type=code` (not `token`) is required for offline access. The token exchange returns a short-lived access token and a long-lived refresh token.
+
+**Refresh token:** Dropbox refresh tokens do not expire automatically. The short-lived access token expires in approximately 4 hours. Refresh by POST to `https://api.dropbox.com/oauth2/token` with `grant_type=refresh_token` and `refresh_token`. The response includes a new `access_token` and `expires_in` (in seconds).
+
+**Upload:** `dbx.filesUpload({ path: dropboxPath, contents: fileBuffer })` handles files up to 150 MB. For larger files: `filesUploadSessionStart` → `filesUploadSessionAppendV2` → `filesUploadSessionFinish`. Accounting documents will be well under 150 MB.
+
+**`storage_path` value:** Dropbox uses path strings as references. Convention: `/Prompt/orgs/{org_id}/clients/{client_id}/{filing_type_id}/{tax_year}/{uuid}.ext`. Dropbox creates intermediate directories automatically on upload; no separate folder creation step required.
+
+**Download URL:** `dbx.filesGetTemporaryLink({ path: storagePath })` — returns a 4-hour URL. This cannot be shortened. Return it directly to the browser.
+
+**Download for DSAR (`getBytes`):** Use the Dropbox HTTP API directly: `fetch('https://content.dropboxapi.com/2/files/download', { headers: { 'Authorization': 'Bearer <token>', 'Dropbox-API-Arg': JSON.stringify({ path: storagePath }) } })` → Buffer. The JavaScript SDK's `filesDownload` in Node.js returns a result where binary content is accessed differently than in the browser; the raw HTTP approach is more reliable for server-side.
+
+**Confidence:** HIGH — verified against [Dropbox OAuth Guide](https://developers.dropbox.com/oauth-guide), [Using OAuth 2.0 with offline access](https://dropbox.tech/developers/using-oauth-2-0-with-offline-access), and [dropbox-sdk-js](https://github.com/dropbox/dropbox-sdk-js).
+
+---
+
+## New vs Modified: Explicit Change List
+
+### New Files
+
+| File | What It Is |
+|------|-----------|
+| `lib/documents/providers/supabase.ts` | Extracts existing Supabase logic from storage.ts into StorageProvider impl |
+| `lib/documents/providers/google-drive.ts` | Google Drive StorageProvider |
+| `lib/documents/providers/onedrive.ts` | OneDrive StorageProvider |
+| `lib/documents/providers/dropbox.ts` | Dropbox StorageProvider |
+| `lib/documents/storage-token-refresh.ts` | Token refresh utility, provider-agnostic |
+| `app/api/documents/proxy/route.ts` | Authenticated Google Drive byte-streaming proxy |
+| `app/api/auth/storage/callback/route.ts` | OAuth callback for all three providers (provider in state param) |
+| `app/api/settings/storage/connect/route.ts` | Initiates provider OAuth flow; returns authorization URL |
+| `app/api/settings/storage/disconnect/route.ts` | Clears storage token columns on organisations |
+| `app/(dashboard)/settings/components/storage-card.tsx` | UI for connect/disconnect per provider |
+
+### Modified Files
+
+| File | What Changes |
+|------|-------------|
+| `lib/documents/storage.ts` | Add `StorageProvider` interface; refactor to `resolveProvider` factory; add `getDocumentBytes()`; callers now pass `orgConfig` |
+| `app/api/portal/[token]/upload/route.ts` | Add `organisations` SELECT for orgConfig before calling `uploadDocument` |
+| `app/api/postmark/inbound/route.ts` | Pass orgConfig into `processAttachments()`; add organisations SELECT before attachment loop |
+| `app/api/clients/[id]/documents/route.ts` | Pass orgConfig to `getDownloadUrl`; handle proxy URL case for Google Drive |
+| `app/api/clients/[id]/documents/dsar/route.ts` | Replace `getSignedDownloadUrl` + `fetch` with `provider.getBytes` |
+| `app/(dashboard)/settings/components/settings-tabs.tsx` | Add Storage tab |
+| `supabase/migrations/` | New migration: add storage columns to organisations |
+| `ARCHITECTURE.md` (repo root) | Update "file bytes never pass through server" note; add v5.0 storage section |
+
+---
+
+## Build Order and Dependency Reasoning
+
+### Phase 1: Schema + Abstraction Layer (no external API calls)
+
+**Rationale:** Foundation everything else builds on. Supabase behaviour remains identical after this phase — a safe, testable refactor with no new dependencies.
+
+1. Migration: add `storage_backend` + token columns to `organisations`
+2. Refactor `lib/documents/storage.ts`: define `StorageProvider` interface; add `resolveProvider`; add `getDocumentBytes()`; move Supabase logic to `lib/documents/providers/supabase.ts`
+3. Update all callers to pass `orgConfig` — portal upload route, inbound route, documents route, DSAR route. With Supabase as only backend, runtime behaviour is identical
+4. Add `lib/documents/storage-token-refresh.ts` (Supabase no-op)
+
+**Milestone:** All existing behaviour unchanged. Tests pass. Supabase-only orgs unaffected.
+
+### Phase 2: Google Drive Integration
+
+**Rationale:** Most complex provider (requires server proxy for downloads; folder structure management; `tokens` event for auto-refresh). Build hardest one first to validate the full pattern before the others.
+
+5. `lib/documents/providers/google-drive.ts`: upload (multipart + resumable), `getDownloadUrl` (proxy URL), `getBytes`, delete
+6. `app/api/documents/proxy/route.ts`: authenticated Drive byte-streaming
+7. `app/api/auth/storage/callback/route.ts` + `connect/route.ts` for Drive OAuth
+8. `lib/documents/storage-token-refresh.ts`: Drive token refresh (via `tokens` event)
+9. Settings UI: Google Drive connect/disconnect card
+
+**Milestone:** An org can connect Google Drive, upload via portal, and download in the accountant UI.
+
+### Phase 3: OneDrive Integration
+
+**Rationale:** Similar OAuth pattern to Drive but simpler downloads (no proxy). Reuses the OAuth callback infrastructure from Phase 2.
+
+10. `lib/documents/providers/onedrive.ts`: upload (simple PUT + upload session), `getDownloadUrl`, `getBytes`, delete
+11. Extend OAuth callback route to handle OneDrive (provider determined by `state` param)
+12. `storage-token-refresh.ts`: OneDrive token refresh
+13. Settings UI: OneDrive connect/disconnect card
+
+**Milestone:** An org can connect OneDrive and use it end-to-end.
+
+### Phase 4: Dropbox Integration
+
+**Rationale:** Simplest provider (path-based, no folder ID, straightforward SDK). Build last to reuse OAuth callback infrastructure.
+
+14. `lib/documents/providers/dropbox.ts`: upload, `getDownloadUrl` (4h link), `getBytes`, delete
+15. Extend OAuth callback for Dropbox
+16. `storage-token-refresh.ts`: Dropbox token refresh
+17. Settings UI: Dropbox connect/disconnect card
+
+**Milestone:** All three providers work. DSAR export tested against all providers.
+
+### Phase 5: Polish
+
+18. Error handling: graceful degradation when provider API is unreachable (log + surface in settings UI as "connection error")
+19. Update `ARCHITECTURE.md` (repo root)
+
+---
+
+## Scaling Considerations
+
+| Concern | At current scale | At 1K orgs |
+|---------|-----------------|------------|
+| Token refresh overhead | Per-request check (~1ms) | Same — per-org config fetch, not global |
+| Drive proxy latency | N/A | Drive API adds ~200–800ms per download; acceptable |
+| DSAR timeout | 60s `maxDuration` | 50 docs × ~500ms = ~25s. Within 60s for typical cases; raise to 120s for large sets |
+| Token column security | 6 nullable columns, service-role fetch | Trivial at any scale |
+| Concurrent uploads (serverless) | Each function invocation independent | No shared state; scales naturally |
+
+---
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Storing Provider Name in `storage_path`
+
+**What people do:** Prefix storage_path with the provider: `google_drive:1aBcDe...`
+**Why it's wrong:** Encodes routing logic in data; breaks queries and indexes; the provider is already on `organisations.storage_backend`.
+**Do this instead:** Always resolve provider from `organisations.storage_backend`. `storage_path` stores only the raw identifier the provider uses.
+
+### Anti-Pattern 2: DB Lookup Inside the Provider Constructor
+
+**What people do:** Provider's upload method fetches org config from the DB autonomously.
+**Why it's wrong:** Hidden DB call on every storage operation; makes providers stateful and hard to test.
+**Do this instead:** Fetch `orgConfig` in the route handler where a DB client already exists; pass it to `resolveProvider`. Provider instances are pure — no DB calls.
+
+### Anti-Pattern 3: Exposing Drive Access Token to the Browser
+
+**What people do:** Return a Drive API download URL with embedded `Bearer` token (from the OAuth client) to the browser as the `signedUrl`.
+**Why it's wrong:** Leaks an active OAuth access token to browser storage and logs.
+**Do this instead:** For Google Drive, always use the server proxy route. For OneDrive and Dropbox, returning the provider-issued temporary URL to the browser is the intended usage pattern.
+
+### Anti-Pattern 4: Concurrent Token Refresh Race
+
+**What people do:** Each provider operation independently checks and refreshes the token, leading to concurrent refreshes in parallel requests.
+**Why it's wrong:** Two simultaneous requests can each detect an expired token and call the refresh endpoint simultaneously, resulting in two `UPDATE` calls. Most provider OAuth implementations accept this (both refreshes return valid tokens), but it wastes API calls and risks rate limiting.
+**Do this instead:** Token refresh runs in `ensureFreshToken` before the provider is constructed. Accept optimistic concurrency: if two simultaneous refreshes occur, the second UPDATE overwrites the first with an equally valid token. This is acceptable for the scale of this application.
+
+### Anti-Pattern 5: Migrating Existing Documents When Switching Provider
+
+**What people do:** When an org switches from Supabase to Google Drive, copy all existing documents to Drive and update `storage_path` on every `client_documents` row.
+**Why it's wrong:** Complex, error-prone, requires a migration job with robust retry logic, and may raise GDPR questions about cross-provider data transfer.
+**Do this instead:** After a provider switch, new uploads go to the new provider. Old documents remain on Supabase with their original `storage_path` values. At download time, detect the provider mismatch by adding a `storage_backend_at_upload` column to `client_documents`. This allows both providers to remain active simultaneously for reads. Flag this as an implementation decision — the simplest cut is to require orgs to keep Supabase active for legacy document reads indefinitely, or to accept that old documents become inaccessible after switching (acceptable for a low-traffic feature).
+
+---
+
+## Integration Points
+
+| Service | Package | Auth | Notes |
+|---------|---------|------|-------|
+| Google Drive API v3 | `googleapis` | OAuth2 Authorization Code, `drive.file` scope | `tokens` event on oauth2Client auto-persists refreshed tokens |
+| Microsoft Graph API / OneDrive | `@microsoft/microsoft-graph-client` | OAuth2 Authorization Code, `Files.ReadWrite offline_access` | Personal + M365 tenants both work via `common` tenant endpoint |
+| Dropbox API v2 | `dropbox` | OAuth2 Authorization Code, `token_access_type=offline` | Refresh tokens non-expiring; 4-hour access token |
+| Supabase Storage | `@supabase/supabase-js` (existing) | Service role key | Unchanged; wrapped in `SupabaseProvider` class |
+
+---
+
+## Sources
+
+- [Google Drive API: Upload file data](https://developers.google.com/workspace/drive/api/guides/manage-uploads) — 5 MB multipart/resumable threshold — HIGH confidence
+- [Google Drive API: Download and export files](https://developers.google.com/workspace/drive/api/guides/manage-downloads) — `alt=media` stream pattern — HIGH confidence
+- [Google Drive API scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth) — `drive.file` vs `drive` scope distinction — HIGH confidence
+- [googleapis Node.js client](https://github.com/googleapis/google-api-nodejs-client) — official SDK — HIGH confidence
+- [Microsoft Graph: Upload large files SDK](https://learn.microsoft.com/en-us/graph/sdks/large-file-upload) — 4 MB simple PUT limit, upload session for larger — HIGH confidence
+- [Microsoft Graph: driveItem createUploadSession](https://learn.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0) — resumable upload API — HIGH confidence
+- [Microsoft identity platform: Authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow) — refresh token via `offline_access` — HIGH confidence
+- [OneDrive permissions reference](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/permissions_reference?view=odsp-graph-online) — `Files.ReadWrite` minimal scope — HIGH confidence
+- [Dropbox OAuth Guide](https://developers.dropbox.com/oauth-guide) — `token_access_type=offline`, refresh flow — HIGH confidence
+- [Dropbox: Using OAuth 2.0 with offline access](https://dropbox.tech/developers/using-oauth-2-0-with-offline-access) — offline access pattern, token exchange — HIGH confidence
+- [Dropbox temporary link expiry (community)](https://www.dropboxforum.com/t5/Dropbox-API-Support-Feedback/Expiration-settings-of-Temporary-Link/td-p/272061) — 4-hour fixed expiry, not configurable — MEDIUM confidence (community, consistent across multiple threads)
+- [dropbox-sdk-js](https://github.com/dropbox/dropbox-sdk-js) — official Dropbox SDK — HIGH confidence
+- [Graph API: `@microsoft.graph.downloadUrl`](https://learn.microsoft.com/en-us/answers/questions/897470/graph-api-dowload-url-expires-too-quickly) — ~1h pre-authenticated URL — MEDIUM confidence (official Q&A, consistent with primary docs)
+
+---
+
+*Architecture research for: v5.0 Third-Party Cloud Storage Integration — Prompt UK Accounting SaaS*
+*Researched: 2026-02-28*

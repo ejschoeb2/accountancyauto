@@ -1,19 +1,17 @@
 # Project Research Summary
 
-**Project:** Prompt — v4.0 Document Collection
-**Domain:** Document collection portal for UK accounting practice management SaaS
-**Researched:** 2026-02-23
-**Confidence:** HIGH (all four research files verified against official Supabase docs, HMRC internal manuals, ICO guidance, OWASP, and npm registry)
-
----
+**Project:** Prompt — v5.0 Third-Party Cloud Storage Integrations
+**Domain:** B2B SaaS — configurable cloud storage backends (Google Drive, OneDrive, Dropbox) for UK accounting practice management
+**Researched:** 2026-02-28
+**Confidence:** HIGH
 
 ## Executive Summary
 
-Prompt v4.0 adds structured document collection on top of an already-complete multi-tenant reminder platform. The approach builds a private Supabase Storage bucket (EU West) where documents arrive via two channels: passively from Postmark inbound email attachments (zero client friction — clients who already reply to reminders have their documents captured automatically), and actively via a token-based client upload portal (no login, no app download required). The competitive differentiation is tight integration with the existing UK filing deadline engine: the client portal shows exactly the documents needed for a client's specific SA100, CT600, VAT return, or Companies House filing — not a generic checklist. This fills a gap no competitor in the UK accounting SaaS market has addressed.
+Prompt v5.0 adds Google Drive, Microsoft OneDrive, and Dropbox as selectable per-org storage backends. This is not a sync feature — the third-party provider becomes the single storage layer, replacing Supabase Storage for orgs that connect a provider. The existing `lib/documents/storage.ts` module must be refactored into a provider-agnostic interface first, before any provider-specific code is written. Every other deliverable in this milestone depends on that foundation. The most important architectural decision is also the simplest: add a `storage_backend` column to `client_documents` (not just `organisations`) so that DSAR exports and download handlers always know which API to call on a per-document basis, even when an org switches providers mid-lifecycle.
 
-The minimal footprint of this milestone is a key strength: only two new npm packages are required (`file-type@^21.3.0` for magic byte MIME detection, `fflate@^0.8.2` for DSAR ZIP export). All other capabilities — storage, document serving, token validation, cron scheduling — use existing dependencies already in the stack. The Vercel 4.5 MB serverless payload limit is a hard architectural constraint that is not configurable. This makes the signed upload URL pattern mandatory, not optional: the portal client receives a signed URL from the Next.js server and uploads directly to Supabase Storage, bypassing Next.js entirely. Attempting to proxy large files through Next.js will fail for any document over 4.5 MB.
+The recommended sequencing is Google Drive first (smallest bundle, `drive.file` scope avoids restricted-scope verification, clearest API), then OneDrive (more complex — MSAL token cache, M365 vs personal account split, admin consent requirement), then Dropbox (simple API, but lower UK market share than the first two). All three share the same token refresh pattern and must use the same `withTokenRefresh` utility built in the Google Drive phase. Token security is non-negotiable before any provider goes to production: refresh tokens must be AES-256-GCM encrypted at rest using an `ENCRYPTION_KEY` env var — plaintext refresh tokens in a Postgres column constitute a full cloud storage access exposure on any DB breach.
 
-The critical risks in this milestone are legal and compliance-based, not primarily technical. The privacy policy must be updated and deployed before a single document is stored (UK GDPR Art. 13/14 transparency obligation). HMRC retention must use `tax_period_end_date` as the anchor (not `received_at`) with a `retention_hold` flag for active enquiries — destroying records under an HMRC enquiry is a criminal offence. Storage RLS is a separate system from database RLS; a private bucket without `storage.objects` policies rejects all uploads, and the typical "fix" (switching to a public bucket) creates a data breach. The `createSignedUploadUrl` SDK method has a known service_role bug (`owner=null`) — use `storage.upload()` directly with the service role client for portal uploads instead. Token security requires 256-bit entropy, SHA-256 hashing at rest, revocability via database, and referrer suppression on the portal page. All of these have clear, implementable solutions documented in the research.
+The highest-severity pitfalls are architectural rather than implementation-level: silent upload failures when access tokens expire without retry, per-document backend routing broken by relying on `org.storage_backend` instead of `doc.storage_backend`, and orphaned documents when an accountant revokes provider access externally. These three mistakes result in data loss or permanent document inaccessibility, which is unacceptable for an accounting compliance tool operating under HMRC retention requirements. All three are preventable by decisions made in the Storage Abstraction Layer phase — get the schema and token wrapper right first and the provider phases follow cleanly.
 
 ---
 
@@ -21,201 +19,242 @@ The critical risks in this milestone are legal and compliance-based, not primari
 
 ### Recommended Stack
 
-Only two new packages are needed for the entire v4.0 milestone. The existing `@supabase/supabase-js` (already at `^2.95.3`) includes the full Storage SDK — no separate install is needed. `FormData` parsing for uploads is handled natively by the App Router with `request.formData()`, removing the need for `multer`, `formidable`, or `busboy`. Retention cron runs as a Supabase Edge Function (Deno) invoked by `pg_cron`, which keeps the logic inside the Supabase project boundary and avoids the need for a Vercel cron endpoint for this operation.
+STACK.md documents only the net-new packages needed for this milestone — the existing Next.js + Supabase + Vercel stack is unchanged. Six new production dependencies across the three providers, each chosen for a specific reason.
 
-See `STACK.md` for full integration patterns, SDK code examples, and Vercel constraint details.
+**Core technologies (new):**
+- `@googleapis/drive@^20.1.0` — Google Drive API v3; scoped package (2.3 MB) instead of `googleapis` (199 MB full package); avoids Vercel 250 MB function size limit
+- `google-auth-library@^10.6.1` — OAuth2Client for Drive; required explicitly because `@googleapis/drive` does not re-export the token-event API needed for server-side token refresh persistence
+- `@azure/msal-node@^5.0.5` — Microsoft identity OAuth2; the only library that correctly handles M365 confidential client, `/common` authority, and `ICachePlugin` for Postgres-persisted token cache
+- `@microsoft/microsoft-graph-client@^3.0.7` — OneDrive file operations via Graph API; provides `OneDriveLargeFileUploadTask` for chunked uploads (required for files over 4 MB)
+- `dropbox@^10.34.0` — official Dropbox SDK; provides `checkAndRefreshAccessToken()` and typed upload session methods; app folder scope boundary is the cleanest least-privilege option in the provider set
 
-**New dependencies (production only):**
-- `file-type@^21.3.0`: Magic byte MIME detection — detects PDF, JPEG, PNG, DOCX/XLSX from binary content; no external service; pure server-side; ESM-only (compatible with Next.js App Router)
-- `fflate@^0.8.2`: DSAR ZIP generation — pure JavaScript, no native bindings; returns `Uint8Array` directly suitable for a `Response` body; 5x smaller than `jszip`; works in both Vercel serverless and Supabase Edge Functions
+**Critical version and constraint notes:**
+- Do NOT use `googleapis` (full package) — 199 MB unpacked, will likely exceed Vercel function limits combined with other deps
+- Do NOT use `@azure/msal-browser` — browser-only package, crashes in Node.js server-side functions
+- Do NOT use `@azure/identity` — designed for machine-to-machine Azure service auth, not user OAuth2 authorization code flow
+- No shared OAuth helper (e.g. `simple-oauth2`) — each provider has idiosyncratic refresh behaviors that a shared abstraction handles incorrectly; provider-specific SDKs are the right layer
+- Six new env vars required (two per provider: client ID + client secret); redirect URIs are per-provider
+- All three provider SDKs are pure TypeScript/JavaScript — no native bindings, compatible with Vercel serverless
 
-**Critical version and config details:**
-- Vercel 4.5 MB payload limit is hard and unaffected by `serverActions.bodySizeLimit` in production — confirmed via multiple GitHub issues (#57501, #53087, #77505)
-- `createSignedUploadUrl` has a known bug when called with service_role: `owner` field is set to null, causing downstream permission issues. Use `storage.upload()` with the admin client for portal uploads instead.
-- Storage bucket must be created via the Supabase Dashboard or management API (not via SQL migration) — bucket creation SQL is not supported in the migration runner
-- No new environment variables required — existing `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` cover all storage operations
-- EU West (Ireland) bucket region follows project region automatically — verify project region before creating bucket if GDPR adequacy is a deployment requirement
+**Database additions (organisations table):**
+- `storage_backend` enum: `supabase | google_drive | onedrive | dropbox` (default: `supabase`)
+- `storage_backend_status`: `active | error | null`
+- Per-provider encrypted token columns (`_enc` suffix convention signals encryption at all times)
+- For MSAL/OneDrive: serialized cache blob column (`ms_token_cache`) rather than individual token columns
 
-**What NOT to add:**
-- Third-party document processing services (AWS Textract, Google Document AI) — financial documents cannot leave the EU or be processed by third-party AI
-- `uploadthing` — wraps a SaaS over Supabase Storage, adds a third-party data processor
-- `pdf-parse` or `pdfjs-dist` — not needed; filename + MIME type classification is sufficient for v4.0
-- `multer` / `formidable` — these are Pages Router/Express patterns; App Router handles `FormData` natively
+**Database additions (client_documents table — critical):**
+- `storage_backend` column (same enum) — records the backend active at upload time; must not be derived from `org.storage_backend`
 
 ### Expected Features
 
-**Must ship for v4.0 launch (table stakes — product is incomplete or non-compliant without these):**
-- Private document storage with org-scoped access control — signed URLs only, no public paths
-- Client upload portal (no login, no app) with filing-type-specific checklist
-- Passive collection — extend existing Postmark inbound webhook to extract and store email attachments
-- Documents surfaced inline in filing type cards on client detail view
-- Checklist per filing type with manual override capability
-- 6/5-year HMRC retention enforcement — companies 6yr from accounting period end, individuals 5yr from Jan 31
-- Retention hold flag for active HMRC enquiries (auto-deletion when enquiry is open is a criminal offence)
-- DSAR export — ZIP + JSON manifest covering documents, inbound emails, email log, client profile, and audit log
-- Audit trail (document_access_log) for every signed URL generation — required for GDPR compliance
-- Privacy policy amendments (7 identified gaps) — hard deployment gate before any document is stored
+FEATURES.md defines the feature boundary for this milestone precisely.
 
-**Should have (competitive differentiators in the UK market):**
-- Auto-classification of uploaded documents by filename patterns + MIME type with confidence scoring
-- Checklist auto-generated from client profile (conditional items: P60 for PAYE, self-employment accounts for sole traders, etc.)
-- Per-client checklist customisation (toggle items on/off, add ad-hoc items)
-- Deadline-anchored document requests (upload link embedded in reminder email via `{{upload_link}}` placeholder)
-- Dashboard activity feed showing recent uploads across all clients
-- Retention enforcement cron with flagging and accountant review before deletion (not auto-delete)
+**Must have (table stakes for v5.0 launch — P1):**
+- OAuth connect/disconnect flow from Settings UI — industry expectation for any SaaS integration
+- Connected/disconnected status display with account email and storage root path
+- Automatic silent token refresh before expiry — accountants will not tolerate hourly re-auth prompts
+- Auto-created folder structure on first upload (no manual setup required by the accountant)
+- All new uploads routed through connected provider — portal uploads and inbound email attachments both
+- Provider-specific temporary download links replacing Supabase signed URLs
+- Visible re-auth banner when token is revoked or refresh fails
+- DSAR export updated to fetch bytes from provider API (GDPR legal requirement)
+- Token encryption at rest (security requirement, not optional polish)
 
-**Defer to v4.x (validate core collection first):**
-- `{{upload_link}}` placeholder in reminder templates (requires reminder template system extension)
-- Dashboard activity feed (build when practice size warrants it, >20 active clients)
-- Improved classification (ML-based or richer heuristics) — only if accountant feedback identifies misclassification as a friction point
-- Bulk download (ZIP) of all documents per filing-year for accountants
+**Should have (competitive differentiators — P2, after Google Drive validated):**
+- OneDrive integration (MSAL complexity warrants post-Google sequencing)
+- Dropbox integration (lower UK market share than Google/Microsoft)
+- Configurable root folder name (firm-specific folder naming conventions)
+- Token health indicator in Settings (shows last refresh time, connection status)
+- Per-document provider badge in document list UI
 
-**Explicit anti-features (do not build in v4.0):**
-- OCR / data extraction — requires near-100% accuracy for tax purposes; Dext is the dedicated product for this
-- E-signatures — separate product category with UK eIDAS compliance complexity
-- Client portal login / document history — industry pattern is magic links, not client accounts; token-based access is the right approach
-- Google Drive / Dropbox sync — OAuth integration per provider, high maintenance surface area
-- ZIP upload — security risk (zip bombs, path traversal); multi-file drag-and-drop is better UX
-- AI-generated document summaries — hallucination risk on financial data; accountants are trained to read these documents
+**Defer (v5.x / future):**
+- Migration helper: move existing Supabase files to provider on connection — deferrable because newly uploaded files go to the provider immediately; existing Supabase files remain accessible; split store is suboptimal but not broken
+- Google Shared Drive support — requires restricted `drive` scope and annual third-party security assessment; only worth pursuing once integration is proven at scale
+- Streaming DSAR export — needed when document counts per client exceed ~50 files; Vercel serverless timeout risk at that scale
+- Two-way sync / watching provider for changes — anti-feature; the provider is the storage layer, not the ingestion layer
 
-**Key competitive position:** No competitor in UK accounting SaaS (TaxDome, Karbon, Senta, Dext) integrates document collection with a UK-specific filing deadline engine. Prompt's checklist for an SA100 client differs from a CT600 client by default. Documents are linked to specific filing years. Passive collection from email replies is completely unique in the category.
-
-See `FEATURES.md` for the full HMRC document catalog, filing-type-to-document mappings, prioritisation matrix, and competitor feature table.
+**Confirmed anti-features (do not build):**
+- `drive` (full) scope — triggers Google restricted-scope verification (weeks of delay); `drive.file` is functionally sufficient for all Prompt use cases
+- Silent fallback to Supabase if provider upload fails — creates split-brain document store with inconsistent DSAR exports; fail explicitly instead
+- Deleting files from provider when Prompt document record is deleted — conflicts with HMRC 6-year retention; keep bytes in provider even when metadata row is removed
+- Two-way Drive sync — complete second system for marginal gain; Drive is the storage destination, not an ingestion source
 
 ### Architecture Approach
 
-The architecture adds one private Supabase Storage bucket, five new database tables, four new `lib/documents/` modules, a new `(portal)` route group, and extensions to two existing routes (`/api/postmark/inbound` and the filing management dashboard component). No existing tables are modified except `lib/types/database.ts`. Storage RLS and database RLS are managed entirely separately — `storage.objects` requires its own policies that are independent of the application table RLS. All upload flows use the service role client server-side; raw storage paths never leave the server; client components receive only ephemeral signed URLs. The portal token system uses 256-bit entropy tokens, SHA-256 hashes stored in the database, `expires_at` + `revoked` columns for lifecycle management, and double validation on every upload request.
+The v4.0 document collection layer (ARCHITECTURE.md) established the foundation that v5.0 extends. The existing `lib/documents/storage.ts` module wraps Supabase Storage; v5.0 refactors it into a provider-agnostic interface with four implementations: `SupabaseStorageProvider`, `GoogleDriveProvider`, `OneDriveProvider`, `DropboxProvider`. All upload paths (portal, inbound email) and all download paths (dashboard, DSAR export) route through this interface — no provider-specific code appears outside `lib/documents/storage/`.
 
-See `ARCHITECTURE.md` for complete table schemas, data flow diagrams, component responsibilities, code patterns, and anti-patterns to avoid.
+**Major components and their responsibilities:**
 
-**Major new components:**
+1. **`lib/documents/storage.ts` (refactored to interface)** — provider-agnostic `upload()`, `getDownloadUrl()`, `delete()` methods; dispatches to the correct provider implementation based on `org.storage_backend`; this is the load-bearing component for the entire milestone
+2. **`lib/storage/token-refresh.ts`** — `withTokenRefresh(orgId, call)` utility; proactively refreshes tokens 5 minutes before expiry; catches provider-specific fatal errors (`invalid_grant` for Google, `AADSTS53003` for OneDrive); sets `storage_token_status = 'reauth_required'` and never swallows failures silently
+3. **`lib/crypto/tokens.ts`** — AES-256-GCM encrypt/decrypt utilities; `ENCRYPTION_KEY` from env var (never stored in Supabase); all `_enc` columns pass through this before DB write and after DB read; no plaintext tokens outside this module
+4. **`/api/auth/[provider]/callback` route handlers** — OAuth2 authorization code exchange per provider; validates `state` parameter for CSRF protection; stores encrypted tokens; triggers root folder creation on first connect
+5. **Settings UI — Storage tab** — connect/disconnect per provider; shows connected account info, root folder path, token health; re-auth banner propagated to main dashboard layout when status is error
+6. **Daily health-check cron** — lightweight provider API call per org with active non-Supabase backend; sets re-auth status and emails org admin on failure
 
-| Component | Status | Responsibility |
-|-----------|--------|---------------|
-| `supabase/migrations/*_document_schema.sql` | NEW | All 5 new tables + Storage RLS policies |
-| `lib/documents/storage.ts` | NEW | Supabase Storage: upload, signed URL generation, deletion |
-| `lib/documents/portal.ts` | NEW | Token creation, validation, revocation |
-| `lib/documents/metadata.ts` | NEW | `client_documents` CRUD + attachment extraction helper |
-| `lib/documents/retention.ts` | NEW | Retention calculation, DSAR ZIP export |
-| `lib/documents/classify.ts` | NEW | Auto-classification: filename/MIME to document_type_id |
-| `app/(portal)/portal/[token]/page.tsx` | NEW | Public upload portal — no auth session |
-| `app/api/portal/[token]/upload/route.ts` | NEW | Multipart upload handler with token re-validation |
-| `app/api/cron/retention/route.ts` | NEW | Daily retention flag scan |
-| `app/(dashboard)/clients/[id]/components/documents-panel.tsx` | NEW | Document list with signed URL download |
-| `/api/postmark/inbound/route.ts` | MODIFIED | Add attachment extraction as Step 6 (non-critical, non-blocking) |
-
-**New database tables (all requiring explicit RLS):**
-1. `document_types` — global reference catalog (no `org_id`, read-only for authenticated users)
-2. `filing_document_requirements` — maps filing types to expected document types
-3. `client_documents` — one row per stored file, with `org_id`, `client_id`, `tax_period_end_date`, `retain_until`, `retention_hold`, `classification_confidence`
-4. `document_access_log` — INSERT-only audit trail; every signed URL generation logged
-5. `upload_portal_tokens` — stores `token_hash` (SHA-256), `expires_at`, `revoked`, `last_used_at`
-
-**Storage path convention (must be established in Phase 18 before any upload code is written):**
-```
-orgs/{org_id}/clients/{client_id}/{filing_type_id}/{tax_year}/{uuid}.{ext}
-```
-The `{uuid}` filename is server-generated. Original filename is stored in `client_documents.original_filename` only — never used as the storage key.
+**Key architectural constraints identified in research:**
+- Portal upload flow must change from signed-URL pattern (browser direct to Supabase) to server-proxied (browser to Next.js to provider API) — none of the three providers support the direct signed upload URL pattern Supabase uses
+- Google Drive and OneDrive do not have native signed URL equivalents — downloads must be proxied through the Next.js server (fetch bytes server-side, stream to browser); Dropbox has `get_temporary_link` (4h TTL) which is closer to the existing pattern
+- Vercel 4.5 MB request body limit applies to proxied uploads through Next.js — for large files, use provider-native direct upload or upload session APIs rather than routing all bytes through the server
+- Token storage for all three providers must be Postgres-persisted with rehydration on each Vercel function invocation (no persistent in-memory state between invocations)
 
 ### Critical Pitfalls
 
-Research identified 10 critical pitfalls. The top 5 that require preventive action before any document is stored in production:
+PITFALLS.md documents 8 critical pitfalls and numerous moderate risks. Top 5 by data loss or security severity:
 
-1. **Storage RLS not written — private bucket rejects all SDK calls** — Storage RLS on `storage.objects` is a separate system from database RLS. Creating a private bucket does not create any policies; without them, all non-service-role uploads and downloads are rejected. The typical "fix" of switching to a public bucket creates a data breach. Write org-scoped policies using `storage.foldername(name)` array indexing before Phase 19 begins. Test with a real authenticated user JWT (not service role) to confirm policies work. See PITFALLS.md Pitfall 1.
+1. **Silent upload failures on token expiry** — access token expires mid-upload; 401 returned by provider but not retried; `client_documents` row written with `null` storage_path; document listed but permanently inaccessible. Prevention: `withTokenRefresh` wrapper with proactive refresh + one retry + explicit `reauth_required` status set on fatal failure. Must be built in Phase 25 before any provider upload reaches production.
 
-2. **Privacy policy not updated before documents are stored in production — UK GDPR transparency violation** — Seven specific gaps in the current policy must be closed: financial document data category, 6-year statutory retention carve-out, updated processing scope, accounting firm clients as a data subject category, Supabase storage as a sub-processor use, special category data qualification in Terms, and document-type-specific retention periods. This is not a post-launch task. It is a hard deployment gate. The ICO has fined organisations for inadequate transparency even without a data breach. See PITFALLS.md Pitfall 5.
+2. **Unencrypted refresh tokens in Postgres** — plaintext token columns expose permanent cloud storage access on any DB breach; refresh tokens for Google and Dropbox do not expire by default. Prevention: AES-256-GCM encryption via `lib/crypto/tokens.ts`, `_enc` column suffix convention to signal encryption to all developers, `ENCRYPTION_KEY` env var never stored in Supabase. Must be built in Phase 24 before any token is ever written to the database.
 
-3. **HMRC retention anchored to `received_at` instead of `tax_period_end_date`** — The 6-year retention period runs from the end of the accounting period the documents relate to, not from when the document was received. Using `received_at` produces incorrect deletion dates. Additionally, documents under an active HMRC enquiry must never be deleted automatically — destroying records under enquiry is a criminal offence under TMA 1970 s.20BB. The `client_documents` schema must include `tax_period_end_date` and `retention_hold` columns from Phase 18. The retention cron must check `WHERE retention_hold = false`. See PITFALLS.md Pitfall 8.
+3. **Per-org backend routing for downloads (wrong)** — using `org.storage_backend` instead of `doc.storage_backend` to determine download API; breaks for any org that has ever switched backends; DSAR exports silently fetch wrong bytes or fail. Prevention: `storage_backend` column on `client_documents` set at upload time; routing logic always reads the per-document column, never derives backend from the current org setting. Schema change in Phase 24 migration.
 
-4. **Portal token stored as plaintext / insufficient entropy** — Three failure modes: (a) plaintext storage means a database breach exposes all active tokens; (b) UUIDs or short codes can be brute-forced; (c) analytics scripts on the portal page leak the token via `Referer` header to third-party servers. Use `crypto.randomBytes(32)` (256-bit entropy), store `sha256(rawToken)` only, exclude `/portal/*` from all analytics, add `<meta name="referrer" content="no-referrer">` to the portal layout. See PITFALLS.md Pitfall 6.
+4. **Google `invalid_grant` with no re-auth signal** — Google silently invalidates refresh tokens on password change, user revocation, 50-token limit, or when app is in Testing status (7-day forced expiry). System continues attempting refresh with invalid token; all subsequent uploads fail silently. Prevention: explicitly catch `invalid_grant` HTTP 400 response, set re-auth status, null out stored refresh token, surface persistent banner. App must be in Production (not Testing) status before any real firm connects.
 
-5. **`createSignedUploadUrl` service_role bug — use `storage.upload()` for portal uploads** — When `createSignedUploadUrl` is called with the service role client, the `owner` field is set to null, which can cause downstream permission issues. For the portal upload flow (where the server uploads on behalf of the unauthenticated client), use `storage.upload()` with the admin client directly. `createSignedUploadUrl` is appropriate when the authenticated browser client uploads directly, but the portal flow handles this server-side. See STACK.md and ARCHITECTURE.md Pitfall 5.
-
-**Additional critical pitfalls to address in Phase 18 schema design:**
-- Storage path must include `org_id` as first segment — not just handled by RLS, but defence-in-depth if RLS is misconfigured
-- Signed URLs must be <= 300 seconds expiry for document access; every generation must be logged in `document_access_log`
-- `document_access_log` must be INSERT-only for authenticated users (no UPDATE or DELETE via RLS) — audit trail integrity
-- DSAR export must cover all personal data categories, not just `client_documents` (also: `inbound_emails`, `email_log`, `clients` profile, `audit_log`)
-- Postmark webhook must be idempotent (`UNIQUE(message_id)` on `inbound_emails`) to prevent duplicate documents on retry
-- Server-side MIME validation must use magic bytes (`file-type`), not the `Content-Type` request header (trivially spoofable)
+5. **Orphaned documents when accountant revokes provider access externally** — no webhook from any provider on revocation; documents remain listed in Prompt with inaccessible storage paths; accountant cannot download ahead of filing deadlines. Prevention: daily health-check cron per active org; download-time 401 detection sets re-auth status immediately; Settings UI shows document count before allowing disconnect with explicit confirmation required.
 
 ---
 
 ## Implications for Roadmap
 
-Research clearly supports a two-phase build for v4.0. The dependency graph is firm: Phase 18 (Foundation) creates every artifact Phase 19 (Collection Mechanisms) depends on. No work in Phase 19 can begin safely until Phase 18 is complete and verified.
+Based on combined research, the milestone decomposes into 6 phases. Phase numbers 24–29 are suggested by PITFALLS.md as provisional — the roadmapper should verify against existing phase numbering in ROADMAP.md.
 
-### Phase 18: Document Collection Foundation
+### Phase 24: Storage Abstraction Layer
 
-**Rationale:** Every artifact needed by the collection mechanisms must exist before building them. Schema errors discovered in Phase 19 require migrations against tables that already contain data. The privacy policy, storage bucket, and `storage.objects` RLS policies are deployment dependencies — they must be live before the first document arrives. The token security model, retention schema design, and storage path convention are decisions that are painful to reverse after Phase 19 code is written.
-
-**Delivers:**
-- All 5 new database tables (`document_types`, `filing_document_requirements`, `client_documents`, `document_access_log`, `upload_portal_tokens`) with full schema including `tax_period_end_date`, `retention_hold`, `classification_confidence`
-- `document_types` and `filing_document_requirements` seed data for SA100, CT600, VAT, and Companies House filing types (HMRC document catalog from FEATURES.md)
-- Private Supabase Storage bucket (`client-documents`) with EU West region verification
-- `storage.objects` RLS policies (SELECT, INSERT, DELETE by authenticated org-scoped users; service role bypasses for cron/webhook/portal)
-- `lib/documents/storage.ts` — core storage utility (upload, signed URL generation, deletion)
-- `lib/documents/metadata.ts` — `client_documents` insert/query helpers + `calculateRetainUntil()` utility
-- `lib/documents/portal.ts` skeleton — token create/validate/revoke interface
-- `lib/types/database.ts` additions for all new tables
-- Privacy policy updated (7 identified gaps closed) and deployed — hard gate before any document is stored in production
-- Storage path convention documented and codified in a path construction helper
-
-**Addresses:** Table stakes (document storage with access control, retention date calculation, audit trail), compliance foundation (privacy policy, DSAR data model design)
-
-**Avoids:** Pitfalls 1 (missing storage RLS), 3 (storage path without org_id), 5 (privacy policy not updated), 6 (portal token schema — hash stored, not plaintext), 8 (retention using wrong anchor date — `tax_period_end_date` established in schema), 9 (DSAR export data model defined before data is collected), 10 (classification confidence column in schema)
-
-**Research flag:** Skip deeper research — all patterns are fully specified in ARCHITECTURE.md with verified SQL. Storage RLS `storage.foldername()` array indexing is confirmed against official Supabase docs. Token schema (SHA-256 hash, 256-bit entropy, `expires_at`, `revoked`) is fully specified in ARCHITECTURE.md Token Security Model section.
-
-**Verification gates before moving to Phase 19:**
-- Upload a test file using an authenticated user JWT; confirm it is stored at `orgs/{org_id}/...`
-- Attempt to access that file from a different org's authenticated JWT; confirm 403
-- Confirm privacy policy is live at `/privacy` with all 7 amendments present
-- Confirm all `client_documents` rows have `tax_period_end_date` and `retention_hold` columns present with correct types
-
-### Phase 19: Collection Mechanisms
-
-**Rationale:** Builds all active and passive collection on top of the Phase 18 foundation. The Postmark webhook extension, portal upload flow, classification logic, and dashboard surfacing are all independent workstreams that can proceed in parallel once Phase 18 is deployed. The DSAR export and retention cron are lower complexity and can be built toward the end of this phase.
+**Rationale:** Every other phase depends on this foundation. The storage interface, schema migrations, and token encryption utility must exist before any provider-specific code is written. Building provider code against an incomplete abstraction causes architectural rewrites later. Token columns and the per-document `storage_backend` column are painful to add retroactively once documents are in the system.
 
 **Delivers:**
-- Extended Postmark inbound webhook: Step 6 that extracts base64 attachments, decodes, validates magic bytes, uploads via admin client, inserts `client_documents` row (non-blocking — email stored even if attachment upload fails)
-- Client upload portal (`/portal/[token]`): public route, no auth, filing-type-specific checklist, drag-and-drop, upload progress; token double-validation on every request; `<meta name="referrer" content="no-referrer">` in portal layout
-- Portal upload API route: multipart parse, magic byte MIME validation, size cap enforcement, service role upload, `client_documents` insert, accountant notification trigger
-- Server action for portal token generation (accountant side): `crypto.randomBytes(32)`, SHA-256 hash stored, raw token shown once and never persisted
-- Documents panel on client detail view: document count badge per filing card, expandable list with signed URL download (300-second expiry), upload timestamp, classification label + confidence badge
-- Accountant notification on upload: Postmark email via existing sender; configurable per-accountant
-- Per-client checklist customisation UI: toggle items on/off, add ad-hoc items
-- Auto-classification (`lib/documents/classify.ts`): filename pattern matching against `document_types` catalog, combined with MIME type from `file-type`; confidence stored as `high`/`medium`/`low`/`unclassified`; LOW and UNCLASSIFIED documents flagged for accountant review
-- Retention enforcement cron (Vercel cron or Supabase Edge Function): flag documents where `retain_until < NOW() AND retention_hold = false AND retention_flagged = false`; notify org admin; no auto-deletion
-- DSAR export: ZIP + JSON manifest covering all personal data categories (documents, inbound_emails, email_log, client profile, audit_log); initiatable from client detail page; uses `fflate.zipSync()`; signed URL with 3600-second expiry for the ZIP download
+- `lib/documents/storage.ts` refactored to provider-agnostic interface with Supabase implementation kept intact (no regression to existing functionality)
+- `organisations` table migration: `storage_backend` enum, `storage_backend_status`, encrypted token columns per provider (`_enc` suffix)
+- `client_documents` table migration: `storage_backend` column (critical — see Pitfall 7)
+- `lib/crypto/tokens.ts`: AES-256-GCM encrypt/decrypt utility, `ENCRYPTION_KEY` env var documented in ENV_VARIABLES.md
+- All existing Supabase functionality unchanged — Supabase provider passes through as before
 
-**Uses:** `file-type@^21.3.0` (magic byte validation in upload routes), `fflate@^0.8.2` (DSAR export), `storage.upload()` with admin client for portal uploads (not `createSignedUploadUrl` due to service_role bug), `crypto.randomBytes(32)` for token generation
+**Avoids:** Pitfall 2 (unencrypted tokens), Pitfall 7 (storage path incompatibility on backend switch)
 
-**Avoids:** Pitfalls 4 (Postmark webhook idempotency — `UNIQUE(message_id)` check before processing), 6 (referrer suppression + rate limiting on token validation), 7 (magic byte validation — `file-type` used in upload routes), 8 (retention cron checks `retention_hold`, flags rather than deletes, notifies before action), 9 (DSAR covers all data categories)
+**Research flag:** Standard patterns — no phase research needed. Storage abstraction refactor and Postgres migration are established patterns in the existing codebase.
 
-**Research flag:** Skip deeper research for most of Phase 19 — all flows are fully documented with code in ARCHITECTURE.md. The one area with MEDIUM confidence is auto-classification: filename-based heuristics work for unambiguous patterns (P60, SA302, bank_statement) but false positives are possible with generic filenames. Design the classifier to default to `unclassified` when confidence is low; never auto-mark a checklist requirement as "received" on a LOW-confidence classification.
+---
+
+### Phase 25: Google Drive Integration
+
+**Rationale:** Google Drive first because `@googleapis/drive` uses the non-restricted `drive.file` scope (no Google app verification process required), the bundle size is minimal (2.3 MB vs 199 MB for full googleapis), and the API is the best-documented of the three. Building the `withTokenRefresh` wrapper here establishes the pattern reused in all subsequent provider phases. This is the riskiest implementation phase — get the token refresh and `drive.file` folder ownership patterns right here and Phases 26–27 are mechanical extensions.
+
+**Delivers:**
+- `npm install @googleapis/drive@^20.1.0 google-auth-library@^10.6.1`
+- OAuth2 connect flow: `/api/auth/google/callback` route handler with `state` CSRF validation
+- `GoogleDriveProvider` implementation of the storage interface (`upload`, `getDownloadUrl`, `delete`)
+- `withTokenRefresh` utility in `lib/storage/token-refresh.ts` — proactive refresh, retry, fatal error handling
+- Root folder auto-creation at OAuth connect time with folder ID stored in `organisations.google_drive_folder_id`
+- Human-readable folder structure: `{root}/{client_name}/{filing_type}/{tax_year}/filename`
+- `invalid_grant` handling: set re-auth status, null refresh token column, never retry
+- Portal upload and inbound email attachment routes updated for Google Drive backend
+- DSAR export updated: fetch bytes from Drive API when `storage_backend = 'google_drive'`
+- Settings UI: Google Drive connect/disconnect card with connected account display and health indicator
+- Google OAuth app in Production status (not Testing) before any real firm connects
+
+**Avoids:** Pitfall 1 (silent failures), Pitfall 3 (wrong routing), Pitfall 4 (`invalid_grant`), Pitfall 6 (`drive.file` ownership constraint)
+
+**Research flag:** Needs `/gsd:research-phase` specifically for the download proxy pattern. Google Drive has no native signed URL equivalent for files stored under the `drive.file` scope. The server-proxy approach (fetch bytes server-side, stream to browser) introduces Vercel execution time risk for large accounting documents. Resolve the approach — proxy vs short-lived sharing link — before writing any upload or download code.
+
+---
+
+### Phase 26: Microsoft OneDrive Integration
+
+**Rationale:** OneDrive second because it is the dominant platform for UK accounting practices (M365 is the standard). Higher implementation complexity than Google Drive due to MSAL token cache serialization, M365 vs personal account split, and admin consent requirement. Tackles these unknowns after the storage abstraction and token refresh patterns are validated in Phase 25.
+
+**Delivers:**
+- `npm install @azure/msal-node@^5.0.5 @microsoft/microsoft-graph-client@^3.0.7`
+- OAuth2 connect flow targeting `login.microsoftonline.com/common` (M365 + personal Microsoft accounts)
+- Admin consent URL surfaced in Settings — required for M365 tenants with Conditional Access policies
+- `OneDriveProvider` implementation reusing `withTokenRefresh` wrapper
+- MSAL `ICachePlugin` for Postgres-persisted token cache (`ms_token_cache` blob column)
+- `AADSTS53003` Conditional Access error surfaced with specific actionable message in Settings UI
+- Self-enforced app folder convention at `Apps/Prompt/` path (since `Files.ReadWrite.AppFolder` scope is personal-account-only and unavailable for M365 business accounts)
+- All upload/download/DSAR paths updated for OneDrive backend
+- Settings UI: OneDrive connect/disconnect card
+
+**Avoids:** Pitfall 5 (personal vs M365 account split), Pitfall 1 (token expiry — MSAL silent refresh via ICachePlugin)
+
+**Research flag:** Needs `/gsd:research-phase`. Test against an M365 developer tenant (not a personal Microsoft account) from day one. The `Files.ReadWrite.AppFolder` personal-only limitation and Conditional Access failure modes (`AADSTS53003`) are high enough risk to validate empirically before implementation begins. The admin consent flow UX also needs design decisions that depend on real M365 tenant behavior.
+
+---
+
+### Phase 27: Dropbox Integration
+
+**Rationale:** Dropbox third because UK accounting market penetration is lower than Google Workspace and M365. The Dropbox API is the simplest of the three. The `token_access_type=offline` gotcha must be validated in the OAuth callback before storing any token — this is a silent configuration mistake that causes 4-hour upload failures with no error visible until access token expiry.
+
+**Delivers:**
+- `npm install dropbox@^10.34.0`
+- OAuth2 connect flow with explicit `token_access_type=offline` in authorization URL
+- OAuth callback rejects and shows error if no `refresh_token` is present in the token exchange response
+- `DropboxProvider` implementation reusing `withTokenRefresh` wrapper
+- App folder scope (`/Apps/Prompt/`) — provider-enforced boundary (cleaner than OneDrive's self-enforcement)
+- `checkAndRefreshAccessToken()` integration for Postgres-rehydrated `DropboxAuth` instance
+- `get_temporary_link` for downloads (4-hour TTL — closer to the existing signed URL UX than proxy approach)
+- All upload/download/DSAR paths updated for Dropbox backend
+- Settings UI: Dropbox connect/disconnect card
+
+**Avoids:** Pitfall 4 (Dropbox missing offline token type), Pitfall 1 (silent token expiry)
+
+**Research flag:** Standard patterns — Dropbox SDK is well-documented with good TypeScript types and a clean app folder model. No phase research needed.
+
+---
+
+### Phase 28: Settings UI and Token Lifecycle Management
+
+**Rationale:** Consolidates all Settings UI work and adds proactive token lifecycle management. The daily health-check cron and re-auth banner belong in a dedicated phase rather than being scattered across provider phases. Privacy policy update is a compliance checkpoint that must ship with or before this phase — adding three new sub-processors requires explicit policy disclosure under UK GDPR.
+
+**Delivers:**
+- Settings > Storage tab: unified provider status cards (connect/disconnect/re-auth per provider with account details)
+- Persistent re-auth banner in main dashboard layout when `storage_token_status = 'reauth_required'` — same pattern as the existing Postmark failed-email banner
+- Disconnect modal showing document count stored in provider; requires explicit typed confirmation before allowing disconnect
+- Daily health-check cron: lightweight API call per org with active non-Supabase backend; emails org admin on failure; sets re-auth status
+- Token health indicator: shows last successful upload time and token expiry status (green/amber/red)
+- Privacy policy update: add Google LLC, Microsoft Corporation, Dropbox Inc. to sub-processor list with registered countries
+- Per-document provider badge in document list UI (shows which backend each file is stored on — important for orgs that have switched backends)
+
+**Avoids:** Pitfall 8 (orphaned documents on revocation — health cron + disconnect warning), UX pitfall (ambiguous disconnect), security mistake (missing GDPR sub-processor disclosure)
+
+**Research flag:** Standard patterns — UI and cron patterns are established in the existing codebase. No phase research needed.
+
+---
+
+### Phase 29: Portal, Inbound Email, and DSAR Hardening
+
+**Rationale:** Phases 25–27 update upload and download paths per provider, but cross-cutting edge cases require a dedicated hardening pass: large file uploads via portal that exceed the Vercel 4.5 MB body limit, Postmark webhook timeout risk if provider upload is slow, and DSAR export timeout risk for large document sets. This phase also serves as the integration testing gate before the feature is considered production-ready.
+
+**Delivers:**
+- Portal upload refactored from server-proxied to provider-native direct upload or chunked upload session for files that would exceed the Vercel body limit
+- Postmark inbound handler: provider upload either made async (queue bytes, upload in background) or size-guarded to prevent webhook timeout; always returns 200 to Postmark
+- DSAR export: streaming or background processing for document sets above ~50 files (exact threshold TBD in phase research)
+- End-to-end integration testing: upload via portal with each provider configured; inbound email attachment with each provider; DSAR with mixed-backend document sets (same client has docs in both Supabase and a provider after a backend switch)
+- Verification against the "Looks Done But Isn't" checklist from PITFALLS.md
+
+**Avoids:** Performance trap (file bytes through Next.js server for large files), Postmark webhook timeout, DSAR Vercel timeout at scale
+
+**Research flag:** Consider `/gsd:research-phase` if streaming DSAR or background job processing is chosen — Vercel `after()` API and streaming response patterns have specific constraints worth verifying before implementation.
+
+---
 
 ### Phase Ordering Rationale
 
-- Phase 18 is a strict prerequisite for Phase 19: every piece of Phase 19 code (upload handlers, portal page, classification logic, retention cron) depends on tables, storage bucket, and RLS policies created in Phase 18. Do not begin Phase 19 development until Phase 18 schema migrations are deployed and verified against both service role and authenticated user scenarios.
-- Privacy policy deployment is a hard gate within Phase 18: the bucket and tables can be created in a staging environment before the policy is live, but the production bucket must not receive any real client documents until the policy is deployed. This is not a code dependency — it is a legal deployment dependency.
-- Within Phase 19, the passive collection flow (Postmark webhook extension) and the active collection flow (portal + upload API) are independent and can be built in parallel. Both depend on the same Phase 18 foundation; they do not depend on each other.
-- The DSAR export and retention cron are the lowest-risk features in Phase 19 (no user-facing flow, no token validation) and can be built last without blocking any other Phase 19 work.
+- Phase 24 before all others: schema changes and the crypto utility must land before any provider token is ever stored; retrofitting these after documents exist is painful
+- Phase 25 before 26 and 27: establishes `withTokenRefresh` pattern and validates the storage abstraction under a real provider; Google Drive is the lowest-complexity first integration
+- Phases 26 and 27 are theoretically parallelizable but sequential is safer — OneDrive first (higher UK market priority), Dropbox second
+- Phase 28 after all providers are wired: consolidates Settings UI changes rather than iterating the tab three times across provider phases
+- Phase 29 last: cross-cutting concerns that are fully visible only once all providers are wired and integration tested together
 
 ### Research Flags
 
-**Phases needing deeper research during planning:** None identified. All patterns are officially documented. The ARCHITECTURE.md file contains ready-to-implement SQL schemas, TypeScript code patterns, and data flow diagrams for every component.
+**Needs `/gsd:research-phase` before planning:**
+- **Phase 25:** Download proxy pattern for Google Drive — no native signed URL; server-proxy for large files has Vercel execution time implications to resolve before coding begins
+- **Phase 26:** M365 admin consent flow and real-tenant testing; `AADSTS53003` handling; `Files.ReadWrite.AppFolder` personal-only limitation workaround in M365 context
 
-**Areas with MEDIUM confidence that warrant validation during implementation:**
-- Auto-classification accuracy: rule-based heuristics work for clearly-named files but the classifier must default to `unclassified` aggressively; validate against a sample of real client filenames before setting confidence thresholds
-- `storage.foldername(name)` array indexing: confirmed in Supabase docs and community examples, but the ambiguous-column issue (`storage.foldername(tables.name)` rewrite) should be verified empirically with `storage.foldername(objects.name)` explicit form
-- DSAR ZIP memory limit: for clients with >50 documents, `fflate.zipSync()` in-memory may approach Vercel's 256 MB function limit; if this is reached, fall back to streaming ZIP to a temp Storage path
-
-**Standard patterns (skip research-phase for all other aspects):**
-- Storage RLS policies: fully verified against official Supabase storage docs
-- Portal token security: fully specified in ARCHITECTURE.md Token Security Model section
-- Retention calculation: HMRC CH14600 and TMA 1970 s12B verified; formula is `tax_period_end_date + 6 years` (companies) or `january_31_deadline + 5 years` (individuals)
-- Postmark attachment extraction: existing webhook already parses the payload; base64 decode and storage upload is a straightforward extension
+**Standard patterns (skip research-phase):**
+- **Phase 24:** Storage abstraction refactor and Postgres migration — established codebase patterns
+- **Phase 27:** Dropbox SDK — well-documented, typed, app folder pattern is clean
+- **Phase 28:** Settings UI and cron — existing patterns from Postmark failed-email banner and existing cron infrastructure
+- **Phase 29:** Consider research only if streaming DSAR or Vercel `after()` background processing is the chosen approach
 
 ---
 
@@ -223,62 +262,54 @@ Research clearly supports a two-phase build for v4.0. The dependency graph is fi
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Package versions verified against npm registry; Supabase SDK methods verified against official JS reference docs; Vercel 4.5 MB limit verified against multiple confirmed GitHub issues; `createSignedUploadUrl` service_role bug verified against storage-js issue #186 |
-| Features | HIGH (HMRC domain) / MEDIUM (competitor UX) | HMRC document catalog verified against gov.uk; retention law verified against CH14600 and TMA 1970 s12B; filing-to-document mappings verified against multiple accountant checklist sources; competitor portal UX based on public documentation and feature pages — patterns corroborated across multiple sources |
-| Architecture | HIGH | Storage RLS patterns verified against official Supabase storage docs; `storage.foldername()` array indexing confirmed in official helper function docs; token security model (database-token vs HMAC) rationale is well-documented; signed URL expiry guidance is conservative per security best practice |
-| Pitfalls | HIGH | All 10 critical pitfalls grounded in official sources: Supabase storage docs, ICO guidance, HMRC CH14600, OWASP File Upload Cheat Sheet, HackerOne disclosures for referrer leak; `createSignedUploadUrl` bug verified against storage-js GitHub; privacy policy gaps verified against ICO transparency principle guidance and Data (Use and Access) Act 2025 |
+| Stack | HIGH | All package versions verified against npm registry; bundle sizes verified via npm show; Vercel serverless constraints confirmed against official Vercel KB; all provider SDK alternatives evaluated and rejected with documented rationale |
+| Features | HIGH (OAuth/token lifecycle) / MEDIUM (folder conventions, download proxy UX) / LOW (UK accounting storage preferences) | OAuth scope requirements and token lifetimes verified from official provider docs; folder naming conventions from B2B SaaS patterns (multiple sources); UK market storage preferences inferred from general market data, no primary research |
+| Architecture | HIGH (Supabase/existing layer) / MEDIUM-HIGH (provider-specific API patterns) | Supabase foundation is established and production-proven; Google Drive v3 and Dropbox SDK are well-documented; OneDrive MSAL complexity and M365 vs personal account split are the main implementation uncertainty areas |
+| Pitfalls | HIGH | All critical pitfalls sourced from official provider documentation, confirmed ICO guidance, and validated against existing codebase context |
 
-**Overall confidence: HIGH**
+**Overall confidence:** HIGH for foundational decisions (schema, token encryption, `withTokenRefresh` pattern, phase sequencing). MEDIUM for provider-specific implementation details that will surface during Phase 25–26 execution.
 
 ### Gaps to Address
 
-- **5/6-year retention split by client type:** Companies use 6 years from accounting period end (CH14600); individuals use 5 years from 31 January filing deadline (TMA 1970 s12B). The `client_documents` schema needs either a `retention_years` column or the `retain_until` calculation to derive from the `filing_type_id`. Resolve how to store this distinction before Phase 18 migration is written — the `retain_until` column value depends on it.
+- **Google Drive download proxy**: The server-proxy approach for Drive downloads (no native signed URL under `drive.file` scope) introduces Vercel execution time risk for large accounting documents (large PDFs, zip archives). Resolve during Phase 25 planning — options are: server-proxy (simplest, timeout risk), short-lived sharing link via Drive sharing API (requires additional permission changes), or streaming response with `ReadableStream`. Verify the approach and its size limits before writing any Phase 25 download code.
 
-- **Retention period for AML/KYC documents:** MLR 2017 requires 5 years from end of business relationship, not end of filing year. If AML documents are stored in the same `client-documents` bucket, the retention calculation must handle this as a separate rule. Either exclude AML documents from the standard cron or add a `retention_rule` column to `client_documents`. Clarify scope before Phase 18 schema is finalised.
+- **OneDrive M365 admin consent UX**: The admin consent flow is documented in Microsoft Learn but the exact UX — where to surface the admin consent URL, how to detect partial consent states, what error message to show when an individual user tries to connect without admin approval — needs a real M365 developer tenant to validate. Flag for Phase 26 research.
 
-- **DSAR export size limit:** The current design uses `fflate.zipSync()` in-memory. This works for typical clients (<50 documents). For edge cases with many years of documents, this may exceed Vercel's 256 MB function memory limit. A streaming-to-temp-storage fallback should be designed before Phase 19 DSAR implementation, even if not built initially. Note the current ARCHITECTURE.md references `JSZip` in one section but the research recommends `fflate` — these must be reconciled in Phase 18 before any DSAR code is written.
+- **Postmark webhook timeout on provider upload**: The inbound email attachment handler must return 200 to Postmark within its response window. If the provider upload is slow (large file, provider API latency), the handler may time out and Postmark retries, causing duplicate `client_documents` inserts. Resolve in Phase 29 — async queue or early-ack with background upload is the likely answer; requires idempotency guard on `client_documents` insert.
 
-- **Bucket creation mechanism:** Supabase bucket creation cannot be done via SQL migration (unlike table creation). It must be done via the Supabase Dashboard or management REST API. This is a manual step in the Phase 18 deployment process that must be documented clearly. The `SUPABASE_STORAGE_BUCKET_DOCUMENTS` env var should be added to `ENV_VARIABLES.md`.
-
-- **Classification confidence thresholds:** The `classification_confidence` column is typed as `numeric(3,2)` in the schema but PITFALLS.md recommends an enum (`high`/`medium`/`low`/`unclassified`). Decide on the type before Phase 18 migration is written. An enum is simpler to display and query; a numeric value allows future ML score storage. Recommend: store both (`classification_confidence_score numeric(3,2)`, `classification_label text CHECK (IN ('high','medium','low','unclassified'))`).
+- **DSAR export scale threshold**: At what document count does synchronous DSAR assembly cause a Vercel function timeout? Not quantified in research. Flag for Phase 29 — add a document count guard and plan streaming or background job approach above the threshold before coding the DSAR update.
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence — official documentation)
+### Primary (HIGH confidence)
 
-- [Supabase Storage Access Control](https://supabase.com/docs/guides/storage/security/access-control) — storage.objects RLS requirements, private bucket behaviour
-- [Supabase Storage Helper Functions](https://supabase.com/docs/guides/storage/schema/helper-functions) — `storage.foldername()` array indexing
-- [Supabase Storage: createSignedUrl](https://supabase.com/docs/reference/javascript/storage-from-createsignedurl) — expiry parameter, revocation limitations
-- [Supabase Storage: createSignedUploadUrl](https://supabase.com/docs/reference/javascript/storage-from-createsigneduploadurl) — signed upload URL flow
-- [Supabase Storage: Standard Uploads](https://supabase.com/docs/guides/storage/uploads/standard-uploads) — upload method accepts Buffer/Uint8Array/ArrayBuffer
-- [Supabase Scheduling Edge Functions](https://supabase.com/docs/guides/functions/schedule-functions) — pg_cron + pg_net pattern for retention cron
-- [HMRC CH14600 Corporation Tax Record Retention](https://www.gov.uk/hmrc-internal-manuals/compliance-handbook/ch14600) — 6 years from end of accounting period
-- [ICO Right of Access (DSAR)](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/individual-rights/individual-rights/right-of-access/) — SAR scope and 30-day response requirement
-- [ICO Storage Limitation Principle](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/data-protection-principles/a-guide-to-the-data-protection-principles/storage-limitation) — UK GDPR retention obligations
-- [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html) — MIME type spoofing, magic byte validation
-- [P45, P60, P11D — GOV.UK](https://www.gov.uk/paye-forms-p45-p60-p11d) — HMRC document catalog verification
-- [SA302 — GOV.UK](https://www.gov.uk/sa302-tax-calculation) — SA302 format and usage
-- [file-type on npm](https://www.npmjs.com/package/file-type) — v21.3.0 latest, ESM-only, 200+ formats
-- [fflate on npm](https://www.npmjs.com/package/fflate) — v0.8.2, pure JS, 27M weekly downloads
-- [Next.js GitHub #57501](https://github.com/vercel/next.js/issues/57501) — Vercel 4.5 MB hard payload limit confirmed
+- [npm registry — @googleapis/drive, google-auth-library, @azure/msal-node, @microsoft/microsoft-graph-client, dropbox] — package versions and bundle sizes verified
+- [Google Drive API Scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth) — `drive.file` scope is non-restricted; full `drive` scope requires annual third-party security assessment
+- [OneDrive API Authorization via Microsoft Graph — Microsoft Learn](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/getting-started/graph-oauth) — `/common` authority, `offline_access` for refresh tokens
+- [Files.ReadWrite.AppFolder personal-only — Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/1418013) — confirmed AppFolder scope is not available for M365 business accounts
+- [Dropbox OAuth Guide](https://developers.dropbox.com/oauth-guide) — `token_access_type=offline` required for refresh tokens
+- [MSAL Node token caching — Microsoft Learn](https://learn.microsoft.com/en-us/entra/msal/javascript/node/caching) — ICachePlugin pattern for Postgres-persisted token cache
+- [Upload large files — Microsoft Graph SDKs](https://learn.microsoft.com/en-us/graph/sdks/large-file-upload) — OneDriveLargeFileUploadTask for files over 4 MB
+- [Vercel function size limit — Vercel KB](https://vercel.com/kb/guide/troubleshooting-function-250mb-limit) — 250 MB uncompressed limit confirmed; not configurable
+- [ICO Security Outcomes Guidance](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/security/a-guide-to-data-security/security-outcomes/) — encryption requirements for personal data at rest
+- [OneDrive API Permissions Reference — Microsoft Learn](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/permissions_reference) — scope differences between personal and M365 accounts
+- [Google Drive API Usage Limits](https://developers.google.com/workspace/drive/api/guides/limits) — 12,000 requests per 60-second project-wide quota
 
-### Secondary (MEDIUM confidence — community consensus, multiple corroborating sources)
+### Secondary (MEDIUM confidence)
 
-- [Supabase storage-js #186](https://github.com/supabase/storage-js/issues/186) — `createSignedUploadUrl` service_role `owner=null` bug
-- [HackerOne #252544](https://hackerone.com/reports/252544) — token referrer leak via analytics
-- Competitor portal analysis: Karbon, TaxDome, Senta, Dext, Uku, Financial Cents — public documentation and feature pages
-- UK accountant document checklist sources: a-wise.co.uk, AbraTax, GoSimpleTax — corroborating SA100/CT600 document requirements
-- [fflate vs jszip npm trends](https://npmtrends.com/fflate-vs-jszip-vs-node-zip-vs-yauzl-vs-zip) — comparative maintenance and download metrics
-- [UK Document Retention Guide](https://yousign.com/blog/document-retention-policies-uk-compliance) — GDPR/HMRC retention overlap
+- [MSAL Node best practices for serverless — Microsoft Q&A](https://learn.microsoft.com/en-us/answers/questions/780890) — external storage recommendation; consistent with official caching guide
+- [Nango: Google OAuth invalid_grant](https://nango.dev/blog/google-oauth-invalid-grant-token-has-been-expired-or-revoked) — explains common refresh token revocation causes
+- [Dropbox: Using OAuth 2.0 with offline access](https://dropbox.tech/developers/using-oauth-2-0-with-offline-access) — official Dropbox blog; offline access pattern and refresh token lifecycle
+- [Microsoft: Resolve Microsoft Graph authorization errors](https://learn.microsoft.com/en-us/graph/resolve-auth-errors) — AADSTS53003 Conditional Access handling
+- [Top 5 file storage APIs — Apideck](https://www.apideck.com/blog/top-5-file-storage-apis-to-integrate-with) — B2B SaaS integration patterns; folder structure conventions
 
-### Tertiary (LOW confidence — single source or inference)
+### Tertiary (LOW confidence)
 
-- Email body parsing for document context classification — exploratory; no verified implementation sources; deferred to v4.x
-- ML-based document classification approaches — high complexity, low verified sources for UK accounting document types specifically
+- [Enterprise Cloud Storage comparison — Sesame Disk Group](https://sesamedisk.com/enterprise-cloud-storage-google-drive-vs-onedrive-vs-dropbox/) — used only for UK market share inference; not treated as authoritative for any implementation decision
 
 ---
 
-*Research completed: 2026-02-23*
+*Research completed: 2026-02-28*
 *Ready for roadmap: yes*
