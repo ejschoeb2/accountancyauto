@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T17:58:56.084Z"
+last_updated: "2026-02-28T18:03:20.564Z"
 progress:
   total_phases: 29
-  completed_phases: 26
+  completed_phases: 27
   total_plans: 99
-  completed_plans: 95
+  completed_plans: 96
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 28 Plan 03 complete — storage health-check cron (GET /api/cron/storage-health-check), vercel.json updated to 7 crons, privacy policy updated with Google LLC, Microsoft Corporation, and Dropbox Inc. sub-processors.
+**Current focus:** Phase 28 Plan 02 complete — DisconnectConfirmModal with live document count wired into all three provider cards (Google Drive, OneDrive, Dropbox); disconnectOneDrive return type updated to { error?: string } with admin role guard (TOKEN-03). Phase 28 Plan 03 previously complete — storage health-check cron (GET /api/cron/storage-health-check), vercel.json updated to 7 crons, privacy policy updated (TOKEN-04, TOKEN-05).
 
 ## Current Position
 
 Phase: 28 (in progress)
-Plan: 03 complete
-Status: Phase 28 Plan 03 complete — daily storage health-check cron with idempotent admin email alerts and recovery detection; UK GDPR privacy policy updated with three optional storage provider sub-processors (TOKEN-04, TOKEN-05)
-Last activity: 2026-02-28 — Phase 28-03 storage health-check cron and privacy policy implemented
+Plan: 02 complete (executed out-of-order after 03 — both complete)
+Status: Phase 28 Plans 01/02/03 complete — Storage UI wiring, disconnect confirmation modal, storage health-check cron, privacy policy update
+Last activity: 2026-02-28 — Phase 28-02 DisconnectConfirmModal and getDocumentCountByBackend implemented (TOKEN-03)
 
 Resume file: none
-Next step: Execute Phase 28 Plan 04 (if any) or Phase 29 (Hardening & Integration Testing)
+Next step: Execute remaining Phase 28 plans (if any) or Phase 29 (Hardening & Integration Testing)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -287,6 +287,9 @@ Recent decisions affecting v3.0:
 - [Phase 28]: disconnectGoogleDrive return type changed to Promise<{ error?: string }> with admin role guard — consistent with disconnectDropbox pattern
 - [Phase 28]: Re-auth banner uses providerName derived from org.storage_backend (declared before try block with safe fallback)
 - [Phase 28]: D-28-03-01: PostgresMsalCachePlugin takes only orgId:string; D-28-03-02: app_settings upsert uses onConflict 'org_id,user_id,key' with user_id:null per Phase 15 NULLS NOT DISTINCT constraint; D-28-03-03: Idempotency queries use .is('user_id',null); D-28-03-04: reauth_required orgs filtered at query level not loop level
+- [Phase 28]: [D-28-02-01] disconnectOneDrive returns Promise<{ error?: string }> with admin role guard — consistent with disconnectGoogleDrive and disconnectDropbox
+- [Phase 28]: [D-28-02-02] Document count fetched async after modal opens — avoids blocking button click; modal shows Loading then count
+- [Phase 28]: [D-28-02-03] Confirm button disabled while documentCount === null — prevents disconnect before count is known
 
 ### Roadmap Evolution
 
@@ -336,6 +339,7 @@ Recent decisions affecting v3.0:
 | Phase 26 P03 | 7 | 2 tasks | 6 files |
 | Phase 28 P03 | 20 | 2 tasks | 3 files |
 | Phase 28 P01 | 207 | 2 tasks | 6 files |
+| Phase 28 P02 | 5 | 2 tasks | 4 files |
 
 ### Tech Debt
 
@@ -377,9 +381,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 28-03-PLAN.md — storage health-check cron (GET /api/cron/storage-health-check) with idempotent admin email alerts and recovery detection; vercel.json 7 crons; privacy policy updated with Google LLC, Microsoft Corporation, Dropbox Inc. sub-processors (TOKEN-04, TOKEN-05 complete)
+Stopped at: Completed 28-02-PLAN.md — DisconnectConfirmModal with live document count for all three providers; getDocumentCountByBackend server action; disconnectOneDrive updated to return { error?: string } with admin role guard (TOKEN-03 complete)
 Resume file: none
-Next step: Execute Phase 28 Plan 04 (if any) or Phase 29 (Hardening & Integration Testing)
+Next step: Execute remaining Phase 28 plans (if any) or Phase 29 (Hardening & Integration Testing)
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*

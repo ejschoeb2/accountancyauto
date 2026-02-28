@@ -48,7 +48,7 @@
 
 - [x] **TOKEN-01**: Settings page gains Storage tab displaying connect/disconnect cards for each provider (Google Drive, OneDrive, Dropbox) showing connected account email, root folder path, and token health indicator
 - [x] **TOKEN-02**: Persistent re-auth banner displayed in main dashboard layout when `storage_backend_status = 'reauth_required'`; banner links to Settings > Storage; follows same pattern as existing Postmark failed-email banner
-- [ ] **TOKEN-03**: Disconnect confirmation modal shows count of documents currently stored in the provider; requires explicit confirmation before tokens are cleared
+- [x] **TOKEN-03**: Disconnect confirmation modal shows count of documents currently stored in the provider; requires explicit confirmation before tokens are cleared
 - [x] **TOKEN-04**: Daily health-check cron performs lightweight API call per org with active non-Supabase backend; on failure: sets `storage_backend_status = 'error'`, emails org admin; idempotent (does not re-email on consecutive failures)
 - [x] **TOKEN-05**: Privacy policy sub-processor list updated to include Google LLC, Microsoft Corporation, and Dropbox Inc. before any provider goes to production
 
@@ -109,7 +109,7 @@
 | DRPBX-05 | Phase 27 | Complete |
 | TOKEN-01 | Phase 28 | Complete |
 | TOKEN-02 | Phase 28 | Complete |
-| TOKEN-03 | Phase 28 | Pending |
+| TOKEN-03 | Phase 28 | Complete |
 | TOKEN-04 | Phase 28 | Complete |
 | TOKEN-05 | Phase 28 | Complete |
 | HRDN-01 | Phase 29 | Pending |
