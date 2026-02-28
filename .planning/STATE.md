@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T12:45:05.039Z"
+last_updated: "2026-02-28T13:05:00.000Z"
 progress:
   total_phases: 28
   completed_phases: 23
   total_plans: 96
-  completed_plans: 86
+  completed_plans: 87
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 25 in progress — Plans 01, 02, and 03 complete. Plan 04 next.
+**Current focus:** Phase 25 in progress — Plans 01, 02, 03, and 04 complete. Plan 05 next (if any).
 
 ## Current Position
 
 Phase: 25 (in progress)
-Plan: 03 complete
-Status: Phase 25 Plan 03 complete — Google Drive OAuth2 connect + callback routes with CSRF state, encrypted token storage, and Prompt/ folder creation
-Last activity: 2026-02-28 — Phase 25-03 OAuth2 routes implemented
+Plan: 04 complete
+Status: Phase 25 Plan 04 complete — server-proxied Google Drive downloads, portal upload and Postmark inbound routed through resolveProvider(), storage_backend captured at INSERT time
+Last activity: 2026-02-28 — Phase 25-04 file route wiring implemented
 
 Resume file: none
-Next step: Execute Phase 25 Plan 04 (next plan in Google Drive integration)
+Next step: Execute Phase 25 Plan 05 (if any — check ROADMAP.md)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -260,6 +260,10 @@ Recent decisions affecting v3.0:
 - [Phase 25]: [D-25-03-01] Use extracted string variables after getToken() — avoids TypeScript mismatch between Credentials type and returned token shape; setCredentials() called with original tokens object
 - [Phase 25]: [D-25-03-02] All callback error paths redirect to /settings?tab=storage&error=X — OAuth callbacks must never expose raw error state to users
 - [Phase 25]: [D-25-03-03] Guard both access_token AND refresh_token absence after getToken() — plan only specified refresh_token guard but access_token is equally required for Drive API use
+- [Phase 25-04]: [D-25-04-01] Buffer -> Uint8Array for Response BodyInit: TypeScript's Response constructor does not accept Node.js Buffer; new Uint8Array(bytes) is the correct BodyInit-compatible cast
+- [Phase 25-04]: [D-25-04-02] PostgREST !inner join cast through unknown: SDK infers array type for joined relations; direct as { ... } assertion fails; routing through unknown first avoids TypeScript overlap error
+- [Phase 25-04]: [D-25-04-03] maxDuration = 60 on documents/route.ts — Google Drive getBytes() streams a full file; Vercel default 10s timeout too short for large PDFs
+- [Phase 25-04]: [D-25-04-04] orgConfig fetched once before attachment loop in processAttachments — prevents N extra DB round-trips for multi-attachment emails
 
 ### Roadmap Evolution
 
@@ -342,9 +346,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 25-03-PLAN.md — Google Drive OAuth2 connect and callback routes (app/api/auth/google-drive/connect/route.ts, app/api/auth/google-drive/callback/route.ts)
+Stopped at: Completed 25-04-PLAN.md — server-proxied Google Drive downloads, portal upload and Postmark inbound routed through resolveProvider(), storage_backend captured at INSERT time on client_documents
 Resume file: none
-Next step: Execute Phase 25 Plan 04
+Next step: Execute Phase 25 Plan 05 (if any — check ROADMAP.md)
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
