@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import { NavLinks } from "@/components/nav-links";
+import { HelpLink } from "@/components/help-link";
 import { SettingsLink } from "@/components/settings-link";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/auth/org-context";
@@ -27,6 +28,7 @@ export default async function DashboardLayout({
 
   // Check if org is in read-only mode (lapsed subscription) and fetch org name
   let readOnly = false;
+  let needsReauth = false;
   let orgName = '';
   let orgRole = 'member';
   try {
@@ -45,10 +47,11 @@ export default async function DashboardLayout({
 
     const { data: org } = await supabase
       .from('organisations')
-      .select('name')
+      .select('name, storage_backend_status')
       .eq('id', orgId)
       .single();
     orgName = org?.name || '';
+    needsReauth = org?.storage_backend_status === 'reauth_required';
   } catch {
     // If org context fails, don't block the layout — just skip the banner and org name
   }
@@ -75,7 +78,8 @@ export default async function DashboardLayout({
           {/* Navigation Links & Settings */}
           <div className="flex items-center gap-4">
             <NavLinks isSuperAdmin={isSuperAdmin} orgRole={orgRole} />
-            <SettingsLink orgRole={orgRole} />
+            <HelpLink />
+            <SettingsLink />
           </div>
         </div>
       </header>
@@ -89,6 +93,20 @@ export default async function DashboardLayout({
             </p>
             <a href="/billing" className="text-sm font-medium text-amber-900 hover:text-amber-700 underline">
               Update billing
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Google Drive re-auth banner */}
+      {needsReauth && (
+        <div className="bg-red-50 border-b border-red-200 px-8 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <p className="text-sm text-red-800">
+              Your Google Drive connection has expired. Re-connect to continue storing documents in Google Drive.
+            </p>
+            <a href="/settings?tab=storage" className="text-sm font-medium text-red-900 hover:text-red-700 underline">
+              Reconnect Google Drive
             </a>
           </div>
         </div>

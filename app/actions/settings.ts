@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgId } from "@/lib/auth/org-context";
@@ -350,7 +351,7 @@ export async function getInboundCheckerMode(): Promise<InboundCheckerMode> {
     .eq("key", "inbound_checker_mode")
     .maybeSingle();
 
-  return data?.value === "recommend" ? "recommend" : "auto";
+  return data?.value === "auto" ? "auto" : "recommend";
 }
 
 export async function updateInboundCheckerMode(
@@ -444,4 +445,21 @@ export async function updatePostmarkSettings(token: string, senderDomain: string
     .eq('id', orgId);
   if (error) return { error: error.message };
   return {};
+}
+
+// --- Google Drive Storage ---
+
+export async function disconnectGoogleDrive(): Promise<void> {
+  const orgId = await getOrgId();
+  const admin = createAdminClient();
+  const { error } = await admin.from('organisations').update({
+    storage_backend: 'supabase',
+    storage_backend_status: null,
+    google_access_token_enc: null,
+    google_refresh_token_enc: null,
+    google_token_expires_at: null,
+    google_drive_folder_id: null,
+  }).eq('id', orgId);
+  if (error) throw new Error(`Disconnect failed: ${error.message}`);
+  revalidatePath('/settings');
 }

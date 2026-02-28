@@ -12,7 +12,7 @@ import { SignOutCard } from "./components/sign-out-card";
 import { MemberSettingsCard } from "./components/member-settings-card";
 import { SettingsTabs } from "./components/settings-tabs";
 import { getPlanByTier, type PlanTier } from "@/lib/stripe/plans";
-import type { AccountantStats } from "./components/accountant-overview-card";
+import type { AccountantStats } from "./components/team-card";
 
 export default async function SettingsPage() {
   const { orgId, orgRole } = await getOrgContext();
@@ -66,7 +66,7 @@ export default async function SettingsPage() {
     admin
       .from("organisations")
       .select(
-        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id"
+        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, storage_backend, storage_backend_status, google_drive_folder_id"
       )
       .eq("id", orgId)
       .single(),
@@ -119,11 +119,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="space-y-2">
-        <h1>Settings</h1>
-        <p className="text-muted-foreground">Manage your preferences</p>
-      </div>
-
       <SettingsTabs
         sendHour={sendHour}
         emailSettings={emailSettings}
@@ -146,6 +141,9 @@ export default async function SettingsPage() {
         monthlyPrice={planConfig.monthlyPrice}
         orgId={orgId}
         hasSubscription={hasSubscription}
+        storageBackend={orgResult.data?.storage_backend ?? null}
+        googleDriveFolderExists={!!orgResult.data?.google_drive_folder_id}
+        storageBackendStatus={orgResult.data?.storage_backend_status ?? null}
       />
     </div>
   );
