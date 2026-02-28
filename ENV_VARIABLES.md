@@ -485,6 +485,83 @@ GOOGLE_REDIRECT_URI=https://{app-domain}/api/auth/google-drive/callback
 
 ---
 
+## Microsoft OneDrive Integration Variables
+
+These variables are required for the Microsoft OneDrive storage backend introduced in Phase 26. They are only needed at runtime when an accountant connects OneDrive from the Settings page; the application builds and runs (with Supabase or Google Drive storage only) without them.
+
+The OneDrive integration supports both M365 business accounts and personal Microsoft accounts via the `/common` authority endpoint. A single Azure app registration with appropriate permissions covers both account types.
+
+### `MS_CLIENT_ID`
+
+```
+MS_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+**What it is:** Application (client) ID for the Microsoft Entra ID (Azure AD) app registration that represents Prompt in the Microsoft ecosystem.
+
+**Format:** UUID (e.g., `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
+
+**Source:** Azure Portal → App registrations → Overview → Application (client) ID.
+
+**Required for:**
+- `app/api/auth/onedrive/connect/route.ts` — generates the MSAL authorization URL
+- `app/api/auth/onedrive/callback/route.ts` — exchanges the authorization code for tokens
+- `lib/storage/onedrive.ts` — constructs the ConfidentialClientApplication for token refresh
+
+**Environment:** Production + Preview (Vercel)
+
+**Note:** The app registration must have Supported account types set to "Accounts in any organizational directory and personal Microsoft accounts" to support both M365 business and personal accounts via the `/common` authority. Do not use "Single tenant" (blocks personal accounts) or "Personal Microsoft accounts only" (blocks M365 business accounts).
+
+**Security:** Never store in Supabase or source control. Exposure allows creating auth URLs that impersonate Prompt.
+
+---
+
+### `MS_CLIENT_SECRET`
+
+```
+MS_CLIENT_SECRET=<alphanumeric-string-40-plus-characters>
+```
+
+**What it is:** Client secret for the Microsoft Entra ID app registration. Required for all server-side token operations (authorization code exchange, token refresh via MSAL).
+
+**Format:** Alphanumeric string, typically 40 or more characters.
+
+**Source:** Azure Portal → App registrations → Certificates & secrets → Client secrets → Value (shown once at creation; if lost, delete and create a new client secret from the same registration).
+
+**Required for:** Same as `MS_CLIENT_ID` — all OneDrive OAuth2 route files and the OneDrive provider.
+
+**Environment:** Production only (Vercel)
+
+**Note:** Client secrets have a configurable expiry (6 months, 12 months, 24 months, or custom). Set a calendar reminder to rotate before expiry — a lapsed secret causes all OneDrive token refreshes to fail with AADSTS7000222, requiring all accountants to reconnect their OneDrive. Never store in Supabase or source control.
+
+**Security:** Treat as a password — full access to the OAuth2 app if exposed. Rotate immediately on suspected compromise.
+
+---
+
+### `MS_REDIRECT_URI`
+
+```
+MS_REDIRECT_URI=https://{app-domain}/api/auth/onedrive/callback
+# Example: https://app.getprompt.app/api/auth/onedrive/callback
+# Local dev: http://localhost:3000/api/auth/onedrive/callback
+```
+
+**What it is:** The OAuth2 callback URL. Microsoft Entra ID redirects the accountant back to this URL after they approve access. **Must exactly match** a Redirect URI configured in the Azure app registration under Authentication → Web platform.
+
+**Format:** `https://{app-domain}/api/auth/onedrive/callback`
+
+**Required for:**
+- `app/api/auth/onedrive/connect/route.ts` — embedded in the MSAL authorization URL so Microsoft knows where to redirect
+- `app/api/auth/onedrive/callback/route.ts` — passed to the token exchange call (must match exactly)
+
+**Environment:** Production + Preview (different values per environment)
+
+**Note:** For local development, add `http://localhost:3000/api/auth/onedrive/callback` as an additional Redirect URI in the Azure app registration under Authentication → Web → Redirect URIs. The Azure registration allows multiple redirect URIs — add both production and localhost so developers can test the OAuth2 flow locally.
+
+**Setup:** Azure Portal → App registrations → [Your registration] → Authentication → Add a platform → Web → Redirect URIs.
+
+---
+
 ## Dropbox Integration Variables
 
 These variables are required for the Dropbox storage backend introduced in Phase 27. They are only needed at runtime when an accountant connects Dropbox from the Settings page; the application builds and runs (with Supabase storage only) without them.
