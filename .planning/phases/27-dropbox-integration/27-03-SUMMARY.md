@@ -74,7 +74,7 @@ Each task was committed atomically:
 1. **Task 1: Verify portal upload and Postmark inbound** - `71283d4` (feat) — No code changes; State A confirmed (Phase 25 already applied)
 2. **Task 2: Update DSAR export and document download** - `71283d4` (feat) — Combined commit covering both DSAR fix and download route Dropbox case
 
-**Plan metadata:** `[to be added after docs commit]` (docs: complete plan)
+**Plan metadata:** `b13a92c` (docs: complete plan)
 
 ## Files Created/Modified
 - `app/api/clients/[id]/documents/dsar/route.ts` - Fixed DSAR backend branching: supabase as default, all other backends via resolveProvider().getBytes() (forward-compatible)
