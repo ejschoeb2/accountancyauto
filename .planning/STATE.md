@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T12:19:22.926Z"
+last_updated: "2026-02-28T12:29:52.908Z"
 progress:
   total_phases: 28
   completed_phases: 23
-  total_plans: 91
-  completed_plans: 83
+  total_plans: 96
+  completed_plans: 84
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 25 in progress — Plan 01 (Google Drive foundation) complete. Plan 02 next.
+**Current focus:** Phase 25 in progress — Plans 01 and 02 (Google Drive foundation + GoogleDriveProvider) complete. Plan 03 next.
 
 ## Current Position
 
 Phase: 25 (in progress)
-Plan: 01 complete
-Status: Phase 25 Plan 01 complete — @googleapis/drive installed, google_drive_folder_id + google_token_expires_at schema columns, withTokenRefresh utility with proactive refresh and invalid_grant nullification
-Last activity: 2026-02-28 — Phase 25-01 Google Drive foundation created
+Plan: 02 complete
+Status: Phase 25 Plan 02 complete — GoogleDriveProvider class with findOrCreateFolder, upload/getBytes/delete, and resolveProvider factory wired for google_drive backend
+Last activity: 2026-02-28 — Phase 25-02 GoogleDriveProvider implemented
 
 Resume file: none
-Next step: Execute Phase 25 Plan 02 (next plan in Google Drive integration)
+Next step: Execute Phase 25 Plan 03 (next plan in Google Drive integration)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -253,6 +253,10 @@ Recent decisions affecting v3.0:
 - [Phase 25-01]: [D-25-01-01] Use auth.OAuth2 (named export from @googleapis/drive) not google.auth.OAuth2 — google is not a named export from the scoped package
 - [Phase 25-01]: [D-25-01-02] OAuth2Client construction is lazy (inside withTokenRefresh) — mirrors D-11-05-01 Stripe pattern; prevents build failures when Google env vars absent
 - [Phase 25-01]: [D-25-01-03] invalid_grant detection checks err.response.data.error AND err.message string — covers both google-auth-library response format and edge-case string messages
+- [Phase 25-02]: [D-25-02-01] Use { drive as createDrive } named export from @googleapis/drive — google is not a named export from the scoped package
+- [Phase 25-02]: [D-25-02-02] Drive file ID is the storagePath for Google Drive — stored in client_documents.storage_path, used directly for getBytes() and delete()
+- [Phase 25-02]: [D-25-02-03] clientName is optional in UploadParams with fallback to clientId — backwards compatible; SupabaseStorageProvider ignores the field
+- [Phase 25-02]: [D-25-02-04] getDownloadUrl() throws with clear error — drive.file scope cannot produce public URLs; download routes must use getBytes() via server-proxy
 
 ### Roadmap Evolution
 
@@ -292,6 +296,7 @@ Recent decisions affecting v3.0:
 | DSAR export scale threshold: at what document count does synchronous DSAR assembly risk Vercel timeout? Add document count guard above threshold | Phase 29 plan |
 | Phase 24 P02 | 8 | 1 tasks | 2 files |
 | Phase 25-google-drive-integration P01 | 9 | 3 tasks | 5 files |
+| Phase 25-google-drive-integration P02 | 8 | 2 tasks | 2 files |
 
 ### Tech Debt
 

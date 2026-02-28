@@ -18,8 +18,8 @@
 
 - [ ] **GDRV-01**: Accountant can initiate Google Drive connection from Settings > Storage via OAuth2 authorization URL using `drive.file` scope (not full `drive` scope — avoids Google restricted-scope verification process)
 - [ ] **GDRV-02**: OAuth2 callback route validates `state` parameter for CSRF protection, exchanges authorization code for tokens, and stores encrypted refresh and access tokens in `organisations` via `encryptToken()`
-- [ ] **GDRV-03**: Root folder `Prompt/` is auto-created in accountant's Google Drive on first OAuth connect; folder ID stored in `organisations.google_drive_folder_id`; no manual setup required
-- [ ] **GDRV-04**: Files uploaded to human-readable folder structure: `Prompt/{client_name}/{filing_type}/{tax_year}/filename`
+- [x] **GDRV-03**: Root folder `Prompt/` is auto-created in accountant's Google Drive on first OAuth connect; folder ID stored in `organisations.google_drive_folder_id`; no manual setup required
+- [x] **GDRV-04**: Files uploaded to human-readable folder structure: `Prompt/{client_name}/{filing_type}/{tax_year}/filename`
 - [x] **GDRV-05**: `withTokenRefresh(orgId, call)` utility in `lib/storage/token-refresh.ts` proactively refreshes access token before expiry; on `invalid_grant` fatal error: sets `storage_backend_status = 'reauth_required'`, nulls encrypted token columns, never retries
 - [ ] **GDRV-06**: Document downloads served via server-proxied API response when Google Drive backend is active (`drive.file` scope does not produce publicly accessible temporary URLs)
 - [ ] **GDRV-07**: Portal upload route and Postmark inbound email attachment handler route file bytes to Google Drive API when org has `storage_backend = 'google_drive'`
@@ -88,8 +88,8 @@
 | STOR-06 | Phase 24 | Complete |
 | GDRV-01 | Phase 25 | Pending |
 | GDRV-02 | Phase 25 | Pending |
-| GDRV-03 | Phase 25 | Pending |
-| GDRV-04 | Phase 25 | Pending |
+| GDRV-03 | Phase 25 | Complete |
+| GDRV-04 | Phase 25 | Complete |
 | GDRV-05 | Phase 25 | Complete |
 | GDRV-06 | Phase 25 | Pending |
 | GDRV-07 | Phase 25 | Pending |
