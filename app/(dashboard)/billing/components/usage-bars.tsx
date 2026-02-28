@@ -33,8 +33,7 @@ function UsageBarItem({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{label}</span>
+      <div className="flex items-center justify-end">
         <span className="text-sm text-muted-foreground">
           {current} / {limit !== null ? limit : "Unlimited"}
           {percent !== null && (

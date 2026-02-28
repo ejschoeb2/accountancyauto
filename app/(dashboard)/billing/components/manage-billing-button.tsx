@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
 import { ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -48,29 +48,37 @@ export function ManageBillingButton({
 
   if (!hasSubscription) {
     return (
-      <Button asChild>
-        <Link href="/pricing">Choose a plan</Link>
-      </Button>
+      <Link href="/pricing">
+        <ButtonBase variant="green" buttonType="icon-text">
+          <ExternalLink className="size-4" />
+          Choose a plan
+        </ButtonBase>
+      </Link>
     );
   }
 
   return (
     <div className="space-y-2">
-      <Button onClick={handleManageBilling} disabled={loading}>
+      <ButtonBase
+        variant="blue"
+        buttonType="icon-text"
+        onClick={handleManageBilling}
+        disabled={loading}
+      >
         {loading ? (
           <>
-            <Loader2 className="animate-spin" />
+            <Loader2 className="size-4 animate-spin" />
             Opening portal...
           </>
         ) : (
           <>
-            <ExternalLink />
+            <ExternalLink className="size-4" />
             Manage billing
           </>
         )}
-      </Button>
+      </ButtonBase>
       {error && (
-        <p className="text-sm text-destructive">{error}</p>
+        <p className="text-sm font-medium text-status-danger">{error}</p>
       )}
     </div>
   );
