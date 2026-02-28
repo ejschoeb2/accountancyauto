@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getOrgId } from "@/lib/auth/org-context";
+import { getOrgId, getOrgContext } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 
 // --- Email Settings type (shared) ---
@@ -462,4 +462,24 @@ export async function disconnectGoogleDrive(): Promise<void> {
   }).eq('id', orgId);
   if (error) throw new Error(`Disconnect failed: ${error.message}`);
   revalidatePath('/settings');
+}
+
+// --- Dropbox Storage ---
+
+export async function disconnectDropbox(): Promise<{ error?: string }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Admin only' };
+
+  const admin = createAdminClient();
+  const { error } = await admin.from('organisations').update({
+    dropbox_refresh_token_enc: null,
+    dropbox_access_token_enc: null,
+    dropbox_token_expires_at: null,
+    storage_backend: 'supabase',
+    storage_backend_status: null,
+  }).eq('id', orgId);
+
+  if (error) return { error: error.message };
+  revalidatePath('/settings');
+  return {};
 }
