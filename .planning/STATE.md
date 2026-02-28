@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Third-Party Storage Integrations
-status: defining_requirements
+status: roadmap_ready
 last_updated: "2026-02-28T00:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -15,23 +15,23 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-23)
+See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 23 COMPLETE — Unified Pricing Experience shipped. All 82 plans across 23 phases complete.
+**Current focus:** v5.0 Roadmap created — 6 phases (24-29), 36 requirements mapped. Ready to plan Phase 24.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 24 (not started)
 Plan: —
-Status: Defining requirements for v5.0 Third-Party Storage Integrations
-Last activity: 2026-02-28 — Milestone v5.0 started
+Status: Roadmap created, ready for /gsd:plan-phase 24
+Last activity: 2026-02-28 — v5.0 roadmap created (Phases 24-29)
 
 Resume file: none
-Next step: Requirements finalized → /gsd:plan-phase 24
+Next step: /gsd:plan-phase 24
 
-Progress: ░░░░░░░░░░ 0%
+Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
 ## Performance Metrics
 
@@ -61,9 +61,14 @@ Progress: ░░░░░░░░░░ 0%
 - Status: All phases complete (shipped 2026-02-23)
 
 **v4.0 Status:**
-- Phases: 2 (18-19)
-- Requirements: 18 mapped
-- Status: Phase 18 complete (4/4 plans), Phase 19 not yet started
+- Phases: 6 (18-23)
+- Requirements: 18 mapped (+ pricing phases)
+- Status: All phases complete (shipped 2026-02-28)
+
+**v5.0 Status:**
+- Phases: 6 (24-29)
+- Requirements: 36 mapped
+- Status: Roadmap created, no plans started
 
 ## Accumulated Context
 
@@ -124,7 +129,7 @@ Recent decisions affecting v3.0:
 - [D-12-01-02] Wrong org redirect uses JWT org_id fast path; falls back to user_organisations query for pre-hook sessions
 - [D-12-01-03] copyCookies() helper ensures auth token refresh is preserved on all redirect responses
 - [D-12-01-04] /auth/signout and /pricing added to PUBLIC_ROUTES alongside /login and /auth/callback
-- [D-12-01-05] Unauthenticated on no-slug in dev → /login; in prod → phasetwo.uk (marketing)
+- [D-12-01-05] Unauthenticated on no-slug in dev -> /login; in prod -> phasetwo.uk (marketing)
 - [Phase 12-02]: [D-12-02-01] sendRichEmail accepts optional orgPostmarkToken; falls back to env var postmarkClient if not provided (backwards compatible)
 - [Phase 12-02]: [D-12-02-02] Cron skips tokenless orgs with console.warn and pushes skip entry to allResults — no exception thrown
 - [Phase 12-02]: [D-12-02-03] Ad-hoc and reply email server actions fetch org token via admin client, pass as optional param — falls back to env var for unconfigured orgs
@@ -207,78 +212,28 @@ Recent decisions affecting v3.0:
 - Bucket creation is a manual step (Supabase Dashboard or management API) — cannot be done via SQL migration
 - DSAR covers all personal data categories: `client_documents`, `inbound_emails`, `email_log`, `clients` profile, `audit_log`
 - Postmark webhook extension is non-blocking: email stored in `inbound_emails` first; attachment extraction is Step 6; Storage failure does not prevent 200 response
-- [Phase 18]: [D-18-02-01] vitest used instead of jest — project test runner is vitest; test file imports from vitest not jest
-- [Phase 18]: [D-18-02-02] BUCKET_NAME module-level const reads SUPABASE_STORAGE_BUCKET_DOCUMENTS env var with 'prompt-documents' fallback
-- [Phase 18]: [D-18-02-03] createSignedUploadUrl NOT used in storage.ts — documented in comments; only createSignedUrl (downloads) is safe with admin client
-- [Phase 18-document-collection-foundation]: document_types and filing_document_requirements are global reference tables (no org_id) — authenticated SELECT USING(true), service_role-only writes
-- [Phase 18-document-collection-foundation]: document_access_log: INSERT + SELECT only for authenticated (no UPDATE/DELETE RLS policies) — audit trail immutability for HMRC enquiry compliance
-- [Phase 18-document-collection-foundation]: upload_portal_tokens.token_hash TEXT NOT NULL UNIQUE — raw token never stored; SHA-256 hex of crypto.randomBytes(32)
-- [Phase 18]: [D-18-03-01] Amendments 1-6 applied inline — no visible changelog or amendment section; last updated date unchanged (already February 2026)
-- [Phase 18]: [D-18-03-02] Amendment 7 (date) requires no change — both pages already show February 2026
-- [Phase 18]: [D-18-04-01] Storage RLS uses auth_org_id()::text cast — auth_org_id() returns UUID, storage.foldername returns text[], explicit cast required to prevent silent type mismatch bugs
-- [Phase 18]: [D-18-04-02] 5 separate storage.objects policies (not one FOR ALL) — consistent with project pattern D-10-02-03 for per-operation clarity
-- [Phase 18]: [D-18-04-03] service_role ALL policy specifies both USING and WITH CHECK — required for complete DML coverage
-- [Phase 18]: [D-18-04-04] Full Phase 18 integration verification passed — 5 checks: tables, seed data, storage RLS, privacy/terms pages, npm run build
-- [Phase 19-01]: [D-19-01-01] inbound_email_id excluded from client_documents INSERT — column not present in Phase 18 schema; plan noted this as expected conditional omission
-- [Phase 19-01]: [D-19-01-02] BANK_STATEMENT keyword pattern restricted to 'bank statement' phrase — prevents false positives on unrelated documents containing the word 'statement'
-- [Phase 19-01]: [D-19-01-03] KEYWORD_MAP uses actual seed codes (CT600_ACCOUNTS, CT600_TAX_COMPUTATION, PAYROLL_SUMMARY) not plan alias names (COMPANY_ACCOUNTS, CT600, PAYSLIP)
-- [Phase 19-01]: [D-19-01-04] Migration history repair applied (20260210) — idempotent ADD COLUMN IF NOT EXISTS ran cleanly; consistent with D-15-01-04 pattern
-- [Phase 19]: [D-19-03-01] document_access_log INSERT uses created_at (auto-defaulted) + org_id — plan had accessed_at which does not exist in Phase 18 schema
-- [Phase 19]: [D-19-03-02] PostgREST FK join typed as unknown as DocumentActivity[] — double-cast required for Supabase SDK array inference mismatch
-- [Phase 19]: [D-19-03-03] DocumentCard fetches all client documents once per page mount and filters client-side by filing_type_id — simpler than per-card API call
-- [Phase 19]: [D-19-02-01] Portal page validates token inline via createServiceClient — avoids extra network hop, keeps server component pattern
-- [Phase 19]: [D-19-02-02] PostgREST FK join for document_types returns array — normalised in normaliseRequirements() in portal page
-- [Phase 19]: [D-19-02-03] Button variants use IconButtonWithText (violet/green) — standard Button component lacks these variants
-- [Phase 19]: [D-19-02-04] used_at update is fire-and-forget in portal server component — non-critical, does not block page render
-- [Phase 19]: [D-19-02-05] Checklist customisation upsert uses onConflict: 'client_id,filing_type_id,document_type_id' matching unique constraint from Phase 19 schema
-- [Phase 19]: [D-19-04-01] JSZip arraybuffer type for generateAsync — nodebuffer and uint8array fail TypeScript strict mode with BodyInit; arraybuffer passes
-- [Phase 19]: [D-19-04-02] PostgREST FK join returns clients as array; normalised inline in cron route (pick index 0) rather than changing FlaggedDocument interface
-- [Phase 19]: [D-19-04-03] DSAR manifest excludes storage_path — raw Storage paths must never be exposed per DOCS-05; manifest contains document metadata fields only
-- [Phase 19-04]: Retention cron idempotency via WHERE retention_flagged=false — re-run is always a safe no-op; never auto-deletes documents (flag-and-notify pattern)
-- [Phase 19]: condition_description removed from filing_document_requirements select — column does not exist in Phase 18 schema; PostgREST silently returns null for unknown columns, rendering empty checklist
-- [Phase 20-01]: docSummaryMap built via single descending-ordered SELECT on client_documents; first row per filing_type_id is most recent — O(n) app-code aggregation per MEMORY.md FK join workaround pattern
-- [Phase 20-01]: Document query failure in filings route is non-fatal — console.warn + defaults (0/null) rather than 500; document count must not break filing management view
-- [Phase 20-01]: filing_type_id filter on documents route is opt-in and backwards compatible — omitting param returns all documents (existing behaviour)
-- [Phase 20-03]: resolveDocumentsRequired catch-and-continue — document DB query failure sets documentsRequired='' and pushes to result.errors; reminder email not aborted
-- [Phase 20-03]: Portal token INSERT is additive only (no revoke, no UPSERT) — matches CONTEXT.md locked decision; old tokens remain valid until own expires_at
-- [Phase 20-03]: Token expiry = nextStep.delay_days with 30-day fallback — ensures portal link stays valid until next reminder arrives
-- [Phase 20-03]: documents_required and portal_link default to '' for custom (non-filing) reminders — templates render correctly regardless of reminder type
-- [Phase 20-03]: Tax year derived from reminder.deadline_date.getFullYear() — simple TEXT year for upload_portal_tokens.tax_year column
-- [Phase 20-02]: div[role=button] used for DocumentCard expand trigger — nested button elements cause React hydration errors; div with role/tabIndex/onKeyDown is the correct pattern for interactive card headers with child interactive elements
-- [Phase 20-02]: ChecklistModal embeds customisation logic inline (no import of standalone ChecklistCustomisation) — modal scoped to known filingTypeId removes need for filing type dropdown
-- [Phase 20-02]: notifyAutoRecordsReceived() exported from DocumentCard — called by upload handler response path, not wired to mount; keeps component stateless regarding upload events
-- [Phase 21]: [D-21-01-01] DEFAULT 'keyword' on extraction_source — historical rows reflect pre-OCR classifier method, not NULL; Phase 22 display reads this value to explain extraction provenance
-- [Phase 21]: [D-21-01-02] Partial index WHERE file_hash IS NOT NULL — historical uploads have no hash so NULL rows excluded from duplicate detection index
-- [Phase 21]: [D-21-01-03] All 7 OCR/integrity columns nullable — historical rows unaffected, zero migration risk; Phase 22 handles NULL gracefully per locked decision
-- [Phase 21]: [D-21-02-01] Employer regex uses lazy quantifier + lookahead for PAYE/NI/National/Works labels — greedy pattern over-captures into following HMRC fields; lazy {2,60}? + lookahead is correct for normalised single-line text
-- [Phase 21]: [D-21-02-02] Local d.ts in types/ for pdf-parse-debugging-disabled — @types/pdf-parse covers original package name, not the fork; lightweight local declaration resolves TS7016
-- [Phase 21]: [D-21-02-03] KEYWORD_DEFAULTS const with satisfies — ensures all 6 Phase 21 fields populated for non-OCR paths without repetition; reduces error surface when adding future fields
-- [Phase 21]: [D-21-02-04] integrity.ts catches pdf-parse throw and sets pageCount=null — corrupt PDF rejection is classifyDocument's responsibility; integrity checker must not double-reject
-- [Phase 21-03]: [D-21-03-01] runIntegrityChecks not called in inbound handler — inbound is fire-and-forget with no rejection path; portal is the only user-facing path where duplicate/size/page-count enforcement makes sense
-- [Phase 21-03]: [D-21-03-02] page_count is null for inbound attachments — integrity.ts page count is only populated via runIntegrityChecks (portal path); inbound skips integrity checks by design
-- [Phase 21-03]: [D-21-03-03] sha256Hash computed inline in inbound handler via crypto.createHash — avoids importing integrity.ts which would pull in runIntegrityChecks and imply enforcement
-- [Phase 22-01]: [D-22-01-01] Migration history repair applied (20260210, 20260225204150, 20260225204246) — reverted via supabase migration repair then pushed with --include-all; consistent with D-15-01-04 pattern
-- [Phase 22-01]: [D-22-01-02] skipDuplicate guard wraps entire duplicate hash check block — when skipDuplicate=true the DB query is skipped entirely, not just the rejection logic
-- [Phase 22-03]: [D-22-03-01] DocumentRow co-located in document-card.tsx — per-row useState keeps edit state contained without lifting to DocumentCard parent
-- [Phase 22-03]: [D-22-03-02] isHistorical flag uses extraction_source='keyword' (not null) — all pre-Phase-21 rows have DEFAULT 'keyword' per D-21-01-01; correct detection of legacy docs with zero visual regression
-- [Phase 22-03]: [D-22-03-03] saving state shared across all three EditableField instances in DocumentRow — one field editable at a time in practice; simplifies implementation
-- [Phase 22-03]: [D-22-03-04] session-scoped client for update-extraction (not service client) — RLS enforces org ownership; belt-and-braces .eq('client_id') check added as secondary guard
-- [Phase 22]: showConfirmationCard pre-computed in handleUpload and stored on UploadedFile to avoid re-evaluating hasOcrData on every render
-- [Phase 22]: pendingDuplicate is a single state slot (not per-item map) — prevents race conditions per RESEARCH.md Pitfall 2
-- [Phase 22]: [D-22-02-03] Disabled dropzone state communicated via explicit CSS branch (gray + cursor-not-allowed) — useDropzone disabled prop does not change visual
-- [Phase 23]: Practice.clientLimit=null — overage billing handles capacity via metered Stripe component, not hard DB limit
-- [Phase 23]: getEffectivePlanTier() maps legacy firm -> practice for display without requiring DB migration
-- [Phase 23]: PRACTICE_OVERAGE_THRESHOLD=300, PRACTICE_OVERAGE_RATE_PENCE=60 exported as named constants for Plan 02 (slider) and Plan 03 (metered billing)
-- [Phase 23]: [D-23-03-01] Stripe Billing Meter Events API used instead of legacy subscriptionItems.createUsageRecord — stripe@20.x SDK removed old metered usage record API
-- [Phase 23]: [D-23-03-02] PRACTICE_METER_EVENT_NAME env var added to plans.ts — meter event name must match Stripe Billing Meter event_name; defaults to 'practice_overage_clients'
-- [Phase 23]: [D-23-02-01] Practice overage card animates on key change (practice-overage vs practice) — triggers card transition at the 300 client threshold
-- [Phase 23]: [D-23-02-02] onSelectTier callback renders <button>; absence renders <a> — prevents double navigation in wizard
-- [Phase 23]: [D-23-02-03] Sparkles, PLAN_TIERS, PAID_PLAN_TIERS, formatPrice removed from wizard — tier logic now owned by PricingSlider
-- [Phase 23]: [D-23-02-04] Marketing PricingSection keeps section#pricing wrapper for anchor nav — only inline slider logic moved to shared component
-- [Phase 23]: [D-23-04-01] onLimitReached callback pattern: CreateClientDialog closes itself and delegates modal ownership to ClientTable — keeps dialog stateless regarding upgrade flow
-- [Phase 23]: [D-23-04-02] CLIENT_LIMIT_REACHED structured error: POST /api/clients returns { error, code, currentCount, limit } enabling typed client-side branching
-- [Phase 23]: [D-23-04-03] limitInfo returned in CsvImportResult (not thrown) — partial import is a success state with informational metadata, not a failure
-- [Phase 23]: [D-23-04-04] CSV partial import truncates unmatchedRows via splice to remainingCapacity before insert; matched client updates are never capacity-bounded
+
+**v5.0 Decisions (from research — pre-committed before implementation):**
+- Use `@googleapis/drive@^20.1.0` (scoped package, 2.3 MB) NOT `googleapis` (199 MB — Vercel function size limit risk)
+- Use `@azure/msal-node@^5.0.5` NOT `@azure/msal-browser` (browser-only, crashes in Node.js serverless)
+- Use `@azure/msal-node` + `@microsoft/microsoft-graph-client@^3.0.7` NOT `@azure/identity` (machine-to-machine only, not user OAuth2)
+- No shared OAuth helper — each provider has idiosyncratic refresh behaviors; provider-specific SDKs are the correct abstraction layer
+- Token encryption: AES-256-GCM via `lib/crypto/tokens.ts`; `_enc` column suffix signals encryption at all times; `ENCRYPTION_KEY` env var never stored in Supabase
+- Per-document `storage_backend` column on `client_documents` set at insert time, never derived from org's current `storage_backend` — prevents broken routing after backend switches
+- Google Drive: `drive.file` scope only — full `drive` scope triggers restricted-scope verification (weeks of delay); `drive.file` covers all Prompt use cases
+- Google Drive downloads: server-proxied (no native signed URL under `drive.file` scope) — resolve exact approach (proxy vs streaming) before Phase 25 coding
+- OneDrive: `/common` authority supports both M365 business and personal Microsoft accounts from single app registration
+- OneDrive: `Files.ReadWrite.AppFolder` scope is personal-account-only and unavailable for M365 business accounts; self-enforce `Apps/Prompt/` path in application code instead
+- OneDrive MSAL token cache: serialized as JSON blob, encrypted, persisted to `organisations.ms_token_cache_enc` via `ICachePlugin` interface
+- Dropbox: `token_access_type=offline` must be explicit in authorization URL; OAuth callback rejects if no refresh token returned
+- Dropbox: app folder scope (`/Apps/Prompt/`) — provider-enforced boundary, cleaner than OneDrive self-enforcement
+- Dropbox downloads: `filesGetTemporaryLink` (4-hour TTL) — closest to existing signed URL UX
+- Silent upload failure prevention: `withTokenRefresh(orgId, call)` wrapper with proactive refresh + explicit `reauth_required` status on fatal `invalid_grant` / `AADSTS53003` — built in Phase 25 before any upload reaches production
+- Disconnect modal shows document count before clearing tokens — prevents accidental permanent inaccessibility
+- Daily health-check cron: lightweight API call per org with active non-Supabase backend; idempotent re-email guard (does not re-notify on consecutive failures)
+- Privacy policy hard gate: Google LLC, Microsoft Corporation, Dropbox Inc. added to sub-processor list before any provider goes to production (UK GDPR Art. 13/14)
+- Portal upload for large files: provider-native chunked upload session APIs — Vercel 4.5 MB request body limit applies to any proxied upload through Next.js
+- Postmark inbound handler: always returns 200; provider upload is async or size-guarded to prevent webhook timeout; idempotency guard on `client_documents` insert against Postmark retries
 
 ### Roadmap Evolution
 
@@ -286,43 +241,36 @@ Recent decisions affecting v3.0:
 - Phase 17 added: Marketing Landing Page — public-facing marketing site with hero, features, pricing, and footer sections
 - Phase 18 added: Document Collection Foundation — schema, Storage, RLS, privacy policy, seed data, token table
 - Phase 19 added: Collection Mechanisms — passive + active collection, classification, dashboard integration, retention cron, DSAR export
-- Phase 20 added: Document Integration & Document-Aware Reminders — documents inside filing cards, {{documents_required}} + {{portal_link}} template variables, auto-set Records Received
-- Phase 21 added: Document Verification — OCR & Classification Pipeline — pdf-parse + regex extraction of tax year/employer/PAYE ref from P60/P45/SA302; populate structured metadata on client_documents
-- Phase 22 added: Document Verification — Portal Feedback & Dashboard Summary — client-facing wrong-year/integrity warnings at upload; accountant-facing pre-read summary in filing card
-- Phase 23 added: Unified pricing experience with slider calculator and upgrade prompts — replace static pricing cards on /pricing and setup wizard with shared slider calculator; add client-limit upgrade prompt; lead with "Start Free"
+- Phase 20 added: Document Integration & Document-Aware Reminders — documents inside filing cards, template variables, auto-set Records Received
+- Phase 21 added: Document Verification — OCR & Classification Pipeline — pdf-parse + regex extraction; structured metadata on client_documents
+- Phase 22 added: Document Verification — Portal Feedback & Dashboard Summary — client-facing warnings at upload; accountant-facing pre-read summary
+- Phase 23 added: Unified pricing experience with slider calculator and upgrade prompts — shared PricingSlider; Stripe metered billing; upgrade prompt
+- Phase 24 added: Storage Abstraction Layer — provider-agnostic interface, schema migrations, AES-256-GCM token encryption
+- Phase 25 added: Google Drive Integration — OAuth2, GoogleDriveProvider, withTokenRefresh, portal/inbound/DSAR updated
+- Phase 26 added: Microsoft OneDrive Integration — MSAL OAuth2, OneDriveProvider, M365/personal, AADSTS53003 handling
+- Phase 27 added: Dropbox Integration — OAuth2 offline, DropboxProvider, app folder, temporary link downloads
+- Phase 28 added: Settings UI & Token Lifecycle — unified Storage tab, re-auth banner, health-check cron, privacy policy update
+- Phase 29 added: Hardening & Integration Testing — large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification
 
 ### Known Risks
 
-All v1.0, v1.1, v2.0, and v3.0 risks resolved.
+**v5.0 risks from research (must be addressed during Phase 24-25 planning):**
+1. Unencrypted refresh tokens in Postgres — plaintext token exposes permanent cloud storage access on any DB breach. Fix: AES-256-GCM via `lib/crypto/tokens.ts` is a Phase 24 deliverable and a hard gate before any token is ever written to the database.
+2. Silent upload failures on token expiry — access token expires mid-upload; 401 returned by provider but not retried; `client_documents` row written with null storage_path; document listed but permanently inaccessible. Fix: `withTokenRefresh` wrapper built in Phase 25 before any provider upload reaches production.
+3. Per-org backend routing for downloads (wrong approach) — using `org.storage_backend` instead of `doc.storage_backend` breaks for orgs that have ever switched backends. Fix: `storage_backend` column on `client_documents` set at insert time (Phase 24 schema change).
+4. Google `invalid_grant` with no re-auth signal — Google invalidates refresh tokens on password change, revocation, 50-token limit, or Testing app status (7-day forced expiry). Fix: explicitly catch `invalid_grant`, set reauth status, null token, surface banner. Google OAuth app must be in Production status before any real firm connects.
+5. Orphaned documents on external provider access revocation — no provider webhook on revocation; documents listed but inaccessible. Fix: daily health-check cron (Phase 28) + download-time 401 detection; disconnect modal shows document count before clearing tokens.
+6. Vercel 4.5 MB request body limit — applies to any proxied upload through Next.js. Fix: provider-native chunked upload session APIs for large files (Phase 29).
+7. Postmark webhook timeout on slow provider upload — inbound handler must return 200 within response window. Fix: async/background provider upload with idempotency guard on client_documents insert (Phase 29).
 
-**v4.0 risks from research (PITFALLS.md — must be addressed during Phase 18 planning):**
-1. Storage RLS not written — private bucket rejects all SDK calls (non-service-role). Fix: write org-scoped `storage.objects` policies using `storage.foldername(objects.name)` before Phase 19 begins. Test with real authenticated JWT.
-2. Privacy policy not updated before documents stored — UK GDPR transparency violation. Fix: COMP-01 is in Phase 18 and is a hard deployment gate before the production bucket receives any real data.
-3. HMRC retention anchored to `received_at` instead of `tax_period_end_date` — incorrect deletion dates + criminal risk under enquiry. Fix: `tax_period_end_date` and `retention_hold` are non-nullable in Phase 18 schema.
-4. Portal token stored as plaintext or with insufficient entropy. Fix: `crypto.randomBytes(32)`, `sha256(rawToken)` stored, `<meta name="referrer" content="no-referrer">` in portal layout.
-5. `createSignedUploadUrl` service_role bug (`owner=null`). Fix: use `storage.upload()` with admin client for portal uploads.
-6. Vercel 4.5 MB serverless payload limit — hard constraint, not configurable. Fix: signed upload URL pattern is mandatory; portal client uploads direct to Supabase Storage, bypassing Next.js entirely.
-
-### Open Questions (to resolve during Phase 18 planning)
+### Open Questions (to resolve during Phase 25 planning)
 
 | Question | Resolve Before |
 |----------|---------------|
-| 5/6-year retention split: derive `retain_until` from `filing_type_id` in application code, or store `retention_years` on `client_documents`? | Phase 18 plan |
-| AML/KYC documents: same `client-documents` bucket or exclude from standard retention cron via `retention_rule` column? | Phase 18 plan |
-| DSAR ZIP size limit mitigation: stream to temp Storage path when client has >50 documents? Decide before Phase 19-03 DSAR plan. | Phase 19-03 plan |
-| `SUPABASE_STORAGE_BUCKET_DOCUMENTS` env var: add to ENV_VARIABLES.md before Phase 18 implementation | Phase 18 plan |
-| Phase 18 P02 | 12 | 2 tasks | 4 files |
-| Phase 18-document-collection-foundation P01 | 8 | 2 tasks | 2 files |
-| Phase 18 P03 | 10 | 2 tasks | 2 files |
-| Phase 19 P03 | 284 | 2 tasks | 7 files |
-| Phase 19 P02 | 11 | 2 tasks | 12 files |
-| Phase 21-document-verification-ocr-classification-pipeline P01 | 8 | 1 tasks | 1 files |
-| Phase 21-document-verification-ocr-classification-pipeline P03 | 14 | 2 tasks | 5 files |
-| Phase 22-document-verification-portal-feedback-dashboard-summary P01 | 10 | 2 tasks | 3 files |
-| Phase 22 P02 | 9 | 2 tasks | 3 files |
-| Phase 23 P01 | 8 | 2 tasks | 6 files |
-| Phase 23 P03 | 15 | 2 tasks | 6 files |
-| Phase 23-unified-pricing-experience-with-slider-calculator-and-upgrade-prompts P02 | 4 | 2 tasks | 4 files |
+| Google Drive download proxy approach: server-proxy (simplest, timeout risk for large PDFs) vs streaming ReadableStream vs short-lived sharing link — resolve exact approach before writing any Phase 25 download code | Phase 25 plan |
+| OneDrive M365 admin consent UX: exact error display, partial consent states, real M365 tenant validation needed | Phase 26 plan |
+| Postmark webhook timeout mitigation: async queue vs early-ack + background upload — decide before Phase 29 coding | Phase 29 plan |
+| DSAR export scale threshold: at what document count does synchronous DSAR assembly risk Vercel timeout? Add document count guard above threshold | Phase 29 plan |
 
 ### Tech Debt
 
@@ -353,20 +301,20 @@ All v1.0, v1.1, v2.0, and v3.0 risks resolved.
 - EMAL-01 to EMAL-03: Email enhancements (plain text fallback, Litmus, retry)
 - CALV-01/02: Calendar view for scheduled reminders
 - QKSN-01: Ad-hoc email from client detail page
-- Inbound email intelligence (original v3.0 Phases 10-13) — deferred indefinitely
-- BILL-EXT-01: Stripe metered/usage-based overage billing — addressed in Phase 23
+- Inbound email intelligence — deferred indefinitely
 - BILL-EXT-02: Annual billing option — defer to v3.x
-- ADMN-EXT-01: Super-admin impersonation — RLS complexity, defer to v3.x
+- ADMN-EXT-01: Super-admin impersonation — defer to v3.x
 - ADMN-EXT-02: Super-admin manual plan override — defer to v3.x
-- CHAS-01/02: Automated chasing sequences — deferred to v5.0
-- INTEL-01/02: OCR/field extraction and auto-checklist update — deferred to v5.0
+- MIGR-01: Migration helper to move existing Supabase documents to newly connected provider — deferred; split store is suboptimal but not broken
+- GDRV-EXT-01: Google Shared Drive support — requires restricted drive scope and annual third-party security assessment
+- TOKEN-EXT-01: Streaming DSAR export for large document sets (>50 files) — defer until needed at scale
 
 ## Session Continuity
 
-Last session: 2026-02-27 UTC
-Stopped at: Phase 23 COMPLETE — all 4 plans shipped, checkpoint approved
+Last session: 2026-02-28 UTC
+Stopped at: v5.0 roadmap created — Phases 24-29 defined, 36 requirements mapped
 Resume file: none
-Next step: All phases complete. Ready for next milestone or new work.
+Next step: /gsd:plan-phase 24
 
 ---
-*v4.0 roadmap created 2026-02-23 — Phase 18 (Document Collection Foundation) and Phase 19 (Collection Mechanisms) added; 18 requirements mapped with 100% coverage*
+*v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*

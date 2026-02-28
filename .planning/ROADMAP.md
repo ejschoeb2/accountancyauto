@@ -6,7 +6,8 @@
 - **v1.1 Template & Scheduling Redesign** - Phases 4-9 (shipped 2026-02-08)
 - **v2.0 QOL & Platform Hardening** - (shipped 2026-02-14)
 - **v3.0 Multi-Tenancy & SaaS Platform** - Phases 10-17 (shipped 2026-02-23)
-- **v4.0 Document Collection** - Phases 18-19 (in progress)
+- **v4.0 Document Collection** - Phases 18-23 (shipped 2026-02-28)
+- **v5.0 Third-Party Storage Integrations** - Phases 24-29 (in progress)
 
 ## Phases
 
@@ -437,3 +438,103 @@ Phases execute in numeric order: 18 -> 19
 | 20. Document Integration & Document-Aware Reminders | v4.0 | 3/3 | Complete | 2026-02-24 |
 | 21. Document Verification -- OCR & Classification Pipeline | 3/3 | Complete    | 2026-02-25 | - |
 | 22. Document Verification — Portal Feedback & Dashboard Summary | v4.0 | 3/3 | Complete | 2026-02-25 |
+| 23. Unified Pricing Experience | v4.0 | 4/4 | Complete | 2026-02-28 |
+| 24. Storage Abstraction Layer | v5.0 | 0/TBD | Not started | - |
+| 25. Google Drive Integration | v5.0 | 0/TBD | Not started | - |
+| 26. Microsoft OneDrive Integration | v5.0 | 0/TBD | Not started | - |
+| 27. Dropbox Integration | v5.0 | 0/TBD | Not started | - |
+| 28. Settings UI & Token Lifecycle | v5.0 | 0/TBD | Not started | - |
+| 29. Hardening & Integration Testing | v5.0 | 0/TBD | Not started | - |
+
+---
+
+## v5.0 Third-Party Storage Integrations
+
+**Milestone Goal:** Replace the locked-in Supabase Storage model with a configurable per-org storage backend — allowing accounting firms to store client documents in their own Google Drive, Microsoft OneDrive, or Dropbox, while Prompt retains only metadata and all existing OCR/classification/integrity checks continue to run unchanged.
+
+**Phases:** 24-29 (6 phases)
+**Requirements:** 36 v5.0 requirements (STOR-01 through HRDN-04)
+**Depth:** Standard
+
+## Phase Summaries
+
+- [ ] **Phase 24: Storage Abstraction Layer** - Provider-agnostic interface, schema migrations, token encryption utility
+- [ ] **Phase 25: Google Drive Integration** - OAuth2 connect/disconnect, GoogleDriveProvider, withTokenRefresh utility, portal/inbound/DSAR updated
+- [ ] **Phase 26: Microsoft OneDrive Integration** - MSAL OAuth2, OneDriveProvider, M365/personal account support, AADSTS53003 handling
+- [ ] **Phase 27: Dropbox Integration** - OAuth2 with offline token, DropboxProvider, app folder boundary, temporary link downloads
+- [ ] **Phase 28: Settings UI & Token Lifecycle** - Unified Storage tab, re-auth banner, disconnect modal, daily health-check cron, privacy policy update
+- [ ] **Phase 29: Hardening & Integration Testing** - Large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification per provider
+
+## Phase Details
+
+### Phase 24: Storage Abstraction Layer
+**Goal**: The storage layer is provider-agnostic: `lib/documents/storage.ts` exports a `StorageProvider` interface; the `SupabaseStorageProvider` implementation is unchanged and all existing functionality is verified unaffected; encrypted token columns and `storage_backend` enum exist on `organisations`; per-document `storage_backend` column exists on `client_documents`; `lib/crypto/tokens.ts` provides AES-256-GCM encrypt/decrypt and no plaintext token is ever written to a DB column outside that module.
+**Depends on**: Phase 23
+**Requirements**: STOR-01, STOR-02, STOR-03, STOR-04, STOR-05, STOR-06
+**Success Criteria** (what must be TRUE):
+  1. `lib/documents/storage.ts` exports a `StorageProvider` interface with `upload()`, `getDownloadUrl()`, `delete()`, and `getBytes()` methods; calling `resolveProvider(orgConfig)` with `storage_backend = 'supabase'` returns the existing Supabase implementation and all existing document upload/download/delete operations continue to work without modification.
+  2. The `organisations` table has a `storage_backend` enum column (default `supabase`), a `storage_backend_status` column, and encrypted token columns with `_enc` suffix for all three providers; the `client_documents` table has a `storage_backend` column recording which backend was active at upload time.
+  3. `encryptToken('plaintext')` returns a string that decrypts back to `'plaintext'` via `decryptToken()`; the encryption uses AES-256-GCM with the `ENCRYPTION_KEY` env var; the module boundary ensures no plaintext token is ever written directly to an `_enc` column.
+  4. `ENV_VARIABLES.md` documents `ENCRYPTION_KEY` with description, format, and the note that it must never be stored in Supabase.
+  5. A full application build (`npm run build`) passes with zero TypeScript errors related to the refactored storage interface.
+**Plans**: TBD
+
+### Phase 25: Google Drive Integration
+**Goal**: Accountants can connect their Google Drive via OAuth2 from Settings; uploaded documents are stored in a human-readable folder structure in their Drive; portal uploads, inbound email attachments, and DSAR exports all route through the Google Drive API when the org has `storage_backend = 'google_drive'`; token refresh is automatic and silent; revocation is detected and surfaces a re-auth banner.
+**Depends on**: Phase 24
+**Requirements**: GDRV-01, GDRV-02, GDRV-03, GDRV-04, GDRV-05, GDRV-06, GDRV-07, GDRV-08, GDRV-09
+**Success Criteria** (what must be TRUE):
+  1. An accountant clicking "Connect Google Drive" in Settings is redirected to Google's OAuth consent screen requesting `drive.file` scope only; completing the flow stores encrypted tokens in `organisations` and creates a `Prompt/` root folder in their Drive with the folder ID stored in `organisations.google_drive_folder_id`; no manual Drive setup is required.
+  2. Uploading a document via the client portal when `storage_backend = 'google_drive'` results in the file appearing in Google Drive at `Prompt/{client_name}/{filing_type}/{tax_year}/filename`; the `client_documents` row has `storage_backend = 'google_drive'` and `storage_path` set to the Drive file ID.
+  3. Downloading a document from the client detail page when `storage_backend = 'google_drive'` serves file bytes via a server-proxied response; the raw Drive file ID is not exposed to the browser; `document_access_log` is written as before.
+  4. Forcing a Google `invalid_grant` error causes the system to set `storage_backend_status = 'reauth_required'`, null out the encrypted token columns, and display a persistent re-auth banner in the dashboard layout; no retry is attempted after the fatal error.
+  5. An accountant clicking "Disconnect Google Drive" in Settings clears the encrypted token columns and resets `storage_backend` to `supabase`; subsequent uploads go to Supabase Storage; previously uploaded Drive documents remain accessible via their stored file IDs.
+**Plans**: TBD
+
+### Phase 26: Microsoft OneDrive Integration
+**Goal**: Accountants can connect OneDrive from Settings using a single OAuth flow that supports both M365 business and personal Microsoft accounts; the MSAL token cache is persisted to Postgres between Vercel invocations; all uploads are constrained to `Apps/Prompt/`; Conditional Access errors are surfaced with an actionable message; portal uploads, inbound email attachments, and DSAR exports all route through OneDrive when configured.
+**Depends on**: Phase 25
+**Requirements**: ONDRV-01, ONDRV-02, ONDRV-03, ONDRV-04, ONDRV-05, ONDRV-06, ONDRV-07
+**Success Criteria** (what must be TRUE):
+  1. An accountant with an M365 business account and one with a personal Microsoft account can both complete the OAuth connect flow using the same Settings UI and end up with `storage_backend = 'onedrive'` active; both can upload documents to `Apps/Prompt/` in their respective OneDrive.
+  2. Uploading via the client portal when `storage_backend = 'onedrive'` stores the file in `Apps/Prompt/{client_name}/{filing_type}/{tax_year}/filename`; the `client_documents` row has `storage_backend = 'onedrive'` and `storage_path` set to the OneDrive item ID; the file is downloadable via the Microsoft Graph `@microsoft.graph.downloadUrl` temporary link.
+  3. The MSAL token cache is serialized, encrypted, and persisted to `organisations.ms_token_cache_enc` after each token operation; rehydrating the cache on a fresh Vercel function invocation restores the authenticated session without re-authorization.
+  4. An M365 account blocked by a Conditional Access policy (`AADSTS53003`) triggers a visible, actionable error message in Settings directing the accountant to obtain IT admin consent; the error is not displayed as a generic failure.
+  5. Disconnecting OneDrive clears `ms_token_cache_enc` and resets `storage_backend` to `supabase`; subsequent uploads go to Supabase Storage.
+**Plans**: TBD
+
+### Phase 27: Dropbox Integration
+**Goal**: Accountants can connect Dropbox from Settings using OAuth2 with offline access; all uploads are scoped to `/Apps/Prompt/` enforced by the provider; downloads use `filesGetTemporaryLink` (4-hour TTL); portal uploads, inbound email attachments, and DSAR exports all route through Dropbox when configured; a missing refresh token in the OAuth response is caught and surfaced as an error before any token is stored.
+**Depends on**: Phase 25
+**Requirements**: DRPBX-01, DRPBX-02, DRPBX-03, DRPBX-04, DRPBX-05
+**Success Criteria** (what must be TRUE):
+  1. The Dropbox authorization URL includes `token_access_type=offline`; if the OAuth callback response does not contain a refresh token, the callback route rejects the exchange and shows an error in Settings rather than storing a short-lived access-only token.
+  2. Uploading a document via the client portal when `storage_backend = 'dropbox'` stores the file within `/Apps/Prompt/`; the `client_documents` row has `storage_backend = 'dropbox'` and `storage_path` set to the Dropbox path; the file is downloadable via a `filesGetTemporaryLink` response (4-hour TTL).
+  3. The `DropboxAuth` instance is rehydrated from encrypted Postgres token columns on each Vercel function invocation; `checkAndRefreshAccessToken()` refreshes the access token when needed and the refreshed token is persisted back via `encryptToken()`.
+  4. Disconnecting Dropbox clears the encrypted token columns and resets `storage_backend` to `supabase`; subsequent uploads go to Supabase Storage.
+**Plans**: TBD
+
+### Phase 28: Settings UI & Token Lifecycle
+**Goal**: The Settings page has a Storage tab showing connect/disconnect cards for all three providers with live connection status; a persistent re-auth banner appears in the dashboard layout when any provider token is revoked; the disconnect modal shows document count and requires explicit confirmation; a daily health-check cron detects silent revocations and emails the org admin; the privacy policy sub-processor list includes all three providers before any goes to production.
+**Depends on**: Phase 27
+**Requirements**: TOKEN-01, TOKEN-02, TOKEN-03, TOKEN-04, TOKEN-05
+**Success Criteria** (what must be TRUE):
+  1. The Settings page has a Storage tab displaying a card for each provider; a connected card shows the connected account email, root folder path, and a token health indicator; a disconnected card shows a "Connect" button; the tab is accessible to admin users only.
+  2. When `storage_backend_status = 'reauth_required'` is set on an org, a persistent banner appears at the top of every dashboard page with a link to Settings > Storage; the banner disappears once the provider is reconnected or switched back to Supabase; the banner follows the same visual pattern as the existing Postmark failed-email banner.
+  3. Clicking "Disconnect" on a connected provider opens a confirmation modal displaying the count of documents currently stored in that provider; the modal requires explicit confirmation before clearing tokens; the Storage tab reflects the disconnected state immediately after confirmation.
+  4. The daily health-check cron performs a lightweight API call for each org with an active non-Supabase backend; on failure it sets `storage_backend_status = 'error'` and sends a notification email to the org admin; running the cron again for the same org in the same error state does not send a duplicate email.
+  5. The privacy policy at `/privacy` lists Google LLC, Microsoft Corporation, and Dropbox Inc. in the sub-processor table with their service description and data location before any provider integration is available to production orgs.
+**Plans**: TBD
+
+### Phase 29: Hardening & Integration Testing
+**Goal**: All cross-cutting edge cases are resolved: portal uploads exceeding the Vercel 4.5 MB body limit use provider-native chunked upload sessions; the Postmark inbound handler never times out regardless of provider upload latency; DSAR export correctly assembles a ZIP spanning multiple storage backends; end-to-end integration is verified for each provider with a mixed-backend document set.
+**Depends on**: Phase 28
+**Requirements**: HRDN-01, HRDN-02, HRDN-03, HRDN-04
+**Success Criteria** (what must be TRUE):
+  1. Uploading a file larger than 4.5 MB via the client portal when any non-Supabase backend is configured completes successfully; the file bytes do not pass through the Next.js request body; the upload uses a provider-native chunked upload session API.
+  2. Sending an email with a large attachment to the Postmark inbound address when a slow provider backend is configured results in the Postmark webhook receiving a 200 response within its timeout window; a `client_documents` row is created exactly once even if Postmark retries the webhook delivery.
+  3. A DSAR export for a client whose documents span both `storage_backend = 'supabase'` and a third-party backend produces a single valid ZIP archive containing all documents from all backends; no document is silently omitted due to backend routing errors.
+  4. End-to-end integration is verified for each of the three providers: portal upload succeeds and file appears in provider storage; document download serves the correct bytes; DSAR export includes the file; per-document `storage_backend` matches the provider used at upload time; verified with a mixed-backend document set.
+**Plans**: TBD
+
+---
