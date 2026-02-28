@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-02-28T14:06:19.207Z"
+last_updated: "2026-02-28T17:58:56.084Z"
 progress:
-  total_phases: 28
+  total_phases: 29
   completed_phases: 26
-  total_plans: 96
-  completed_plans: 93
+  total_plans: 99
+  completed_plans: 95
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 26 Plan 03 complete — MSAL OAuth2 connect/callback routes, disconnectOneDrive action, StorageCard updated with OneDrive section. Phase 26 complete (all 3 plans done).
+**Current focus:** Phase 28 Plan 03 complete — storage health-check cron (GET /api/cron/storage-health-check), vercel.json updated to 7 crons, privacy policy updated with Google LLC, Microsoft Corporation, and Dropbox Inc. sub-processors.
 
 ## Current Position
 
-Phase: 26 (complete)
+Phase: 28 (in progress)
 Plan: 03 complete
-Status: Phase 26 Plan 03 complete — MSAL OAuth2 connect route with CSRF state, callback with acquireTokenByCode + PostgresMsalCachePlugin + homeAccountId persistence + AADSTS53003 handling; disconnectOneDrive action; StorageCard OneDrive section
-Last activity: 2026-02-28 — Phase 26-03 OneDrive OAuth routes and StorageCard implemented
+Status: Phase 28 Plan 03 complete — daily storage health-check cron with idempotent admin email alerts and recovery detection; UK GDPR privacy policy updated with three optional storage provider sub-processors (TOKEN-04, TOKEN-05)
+Last activity: 2026-02-28 — Phase 28-03 storage health-check cron and privacy policy implemented
 
 Resume file: none
-Next step: Execute Phase 27 (Dropbox Integration)
+Next step: Execute Phase 28 Plan 04 (if any) or Phase 29 (Hardening & Integration Testing)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -284,6 +284,9 @@ Recent decisions affecting v3.0:
 - [Phase 26]: [D-26-03-02] PostgresMsalCachePlugin injected in callback only, not connect — connect only generates auth URL, no tokens involved; plugin added for callback so afterCacheAccess fires to persist initial cache
 - [Phase 26]: [D-26-03-03] StorageCard uses Suspense boundary wrapping inner component — required for useSearchParams in Next.js App Router without blocking static rendering
 - [Phase 26]: [D-26-03-04] oneDriveConnected prop derived from ms_home_account_id IS NOT NULL — homeAccountId is reliable presence indicator; ms_token_cache_enc could be null during re-auth flows
+- [Phase 28]: disconnectGoogleDrive return type changed to Promise<{ error?: string }> with admin role guard — consistent with disconnectDropbox pattern
+- [Phase 28]: Re-auth banner uses providerName derived from org.storage_backend (declared before try block with safe fallback)
+- [Phase 28]: D-28-03-01: PostgresMsalCachePlugin takes only orgId:string; D-28-03-02: app_settings upsert uses onConflict 'org_id,user_id,key' with user_id:null per Phase 15 NULLS NOT DISTINCT constraint; D-28-03-03: Idempotency queries use .is('user_id',null); D-28-03-04: reauth_required orgs filtered at query level not loop level
 
 ### Roadmap Evolution
 
@@ -331,6 +334,8 @@ Recent decisions affecting v3.0:
 | Phase 26 P01 | 25 | 3 tasks | 3 files |
 | Phase 26 P02 | 548 | 2 tasks | 6 files |
 | Phase 26 P03 | 7 | 2 tasks | 6 files |
+| Phase 28 P03 | 20 | 2 tasks | 3 files |
+| Phase 28 P01 | 207 | 2 tasks | 6 files |
 
 ### Tech Debt
 
@@ -372,9 +377,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-02-28 UTC
-Stopped at: Completed 26-02-PLAN.md — OneDriveProvider implemented and wired into resolveProvider; all four routes (download, portal upload, Postmark inbound, DSAR) updated with ms_home_account_id and OneDrive support
+Stopped at: Completed 28-03-PLAN.md — storage health-check cron (GET /api/cron/storage-health-check) with idempotent admin email alerts and recovery detection; vercel.json 7 crons; privacy policy updated with Google LLC, Microsoft Corporation, Dropbox Inc. sub-processors (TOKEN-04, TOKEN-05 complete)
 Resume file: none
-Next step: Execute Phase 26 Plan 03 (if any — check ROADMAP.md)
+Next step: Execute Phase 28 Plan 04 (if any) or Phase 29 (Hardening & Integration Testing)
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
