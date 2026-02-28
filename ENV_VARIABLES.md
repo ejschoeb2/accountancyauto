@@ -483,6 +483,81 @@ GOOGLE_REDIRECT_URI=https://{app-domain}/api/auth/google-drive/callback
 
 ---
 
+---
+
+## Dropbox Integration Variables
+
+These variables are required for the Dropbox storage backend introduced in Phase 27. They are only needed at runtime when an accountant connects Dropbox from the Settings page; the application builds and runs (with Supabase storage only) without them.
+
+### `DROPBOX_APP_KEY`
+
+```
+DROPBOX_APP_KEY=<alphanumeric-app-key>
+```
+
+**What it is:** App key for Dropbox OAuth2 integration. Identifies the Prompt application to Dropbox.
+
+**Format:** Alphanumeric string (e.g. `abc123def456`).
+
+**Source:** Dropbox App Console → Settings → App key
+
+**Required for:**
+- `app/api/auth/dropbox/connect/route.ts` — generates the Dropbox authorization URL
+- `app/api/auth/dropbox/callback/route.ts` — token exchange requires clientId
+- `lib/storage/dropbox.ts` — DropboxAuth constructor for token refresh
+
+**Environment:** Production + Preview (Vercel)
+
+**Security:** Never store in Supabase or source control. Exposure allows creating auth URLs that impersonate Prompt.
+
+---
+
+### `DROPBOX_APP_SECRET`
+
+```
+DROPBOX_APP_SECRET=<alphanumeric-app-secret>
+```
+
+**What it is:** App secret paired with `DROPBOX_APP_KEY`. Required for server-side token exchange and refresh operations.
+
+**Format:** Alphanumeric string.
+
+**Source:** Dropbox App Console → Settings → App secret (shown once at creation; rotate if lost)
+
+**Required for:**
+- `app/api/auth/dropbox/callback/route.ts` — token exchange requires clientSecret
+- `lib/storage/dropbox.ts` — DropboxAuth constructor for automatic token refresh
+
+**Environment:** Production only (Vercel)
+
+**Security:** Never store in Supabase or source control. Treat as a password — full OAuth2 app access if exposed.
+
+---
+
+### `DROPBOX_REDIRECT_URI`
+
+```
+DROPBOX_REDIRECT_URI=https://{app-domain}/api/auth/dropbox/callback
+# Example: https://app.getprompt.app/api/auth/dropbox/callback
+# Local dev: http://localhost:3000/api/auth/dropbox/callback
+```
+
+**What it is:** OAuth2 callback URL. Dropbox redirects the accountant back to this URL after they approve access. **Must exactly match** a Redirect URI configured in the Dropbox App Console.
+
+**Format:** `https://{app-domain}/api/auth/dropbox/callback`
+
+**Required for:**
+- `app/api/auth/dropbox/connect/route.ts` — embedded in the authorization URL so Dropbox knows where to redirect
+- `app/api/auth/dropbox/callback/route.ts` — passed to the token exchange call (must match exactly)
+
+**Environment:** Production + Preview (different values per environment)
+
+**Note:** For local development, add `http://localhost:3000/api/auth/dropbox/callback` as an additional Redirect URI in the Dropbox App Console (Settings → OAuth 2 → Redirect URIs). The Dropbox App Console allows multiple redirect URIs.
+
+**Setup:** Dropbox App Console → Settings → OAuth 2 → Redirect URIs
+
+---
+
 ### Future Architecture Path
 
 The current model is **one deployment per tenant** (simple, isolated, no shared infrastructure risk). This approach:

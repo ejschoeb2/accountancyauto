@@ -13,6 +13,7 @@
     "check:migrations": "tsx scripts/apply-missing-migrations.ts"
   },
   "dependencies": {
+    "@azure/msal-node": "^5.0.5",
     "@googleapis/drive": "^20.1.0",
     "@hookform/resolvers": "^5.2.2",
     "@react-email/components": "^1.0.7",
@@ -30,6 +31,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
+    "dropbox": "^10.34.0",
     "framer-motion": "^12.34.3",
     "jszip": "^3.10.1",
     "lucide-react": "^0.563.0",

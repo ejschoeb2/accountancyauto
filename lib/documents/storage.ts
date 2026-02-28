@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { GoogleDriveProvider } from '@/lib/storage/google-drive';
+import { DropboxProvider } from '@/lib/storage/dropbox';
 
 /**
  * Private Supabase Storage bucket for client documents.
@@ -150,11 +151,12 @@ export function resolveProvider(orgConfig: OrgStorageConfig): StorageProvider {
         );
       }
       return new GoogleDriveProvider(orgConfig.id, orgConfig.google_drive_folder_id);
+    case 'dropbox':
+      return new DropboxProvider(orgConfig);
     case 'supabase':
     default:
       return new SupabaseStorageProvider();
     // Phase 26: case 'onedrive': return new OneDriveProvider(orgConfig);
-    // Phase 27: case 'dropbox': return new DropboxProvider(orgConfig);
   }
 }
 
