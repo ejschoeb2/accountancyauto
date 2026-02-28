@@ -1,100 +1,127 @@
-# Requirements: Prompt v4.0 — Document Collection
+# Requirements: Prompt v5.0 Third-Party Storage Integrations
 
-**Defined:** 2026-02-23
+**Defined:** 2026-02-28
 **Core Value:** Accountants spend hours every month manually chasing clients for records and documents. This system automates that entirely while keeping the accountant in full control of messaging and timing.
 
-## v4.0 Requirements
+## v5.0 Requirements
 
-Requirements for the Document Collection milestone. Each maps to roadmap phases 18–19.
+### Storage Foundation (STOR)
 
-### Schema & Storage (DOCS)
+- [ ] **STOR-01**: StorageProvider interface extracted from `lib/documents/storage.ts` with `upload()`, `getDownloadUrl()`, `delete()`, `getBytes()` methods; existing Supabase implementation unchanged and all existing functionality verified unaffected
+- [ ] **STOR-02**: `organisations` table gains `storage_backend` enum column (`supabase | google_drive | onedrive | dropbox`, default `supabase`) and `storage_backend_status` column (`active | error | null`)
+- [ ] **STOR-03**: `organisations` table gains encrypted token columns per provider (`_enc` suffix): `google_refresh_token_enc`, `google_access_token_enc`, `ms_token_cache_enc`, `dropbox_refresh_token_enc`, `dropbox_access_token_enc`
+- [ ] **STOR-04**: `client_documents` table gains `storage_backend` column recording which backend was active at upload time; value is set at insert time, never derived from org's current `storage_backend` setting
+- [ ] **STOR-05**: `lib/crypto/tokens.ts` exports `encryptToken(plaintext)` and `decryptToken(ciphertext)` using AES-256-GCM with `ENCRYPTION_KEY` env var; env var documented in ENV_VARIABLES.md; no plaintext token ever written to any DB column outside this module
+- [ ] **STOR-06**: `resolveProvider(orgConfig)` factory in `lib/documents/storage.ts` returns the correct `StorageProvider` implementation based on `org.storage_backend`; Supabase is the default when no third-party backend is configured
 
-- [x] **DOCS-01**: System has a seeded `document_types` catalog of HMRC document types (P60, P45, P11D, SA302, bank statement, dividend voucher, etc.) with `retention_years`, `retention_anchor` (filing_period_end / relationship_end), expected format metadata, and classification hints
-- [x] **DOCS-02**: System has a `filing_document_requirements` table mapping document types to filing types with mandatory/conditional flags and condition descriptions (e.g. "required if client is a director")
-- [x] **DOCS-03**: `client_documents` table stores document metadata per org: client_id, filing_type, document_type_id, storage_path, original_filename, received_at, `tax_period_end_date`, `classification_confidence` (HIGH/MEDIUM/LOW/UNCLASSIFIED), source (inbound_email / portal_upload / manual), uploader, `retention_hold`, `retention_flagged`
-- [x] **DOCS-04**: `document_access_log` table records every document access and download: user_id, document_id, action (view / download / delete), session context, timestamp; INSERT-only RLS for authenticated users
-- [x] **DOCS-05**: Supabase Storage private bucket exists (`prompt-documents`) with org-scoped path convention (`orgs/{org_id}/clients/{client_id}/{filing_type}/{tax_year}/{uuid}_{ext}`) and explicit `storage.objects` RLS policies scoped to JWT `app_metadata.org_id` using path-prefix check
-- [x] **DOCS-06**: `upload_portal_tokens` table stores SHA-256 hashed tokens (raw token never stored) scoped to org_id + client_id + filing_type with `expires_at`, `used_at`, and revocation support; minimum 256-bit entropy on generation
+### Google Drive Integration (GDRV)
 
-### Compliance & Policy (COMP)
+- [ ] **GDRV-01**: Accountant can initiate Google Drive connection from Settings > Storage via OAuth2 authorization URL using `drive.file` scope (not full `drive` scope — avoids Google restricted-scope verification process)
+- [ ] **GDRV-02**: OAuth2 callback route validates `state` parameter for CSRF protection, exchanges authorization code for tokens, and stores encrypted refresh and access tokens in `organisations` via `encryptToken()`
+- [ ] **GDRV-03**: Root folder `Prompt/` is auto-created in accountant's Google Drive on first OAuth connect; folder ID stored in `organisations.google_drive_folder_id`; no manual setup required
+- [ ] **GDRV-04**: Files uploaded to human-readable folder structure: `Prompt/{client_name}/{filing_type}/{tax_year}/filename`
+- [ ] **GDRV-05**: `withTokenRefresh(orgId, call)` utility in `lib/storage/token-refresh.ts` proactively refreshes access token before expiry; on `invalid_grant` fatal error: sets `storage_backend_status = 'reauth_required'`, nulls encrypted token columns, never retries
+- [ ] **GDRV-06**: Document downloads served via server-proxied API response when Google Drive backend is active (`drive.file` scope does not produce publicly accessible temporary URLs)
+- [ ] **GDRV-07**: Portal upload route and Postmark inbound email attachment handler route file bytes to Google Drive API when org has `storage_backend = 'google_drive'`
+- [ ] **GDRV-08**: DSAR export fetches file bytes from Google Drive API for `client_documents` rows where `storage_backend = 'google_drive'`
+- [ ] **GDRV-09**: Accountant can disconnect Google Drive from Settings; encrypted token columns cleared from `organisations`; `storage_backend` reset to `supabase`
 
-- [x] **COMP-01**: Privacy policy at `/privacy` updated inline with all 7 identified gaps: documents/files as a new data category in Section 3; 6-year statutory carve-out in Section 9 retention (UK GDPR Art. 17(3)(b) + HMRC record-keeping obligations); broadened processing scope in Section 4 to include document storage and client portal; firm's clients added as recognised data subjects interacting with the portal; Supabase sub-processor entry updated to include file storage; Terms Section 6 qualified to permit financial documents (P60, SA302, bank statements, dividend vouchers) as necessary for the service
-- [x] **COMP-02**: Retention enforcement cron (Supabase Edge Function, weekly) sets `retention_flagged = true` on `client_documents` rows where `tax_period_end_date` + `retention_years` < now, honours `retention_hold` flag (skips flagging during active HMRC enquiries), never auto-deletes, and notifies org admin by email when documents are flagged
-- [x] **COMP-03**: DSAR export generates a ZIP archive containing all `client_documents` files for a given client plus a JSON manifest (document metadata, access log entries), downloadable from the client detail page
+### OneDrive Integration (ONDRV)
 
-### Passive Collection (PASS)
+- [ ] **ONDRV-01**: Accountant can connect OneDrive from Settings > Storage via MSAL OAuth2 using `/common` authority, supporting both M365 business and personal Microsoft accounts from a single app registration
+- [ ] **ONDRV-02**: MSAL token cache serialized as JSON blob and persisted to `organisations.ms_token_cache_enc` (encrypted) between Vercel function invocations via `ICachePlugin` interface
+- [ ] **ONDRV-03**: All OneDrive uploads constrained to `Apps/Prompt/` folder path enforced in application code (not at OAuth scope level — `Files.ReadWrite.AppFolder` is unavailable for M365 business accounts)
+- [ ] **ONDRV-04**: `AADSTS53003` Conditional Access error caught in OAuth flow and surfaced in Settings as actionable message directing accountant to obtain IT admin consent
+- [ ] **ONDRV-05**: `OneDriveProvider` implements the `StorageProvider` interface using `withTokenRefresh` wrapper; downloads via Microsoft Graph `@microsoft.graph.downloadUrl` temporary link
+- [ ] **ONDRV-06**: Portal upload route, Postmark inbound email attachment handler, and DSAR export all updated to route through `OneDriveProvider` when `storage_backend = 'onedrive'`
+- [ ] **ONDRV-07**: Accountant can disconnect OneDrive from Settings; `ms_token_cache_enc` cleared from `organisations`; `storage_backend` reset to `supabase`
 
-- [x] **PASS-01**: Postmark inbound webhook extracts attachments from client emails and uploads them to Supabase Storage using the org-scoped path convention, creating a `client_documents` row with source = `inbound_email`; attachment extraction runs after the `inbound_emails` row is stored so webhook always returns 200 regardless of Storage outcome
-- [x] **PASS-02**: Uploaded documents are classified against the `document_types` catalog based on filename and MIME type; `classification_confidence` is recorded; LOW and UNCLASSIFIED items are flagged for accountant review and do not auto-mark checklist items as received
+### Dropbox Integration (DRPBX)
 
-### Active Collection (ACTV)
+- [ ] **DRPBX-01**: Accountant can connect Dropbox from Settings > Storage via OAuth2; authorization URL explicitly includes `token_access_type=offline`; OAuth callback rejects and shows error if no refresh token is present in exchange response
+- [ ] **DRPBX-02**: `DropboxProvider` implements the `StorageProvider` interface; uses `checkAndRefreshAccessToken()` with Postgres-rehydrated `DropboxAuth` instance; downloads via `filesGetTemporaryLink` (4-hour TTL)
+- [ ] **DRPBX-03**: All Dropbox uploads scoped to `/Apps/Prompt/` — provider-enforced app folder boundary
+- [ ] **DRPBX-04**: Portal upload route, Postmark inbound email attachment handler, and DSAR export all updated to route through `DropboxProvider` when `storage_backend = 'dropbox'`
+- [ ] **DRPBX-05**: Accountant can disconnect Dropbox from Settings; encrypted token columns cleared from `organisations`; `storage_backend` reset to `supabase`
 
-- [x] **ACTV-01**: Accountant can generate a token-based portal link for a specific client + filing type from the client detail page; link expires after a configurable period (default 30 days); regenerating a link revokes the previous token
-- [x] **ACTV-02**: Client upload portal at `/portal/[token]` is a Prompt-branded page showing the accountant's firm name as context ("Your accountant, Smith & Co, has requested..."); accessible via token link with no login required; validates token server-side on every request; expired tokens show a clear expiry message with contact instructions
-- [x] **ACTV-03**: Portal shows a checklist of required documents for the specific filing drawn from `filing_document_requirements`; clients can upload files against checklist items (multiple files per item), add a short note, and see a progress indicator (X of Y items provided); files upload directly to Supabase Storage via signed upload URL (browser → Storage, never through Next.js server)
-- [x] **ACTV-04**: Accountant can customise the default checklist per client-filing pair from the client detail page: toggle items on/off, add ad-hoc items; customisations persist across years
+### Settings UI & Token Lifecycle (TOKEN)
 
-### Dashboard Integration (DASH)
+- [ ] **TOKEN-01**: Settings page gains Storage tab displaying connect/disconnect cards for each provider (Google Drive, OneDrive, Dropbox) showing connected account email, root folder path, and token health indicator
+- [ ] **TOKEN-02**: Persistent re-auth banner displayed in main dashboard layout when `storage_backend_status = 'reauth_required'`; banner links to Settings > Storage; follows same pattern as existing Postmark failed-email banner
+- [ ] **TOKEN-03**: Disconnect confirmation modal shows count of documents currently stored in the provider; requires explicit confirmation before tokens are cleared
+- [ ] **TOKEN-04**: Daily health-check cron performs lightweight API call per org with active non-Supabase backend; on failure: sets `storage_backend_status = 'error'`, emails org admin; idempotent (does not re-email on consecutive failures)
+- [ ] **TOKEN-05**: Privacy policy sub-processor list updated to include Google LLC, Microsoft Corporation, and Dropbox Inc. before any provider goes to production
 
-- [x] **DASH-01**: Filing type cards on the client detail page show a document count and most recent submission date; expanding the card reveals the document list with filename, document type, confidence badge, received date, source, and a download button that generates a 300-second signed URL and logs the access in `document_access_log`; raw storage paths are never exposed
-- [x] **DASH-02**: Dashboard activity feed shows recent document submissions across all org clients (portal uploads and inbound email attachments), with click-through navigation to the relevant client page
-- [x] **DASH-03**: Accountant receives an in-app notification when a client uploads documents via the portal, showing client name, number of items uploaded, and items still outstanding
+### Hardening (HRDN)
 
-## v5.0 Requirements (Deferred)
+- [ ] **HRDN-01**: Portal upload route handles files exceeding Vercel 4.5 MB request body limit using provider-native chunked upload session APIs; large files not routed through Next.js request body
+- [ ] **HRDN-02**: Postmark inbound handler provider upload is size-guarded or async to prevent webhook timeout; always returns 200 to Postmark; `client_documents` insert includes idempotency guard against Postmark retries
+- [ ] **HRDN-03**: DSAR export correctly assembles a single ZIP for clients whose documents span multiple storage backends (some rows `storage_backend = 'supabase'`, others third-party)
+- [ ] **HRDN-04**: End-to-end integration verified for each provider: portal upload → download → DSAR export; per-document `storage_backend` routing confirmed correct; verified with mixed-backend document set
 
-### Automated chasing
+## Future Requirements (v5.x)
 
-- **CHAS-01**: Automated email sequences chase clients who have not completed their upload checklist — initial request, follow-ups at configurable intervals, pause on full submission
-- **CHAS-02**: Client responsiveness profiling: accountant rates each client's typical responsiveness to seed the chasing sequence timing
-
-### Document intelligence
-
-- **INTEL-01**: OCR/field extraction for HMRC fixed-format documents (P60, P45, SA302) — extract key fields without third-party AI; all processing on Prompt's infrastructure
-- **INTEL-02**: Auto-update checklist when records arrive by email and are confidently classified
+- **MIGR-01**: Migration helper to move existing Supabase documents to newly connected provider — deferred; split store is suboptimal but not broken
+- **GDRV-EXT-01**: Google Shared Drive support — requires restricted `drive` scope and annual third-party security assessment
+- **TOKEN-EXT-01**: Streaming DSAR export for large document sets (>50 files) — Vercel timeout risk; defer until needed at scale
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| E-signatures | Separate product category — document for v6+ |
-| Client account logins for portal | Token-based (magic link) is industry standard and significantly reduces scope |
-| Virus scanning / ClamAV | Deferred; magic byte validation covers most spoofing; re-evaluate if compliance demand arises |
-| OCR / data extraction | Dext's entire product; deferred to v5.0 INTEL requirements |
-| iXBRL / CT600 filing | Multi-year undertaking; Prompt collects source documents only |
-| Permanent / public document URLs | UK GDPR violation — always signed URLs with expiry |
-| HMRC API integration (MTD/ITSA) | Practice management scope, not filing submission |
+| Silent fallback to Supabase if provider upload fails | Creates split-brain document store with inconsistent DSAR exports; fail explicitly |
+| Auto-delete from provider when Prompt document record deleted | Conflicts with HMRC 6-year retention requirement |
+| Full `drive` scope for Google Drive | Triggers Google restricted-scope verification; `drive.file` covers all use cases |
+| `googleapis` full package | 199 MB — exceeds Vercel 250 MB function size limit |
+| `@azure/msal-browser` for OneDrive | Browser-only; crashes in Node.js serverless |
+| Two-way Drive sync | Anti-feature; provider is storage destination, not ingestion source |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DOCS-01 | Phase 18 | Complete |
-| DOCS-02 | Phase 18 | Complete |
-| DOCS-03 | Phase 18 | Complete |
-| DOCS-04 | Phase 18 | Complete |
-| DOCS-05 | Phase 18 | Complete |
-| DOCS-06 | Phase 18 | Complete |
-| COMP-01 | Phase 18 | Complete |
-| COMP-02 | Phase 19 | Complete |
-| COMP-03 | Phase 19 | Complete |
-| PASS-01 | Phase 19 | Complete |
-| PASS-02 | Phase 19 | Complete |
-| ACTV-01 | Phase 19 | Complete |
-| ACTV-02 | Phase 19 | Complete |
-| ACTV-03 | Phase 19 | Complete |
-| ACTV-04 | Phase 19 | Complete |
-| DASH-01 | Phase 19 | Complete |
-| DASH-02 | Phase 19 | Complete |
-| DASH-03 | Phase 19 | Complete |
+| STOR-01 | Phase 24 | Pending |
+| STOR-02 | Phase 24 | Pending |
+| STOR-03 | Phase 24 | Pending |
+| STOR-04 | Phase 24 | Pending |
+| STOR-05 | Phase 24 | Pending |
+| STOR-06 | Phase 24 | Pending |
+| GDRV-01 | Phase 25 | Pending |
+| GDRV-02 | Phase 25 | Pending |
+| GDRV-03 | Phase 25 | Pending |
+| GDRV-04 | Phase 25 | Pending |
+| GDRV-05 | Phase 25 | Pending |
+| GDRV-06 | Phase 25 | Pending |
+| GDRV-07 | Phase 25 | Pending |
+| GDRV-08 | Phase 25 | Pending |
+| GDRV-09 | Phase 25 | Pending |
+| ONDRV-01 | Phase 26 | Pending |
+| ONDRV-02 | Phase 26 | Pending |
+| ONDRV-03 | Phase 26 | Pending |
+| ONDRV-04 | Phase 26 | Pending |
+| ONDRV-05 | Phase 26 | Pending |
+| ONDRV-06 | Phase 26 | Pending |
+| ONDRV-07 | Phase 26 | Pending |
+| DRPBX-01 | Phase 27 | Pending |
+| DRPBX-02 | Phase 27 | Pending |
+| DRPBX-03 | Phase 27 | Pending |
+| DRPBX-04 | Phase 27 | Pending |
+| DRPBX-05 | Phase 27 | Pending |
+| TOKEN-01 | Phase 28 | Pending |
+| TOKEN-02 | Phase 28 | Pending |
+| TOKEN-03 | Phase 28 | Pending |
+| TOKEN-04 | Phase 28 | Pending |
+| TOKEN-05 | Phase 28 | Pending |
+| HRDN-01 | Phase 29 | Pending |
+| HRDN-02 | Phase 29 | Pending |
+| HRDN-03 | Phase 29 | Pending |
+| HRDN-04 | Phase 29 | Pending |
 
 **Coverage:**
-- v4.0 requirements: 18 total
-- Mapped to phases: 18
+- v5.0 requirements: 36 total
+- Mapped to phases: 36
 - Unmapped: 0 ✓
 
-Phase 18 covers: DOCS-01, DOCS-02, DOCS-03, DOCS-04, DOCS-05, DOCS-06, COMP-01 (7 requirements)
-Phase 19 covers: PASS-01, PASS-02, ACTV-01, ACTV-02, ACTV-03, ACTV-04, DASH-01, DASH-02, DASH-03, COMP-02, COMP-03 (11 requirements)
-
 ---
-*Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 — traceability confirmed after roadmap creation; 100% coverage verified*
+*Requirements defined: 2026-02-28*
+*Last updated: 2026-02-28 after initial definition*
