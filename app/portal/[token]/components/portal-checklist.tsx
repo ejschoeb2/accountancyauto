@@ -27,6 +27,79 @@ interface PortalChecklistProps {
   orgName: string;
 }
 
+// Phase 29: files over this threshold route through provider-native chunked upload
+// to avoid hitting Vercel's 4.5 MB request body limit
+const LARGE_FILE_THRESHOLD = 4 * 1024 * 1024; // 4 MB
+
+// Chunk size: LCM(262144, 327680) = 1,310,720 bytes (1.25 MB)
+// Satisfies both Google Drive (256 KiB multiples) and OneDrive (320 KiB multiples)
+const CHUNK_SIZE = 1310720;
+
+/**
+ * Computes a SHA-256 hex digest of a File using the Web Crypto API.
+ * Re-reads the full file into memory — acceptable at 4+ MB since the goal is to
+ * prevent the SERVER from buffering, not the browser.
+ */
+async function computeSha256(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * Sends a File to a pre-authenticated session URL in fixed-size chunks using
+ * Content-Range PUT requests. Compatible with both Google Drive resumable sessions
+ * and OneDrive large file upload sessions.
+ *
+ * No Authorization header is sent — the session URL is already pre-authenticated
+ * by the respective provider when the session was created.
+ *
+ * @param sessionUrl  Pre-authenticated URL returned by upload-session route
+ * @param file        The File object to upload
+ * @param onProgress  Optional progress callback (percentage 0–100)
+ * @returns           { fileId } — provider-assigned file/item ID from the final response
+ */
+async function uploadInChunks(
+  sessionUrl: string,
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<{ fileId: string }> {
+  let offset = 0;
+  while (offset < file.size) {
+    const end = Math.min(offset + CHUNK_SIZE, file.size) - 1;
+    const chunk = file.slice(offset, end + 1);
+    const chunkBuffer = await chunk.arrayBuffer();
+
+    const res = await fetch(sessionUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Length': String(chunkBuffer.byteLength),
+        'Content-Range': `bytes ${offset}-${end}/${file.size}`,
+        // NOTE: NO Authorization header — session URL is pre-authenticated for Drive/OneDrive
+      },
+      body: chunkBuffer,
+    });
+
+    // 200 or 201 signals the upload is complete; the response body contains the file metadata
+    if (res.status === 200 || res.status === 201) {
+      const data = await res.json();
+      return { fileId: data.id };
+    }
+
+    // 308 Resume Incomplete (Drive) or 202 Accepted (OneDrive) — more chunks expected
+    if (res.status !== 308 && res.status !== 202) {
+      throw new Error(`Chunk upload failed with unexpected status ${res.status}`);
+    }
+
+    offset = end + 1;
+    onProgress?.(Math.round((offset / file.size) * 100));
+  }
+
+  throw new Error('Upload loop exited without receiving a completion response from provider');
+}
+
 export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklistProps) {
   const [uploadedByItemId, setUploadedByItemId] = useState<Record<string, UploadedFile[]>>({});
   const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null);
@@ -34,6 +107,94 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
   const totalProvided = Object.values(uploadedByItemId).filter(files => files.length > 0).length;
 
   const handleUpload = async (itemId: string, file: File, confirmDuplicate = false) => {
+    // ── Phase 29: Large file path — provider-native chunked upload ─────────────
+    // Files over 4 MB cannot be buffered in a Vercel function body (4.5 MB limit).
+    // For Google Drive and OneDrive backends, the browser uploads directly to the
+    // provider using a pre-authenticated session URL, then notifies the server via
+    // upload-finalize to write the client_documents row.
+    if (file.size > LARGE_FILE_THRESHOLD) {
+      // Step 1: Request a provider session from the server
+      const sessionRes = await fetch(`/api/portal/${rawToken}/upload-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          mimeType: file.type,
+          fileSize: file.size,
+          // Server reads clientName, filingTypeId, taxYear from the portal token
+          clientName: '',
+          filingTypeId: '',
+          taxYear: '',
+        }),
+      });
+
+      if (!sessionRes.ok) {
+        const d = await sessionRes.json().catch(() => ({ error: 'Session initiation failed' }));
+        throw new Error(d.error ?? 'Failed to initiate upload session. Please try again.');
+      }
+
+      const session = await sessionRes.json();
+
+      // Supabase: no chunked session needed — fall through to existing route below
+      if (session.provider === 'supabase') {
+        // intentional fall-through to the small-file formData path
+      } else if (session.provider === 'dropbox') {
+        // Dropbox does not offer a pre-authenticated session URL — the SDK call happens
+        // server-side. Large Dropbox files must still route through the existing upload
+        // endpoint (which buffers in the Vercel function). This is a known limitation
+        // documented in Phase 29 research; a streaming proxy endpoint would be required
+        // for a full fix. Fall through to the standard route.
+      } else if (session.sessionUrl) {
+        // Google Drive or OneDrive: upload directly from browser to provider in chunks
+        const { fileId } = await uploadInChunks(session.sessionUrl, file);
+
+        // Step 2: Compute SHA-256 for integrity record (browser-side; server never sees bytes)
+        const sha256Hash = await computeSha256(file);
+
+        // Step 3: Notify server to write client_documents row
+        const finalizeRes = await fetch(`/api/portal/${rawToken}/upload-finalize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            storagePath: fileId,
+            filename: file.name,
+            mimeType: file.type,
+            fileSize: file.size,
+            provider: session.provider,
+            sha256Hash,
+          }),
+        });
+
+        if (!finalizeRes.ok) {
+          const d = await finalizeRes.json().catch(() => ({ error: 'Finalize failed' }));
+          throw new Error(d.error ?? 'Upload finalize failed. Please try again.');
+        }
+
+        const data = await finalizeRes.json();
+
+        // Large files skip the OCR confirmation card — no extraction data is available
+        // (bytes went directly to the provider; server never processed them)
+        setUploadedByItemId(prev => ({
+          ...prev,
+          [itemId]: [
+            ...(prev[itemId] ?? []),
+            {
+              filename: file.name,
+              confidence: data.confidence ?? 'unclassified',
+              documentTypeLabel: data.documentTypeLabel ?? null,
+              extractedTaxYear: null,
+              extractedEmployer: null,
+              extractedPayeRef: null,
+              showConfirmationCard: false,
+            },
+          ],
+        }));
+        return; // done — skip the small-file formData path below
+      }
+      // provider === 'supabase' or 'dropbox': fall through to existing route
+    }
+
+    // ── Existing small-file path (unchanged) ────────────────────────────────────
     const formData = new FormData();
     formData.append('file', file);
     formData.append('checklistItemId', itemId);
