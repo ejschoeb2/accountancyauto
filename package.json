@@ -13,6 +13,7 @@
     "check:migrations": "tsx scripts/apply-missing-migrations.ts"
   },
   "dependencies": {
+    "@googleapis/drive": "^20.1.0",
     "@hookform/resolvers": "^5.2.2",
     "@react-email/components": "^1.0.7",
     "@react-email/render": "^2.0.4",
