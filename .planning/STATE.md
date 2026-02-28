@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: Overview
-status: unknown
-last_updated: "2026-02-27T12:00:00.000Z"
+milestone: v5.0
+milestone_name: Third-Party Storage Integrations
+status: defining_requirements
+last_updated: "2026-02-28T00:00:00.000Z"
 progress:
-  total_phases: 24
-  completed_phases: 23
-  total_plans: 82
-  completed_plans: 82
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -23,15 +23,15 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 23 — Unified Pricing Experience with Slider Calculator and Upgrade Prompts — COMPLETE
-Plan: 04 of 04 — all tasks complete
-Status: Phase 23 COMPLETE — Firm tier removed, PricingSlider shared component, Stripe metered billing for Practice overage, upgrade modal, CSV limit enforcement, dashboard CSV client creation
-Last activity: 2026-02-27 — Phase 23 Plan 04 Task 3 complete: dashboard CSV import now creates new clients with limit-aware red-row highlighting
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v5.0 Third-Party Storage Integrations
+Last activity: 2026-02-28 — Milestone v5.0 started
 
 Resume file: none
-Next step: All current phases complete. Ready for next milestone or new work.
+Next step: Requirements finalized → /gsd:plan-phase 24
 
-Progress: [##########] Phase 22: 3/3 plans complete | [##########] Phase 23: 4/4 plans complete
+Progress: ░░░░░░░░░░ 0%
 
 ## Performance Metrics
 

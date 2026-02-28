@@ -64,23 +64,41 @@ Accountants spend hours every month manually chasing clients for records and doc
 - ✓ Rich HTML email rendering via TipTap pipeline in cron — v1.1
 - ✓ Complete v1.0 legacy code removal — v1.1
 
+### Validated (v4.0)
+
+- ✓ Document types catalog and filing requirements mapping (document_types, filing_document_requirements) — v4.0
+- ✓ client_documents table with metadata, storage_path, OCR fields, retention anchors — v4.0
+- ✓ document_access_log table: full audit trail of document downloads — v4.0
+- ✓ Supabase Storage private bucket with org-scoped path convention, signed URL downloads (300s expiry) — v4.0
+- ✓ Retention enforcement: 6-year HMRC requirement, weekly cron flagging, retention_hold for enquiries — v4.0
+- ✓ DSAR export: ZIP archive with JSON manifest from client detail page — v4.0
+- ✓ Privacy policy + Terms amended (7 gaps: document category, retention carve-out, processing scope, portal subjects, Supabase processor, Terms S6) — v4.0
+- ✓ Passive collection: Postmark inbound attachment extraction → Supabase Storage, classification — v4.0
+- ✓ Active collection: token-based client upload portal (Prompt-branded, no login, checklist-driven) — v4.0
+- ✓ Per-client checklist customisation: toggle items, add ad-hoc items, persist per client-filing pair — v4.0
+- ✓ Documents inline in filing type cards: count, most recent, expand to list, signed URL download — v4.0
+- ✓ Dashboard activity feed: real-time document submissions across org — v4.0
+- ✓ Accountant notifications on portal upload — v4.0
+- ✓ OCR extraction pipeline: P60/P45/SA302/P11D tax year, employer, PAYE ref from pdf-parse — v4.0
+- ✓ File integrity checks: size, page count, duplicate hash detection, corrupt PDF rejection — v4.0
+- ✓ Portal upload confirmation: ExtractionConfirmationCard, duplicate warning flow — v4.0
+- ✓ {{documents_required}} and {{portal_link}} template variables resolved at send time — v4.0
+- ✓ Auto Records Received when all mandatory documents uploaded — v4.0
+
 ### Active
 
-- [ ] Document types catalog and filing requirements mapping (what documents each UK filing type needs)
-- [ ] client_documents table: store document metadata linked to client + filing type + storage path
-- [ ] document_access_log table: full audit trail of who accessed which document when
-- [ ] Supabase Storage private bucket with org-scoped path convention and EU West region
-- [ ] Retention enforcement design: 6-year HMRC requirement, flagging mechanism, deletion workflow
-- [ ] DSAR export data model: ZIP + JSON manifest for all client documents on request
-- [ ] Privacy policy + Terms amendments: 7 gaps identified in ROADMAP.md Phase 2 (document data category, 6-year statutory carve-out, processing scope, client portal data subjects, Supabase storage use, Terms Section 6 qualification)
-- [ ] Passive document collection: Postmark inbound attachment extraction → Supabase Storage, classification against document_types catalog
-- [ ] Active document collection: token-based client upload portal (Prompt-branded with firm context, no login required), checklist of required documents per filing
-- [ ] Per-client checklist customisation: toggle items on/off, add ad-hoc items, persist per client-filing pair
-- [ ] Documents inline in filing type cards on dashboard: count, most recent, expand to list, signed URL download
-- [ ] Dashboard activity feed: real-time submissions across org's clients
-- [ ] Accountant notifications: in-app + email on client portal upload
-- [ ] Retention enforcement cron job (Supabase Edge Function)
-- [ ] DSAR export mechanism: ZIP archive with JSON manifest, accessible from client detail page
+- [ ] Abstract storage interface: lib/documents/storage.ts becomes provider-agnostic (upload/getDownloadUrl/delete) routing by org config
+- [ ] Per-org storage backend configuration: storage_backend enum (supabase | google_drive | onedrive | dropbox) + OAuth token columns on organisations
+- [ ] Google Drive integration: OAuth2 (drive.file scope), Drive API v3, folder structure per client/filing/year, file ID as storage_path
+- [ ] Microsoft OneDrive integration: Microsoft Graph API, MSAL OAuth2 (personal + M365), folder structure, item ID as storage_path
+- [ ] Dropbox integration: Dropbox API v2, OAuth2, path-based storage
+- [ ] Settings UI: connect/disconnect each storage provider via OAuth, show connected status
+- [ ] Token refresh utility: auto-renew short-lived access tokens for all three providers
+- [ ] Portal upload updated: route file bytes via provider API (resumable upload URL pattern) when non-Supabase backend configured
+- [ ] Inbound email attachments: re-upload bytes to provider API when non-Supabase backend configured
+- [ ] DSAR export updated: fetch file bytes from provider API before zipping
+- [ ] Signed download URL equivalent: generate provider-specific temporary access links (Google Drive temporary link, OneDrive sharing link with expiry, Dropbox temporary link)
+- [ ] Supabase Storage remains default: orgs that do not connect a provider continue using Supabase Storage unchanged
 
 ### Validated (v3.0)
 
@@ -158,21 +176,20 @@ Accountants spend hours every month manually chasing clients for records and doc
 | Three urgency levels only | normal/high/urgent — 'low' removed for simplicity | Good |
 | Paste always strips formatting | Plain text only, no Ctrl+Shift+V — predictable paste behavior | Good |
 
-## Current Milestone: v4.0 Document Collection
+## Current Milestone: v5.0 Third-Party Storage Integrations
 
-**Goal:** Build the document collection infrastructure — backend schema, Supabase Storage, compliance framework, and the passive + active collection mechanisms — enabling accountants to receive and track client documents ahead of every UK filing deadline.
+**Goal:** Replace the locked-in Supabase Storage model with a configurable per-org storage backend — allowing accounting firms to store client documents in their own Google Drive, Microsoft OneDrive, or Dropbox, while Prompt retains only metadata and all existing OCR/classification/integrity checks continue to run unchanged.
 
 **Target features:**
-- Filing requirements catalog (`document_types`, `filing_document_requirements`)
-- Document metadata storage (`client_documents`, `document_access_log`)
-- Supabase Storage private bucket (EU West, org-scoped paths, signed URLs only)
-- Retention enforcement design + DSAR export model
-- Privacy policy + Terms amendments (7 identified gaps)
-- Passive collection: Postmark attachment extraction → Storage + auto-classification
-- Active collection: Prompt-branded token-link client upload portal (checklist-driven, no login)
-- Per-client checklist customisation
-- Documents inline in filing type cards; dashboard activity feed; upload notifications
-- Retention enforcement cron job + DSAR ZIP export
+- Provider-agnostic storage interface (upload/getDownloadUrl/delete routing by org config)
+- Google Drive integration (OAuth2, Drive API v3, file ID as storage_path)
+- Microsoft OneDrive integration (Microsoft Graph API, MSAL OAuth2)
+- Dropbox integration (Dropbox API v2, OAuth2)
+- Per-org storage_backend config + OAuth token columns on organisations
+- Settings UI: connect/disconnect each provider, show connected status
+- Token refresh utility for all three providers
+- Portal upload, inbound email, DSAR export all updated for non-Supabase backends
+- Supabase Storage remains default for orgs that do not connect a provider
 
 ---
-*Last updated: 2026-02-23 after v4.0 milestone started (Document Collection — Phases 18-19)*
+*Last updated: 2026-02-28 after v5.0 milestone started (Third-Party Storage Integrations — Phase 24+)*
