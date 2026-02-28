@@ -536,7 +536,11 @@ Plans:
   3. Clicking "Disconnect" on a connected provider opens a confirmation modal displaying the count of documents currently stored in that provider; the modal requires explicit confirmation before clearing tokens; the Storage tab reflects the disconnected state immediately after confirmation.
   4. The daily health-check cron performs a lightweight API call for each org with an active non-Supabase backend; on failure it sets `storage_backend_status = 'error'` and sends a notification email to the org admin; running the cron again for the same org in the same error state does not send a duplicate email.
   5. The privacy policy at `/privacy` lists Google LLC, Microsoft Corporation, and Dropbox Inc. in the sub-processor table with their service description and data location before any provider integration is available to production orgs.
-**Plans**: TBD
+**Plans**: 3 plans (28-01: Storage tab unification + provider-generic re-auth banner, 28-02: Disconnect confirmation modal with document count, 28-03: Storage health-check cron + privacy policy update)
+Plans:
+- [ ] 28-01-PLAN.md — Wire Dropbox card into Storage tab, add error status badges, fix re-auth banner to be provider-generic
+- [ ] 28-02-PLAN.md — Disconnect confirmation modal with document count for all three providers
+- [ ] 28-03-PLAN.md — Daily storage health-check cron + privacy policy sub-processor update
 
 ### Phase 29: Hardening & Integration Testing
 **Goal**: All cross-cutting edge cases are resolved: portal uploads exceeding the Vercel 4.5 MB body limit use provider-native chunked upload sessions; the Postmark inbound handler never times out regardless of provider upload latency; DSAR export correctly assembles a ZIP spanning multiple storage backends; end-to-end integration is verified for each provider with a mixed-backend document set.
