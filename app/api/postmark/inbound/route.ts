@@ -237,17 +237,19 @@ async function processAttachments(
   // If orgConfig is null, fall back to Supabase (safe default)
   let orgStorageBackend: string | null = 'supabase';
   let orgGoogleDriveFolderId: string | null = null;
+  let orgMsHomeAccountId: string | null = null;
 
   if (orgId) {
     const { data: orgConfig } = await supabase
       .from('organisations')
-      .select('id, storage_backend, google_drive_folder_id')
+      .select('id, storage_backend, google_drive_folder_id, ms_home_account_id')
       .eq('id', orgId)
       .single();
 
     if (orgConfig) {
       orgStorageBackend = orgConfig.storage_backend ?? 'supabase';
       orgGoogleDriveFolderId = orgConfig.google_drive_folder_id ?? null;
+      orgMsHomeAccountId = orgConfig.ms_home_account_id ?? null;
     }
   }
 
@@ -290,11 +292,12 @@ async function processAttachments(
         continue;
       }
 
-      // Phase 25: route through resolveProvider for Google Drive support
+      // Phase 25: route through resolveProvider for Google Drive/OneDrive/Dropbox support
       const provider = resolveProvider({
         id: orgId,
         storage_backend: (orgStorageBackend ?? 'supabase') as import('@/lib/documents/storage').StorageBackend,
         google_drive_folder_id: orgGoogleDriveFolderId,
+        ms_home_account_id: orgMsHomeAccountId,
       });
 
       const { storagePath } = await provider.upload({

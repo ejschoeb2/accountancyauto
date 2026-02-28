@@ -20,7 +20,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // separate queries below.
   const { data: portalToken } = await supabase
     .from('upload_portal_tokens')
-    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at, organisations!inner(storage_backend, google_drive_folder_id), clients!inner(company_name, display_name)')
+    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at, organisations!inner(storage_backend, google_drive_folder_id, ms_home_account_id), clients!inner(company_name, display_name)')
     .eq('token_hash', tokenHash)
     .single();
 
@@ -31,18 +31,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Resolve org storage config — may come from the join or a fallback query
   let orgStorageBackend: string | null = null;
   let orgGoogleDriveFolderId: string | null = null;
+  let orgMsHomeAccountId: string | null = null;
   let clientDisplayName: string | null = null;
   let clientCompanyName: string | null = null;
 
   // Check if join data is present (PostgREST may return null if FK join cache stale)
   // PostgREST !inner joins return an array — cast through unknown to handle the inferred array type
-  const orgJoin = (portalToken.organisations as unknown) as { storage_backend: string | null; google_drive_folder_id: string | null } | null;
+  const orgJoin = (portalToken.organisations as unknown) as { storage_backend: string | null; google_drive_folder_id: string | null; ms_home_account_id: string | null } | null;
   const clientJoin = (portalToken.clients as unknown) as { company_name: string | null; display_name: string | null } | null;
 
   if (orgJoin && clientJoin) {
     // FK join succeeded — use joined data
     orgStorageBackend = orgJoin.storage_backend;
     orgGoogleDriveFolderId = orgJoin.google_drive_folder_id;
+    orgMsHomeAccountId = orgJoin.ms_home_account_id;
     clientDisplayName = clientJoin.display_name;
     clientCompanyName = clientJoin.company_name;
   } else {
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const [orgResult, clientResult] = await Promise.all([
       supabase
         .from('organisations')
-        .select('storage_backend, google_drive_folder_id')
+        .select('storage_backend, google_drive_folder_id, ms_home_account_id')
         .eq('id', portalToken.org_id)
         .single(),
       supabase
@@ -61,6 +63,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     ]);
     orgStorageBackend = orgResult.data?.storage_backend ?? null;
     orgGoogleDriveFolderId = orgResult.data?.google_drive_folder_id ?? null;
+    orgMsHomeAccountId = orgResult.data?.ms_home_account_id ?? null;
     clientDisplayName = clientResult.data?.display_name ?? null;
     clientCompanyName = clientResult.data?.company_name ?? null;
   }
@@ -110,11 +113,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const retainUntil = calculateRetainUntil(filingTypeId, taxPeriodEndDate);
 
   try {
-    // Phase 25: route upload through resolveProvider for Google Drive support
+    // Phase 25: route upload through resolveProvider for Google Drive/OneDrive/Dropbox support
     const provider = resolveProvider({
       id: portalToken.org_id,
       storage_backend: (orgStorageBackend ?? 'supabase') as StorageBackend,
       google_drive_folder_id: orgGoogleDriveFolderId,
+      ms_home_account_id: orgMsHomeAccountId,
     });
 
     const { storagePath } = await provider.upload({

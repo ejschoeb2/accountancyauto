@@ -39,10 +39,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .eq('id', clientId)
     .single();
 
-  // Fetch org config once before the document loop — needed for Google Drive documents
+  // Fetch org config once before the document loop — needed for Google Drive/OneDrive/Dropbox documents
   const { data: org } = await supabase
     .from('organisations')
-    .select('id, storage_backend, google_drive_folder_id')
+    .select('id, storage_backend, google_drive_folder_id, ms_home_account_id')
     .eq('id', clientRow?.org_id ?? '')
     .single();
 
@@ -69,6 +69,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           id: org?.id ?? '',
           storage_backend: (doc.storage_backend ?? 'supabase') as StorageBackend,
           google_drive_folder_id: org?.google_drive_folder_id ?? null,
+          ms_home_account_id: org?.ms_home_account_id ?? null,
         });
         const bytes = await provider.getBytes(doc.storage_path);
         buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;

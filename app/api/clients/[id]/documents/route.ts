@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       // Fetch org storage config (needed to construct the provider)
       const { data: orgData } = await serviceSupabase
         .from('organisations')
-        .select('id, storage_backend, google_drive_folder_id')
+        .select('id, storage_backend, google_drive_folder_id, ms_home_account_id')
         .eq('id', doc.org_id)
         .single();
 
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         id: orgData.id,
         storage_backend: orgData.storage_backend,
         google_drive_folder_id: orgData.google_drive_folder_id,
+        ms_home_account_id: orgData.ms_home_account_id,
       });
 
       const bytes = await provider.getBytes(doc.storage_path);
@@ -108,6 +109,38 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           'Content-Disposition': `attachment; filename="${doc.original_filename ?? 'document'}"`,
         },
       });
+    }
+
+    // ── OneDrive: pre-authenticated temporary link response ───────────────
+    // OneDrive natively provides @microsoft.graph.downloadUrl — a short-lived
+    // pre-authenticated link. Return the same { signedUrl } shape for client compatibility.
+    if (doc.storage_backend === 'onedrive') {
+      const { data: orgData } = await serviceSupabase
+        .from('organisations')
+        .select('id, storage_backend, ms_home_account_id')
+        .eq('id', doc.org_id)
+        .single();
+
+      if (!orgData) {
+        return NextResponse.json({ error: 'Org config not found' }, { status: 500 });
+      }
+
+      const provider = resolveProvider({
+        id: orgData.id,
+        storage_backend: 'onedrive',
+        ms_home_account_id: orgData.ms_home_account_id,
+      });
+
+      const { url } = await provider.getDownloadUrl(doc.storage_path);
+
+      await serviceSupabase.from('document_access_log').insert({
+        org_id: doc.org_id,
+        document_id: documentId,
+        user_id: user.id,
+        action: 'download',
+      });
+
+      return NextResponse.json({ signedUrl: url });
     }
 
     // ── Dropbox: temporary link response (4-hour TTL) ─────────────────────

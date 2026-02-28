@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { GoogleDriveProvider } from '@/lib/storage/google-drive';
+import { OneDriveProvider } from '@/lib/storage/onedrive';
 import { DropboxProvider } from '@/lib/storage/dropbox';
 
 /**
@@ -26,6 +27,8 @@ export interface OrgStorageConfig {
   storage_backend: StorageBackend | null;
   /** Phase 25: Drive file ID of the org's Prompt/ root folder in Google Drive. */
   google_drive_folder_id?: string | null;
+  /** Phase 26: MSAL home account ID for the connected Microsoft account. */
+  ms_home_account_id?: string | null;
 }
 
 /**
@@ -151,12 +154,17 @@ export function resolveProvider(orgConfig: OrgStorageConfig): StorageProvider {
         );
       }
       return new GoogleDriveProvider(orgConfig.id, orgConfig.google_drive_folder_id);
+    case 'onedrive':
+      if (!orgConfig.ms_home_account_id) {
+        throw new Error('OneDrive is connected but ms_home_account_id is missing from org config');
+      }
+      return new OneDriveProvider(orgConfig.id, orgConfig.ms_home_account_id);
     case 'dropbox':
       return new DropboxProvider(orgConfig);
     case 'supabase':
     default:
       return new SupabaseStorageProvider();
-    // Phase 26: case 'onedrive': return new OneDriveProvider(orgConfig);
+    // Phase 27: case 'dropbox': return new DropboxProvider(orgConfig);
   }
 }
 
