@@ -412,6 +412,77 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ---
 
+## Google Drive Integration Variables
+
+These variables are required for the Google Drive storage backend introduced in Phase 25. They are only needed at runtime when an accountant connects Google Drive from the Settings page; the application builds and runs (with Supabase storage only) without them.
+
+### `GOOGLE_CLIENT_ID`
+
+```
+GOOGLE_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
+```
+
+**What it is:** OAuth2 client ID for the Google Cloud application that represents Prompt in the Google ecosystem.
+
+**Format:** Alphanumeric string ending in `.apps.googleusercontent.com` (e.g. `123456789-abc123.apps.googleusercontent.com`).
+
+**Source:** Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID
+
+**Required for:**
+- `app/api/auth/google-drive/connect/route.ts` — generates the OAuth2 authorization URL
+- `app/api/auth/google-drive/callback/route.ts` — exchanges the authorization code for tokens
+- `lib/storage/token-refresh.ts` — constructs the OAuth2Client for proactive token refresh
+
+**Environment:** Production + Preview (Vercel)
+
+**Security:** Never store in Supabase or source control. Treat with care — exposure allows creating auth URLs that impersonate Prompt.
+
+---
+
+### `GOOGLE_CLIENT_SECRET`
+
+```
+GOOGLE_CLIENT_SECRET=<24-character-alphanumeric-string>
+```
+
+**What it is:** OAuth2 client secret paired with `GOOGLE_CLIENT_ID`. Required for all server-side token operations (code exchange, token refresh).
+
+**Format:** Alphanumeric string, approximately 24 characters.
+
+**Source:** Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client ID (shown once at creation; if lost, create a new client secret from the same credential)
+
+**Required for:** Same as `GOOGLE_CLIENT_ID` — all three OAuth2 route files and the token refresh utility.
+
+**Environment:** Production only (Vercel)
+
+**Security:** Never store in Supabase or source control. Treat as a password — full access to the OAuth2 app if exposed.
+
+---
+
+### `GOOGLE_REDIRECT_URI`
+
+```
+GOOGLE_REDIRECT_URI=https://{app-domain}/api/auth/google-drive/callback
+# Example: https://app.getprompt.app/api/auth/google-drive/callback
+# Local dev: http://localhost:3000/api/auth/google-drive/callback
+```
+
+**What it is:** The OAuth2 callback URL. Google redirects the accountant back to this URL after they approve access. **Must exactly match** an Authorized Redirect URI configured in the GCP OAuth 2.0 Client.
+
+**Format:** `https://{app-domain}/api/auth/google-drive/callback`
+
+**Required for:**
+- `app/api/auth/google-drive/connect/route.ts` — embedded in the authorization URL so Google knows where to redirect
+- `app/api/auth/google-drive/callback/route.ts` — passed to the token exchange call (must match exactly)
+
+**Environment:** Production + Preview (different values per environment)
+
+**Note:** For local development, add `http://localhost:3000/api/auth/google-drive/callback` as an additional Authorized Redirect URI in the GCP OAuth client. The GCP client allows multiple redirect URIs — add both production and localhost so developers can test the flow locally.
+
+**Setup:** Google Cloud Console → APIs & Services → Credentials → [Your OAuth 2.0 Client ID] → Authorized redirect URIs
+
+---
+
 ### Future Architecture Path
 
 The current model is **one deployment per tenant** (simple, isolated, no shared infrastructure risk). This approach:
