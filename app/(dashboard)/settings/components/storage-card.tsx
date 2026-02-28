@@ -1,17 +1,20 @@
 "use client";
 
-import { useTransition, Suspense } from "react";
+import { useState, useTransition, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { Cloud, CheckCircle, XCircle, Loader2, HardDrive, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
 import { disconnectGoogleDrive, disconnectOneDrive } from "@/app/actions/settings";
+import { DropboxConnectCard } from "./dropbox-connect-card";
 
 interface StorageCardProps {
   storageBackend: string | null;
   googleDriveFolderExists: boolean;
   storageBackendStatus: string | null;
   oneDriveConnected: boolean;
+  dropboxConnected: boolean;
 }
 
 function StorageCardInner({
@@ -19,17 +22,26 @@ function StorageCardInner({
   googleDriveFolderExists,
   storageBackendStatus,
   oneDriveConnected,
+  dropboxConnected,
 }: StorageCardProps) {
+  const router = useRouter();
   const [isGooglePending, startGoogleTransition] = useTransition();
   const [isOneDrivePending, startOneDriveTransition] = useTransition();
+  const [googleDisconnectError, setGoogleDisconnectError] = useState<string | null>(null);
   const searchParams = useSearchParams();
 
   const error = searchParams.get("error");
   const connected = searchParams.get("connected");
 
   function handleGoogleDisconnect() {
+    setGoogleDisconnectError(null);
     startGoogleTransition(async () => {
-      await disconnectGoogleDrive();
+      const result = await disconnectGoogleDrive();
+      if (result.error) {
+        setGoogleDisconnectError(result.error);
+      } else {
+        router.refresh();
+      }
     });
   }
 
@@ -116,6 +128,11 @@ function StorageCardInner({
                       <span className="text-sm font-medium text-red-500">Re-authentication required</span>
                     </div>
                   )}
+                  {storageBackendStatus === "error" && (
+                    <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
+                      <span className="text-sm font-medium text-amber-600">Connection error — checking automatically</span>
+                    </div>
+                  )}
                 </div>
 
                 {googleDriveFolderExists && (
@@ -148,6 +165,11 @@ function StorageCardInner({
                     )}
                     {isGooglePending ? "Disconnecting..." : "Disconnect"}
                   </ButtonBase>
+                  {googleDisconnectError && (
+                    <span className="text-sm font-medium text-status-danger">
+                      {googleDisconnectError}
+                    </span>
+                  )}
                 </div>
               </div>
             ) : (
@@ -195,6 +217,11 @@ function StorageCardInner({
                   {storageBackendStatus === "reauth_required" && (
                     <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10">
                       <span className="text-sm font-medium text-red-500">Re-authentication required</span>
+                    </div>
+                  )}
+                  {storageBackendStatus === "error" && (
+                    <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
+                      <span className="text-sm font-medium text-amber-600">Connection error — checking automatically</span>
                     </div>
                   )}
                 </div>
@@ -250,6 +277,12 @@ function StorageCardInner({
           </div>
         </div>
       </Card>
+
+      {/* Dropbox Card */}
+      <DropboxConnectCard
+        isConnected={dropboxConnected}
+        storageBackendStatus={storageBackendStatus}
+      />
     </div>
   );
 }

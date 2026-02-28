@@ -66,7 +66,7 @@ export default async function SettingsPage() {
     admin
       .from("organisations")
       .select(
-        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, storage_backend, storage_backend_status, google_drive_folder_id, ms_home_account_id"
+        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, storage_backend, storage_backend_status, google_drive_folder_id, ms_home_account_id, dropbox_refresh_token_enc"
       )
       .eq("id", orgId)
       .single(),
@@ -112,6 +112,7 @@ export default async function SettingsPage() {
 
   const totalClients = clientCountsResult.data?.length ?? 0;
   const clientLimit = orgResult.data?.client_count_limit ?? null;
+  const dropboxConnected = !!orgResult.data?.dropbox_refresh_token_enc;
 
   // Billing data derived from the same org query
   const planConfig = getPlanByTier(orgResult.data?.plan_tier as PlanTier);
@@ -145,6 +146,7 @@ export default async function SettingsPage() {
         googleDriveFolderExists={!!orgResult.data?.google_drive_folder_id}
         storageBackendStatus={orgResult.data?.storage_backend_status ?? null}
         oneDriveConnected={!!orgResult.data?.ms_home_account_id}
+        dropboxConnected={dropboxConnected}
       />
     </div>
   );

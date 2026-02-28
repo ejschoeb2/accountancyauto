@@ -449,8 +449,10 @@ export async function updatePostmarkSettings(token: string, senderDomain: string
 
 // --- Google Drive Storage ---
 
-export async function disconnectGoogleDrive(): Promise<void> {
-  const orgId = await getOrgId();
+export async function disconnectGoogleDrive(): Promise<{ error?: string }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Admin only' };
+
   const admin = createAdminClient();
   const { error } = await admin.from('organisations').update({
     storage_backend: 'supabase',
@@ -460,8 +462,9 @@ export async function disconnectGoogleDrive(): Promise<void> {
     google_token_expires_at: null,
     google_drive_folder_id: null,
   }).eq('id', orgId);
-  if (error) throw new Error(`Disconnect failed: ${error.message}`);
+  if (error) return { error: `Disconnect failed: ${error.message}` };
   revalidatePath('/settings');
+  return {};
 }
 
 // --- OneDrive Storage ---

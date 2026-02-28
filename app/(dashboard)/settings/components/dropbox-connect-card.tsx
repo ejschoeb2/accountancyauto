@@ -59,6 +59,11 @@ export function DropboxConnectCard({
                     <span className="text-sm font-medium text-red-500">Re-authentication required</span>
                   </div>
                 )}
+                {storageBackendStatus === "error" && (
+                  <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
+                    <span className="text-sm font-medium text-amber-600">Connection error — checking automatically</span>
+                  </div>
+                )}
               </div>
 
               <p className="text-sm text-muted-foreground">
