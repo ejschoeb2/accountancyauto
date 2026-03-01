@@ -2,6 +2,7 @@
 
 import { HeroParticles } from "@/components/marketing/hero-particles";
 import { motion } from "framer-motion";
+import { ChevronDown } from "lucide-react";
 
 const HEADING_WORDS = ["The", "Chase", "Is", "Over"];
 
@@ -45,6 +46,20 @@ export const HeroSection = () => {
             Automated client reminders for UK accounting practices. Stop manually
             chasing records and documents — Prompt handles it for you.
           </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 100, damping: 12, delay: 0.54 }}
+          >
+            <button
+              onClick={() => window.scrollBy({ top: 600, behavior: "smooth" })}
+              className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-8 py-4 text-lg font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
+            >
+              Find out more
+              <ChevronDown size={18} />
+            </button>
+          </motion.div>
 
         </div>
       </div>

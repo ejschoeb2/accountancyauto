@@ -10,6 +10,49 @@ import {
   checkDomainVerification,
 } from "@/lib/postmark/management";
 
+/**
+ * Resolve the dashboard URL for the current user after wizard completion.
+ *
+ * Uses the admin client to bypass RLS — safe because we verify the user's
+ * identity via supabase.auth.getUser() first, then only expose their own org.
+ */
+export async function getWizardDashboardUrl(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return "/dashboard";
+
+  const admin = createAdminClient();
+
+  const { data: userOrg } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .single();
+
+  if (!userOrg?.org_id) return "/dashboard";
+
+  const { data: org } = await admin
+    .from("organisations")
+    .select("slug")
+    .eq("id", userOrg.org_id)
+    .single();
+
+  if (!org?.slug) return "/dashboard";
+
+  const isDev = process.env.NODE_ENV === "development";
+  if (isDev) {
+    return `/dashboard?org=${org.slug}`;
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants";
+  const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
+  return `https://${org.slug}.app.${baseDomain}/dashboard`;
+}
+
 /** Reserved slugs that cannot be used as org slugs */
 const RESERVED_SLUGS = [
   "www",

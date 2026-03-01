@@ -245,8 +245,8 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
   if (checklist.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 text-sm">No documents are required for this filing.</p>
-        <p className="text-gray-400 text-xs mt-1">Contact your accountant if you believe this is an error.</p>
+        <p className="text-muted-foreground text-sm">No documents are required for this filing.</p>
+        <p className="text-muted-foreground/70 text-xs mt-1">Contact your accountant if you believe this is an error.</p>
       </div>
     );
   }
@@ -271,7 +271,7 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
           );
         })}
       </div>
-      <p className="mt-6 text-xs text-gray-400 text-center">
+      <p className="mt-6 text-xs text-muted-foreground/70 text-center">
         Powered by Prompt. Your files are securely stored and only accessible to {orgName}.
       </p>
     </div>

@@ -19,7 +19,7 @@
  * not `google`. OAuth2 client is constructed as `new auth.OAuth2(...)`.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { auth } from '@googleapis/drive';
 import crypto from 'crypto';
@@ -36,7 +36,9 @@ function getOAuth2Client() {
   );
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const fromWizard = request.nextUrl.searchParams.get('from') === 'wizard';
+
   // ── Auth check ─────────────────────────────────────────────────────────────
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -67,6 +69,16 @@ export async function GET(): Promise<NextResponse> {
     maxAge: 600, // 10 minutes — short TTL prevents replay
     path: '/',
   });
+
+  if (fromWizard) {
+    response.cookies.set('wizard_oauth_return', '1', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600,
+      path: '/',
+    });
+  }
 
   return response;
 }

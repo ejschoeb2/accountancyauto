@@ -73,6 +73,7 @@ export class DropboxProvider implements StorageProvider {
       accessTokenExpiresAt: org.dropbox_token_expires_at
         ? new Date(org.dropbox_token_expires_at)
         : undefined,
+      fetch: fetch,
     });
 
     try {

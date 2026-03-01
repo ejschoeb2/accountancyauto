@@ -104,7 +104,8 @@
       "Skill(gsd:pause-work)",
       "Bash(sed:*)",
       "mcp__supabase__list_migrations",
-      "WebFetch(domain:tabley.info)"
+      "WebFetch(domain:tabley.info)",
+      "WebFetch(domain:www.fasthosts.co.uk)"
     ]
   },
   "enableAllProjectMcpServers": true,

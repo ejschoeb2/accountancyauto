@@ -81,6 +81,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const auth = new DropboxAuth({
       clientId: process.env.DROPBOX_APP_KEY!,
       clientSecret: process.env.DROPBOX_APP_SECRET!,
+      fetch: fetch,
     });
 
     const tokenResponse = await auth.getAccessTokenFromCode(

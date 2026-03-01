@@ -47,6 +47,7 @@ export async function GET(): Promise<NextResponse> {
   // ── Construct DropboxAuth lazily (never at module level) ─────────────────
   const auth = new DropboxAuth({
     clientId: process.env.DROPBOX_APP_KEY!,
+    fetch: fetch,
   });
 
   // ── Generate authorization URL with token_access_type='offline' ───────────

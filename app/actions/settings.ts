@@ -535,6 +535,19 @@ export async function disconnectDropbox(): Promise<{ error?: string }> {
   return {};
 }
 
+// --- Storage: Current Backend ---
+
+export async function getOrgStorageBackend(): Promise<string | null> {
+  const admin = createAdminClient();
+  const { orgId } = await getOrgContext();
+  const { data } = await admin
+    .from('organisations')
+    .select('storage_backend')
+    .eq('id', orgId)
+    .single();
+  return data?.storage_backend ?? null;
+}
+
 // --- Storage: Document Count by Backend ---
 
 export async function getDocumentCountByBackend(

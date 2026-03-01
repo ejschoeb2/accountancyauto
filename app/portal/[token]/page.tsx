@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { createServiceClient } from '@/lib/supabase/service';
 import crypto from 'crypto';
+import { AlertCircle } from 'lucide-react';
 import { PortalChecklist } from './components/portal-checklist';
 
 export const metadata: Metadata = {
@@ -36,21 +37,21 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
 
   if (isExpired || isRevoked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="max-w-md w-full bg-white rounded-xl shadow-sm p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+      <div className="min-h-screen flex items-center justify-center bg-muted/40 px-4">
+        <div className="max-w-md w-full bg-background rounded-xl shadow-sm border p-8">
+          <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-xl">
+            <AlertCircle className="size-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-red-500">
+                {isRevoked ? 'This link has been revoked' : 'This link has expired'}
+              </p>
+              <p className="text-sm text-red-500/80">
+                {isRevoked
+                  ? 'Your accountant has generated a new link. Please check your email for an updated link.'
+                  : 'This upload link is no longer valid. Please contact your accountant to request a new link.'}
+              </p>
+            </div>
           </div>
-          <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            {isRevoked ? 'This link has been revoked' : 'This link has expired'}
-          </h1>
-          <p className="text-gray-600 text-sm">
-            {isRevoked
-              ? 'Your accountant has generated a new link. Please check your email for an updated link.'
-              : 'This upload link is no longer valid. Please contact your accountant to request a new link.'}
-          </p>
         </div>
       </div>
     );
@@ -106,11 +107,13 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
     .then(() => {});
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-4">
+    <div className="min-h-screen bg-muted/40">
+      <header className="bg-background border-b px-4 py-5">
         <div className="max-w-2xl mx-auto">
-          <p className="text-sm text-gray-500">{orgName} has requested documents from you</p>
-          <h1 className="text-xl font-semibold text-gray-900 mt-1">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            {orgName}
+          </p>
+          <h1 className="text-xl font-semibold">
             Upload documents for {clientName}
           </h1>
         </div>

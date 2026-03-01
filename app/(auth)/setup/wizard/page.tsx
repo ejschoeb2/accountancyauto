@@ -25,6 +25,7 @@ import {
   sendSetupMagicLink,
   checkSlugAvailable,
   createOrgAndJoinAsAdmin,
+  getWizardDashboardUrl,
 } from "./actions";
 import {
   markMemberSetupComplete,
@@ -414,39 +415,9 @@ export default function WizardPage() {
       // Non-blocking — cron will catch up if this fails
     });
 
-    // Refresh session so the JWT carries the latest org_id
-    await supabase.auth.refreshSession();
-
-    // Resolve the org slug to build the correct dashboard URL
-    let url = "/dashboard";
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: membership } = await supabase
-        .from("user_organisations")
-        .select("org_id")
-        .eq("user_id", user.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (membership?.org_id) {
-        const { data: org } = await supabase
-          .from("organisations")
-          .select("slug")
-          .eq("id", membership.org_id)
-          .maybeSingle();
-
-        if (org?.slug) {
-          const isDev = window.location.hostname === "localhost";
-          if (isDev) {
-            url = `/dashboard?org=${org.slug}`;
-          } else {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
-            const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
-            url = `https://${org.slug}.app.${baseDomain}/dashboard`;
-          }
-        }
-      }
-    }
+    // Resolve dashboard URL via server action (uses admin client, bypasses RLS
+    // and avoids the session-clearing risk of calling refreshSession() here).
+    const url = await getWizardDashboardUrl();
 
     setDashboardUrl(url);
     setIsCompleting(false);
@@ -708,7 +679,7 @@ export default function WizardPage() {
                     <span className="font-medium">
                       {slug}.app.
                       {(
-                        process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon"
+                        process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants"
                       ).replace(/^https?:\/\/(www\.)?/, "")}
                     </span>
                   </p>

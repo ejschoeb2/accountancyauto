@@ -5,7 +5,7 @@ import { enforceSubscription } from "@/lib/middleware/access-gating";
 
 /**
  * Returns a dot-prefixed root domain for cross-subdomain cookie sharing in production.
- * e.g. NEXT_PUBLIC_APP_URL=https://prompt.qpon → ".prompt.qpon"
+ * e.g. NEXT_PUBLIC_APP_URL=https://prompt.accountants → ".prompt.accountants"
  * Returns undefined in development so cookies use default host-only behaviour.
  */
 function getCookieDomain(): string | undefined {

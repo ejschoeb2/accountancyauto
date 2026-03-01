@@ -255,7 +255,7 @@ export const HeroParticles = () => {
       setStatics(initialStatics);
 
       const animate = () => {
-        const { height: containerHeight } = dimensionsRef.current;
+        const { height: containerHeight, width: containerWidth } = dimensionsRef.current;
         const removedIds: number[] = [];
 
         const nextPhysics = physicsRef.current.map(p => {
@@ -271,7 +271,7 @@ export const HeroParticles = () => {
           let newY = p.y + newVy;
           const r  = p.size / 2;
 
-          if (newX + r < -100 || newY - r > containerHeight + 200) {
+          if (newX + r < -100 || newX - r > containerWidth + 100 || newY - r > containerHeight + 200) {
             removedIds.push(p.id);
             return null;
           }

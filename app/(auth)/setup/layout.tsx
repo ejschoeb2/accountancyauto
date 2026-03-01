@@ -43,7 +43,7 @@ export default async function SetupLayout({
           if (isDev) {
             redirect(`/dashboard?org=${org.slug}`);
           } else {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants";
             const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
             redirect(`https://${org.slug}.app.${baseDomain}/dashboard`);
           }

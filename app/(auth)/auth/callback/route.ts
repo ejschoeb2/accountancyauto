@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(devUrl);
           } else {
             // Production: derive base domain from current host
-            // e.g. app.prompt.qpon → prompt.qpon; {slug}.app.prompt.qpon → prompt.qpon
+            // e.g. app.prompt.accountants → prompt.accountants; {slug}.app.prompt.accountants → prompt.accountants
             const baseDomain = hostname.replace(/^([^.]+\.)*app\./, "") || hostname;
             return NextResponse.redirect(
               new URL(redirectPath, `https://${org.slug}.app.${baseDomain}`)

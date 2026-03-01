@@ -153,6 +153,12 @@ function StorageCardInner({
           <p className="text-sm text-green-600">Google Drive connected successfully.</p>
         </div>
       )}
+      {connected === "dropbox" && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-500/10">
+          <CheckCircle className="size-5 text-green-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-green-600">Dropbox connected successfully.</p>
+        </div>
+      )}
 
       <Card className="p-6">
         <div className="flex items-start gap-4 mb-6">
@@ -381,7 +387,7 @@ function StorageCardInner({
           </div>
 
           {/* Dropbox */}
-          <div className="py-4 first:pt-0 last:pb-0">
+          <div className="py-4 first:pt-0 last:pb-0 space-y-3">
             <div className="flex items-center gap-4">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">Dropbox</p>
@@ -445,6 +451,32 @@ function StorageCardInner({
                 )}
               </div>
             </div>
+
+            {/* App folder info — shown only when Dropbox is connected */}
+            {isDropboxConnected && (
+              <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  <FolderOpen className="size-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-medium">App folder</span>
+                  <a
+                    href="https://www.dropbox.com/home/Apps/Prompt%20Automation"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                  >
+                    Open in Dropbox
+                    <ExternalLink className="size-3" />
+                  </a>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Files are stored in{" "}
+                  <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                    Apps / Prompt Automation /
+                  </span>{" "}
+                  in your Dropbox. The location is fixed and managed by Dropbox — no configuration needed.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </Card>

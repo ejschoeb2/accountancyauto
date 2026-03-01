@@ -26,8 +26,8 @@ export async function signIn(email: string, password: string, inviteToken?: stri
     redirect(`/invite/accept?token=${encodeURIComponent(inviteToken)}`);
   }
 
-  // Derive base domain from NEXT_PUBLIC_APP_URL (e.g. prompt.qpon)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
+  // Derive base domain from NEXT_PUBLIC_APP_URL (e.g. prompt.accountants)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants";
   const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
   const isDev = process.env.NODE_ENV === "development";
 
@@ -115,8 +115,8 @@ export async function signUp(email: string, password: string, inviteToken?: stri
   const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
   // Use the request's own origin as the callback base — NEXT_PUBLIC_APP_URL may
-  // point to the marketing apex domain (e.g. prompt.qpon) rather than the app
-  // subdomain (e.g. app.prompt.qpon), which would send the email link to a page
+  // point to the marketing apex domain (e.g. prompt.accountants) rather than the app
+  // subdomain (e.g. app.prompt.accountants), which would send the email link to a page
   // with no callback handler. The signup request always originates from the app.
   const appUrl =
     h.get("origin") ||
