@@ -50,16 +50,11 @@ export function InboundCheckerCard({ defaultMode }: InboundCheckerCardProps) {
           <Mail className="size-6 text-violet-500" />
         </div>
         <div className="flex-1 space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">Inbound Email Checker</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Configure how the system responds to inbound emails with client documents
-              </p>
-            </div>
-            <div className="px-3 py-2 rounded-md inline-flex items-center bg-violet-500/10 shrink-0">
-              <span className="text-sm font-medium text-violet-500">Beta Feature</span>
-            </div>
+          <div>
+            <h2 className="text-lg font-semibold">Inbound Email Checker</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Configure how the system responds to inbound emails with client documents
+            </p>
           </div>
 
           <div className="space-y-3">
@@ -77,17 +72,14 @@ export function InboundCheckerCard({ defaultMode }: InboundCheckerCardProps) {
               </SelectContent>
             </Select>
 
-            <p className="text-xs text-muted-foreground">
-              {mode === "auto" ? (
-                <>
-                  <strong>Automatic mode:</strong> When a client sends documents, the system will automatically mark records as received and update their status to "Records Received".
-                </>
-              ) : (
-                <>
-                  <strong>Recommendation mode:</strong> When a client sends documents, the system will notify you but won&apos;t make any changes. You&apos;ll need to manually update client records.
-                </>
-              )}
-            </p>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <p className={mode === "auto" ? "text-foreground font-medium" : ""}>
+                <strong>Automatic:</strong> When a client emails you documents, the system automatically marks their records as received, updates their filing status to &ldquo;Records Received&rdquo;, and logs the change. No manual action needed.
+              </p>
+              <p className={mode === "recommend" ? "text-foreground font-medium" : ""}>
+                <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
+              </p>
+            </div>
           </div>
 
           {saved && (

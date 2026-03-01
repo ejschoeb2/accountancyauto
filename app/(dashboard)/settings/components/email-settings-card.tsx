@@ -72,7 +72,7 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
             <div className="space-y-1.5">
               <label
                 htmlFor="settings-sender-name"
-                className="text-sm font-medium"
+                className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
               >
                 Sender Name
               </label>
@@ -92,7 +92,7 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
             <div className="space-y-1.5">
               <label
                 htmlFor="settings-sender-local"
-                className="text-sm font-medium"
+                className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
               >
                 Sender Email
               </label>
@@ -122,7 +122,7 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
           <div className="space-y-1.5">
             <label
               htmlFor="settings-reply-to"
-              className="text-sm font-medium"
+              className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
             >
               Reply-To Address
             </label>

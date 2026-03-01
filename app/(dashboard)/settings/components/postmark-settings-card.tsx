@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Server } from "lucide-react";
+import { Server, ShieldCheck, CheckCircle, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ButtonBase } from "@/components/ui/button-base";
@@ -98,7 +98,7 @@ export function PostmarkSettingsCard({
           )}
 
           <div className="space-y-1.5">
-            <label htmlFor="postmark-token" className="text-sm font-medium">
+            <label htmlFor="postmark-token" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Postmark Server Token
             </label>
             <Input
@@ -119,7 +119,7 @@ export function PostmarkSettingsCard({
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="postmark-sender-domain" className="text-sm font-medium">
+            <label htmlFor="postmark-sender-domain" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Sender Domain
             </label>
             <Input
@@ -140,18 +140,30 @@ export function PostmarkSettingsCard({
 
           <div className="flex flex-wrap items-center gap-3">
             <ButtonBase
+              variant="green"
               onClick={handleValidate}
               disabled={isValidating || isSaving || !token.trim()}
-              buttonType="text-only"
+              buttonType="icon-text"
             >
+              {isValidating ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <ShieldCheck className="size-4" />
+              )}
               {isValidating ? "Validating..." : "Validate Token"}
             </ButtonBase>
 
             <ButtonBase
+              variant="blue"
               onClick={handleSave}
               disabled={isValidating || isSaving}
-              buttonType="text-only"
+              buttonType="icon-text"
             >
+              {isSaving ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <CheckCircle className="size-4" />
+              )}
               {isSaving ? "Saving..." : "Save"}
             </ButtonBase>
 

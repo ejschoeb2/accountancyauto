@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ButtonBase } from "@/components/ui/button-base";
 
 export function SignOutCard() {
   const router = useRouter();
@@ -26,22 +26,22 @@ export function SignOutCard() {
             <div>
               <h2 className="text-lg font-semibold">Sign Out</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Sign out of your account and return to the login page
+                Sign out of your account and return to the homepage
               </p>
             </div>
-            <Button
-              variant="outline"
+            <ButtonBase
+              variant="muted"
+              buttonType="icon-text"
               onClick={handleSignOut}
               disabled={isLoading}
-              className="shrink-0"
             >
               {isLoading ? (
-                <Loader2 className="size-4 mr-2 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : (
-                <LogOut className="size-4 mr-2" />
+                <LogOut className="size-4" />
               )}
               Sign out
-            </Button>
+            </ButtonBase>
           </div>
         </div>
       </div>
