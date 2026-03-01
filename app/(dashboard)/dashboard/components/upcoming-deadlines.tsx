@@ -33,7 +33,7 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
       if (!a.next_deadline || !b.next_deadline) return 0;
       return a.next_deadline.localeCompare(b.next_deadline);
     })
-    .slice(0, 4);
+    .slice(0, 6);
 
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
@@ -69,8 +69,8 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
                   {/* Right: Deadline type tag + Status badge + divider + days/date */}
                   <div className="flex items-center gap-2 shrink-0">
                     {client.next_deadline_type && (
-                      <div className="px-3 py-1.5 rounded-md inline-flex items-center bg-blue-500/10">
-                        <span className="text-sm font-normal text-blue-500">
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-sky-500/10">
+                        <span className="text-sm font-medium text-sky-500">
                           {getFilingTypeLabel(client.next_deadline_type)}
                         </span>
                       </div>

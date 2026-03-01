@@ -39,6 +39,8 @@ export const createClientSchema = z.object({
   client_type: clientTypeSchema,
   year_end_date: isoDateSchema.optional().nullable(),
   vat_registered: z.boolean().default(false),
+  vat_stagger_group: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().nullable(),
+  vat_scheme: z.enum(["Standard", "Flat Rate", "Cash Accounting", "Annual Accounting"]).optional().nullable(),
   display_name: z.string().trim().max(200, "Display name must be 200 characters or fewer").optional().nullable(),
 });
 

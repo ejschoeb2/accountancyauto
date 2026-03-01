@@ -8,7 +8,7 @@ const HEADING_WORDS = ["The", "Chase", "Is", "Over"];
 export const HeroSection = () => {
   return (
     // relative so the full-width particle overlay is contained here
-    <section className="relative pt-28 pb-16 lg:pt-44 lg:pb-24 overflow-hidden">
+    <section className="relative pt-28 pb-16 lg:pt-44 lg:pb-24">
 
       {/* Particles at section level — z-0, spans full viewport width.
           Text is z-10 so particles pass underneath naturally. */}

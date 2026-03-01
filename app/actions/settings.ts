@@ -449,6 +449,36 @@ export async function updatePostmarkSettings(token: string, senderDomain: string
 
 // --- Google Drive Storage ---
 
+/**
+ * Parses a Google Drive folder ID from a full URL or raw ID string.
+ * Accepts: https://drive.google.com/drive[/u/N]/folders/{id}
+ *          https://drive.google.com/drive/folders/{id}?...
+ *          Raw folder ID (alphanumeric + dash/underscore, 10+ chars)
+ */
+function parseDriveFolderId(input: string): string | null {
+  const urlMatch = input.match(/\/folders\/([a-zA-Z0-9_-]{10,})/);
+  if (urlMatch) return urlMatch[1];
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(input)) return input;
+  return null;
+}
+
+export async function updateGoogleDriveFolderId(input: string): Promise<{ error?: string }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Admin only' };
+
+  const folderId = parseDriveFolderId(input.trim());
+  if (!folderId) return { error: 'Paste a Google Drive folder URL or a folder ID' };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('organisations')
+    .update({ google_drive_folder_id: folderId })
+    .eq('id', orgId);
+  if (error) return { error: error.message };
+  revalidatePath('/settings');
+  return {};
+}
+
 export async function disconnectGoogleDrive(): Promise<{ error?: string }> {
   const { orgId, orgRole } = await getOrgContext();
   if (orgRole !== 'admin') return { error: 'Admin only' };

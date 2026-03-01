@@ -37,7 +37,7 @@ const features: {
   {
     number:      "04",
     title:       "Document Storage",
-    description: "Every uploaded file stored securely in EU-region infrastructure, linked to the client and filing type. Downloads via short-lived signed URLs — direct storage access never exposed. Every download logged for full accountability.",
+    description: "Connect your Google Drive, OneDrive, or Dropbox and uploaded documents go straight into your existing folders — Prompt never stores your clients' files on its own servers. GDPR compliant by design: your data stays in your cloud, not ours. Every transfer logged for full accountability.",
     Illustration: DocumentStorageIllustration,
   },
   {
@@ -84,7 +84,7 @@ const FeatureCard = ({ feature }: { feature: typeof features[number] }) => {
 
 export const FeaturesSection = () => {
   return (
-    <section id="features" className="py-20 lg:py-28">
+    <section id="features" className="relative z-[1] py-20 lg:py-28">
       <div className="max-w-screen-xl mx-auto px-4">
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start">

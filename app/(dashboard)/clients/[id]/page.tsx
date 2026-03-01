@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, CheckCircle, X, Mail } from 'lucide-react';
+import { ArrowLeft, Edit2, CheckCircle, X, Mail, Ban, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import {
   CardTitle,
   CardContent,
 } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { LoadingScreen } from '@/components/loading-screen';
 import { FilingManagement } from './components/filing-management';
@@ -99,7 +100,7 @@ export default function ClientPage() {
       const updated = result.data || result;
       setClient(updated);
       setFormData(updated);
-      toast.success(client!.reminders_paused ? 'Reminders resumed' : 'Reminders paused');
+      toast.success(client!.reminders_paused ? 'Client set to active' : 'Client set to inactive');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update reminders');
     }
@@ -156,19 +157,10 @@ export default function ClientPage() {
                 {client.client_type}
               </IconButtonWithText>
             )}
-            {client.reminders_paused ? (
-              <>
-                <Badge variant="outline" className="border-status-warning text-status-warning">
-                  Reminders Paused
-                </Badge>
-                <IconButtonWithText variant="green" onClick={handleToggleReminders}>
-                  Resume Reminders
-                </IconButtonWithText>
-              </>
-            ) : (
-              <IconButtonWithText variant="amber" onClick={handleToggleReminders}>
-                Pause Reminders
-              </IconButtonWithText>
+            {client.reminders_paused && (
+              <Badge variant="outline" className="border-status-warning text-status-warning">
+                Inactive
+              </Badge>
             )}
           </div>
         </div>
@@ -179,25 +171,37 @@ export default function ClientPage() {
               Go back
             </IconButtonWithText>
           </Link>
+          <Separator orientation="vertical" className="h-8" />
           {!editing ? (
             <>
-              <IconButtonWithText variant="blue" onClick={handleEdit}>
-                <Edit2 className="h-5 w-5" />
+              {client.reminders_paused ? (
+                <IconButtonWithText variant="green" onClick={handleToggleReminders}>
+                  <Check className="size-4" />
+                  Set Active
+                </IconButtonWithText>
+              ) : (
+                <IconButtonWithText variant="destructive" onClick={handleToggleReminders}>
+                  <Ban className="size-4" />
+                  Set Inactive
+                </IconButtonWithText>
+              )}
+              <IconButtonWithText variant="violet" onClick={handleEdit}>
+                <Edit2 className="size-4" />
                 Edit
               </IconButtonWithText>
               <IconButtonWithText variant="green" onClick={() => setIsSendEmailModalOpen(true)}>
-                <Mail className="h-5 w-5" />
+                <Mail className="size-4" />
                 Send Email
               </IconButtonWithText>
             </>
           ) : (
             <>
               <IconButtonWithText variant="amber" onClick={handleCancel}>
-                <X className="h-5 w-5" />
+                <X className="size-4" />
                 Cancel
               </IconButtonWithText>
               <IconButtonWithText variant="blue" onClick={handleSave} disabled={saving}>
-                <CheckCircle className="h-5 w-5" />
+                <CheckCircle className="size-4" />
                 {saving ? 'Saving...' : 'Save'}
               </IconButtonWithText>
             </>
@@ -301,40 +305,40 @@ export default function ClientPage() {
         ) : (
           <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">Email</dt>
-              <dd className="mt-1 text-base">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Email</dt>
+              <dd className="text-sm font-medium">
                 {client.primary_email || (
                   <span className="text-muted-foreground">Not set</span>
                 )}
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">Phone</dt>
-              <dd className="mt-1 text-base">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Phone</dt>
+              <dd className="text-sm font-medium">
                 {client.phone || (
                   <span className="text-muted-foreground">Not set</span>
                 )}
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">Year-End Date</dt>
-              <dd className="mt-1 text-base">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Year-End Date</dt>
+              <dd className="text-sm font-medium">
                 {client.year_end_date || (
                   <span className="text-muted-foreground">Not set</span>
                 )}
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">VAT Registered</dt>
-              <dd className="mt-1 text-base">
+              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Registered</dt>
+              <dd className="text-sm font-medium">
                 {client.vat_registered ? 'Yes' : 'No'}
               </dd>
             </div>
             {client.vat_registered && (
               <>
                 <div>
-                  <dt className="text-sm font-medium text-muted-foreground">VAT Stagger Group</dt>
-                  <dd className="mt-1 text-base">
+                  <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Stagger Group</dt>
+                  <dd className="text-sm font-medium">
                     {client.vat_stagger_group
                       ? `Stagger ${client.vat_stagger_group} (${
                           ({ 1: 'Mar/Jun/Sep/Dec', 2: 'Jan/Apr/Jul/Oct', 3: 'Feb/May/Aug/Nov' } as Record<number, string>)[client.vat_stagger_group]
@@ -345,8 +349,8 @@ export default function ClientPage() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-muted-foreground">VAT Scheme</dt>
-                  <dd className="mt-1 text-base">
+                  <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Scheme</dt>
+                  <dd className="text-sm font-medium">
                     {client.vat_scheme || (
                       <span className="text-muted-foreground">Not set</span>
                     )}
@@ -361,26 +365,6 @@ export default function ClientPage() {
 
       {/* Filing Management */}
       <FilingManagement clientId={id} onUpdate={triggerRefresh} />
-
-      {/* Compliance */}
-      <Card className="gap-1.5">
-        <div className="px-8">
-          <div className="mb-6">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-semibold">Compliance</h2>
-              <p className="text-sm text-muted-foreground">
-                Export all documents for this client in response to a Data Subject Access Request (UK GDPR Art. 15).
-              </p>
-            </div>
-          </div>
-        </div>
-        <CardContent>
-          <DsarExportButton
-            clientId={id}
-            clientName={client.display_name || client.company_name || ''}
-          />
-        </CardContent>
-      </Card>
 
       {/* Email Log */}
       <Card className="gap-1.5">
@@ -397,6 +381,24 @@ export default function ClientPage() {
         <CardContent>
           <ClientEmailHistoryTable key={refreshKey} clientId={id} />
         </CardContent>
+      </Card>
+
+      {/* Compliance */}
+      <Card className="gap-1.5 pb-2">
+        <div className="px-8">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Compliance</h2>
+              <p className="text-sm text-muted-foreground">
+                Export all documents for this client in response to a Data Subject Access Request (UK GDPR Art. 15).
+              </p>
+            </div>
+            <DsarExportButton
+              clientId={id}
+              clientName={client.display_name || client.company_name || ''}
+            />
+          </div>
+        </div>
       </Card>
 
       {/* Send Email Modal */}

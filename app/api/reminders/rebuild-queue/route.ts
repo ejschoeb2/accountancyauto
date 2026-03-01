@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { buildReminderQueue } from '@/lib/reminders/queue-builder';
+import { buildReminderQueue, buildCustomScheduleQueue } from '@/lib/reminders/queue-builder';
 
 /**
  * POST /api/reminders/rebuild-queue
@@ -45,12 +45,13 @@ export async function POST(request: NextRequest) {
     }
 
     const org = orgData;
-    const result = await buildReminderQueue(adminClient, org);
+    const filingResult = await buildReminderQueue(adminClient, org);
+    const customResult = await buildCustomScheduleQueue(adminClient, org);
 
     return NextResponse.json({
       success: true,
-      created: result.created,
-      skipped: result.skipped,
+      created: filingResult.created + customResult.created,
+      skipped: filingResult.skipped + customResult.skipped,
     });
   } catch (error) {
     console.error('Failed to rebuild queue:', error);

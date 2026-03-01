@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +40,8 @@ import {
 } from '@/components/ui/table';
 import { getAuditLog, getQueuedReminders, type AuditEntry, type QueuedReminder } from '@/app/actions/audit-log';
 import { cancelScheduling, uncancelScheduling, rescheduleToSpecificDate, rescheduleWithOffset } from '@/app/actions/email-queue';
+import { QueuedEmailPreviewModal } from './queued-email-preview-modal';
+import { SentEmailDetailModal } from './sent-email-detail-modal';
 import { format } from 'date-fns';
 import {
   Search,
@@ -93,11 +94,9 @@ const STATUS_LABELS_QUEUED: Record<string, string> = {
   scheduled: "Scheduled",
   rescheduled: "Rescheduled",
   pending: "Pending",
-  sent: "Sent",
-  cancelled: "Manually Cancelled",
-  records_received: "Records Received",
-  failed: "Failed",
 };
+
+const QUEUED_ACTIVE_STATUSES = ['scheduled', 'rescheduled', 'pending'];
 
 const STATUS_LABELS_SENT: Record<string, string> = {
   sent: "Sent",
@@ -126,7 +125,6 @@ interface DeliveryLogTableProps {
 }
 
 export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
-  const router = useRouter();
   const [sentData, setSentData] = useState<AuditEntry[]>([]);
   const [queuedData, setQueuedData] = useState<QueuedReminder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -159,6 +157,14 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [rescheduleMode, setRescheduleMode] = useState<'specific' | 'offset'>('specific');
+
+  // Preview modal state
+  const [previewReminderId, setPreviewReminderId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Sent email detail modal state
+  const [selectedSentEntry, setSelectedSentEntry] = useState<AuditEntry | null>(null);
+  const [sentModalOpen, setSentModalOpen] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [offsetDays, setOffsetDays] = useState(0);
 
@@ -197,7 +203,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
           clientSearch: debouncedClientSearch || undefined,
           dateFrom: shouldPassDateToServer && dateFrom ? dateFrom : undefined,
           dateTo: shouldPassDateToServer && dateTo ? dateTo : undefined,
-          statusFilter: undefined, // Now handled client-side
+          statusFilter: QUEUED_ACTIVE_STATUSES,
           offset,
           limit: ITEMS_PER_PAGE,
         });
@@ -386,8 +392,8 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     },
     scheduled: {
       label: 'Scheduled',
-      bg: 'bg-sky-500/10',
-      text: 'text-sky-500',
+      bg: 'bg-status-info/10',
+      text: 'text-status-info',
       icon: <Clock className="h-4 w-4" />,
     },
     rescheduled: {
@@ -518,9 +524,36 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
     // If edit mode is active (panel shown or rows selected), toggle row selection
     if (viewMode === 'queued' && (showEditPanel || selectedRows.size > 0)) {
       toggleSelectRow(rowId);
+    } else if (viewMode === 'queued') {
+      // Open preview modal for queued emails
+      setPreviewReminderId(rowId);
+      setPreviewOpen(true);
     } else {
-      // Navigate to client page
-      router.push(`/clients/${clientId}`);
+      // Open detail modal for sent emails
+      const entry = (sortedData as AuditEntry[]).find((e) => e.id === rowId);
+      if (entry) {
+        setSelectedSentEntry(entry);
+        setSentModalOpen(true);
+      }
+    }
+  };
+
+  // Preview modal navigation
+  const handlePreviewNavigate = (direction: 'prev' | 'next') => {
+    const currentIndex = sortedData.findIndex((item) => item.id === previewReminderId);
+    const nextIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex >= 0 && nextIndex < sortedData.length) {
+      setPreviewReminderId(sortedData[nextIndex].id);
+    }
+  };
+
+  // Sent email modal navigation
+  const handleSentNavigate = (direction: 'prev' | 'next') => {
+    if (!selectedSentEntry) return;
+    const currentIndex = (sortedData as AuditEntry[]).findIndex((e) => e.id === selectedSentEntry.id);
+    const nextIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (nextIndex >= 0 && nextIndex < sortedData.length) {
+      setSelectedSentEntry(sortedData[nextIndex] as AuditEntry);
     }
   };
 
@@ -976,7 +1009,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
               (sortedData as AuditEntry[]).map((entry) => (
                 <TableRow
                   key={entry.id}
-                  className="group cursor-pointer"
+                  className="group cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={(e) => handleRowClick(e, entry.client_id, entry.id)}
                 >
                   {/* Checkbox */}
@@ -997,27 +1030,27 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                     </div>
                   </TableCell>
                   {/* Client Name */}
-                  <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="font-medium text-muted-foreground transition-colors">
                     {entry.client_name}
                   </TableCell>
                   {/* Client Type */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {entry.client_type || '—'}
                   </TableCell>
                   {/* Date Sent */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {format(new Date(entry.sent_at), 'dd MMM yyyy')}
                   </TableCell>
                   {/* Deadline Date */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {entry.deadline_date ? format(new Date(entry.deadline_date), 'dd MMM yyyy') : '—'}
                   </TableCell>
                   {/* Deadline Type */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {entry.filing_type_id ? (FILING_TYPE_LABELS[entry.filing_type_id] || entry.filing_type_name) : '—'}
                   </TableCell>
                   {/* Template Name */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {entry.template_name || '—'}
                   </TableCell>
                   {/* Type */}
@@ -1029,8 +1062,8 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                         </span>
                       </div>
                     ) : (
-                      <div className="px-3 py-2 rounded-md bg-blue-500/10 inline-flex items-center">
-                        <span className="text-sm font-medium text-blue-500">
+                      <div className="px-3 py-2 rounded-md bg-status-info/10 inline-flex items-center">
+                        <span className="text-sm font-medium text-status-info">
                           Scheduled
                         </span>
                       </div>
@@ -1038,10 +1071,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                   </TableCell>
                   {/* Status */}
                   <TableCell>
-                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center gap-2`}>
-                      <span className={statusConfig[entry.delivery_status]?.text || 'text-gray-500'}>
-                        {statusConfig[entry.delivery_status]?.icon}
-                      </span>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
                       <span className={`text-sm font-medium ${statusConfig[entry.delivery_status]?.text || 'text-gray-500'}`}>
                         {statusConfig[entry.delivery_status]?.label || entry.delivery_status}
                       </span>
@@ -1053,7 +1083,7 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
               (sortedData as QueuedReminder[]).map((reminder) => (
                 <TableRow
                   key={reminder.id}
-                  className="group cursor-pointer"
+                  className="group cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={(e) => handleRowClick(e, reminder.client_id, reminder.id)}
                 >
                   {/* Checkbox */}
@@ -1074,35 +1104,32 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
                     </div>
                   </TableCell>
                   {/* Client Name */}
-                  <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="font-medium text-muted-foreground transition-colors">
                     {reminder.client_name}
                   </TableCell>
                   {/* Client Type */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {reminder.client_type || '—'}
                   </TableCell>
                   {/* Send Date */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {format(new Date(reminder.send_date), 'dd MMM yyyy')}
                   </TableCell>
                   {/* Deadline Date */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {format(new Date(reminder.deadline_date), 'dd MMM yyyy')}
                   </TableCell>
                   {/* Deadline Type */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {reminder.filing_type_id ? (FILING_TYPE_LABELS[reminder.filing_type_id] || reminder.filing_type_name) : '—'}
                   </TableCell>
                   {/* Template Name */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {reminder.template_name || '—'}
                   </TableCell>
                   {/* Status */}
                   <TableCell>
-                    <div className={`px-3 py-2 rounded-md ${statusConfig[reminder.status]?.bg || 'bg-gray-500/10'} inline-flex items-center gap-2`}>
-                      <span className={statusConfig[reminder.status]?.text || 'text-gray-500'}>
-                        {statusConfig[reminder.status]?.icon}
-                      </span>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[reminder.status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
                       <span className={`text-sm font-medium ${statusConfig[reminder.status]?.text || 'text-gray-500'}`}>
                         {statusConfig[reminder.status]?.label || reminder.status}
                       </span>
@@ -1209,6 +1236,26 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
           </div>
         </div>
       </div>
+
+      {/* Queued Email Preview Modal */}
+      {viewMode === 'queued' && (
+        <QueuedEmailPreviewModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          reminderId={previewReminderId}
+          allReminders={sortedData as QueuedReminder[]}
+          onNavigate={handlePreviewNavigate}
+        />
+      )}
+
+      {/* Sent Email Detail Modal */}
+      <SentEmailDetailModal
+        open={sentModalOpen}
+        onOpenChange={setSentModalOpen}
+        entry={selectedSentEntry}
+        allEntries={sortedData as AuditEntry[]}
+        onNavigate={handleSentNavigate}
+      />
 
       {/* Reschedule Modal */}
       <Dialog open={showRescheduleModal} onOpenChange={setShowRescheduleModal}>

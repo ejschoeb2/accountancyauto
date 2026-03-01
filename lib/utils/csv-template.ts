@@ -8,6 +8,11 @@ export const CSV_COLUMNS = [
     description: "Company name to match existing clients",
   },
   {
+    name: "primary_email",
+    required: false,
+    description: "Client's primary email address for reminders",
+  },
+  {
     name: "client_type",
     required: false,
     description: "Limited Company, Sole Trader, Partnership, or LLP",
@@ -44,6 +49,7 @@ export function generateCsvTemplate(): string {
   // Example row 1: Limited Company with all fields
   const example1 = [
     '"Acme Ltd"',
+    '"accounts@acmeltd.co.uk"',
     '"Limited Company"',
     '"2026-03-31"',
     '"Yes"',
@@ -54,6 +60,7 @@ export function generateCsvTemplate(): string {
   // Example row 2: Sole Trader with minimal fields
   const example2 = [
     '"Jane Smith Trading"',
+    '"jane@janesmith.co.uk"',
     '"Sole Trader"',
     '"2026-04-05"',
     '"No"',
@@ -64,6 +71,7 @@ export function generateCsvTemplate(): string {
   // Example row 3: Partnership with partial fields
   const example3 = [
     '"Smith & Jones Partnership"',
+    '"info@smithjones.co.uk"',
     '"Partnership"',
     '"2026-06-30"',
     '"Yes"',
@@ -85,7 +93,7 @@ export function generateCsvTemplateWithComments(): string {
     "#",
     "# Instructions:",
     "# 1. Required column: company_name (must match existing client names exactly)",
-    "# 2. Optional columns: client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme",
+    "# 2. Optional columns: primary_email, client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme",
     "# 3. Dates must be in YYYY-MM-DD format",
     "# 4. Boolean values can be: Yes/No, yes/no, TRUE/FALSE, true/false",
     "# 5. Empty optional fields will not overwrite existing data",

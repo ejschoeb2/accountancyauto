@@ -10,31 +10,31 @@ interface WizardStepperProps {
 
 export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
   return (
-    <div className="flex items-center justify-center w-full">
+    <div className="flex items-start justify-center w-full">
       {steps.map((step, index) => {
         const isCompleted = index < currentStep;
         const isCurrent = index === currentStep;
         const isFuture = index > currentStep;
 
         return (
-          <div key={index} className="flex items-center">
-            {/* Step circle */}
-            <div className="flex flex-col items-center">
+          <div key={index} className="flex items-start">
+            {/* Step indicator + label */}
+            <div className="flex flex-col items-center gap-1.5">
               <div
                 className={cn(
-                  "flex items-center justify-center size-9 rounded-full text-sm font-semibold transition-colors",
-                  isCompleted && "bg-green-500 text-white",
-                  isCurrent && "bg-primary text-primary-foreground ring-4 ring-primary/20",
-                  isFuture && "border-2 border-muted-foreground/30 text-muted-foreground"
+                  "flex items-center justify-center size-9 rounded-lg text-xs font-semibold transition-all duration-200",
+                  isCompleted && "bg-green-500/10 text-green-600",
+                  isCurrent && "bg-violet-500/10 text-violet-500",
+                  isFuture && "bg-muted text-muted-foreground"
                 )}
               >
                 {isCompleted ? <Check className="size-4" /> : index + 1}
               </div>
               <span
                 className={cn(
-                  "text-xs mt-1.5 whitespace-nowrap",
-                  isCompleted && "text-green-600 font-medium",
-                  isCurrent && "text-foreground font-medium",
+                  "text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap",
+                  isCompleted && "text-green-600",
+                  isCurrent && "text-foreground",
                   isFuture && "text-muted-foreground"
                 )}
               >
@@ -46,8 +46,8 @@ export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
             {index < steps.length - 1 && (
               <div
                 className={cn(
-                  "h-0.5 w-12 sm:w-20 mx-2 mt-[-1.25rem] transition-colors",
-                  index < currentStep ? "bg-green-500" : "bg-muted-foreground/20"
+                  "h-px w-12 sm:w-20 mx-2 mt-[18px] flex-shrink-0 transition-colors duration-200",
+                  index < currentStep ? "bg-green-500" : "bg-border"
                 )}
               />
             )}

@@ -2,20 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Zap, Mail, Send, Shield, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/clients", icon: Users, label: "Clients" },
-  { href: "/schedules", icon: Zap, label: "Reminder Schedules" },
-  { href: "/templates", icon: Mail, label: "Email Templates" },
-  { href: "/email-logs", icon: Send, label: "Email Activity" },
+const NAV_ITEMS: { href: string; label: string }[] = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/clients", label: "Clients" },
+  { href: "/schedules", label: "Reminder Schedules" },
+  { href: "/templates", label: "Email Templates" },
+  { href: "/email-logs", label: "Activity" },
 ];
 
-const ADMIN_ITEM: { href: string; icon: LucideIcon; label: string } = {
+const ADMIN_ITEM: { href: string; label: string } = {
   href: "/admin",
-  icon: Shield,
   label: "Admin",
 };
 
@@ -30,8 +28,8 @@ export function NavLinks({ isSuperAdmin, orgRole = "member" }: NavLinksProps) {
   const items = isSuperAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
-    <nav className="flex items-center gap-2">
-      {items.map(({ href, icon: IconComponent, label }) => {
+    <nav className="flex items-center gap-0">
+      {items.map(({ href, label }) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
 
         return (
@@ -39,22 +37,15 @@ export function NavLinks({ isSuperAdmin, orgRole = "member" }: NavLinksProps) {
             key={href}
             href={href}
             className={cn(
-              "flex items-center gap-2.5 px-5 py-2.5 text-base font-medium transition-all duration-200 relative group",
+              "px-4 py-2.5 text-base transition-opacity duration-150",
               isActive
-                ? "text-foreground"
-                : "text-muted-foreground"
+                ? "text-foreground font-medium"
+                : "text-muted-foreground/50 font-normal hover:opacity-80"
             )}
           >
-            <IconComponent className="size-5" />
-            <span className={cn(
-              "relative",
-              isActive
-                ? "after:absolute after:bottom-[-2px] after:left-0 after:right-0 after:h-0.5 after:bg-primary"
-                : "after:absolute after:bottom-[-2px] after:left-0 after:right-0 after:h-0.5 after:bg-border after:opacity-0 group-hover:after:opacity-100 after:transition-opacity"
-            )}>
-              {label}
-            </span>
+            {label}
           </Link>
+
         );
       })}
     </nav>

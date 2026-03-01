@@ -94,7 +94,17 @@
       "Bash(python3 -m json.tool)",
       "WebFetch(domain:www.mapbox.com)",
       "mcp__supabase__list_edge_functions",
-      "Bash(echo No errors found in first 50 log entries:*)"
+      "Bash(echo No errors found in first 50 log entries:*)",
+      "Bash(python3:*)",
+      "mcp__supabase__search_docs",
+      "Bash(wc:*)",
+      "mcp__supabase__get_advisors",
+      "Bash(head:*)",
+      "Bash(mcp__supabase__execute_sql:*)",
+      "Skill(gsd:pause-work)",
+      "Bash(sed:*)",
+      "mcp__supabase__list_migrations",
+      "WebFetch(domain:tabley.info)"
     ]
   },
   "enableAllProjectMcpServers": true,

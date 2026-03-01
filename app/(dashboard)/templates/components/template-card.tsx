@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ButtonBase } from '@/components/ui/button-base'
-import { Badge } from '@/components/ui/badge'
 import {
   Card,
   CardHeader,
@@ -107,17 +106,9 @@ export function TemplateCard({ template, usedInSchedules }: TemplateCardProps) {
               {template.subject}
             </div>
             {usedInSchedules.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-foreground">Used in:</span>
-                {usedInSchedules.map((scheduleName) => (
-                  <Badge
-                    key={scheduleName}
-                    variant="secondary"
-                    className="font-normal bg-blue-500/10 text-blue-500 rounded-md px-3 py-1.5 text-sm"
-                  >
-                    {scheduleName}
-                  </Badge>
-                ))}
+              <div className="text-muted-foreground">
+                <span className="font-medium text-foreground">Used in:</span>{' '}
+                {usedInSchedules.join(', ')}
               </div>
             )}
           </div>

@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import type { ClientStatusRow } from '@/lib/dashboard/metrics';
-import { PieChart } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 
 interface StatusDistributionProps {
   clients: ClientStatusRow[];
@@ -22,130 +23,125 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
 
   const total = clients.length;
 
-  // Calculate percentages - show all statuses regardless of count
   const statusData = [
     {
       label: 'Overdue',
-      subtext: 'Deadline passed',
       count: statusCounts.red,
       percentage: total > 0 ? (statusCounts.red / total) * 100 : 0,
-      color: '#ef4444', // Lighter red to match badge style
+      color: '#ef4444',
       bgColor: 'bg-status-danger',
+      filterValue: 'red',
     },
     {
       label: 'Critical',
-      subtext: '< 1 week',
       count: statusCounts.orange,
       percentage: total > 0 ? (statusCounts.orange / total) * 100 : 0,
-      color: '#f97316', // Lighter orange to match badge style
+      color: '#f97316',
       bgColor: 'bg-status-critical',
+      filterValue: 'orange',
     },
     {
       label: 'Approaching',
-      subtext: '1-4 weeks',
       count: statusCounts.amber,
       percentage: total > 0 ? (statusCounts.amber / total) * 100 : 0,
-      color: '#eab308', // Lighter yellow to match badge style
+      color: '#eab308',
       bgColor: 'bg-status-warning',
+      filterValue: 'amber',
     },
     {
       label: 'Scheduled',
-      subtext: '> 4 weeks',
       count: statusCounts.blue,
       percentage: total > 0 ? (statusCounts.blue / total) * 100 : 0,
-      color: '#38bdf8', // Lighter sky blue to match badge style
-      bgColor: 'bg-sky-500',
+      color: '#3b82f6',
+      bgColor: 'bg-status-info',
+      filterValue: 'blue',
     },
     {
-      label: 'Records Received',
-      subtext: 'Awaiting Submission',
+      label: 'Records In',
       count: statusCounts.violet,
       percentage: total > 0 ? (statusCounts.violet / total) * 100 : 0,
-      color: '#8b5cf6', // Violet to match badge style
+      color: '#8b5cf6',
       bgColor: 'bg-violet-500',
+      filterValue: 'violet',
     },
     {
       label: 'Completed',
-      subtext: 'Fully processed',
       count: statusCounts.green,
       percentage: total > 0 ? (statusCounts.green / total) * 100 : 0,
-      color: '#10b981', // Standard button green (green-500)
+      color: '#10b981',
       bgColor: 'bg-green-500',
+      filterValue: 'green',
     },
     {
       label: 'Inactive',
-      subtext: 'Paused/No filings',
       count: statusCounts.grey,
       percentage: total > 0 ? (statusCounts.grey / total) * 100 : 0,
-      color: '#94a3b8', // Lighter slate to match badge style
+      color: '#94a3b8',
       bgColor: 'bg-status-neutral',
+      filterValue: 'grey',
     },
   ];
 
+  const visibleSegments = statusData.filter((item) => item.count > 0);
+
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
-      <CardContent className="px-5 py-0 h-full flex flex-col">
+      <CardContent className="px-5 py-0">
         <div className="flex items-start justify-between mb-6">
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Client Status Distribution
-          </p>
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Client Status Distribution
+            </p>
+            <p className="text-2xl font-bold mt-1">{total} clients</p>
+          </div>
           <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-green-500/20">
-            <PieChart className="size-6 text-green-600" />
+            <BarChart3 className="size-6 text-green-600" />
           </div>
         </div>
-        <div className="flex-1">
-          {total === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No clients to display
-            </p>
-          ) : (
-            <div className="flex items-center justify-center gap-9">
-              {/* Pie chart */}
-              <div className="flex items-center justify-center flex-shrink-0">
-                <div className="relative size-40">
-                  <div
-                    className="size-full rounded-full"
-                    style={{
-                      background: `conic-gradient(${statusData
-                        .filter((item) => item.count > 0)
-                        .map((item, index, arr) => {
-                          const startPercent = arr
-                            .slice(0, index)
-                            .reduce((sum, d) => sum + d.percentage, 0);
-                          const endPercent = startPercent + item.percentage;
-                          return `${item.color} ${startPercent}% ${endPercent}%`;
-                        })
-                        .join(', ')})`,
-                    }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="size-28 rounded-full bg-card flex items-center justify-center">
-                      <span className="text-4xl font-bold">{total}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Legend */}
-              <div className="space-y-3 min-w-[300px]">
-                {statusData.map((item) => (
-                  <div key={item.label} className="flex items-center gap-2.5">
-                    <div className={`size-4 rounded ${item.bgColor} flex-shrink-0`} />
-                    <div className="flex items-baseline gap-6 flex-1">
-                      <div className="flex items-baseline gap-1 flex-1">
-                        <span className="text-sm font-medium whitespace-nowrap">{item.label}</span>
-                        <span className="text-sm whitespace-nowrap">({item.subtext})</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">
-                        {item.count} ({item.percentage.toFixed(0)}%)
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+        {total === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No clients to display
+          </p>
+        ) : (
+          <>
+            {/* Stacked bar */}
+            <div className="flex h-2.5 rounded-full overflow-hidden gap-px">
+              {visibleSegments.map((item) => (
+                <Link
+                  key={item.filterValue}
+                  href={`/clients?filter=${item.filterValue}`}
+                  className="transition-opacity hover:opacity-80 rounded-full"
+                  style={{
+                    backgroundColor: item.color,
+                    width: `${item.percentage}%`,
+                  }}
+                  title={`${item.label}: ${item.count} (${item.percentage.toFixed(0)}%)`}
+                />
+              ))}
             </div>
-          )}
-        </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
+              {statusData.map((item) => (
+                <Link
+                  key={item.filterValue}
+                  href={`/clients?filter=${item.filterValue}`}
+                  className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
+                >
+                  <div
+                    className="size-3 rounded-sm flex-shrink-0"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {item.label}{' '}
+                    <span className="font-medium text-foreground">{item.count}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

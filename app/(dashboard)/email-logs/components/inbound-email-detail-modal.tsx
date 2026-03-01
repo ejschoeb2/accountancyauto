@@ -1,48 +1,40 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { X, ChevronLeft, ChevronRight, CheckCircle2, Mail } from "lucide-react";
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { ButtonBase } from "@/components/ui/button-base";
-import { getInboundCheckerMode, type InboundCheckerMode } from "@/app/actions/settings";
+} from '@/components/ui/dialog';
+import { ButtonBase } from '@/components/ui/button-base';
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Mail,
+  ExternalLink,
+  CheckCircle2,
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { getInboundCheckerMode, type InboundCheckerMode } from '@/app/actions/settings';
+import type { InboundEmail } from '@/app/actions/inbound-emails';
 
-interface InboundEmail {
-  id: string;
-  client_id: string | null;
-  filing_type_id: string | null;
-  received_at: string;
-  email_from: string;
-  email_subject: string | null;
-  email_body: string | null;
-  read: boolean;
-  records_received_detected: boolean;
-  raw_postmark_data: any;
-}
+const FILING_TYPE_LABELS: Record<string, string> = {
+  corporation_tax_payment: 'Corp Tax',
+  ct600_filing: 'CT600',
+  companies_house: 'Companies House',
+  vat_return: 'VAT Return',
+  self_assessment: 'Self Assessment',
+};
 
 interface InboundEmailDetailModalProps {
   open: boolean;
   onClose: () => void;
   email: InboundEmail | null;
   emails: InboundEmail[];
-  onNavigate?: (direction: "prev" | "next") => void;
+  onNavigate?: (direction: 'prev' | 'next') => void;
   onMarkAsRead?: (emailId: string) => void;
   onUpdateRecordsReceived?: (emailId: string, clientId: string, filingTypeId: string) => void;
-}
-
-function EmailBodyPreview({ content }: { content: string }) {
-  return (
-    <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap break-words">
-      {content}
-    </div>
-  );
 }
 
 export function InboundEmailDetailModal({
@@ -54,15 +46,12 @@ export function InboundEmailDetailModal({
   onMarkAsRead,
   onUpdateRecordsReceived,
 }: InboundEmailDetailModalProps) {
-  const [checkerMode, setCheckerMode] = useState<InboundCheckerMode>("auto");
+  const router = useRouter();
+  const [checkerMode, setCheckerMode] = useState<InboundCheckerMode>('auto');
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    async function loadMode() {
-      const mode = await getInboundCheckerMode();
-      setCheckerMode(mode);
-    }
-    loadMode();
+    getInboundCheckerMode().then(setCheckerMode);
   }, []);
 
   // Mark as read when opened
@@ -72,19 +61,34 @@ export function InboundEmailDetailModal({
     }
   }, [email?.id]);
 
-  const currentIndex = email ? emails.findIndex((e) => e.id === email.id) : -1;
-  const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex < emails.length - 1;
+  // Keyboard navigation
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!open) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onNavigate?.('prev');
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        onNavigate?.('next');
+      }
+    },
+    [open, onNavigate]
+  );
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const handleApprove = async () => {
     if (!email || !email.client_id || !email.filing_type_id) return;
-
     setIsUpdating(true);
     try {
       await onUpdateRecordsReceived?.(email.id, email.client_id, email.filing_type_id);
       onClose();
     } catch (error) {
-      console.error("Failed to update records received:", error);
+      console.error('Failed to update records received:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -92,172 +96,172 @@ export function InboundEmailDetailModal({
 
   if (!email) return null;
 
+  const currentIndex = emails.findIndex((e) => e.id === email.id);
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < emails.length - 1;
+
+  const filingTypeLabel = email.filing_type_id
+    ? (FILING_TYPE_LABELS[email.filing_type_id] ?? email.filing_type_name)
+    : null;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <DialogTitle className="text-2xl">Inbound Email</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Received on {new Date(email.received_at).toLocaleString()}
-              </p>
-            </div>
-            <IconButtonWithText
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-            >
-              <X className="h-5 w-5" />
-              Close
-            </IconButtonWithText>
-          </div>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-          {/* Left side - Email preview (2/3 width on lg screens) */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Email header info */}
-            <Card className="p-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <div className="flex items-center justify-center size-10 rounded-lg bg-status-info/10 shrink-0">
-                  <Mail className="size-5 text-status-info" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-muted-foreground">From:</span>
-                    <span className="text-sm truncate">{email.email_from}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">Subject:</span>
-                    <span className="text-sm truncate">{email.email_subject || "(No subject)"}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Email body preview */}
-            <Card className="p-0 overflow-hidden">
-              <div className="border-b px-4 py-3 bg-muted/30">
-                <h3 className="text-sm font-semibold">Email Content</h3>
-              </div>
-              <div className="p-4 max-h-[500px] overflow-y-auto">
-                {email.email_body ? (
-                  <EmailBodyPreview content={email.email_body} />
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">No email body content</p>
-                )}
-              </div>
-            </Card>
-          </div>
-
-          {/* Right side - Status and actions (1/3 width on lg screens) */}
-          <div className="space-y-4">
-            {/* Detection status */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold mb-3">Detection Status</h3>
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  {email.records_received_detected ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
-                      <span className="text-sm text-green-600 font-medium">
-                        Documents detected
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <X className="h-4 w-4 text-status-neutral" />
-                      <span className="text-sm text-status-neutral font-medium">
-                        No documents detected
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {email.records_received_detected && (
-                  <>
-                    <div className="border-t pt-3 space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Client ID:</span>
-                        <span className="font-mono">{email.client_id || "Not linked"}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Filing Type:</span>
-                        <span className="font-mono">{email.filing_type_id || "Unknown"}</span>
-                      </div>
+      <DialogContent className="[&>button]:hidden sm:max-w-7xl max-h-[90vh] p-0 gap-0">
+        <div className="flex h-[80vh]">
+          {/* Left side: Email body */}
+          <div className="flex-1 overflow-y-auto flex flex-col">
+            {email.email_body ? (
+              <div className="flex-1 flex items-center justify-center p-8">
+                <div className="w-full max-w-2xl border rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300">
+                  <div className="border-b px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
+                      <span className="text-sm">{email.email_subject || '(No subject)'}</span>
                     </div>
-
-                    {checkerMode === "recommend" && email.client_id && email.filing_type_id && (
-                      <div className="border-t pt-3">
-                        <p className="text-xs text-muted-foreground mb-3">
-                          Recommendation mode is enabled. Click below to manually approve updating this client&apos;s records received status.
-                        </p>
-                        <ButtonBase
-                          onClick={handleApprove}
-                          disabled={isUpdating}
-                          buttonType="icon-text"
-                          variant="green"
-                          className="w-full"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          {isUpdating ? "Updating..." : "Mark Records Received"}
-                        </ButtonBase>
-                      </div>
-                    )}
-
-                    {checkerMode === "auto" && (
-                      <div className="border-t pt-3">
-                        <Badge variant="outline" className="w-full justify-center bg-green-500/10 text-green-600 border-green-600/20">
-                          Auto-updated
-                        </Badge>
-                      </div>
-                    )}
-                  </>
-                )}
+                  </div>
+                  <div className="p-4">
+                    <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
+                      {email.email_body}
+                    </pre>
+                  </div>
+                </div>
               </div>
-            </Card>
+            ) : (
+              <div className="flex-1 flex items-center justify-center p-6">
+                <div className="text-center space-y-3 text-muted-foreground">
+                  <Mail className="h-10 w-10 mx-auto opacity-25" />
+                  <p className="text-sm font-medium">No preview available</p>
+                  <p className="text-xs opacity-70">No email body was stored for this message.</p>
+                </div>
+              </div>
+            )}
+          </div>
 
-            {/* Read status */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold mb-2">Read Status</h3>
-              <Badge variant={email.read ? "outline" : "default"}>
-                {email.read ? "Read" : "Unread"}
-              </Badge>
-            </Card>
+          {/* Right side: Metadata sidebar */}
+          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto border-l">
+            {/* Header */}
+            <h3 className="text-lg font-semibold">Inbound Email</h3>
+
+            {/* Metadata */}
+            <div className="space-y-4">
+              {email.client_id && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Client
+                  </p>
+                  <button
+                    className="text-sm font-medium hover:underline text-left flex items-center gap-1 group"
+                    onClick={() => { onClose(); router.push(`/clients/${email.client_id}`); }}
+                  >
+                    {email.client_name}
+                    <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </button>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  From
+                </p>
+                <p className="text-sm font-medium">{email.email_from}</p>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Date Received
+                </p>
+                <p className="text-sm font-medium">
+                  {format(new Date(email.received_at), 'dd MMM yyyy, HH:mm')}
+                </p>
+              </div>
+
+              {filingTypeLabel && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Deadline Type
+                  </p>
+                  <p className="text-sm font-medium">{filingTypeLabel}</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Read
+                </p>
+                <div className={`px-3 py-2 rounded-md inline-flex items-center ${email.read ? 'bg-status-neutral/10' : 'bg-blue-500/10'}`}>
+                  <span className={`text-sm font-medium ${email.read ? 'text-status-neutral' : 'text-blue-500'}`}>
+                    {email.read ? 'Read' : 'Unread'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Records Received
+                </p>
+                <div className={`px-3 py-2 rounded-md inline-flex items-center ${email.records_received_detected ? 'bg-green-500/10' : 'bg-status-neutral/10'}`}>
+                  <span className={`text-sm font-medium ${email.records_received_detected ? 'text-green-600' : 'text-status-neutral'}`}>
+                    {email.records_received_detected ? 'Detected' : 'Not Detected'}
+                  </span>
+                </div>
+              </div>
+
+              {email.records_received_detected && checkerMode === 'recommend' && email.client_id && email.filing_type_id && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Recommendation mode is enabled. Approve below to mark records received for this client.
+                  </p>
+                  <ButtonBase
+                    onClick={handleApprove}
+                    disabled={isUpdating}
+                    buttonType="icon-text"
+                    variant="green"
+                    className="w-full"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    {isUpdating ? 'Updating...' : 'Mark Records Received'}
+                  </ButtonBase>
+                </div>
+              )}
+
+              {email.records_received_detected && checkerMode === 'auto' && (
+                <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10">
+                  <span className="text-sm font-medium text-green-600">Auto-updated</span>
+                </div>
+              )}
+            </div>
 
             {/* Navigation */}
-            {(hasPrev || hasNext) && (
-              <Card className="p-4">
-                <h3 className="text-sm font-semibold mb-3">Navigation</h3>
-                <div className="flex gap-2">
-                  <ButtonBase
-                    onClick={() => onNavigate?.("prev")}
-                    disabled={!hasPrev}
-                    buttonType="icon-text"
-                    variant="violet"
-                    className="flex-1"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </ButtonBase>
-                  <ButtonBase
-                    onClick={() => onNavigate?.("next")}
-                    disabled={!hasNext}
-                    buttonType="icon-text"
-                    variant="violet"
-                    className="flex-1"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </ButtonBase>
-                </div>
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  {currentIndex + 1} of {emails.length}
-                </p>
-              </Card>
-            )}
+            <div className="mt-auto pt-4">
+              <div className="flex gap-2">
+                <ButtonBase
+                  variant="blue"
+                  buttonType="icon-text"
+                  onClick={() => onNavigate?.('prev')}
+                  disabled={!hasPrev}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </ButtonBase>
+                <ButtonBase
+                  variant="blue"
+                  buttonType="icon-text"
+                  onClick={() => onNavigate?.('next')}
+                  disabled={!hasNext}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </ButtonBase>
+                <ButtonBase
+                  variant="destructive"
+                  buttonType="icon-text"
+                  onClick={onClose}
+                >
+                  <X className="h-4 w-4" />
+                  Close
+                </ButtonBase>
+              </div>
+            </div>
           </div>
         </div>
       </DialogContent>

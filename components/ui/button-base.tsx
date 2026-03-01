@@ -125,6 +125,7 @@ interface ButtonBaseProps
 const ButtonBase = React.forwardRef<HTMLButtonElement, ButtonBaseProps>(
   ({ className, variant, buttonType, isSelected, ...props }, ref) => (
     <button
+      type="button"
       ref={ref}
       className={cn(buttonBaseVariants({ variant, buttonType, isSelected, className }))}
       {...props}

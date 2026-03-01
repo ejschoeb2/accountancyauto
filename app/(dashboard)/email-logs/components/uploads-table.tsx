@@ -1,0 +1,457 @@
+'use client';
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ButtonWithText } from '@/components/ui/button-with-text';
+import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { getPortalUploads, type PortalUpload } from '@/app/actions/document-uploads';
+import { format } from 'date-fns';
+import { Search, X, SlidersHorizontal, FileUp, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ITEMS_PER_PAGE = 20;
+
+const FILING_TYPE_OPTIONS = [
+  { value: 'corporation_tax_payment', label: 'Corp Tax' },
+  { value: 'ct600_filing', label: 'CT600' },
+  { value: 'companies_house', label: 'Companies House' },
+  { value: 'vat_return', label: 'VAT Return' },
+  { value: 'self_assessment', label: 'Self Assessment' },
+];
+
+const CONFIDENCE_OPTIONS = [
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
+  { value: 'unclassified', label: 'Unclassified' },
+];
+
+function ConfidenceBadge({ confidence }: { confidence: string | null }) {
+  if (!confidence || confidence === 'unclassified') {
+    return (
+      <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-status-neutral/10">
+        <span className="text-xs font-medium text-status-neutral">Unclassified</span>
+      </div>
+    );
+  }
+  if (confidence === 'high') {
+    return (
+      <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-green-500/10">
+        <span className="text-xs font-medium text-green-600">High</span>
+      </div>
+    );
+  }
+  if (confidence === 'medium') {
+    return (
+      <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-amber-500/10">
+        <span className="text-xs font-medium text-amber-600">Medium</span>
+      </div>
+    );
+  }
+  return (
+    <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-status-danger/10">
+      <span className="text-xs font-medium text-status-danger">Low</span>
+    </div>
+  );
+}
+
+const FILING_LABELS: Record<string, string> = {
+  corporation_tax_payment: 'Corp Tax',
+  ct600_filing: 'CT600',
+  companies_house: 'Companies House',
+  vat_return: 'VAT Return',
+  self_assessment: 'Self Assessment',
+};
+
+export function UploadsTable() {
+  const [data, setData] = useState<PortalUpload[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // Search
+  const [clientSearch, setClientSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilingFilters, setActiveFilingFilters] = useState<Set<string>>(new Set());
+  const [activeConfidenceFilters, setActiveConfidenceFilters] = useState<Set<string>>(new Set());
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // Sort
+  const [sortBy, setSortBy] = useState('received-desc');
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(clientSearch); setCurrentPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [clientSearch]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getPortalUploads({
+        clientSearch: debouncedSearch || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        offset: (currentPage - 1) * ITEMS_PER_PAGE,
+        limit: ITEMS_PER_PAGE,
+      });
+      setData(result.data);
+      setTotalCount(result.totalCount);
+    } catch (err) {
+      console.error('Failed to load uploads:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch, dateFrom, dateTo, currentPage]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Client-side filter chips (filing type + confidence) applied on top of server results
+  const filteredData = useMemo(() => {
+    let rows = data;
+    if (activeFilingFilters.size > 0) {
+      rows = rows.filter((r) => r.filing_type_id && activeFilingFilters.has(r.filing_type_id));
+    }
+    if (activeConfidenceFilters.size > 0) {
+      rows = rows.filter((r) => {
+        const c = r.classification_confidence ?? 'unclassified';
+        return activeConfidenceFilters.has(c);
+      });
+    }
+    return rows;
+  }, [data, activeFilingFilters, activeConfidenceFilters]);
+
+  // Client-side sort
+  const sortedData = useMemo(() => {
+    const rows = [...filteredData];
+    switch (sortBy) {
+      case 'client-asc':
+        return rows.sort((a, b) => (a.client_name ?? '').localeCompare(b.client_name ?? ''));
+      case 'client-desc':
+        return rows.sort((a, b) => (b.client_name ?? '').localeCompare(a.client_name ?? ''));
+      case 'received-asc':
+        return rows.sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime());
+      case 'received-desc':
+      default:
+        return rows.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
+    }
+  }, [filteredData, sortBy]);
+
+  function toggleFilingFilter(v: string) {
+    setActiveFilingFilters((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
+  }
+  function toggleConfidenceFilter(v: string) {
+    setActiveConfidenceFilters((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
+  }
+
+  const activeFilterCount = activeFilingFilters.size + activeConfidenceFilters.size;
+  const hasActiveFilters = debouncedSearch !== '' || dateFrom !== '' || dateTo !== '' || activeFilterCount > 0;
+
+  function clearAllFilters() {
+    setClientSearch('');
+    setDebouncedSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setActiveFilingFilters(new Set());
+    setActiveConfidenceFilters(new Set());
+    setCurrentPage(1);
+  }
+
+  return (
+    <div className="space-y-6 pb-0">
+      <div className="max-w-7xl mx-auto space-y-4">
+        {/* Search and Controls */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Search */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by client name..."
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              className="pl-9 hover:border-foreground/20"
+            />
+            {clientSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                onClick={() => setClientSearch('')}
+              >
+                <X className="size-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Controls toolbar */}
+          <div className="flex gap-2 sm:ml-auto items-center">
+            <IconButtonWithText
+              type="button"
+              variant={showFilters ? 'amber' : 'violet'}
+              onClick={() => setShowFilters((v) => !v)}
+              title={showFilters ? 'Close filters' : 'Open filters'}
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+              {showFilters ? 'Close Filters' : 'Filter'}
+              {activeFilterCount > 0 && !showFilters && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-xs font-semibold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </IconButtonWithText>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-9 min-w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="received-desc">Received (Latest)</SelectItem>
+                  <SelectItem value="received-asc">Received (Earliest)</SelectItem>
+                  <SelectItem value="client-asc">Client Name (A-Z)</SelectItem>
+                  <SelectItem value="client-desc">Client Name (Z-A)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Collapsible filter panel */}
+        {showFilters && (
+          <Card>
+            <CardContent className="space-y-4">
+              {/* Filing Type + Clear button row */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filing Type</span>
+                  <div className="flex flex-wrap gap-2">
+                    {FILING_TYPE_OPTIONS.map((opt) => (
+                      <ButtonWithText
+                        key={opt.value}
+                        onClick={() => toggleFilingFilter(opt.value)}
+                        isSelected={activeFilingFilters.has(opt.value)}
+                        variant="muted"
+                      >
+                        {opt.label}
+                      </ButtonWithText>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide invisible">Clear</span>
+                  <IconButtonWithText
+                    type="button"
+                    variant="destructive"
+                    onClick={clearAllFilters}
+                    title="Clear all filters"
+                  >
+                    <X className="h-5 w-5" />
+                    Clear all filters
+                  </IconButtonWithText>
+                </div>
+              </div>
+
+              {/* Confidence */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Confidence</span>
+                <div className="flex flex-wrap gap-2">
+                  {CONFIDENCE_OPTIONS.map((opt) => (
+                    <ButtonWithText
+                      key={opt.value}
+                      onClick={() => toggleConfidenceFilter(opt.value)}
+                      isSelected={activeConfidenceFilters.has(opt.value)}
+                      variant="muted"
+                    >
+                      {opt.label}
+                    </ButtonWithText>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Range */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date Range</span>
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">From:</label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                      className="w-40 hover:border-foreground/20"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">To:</label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                      className="w-40 hover:border-foreground/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Results count */}
+        <div className="text-sm font-medium text-foreground/70">
+          Showing <span className="font-semibold text-foreground">{sortedData.length}</span> of{' '}
+          <span className="font-semibold text-foreground">{totalCount}</span> uploads
+          {hasActiveFilters && <span className="text-muted-foreground ml-1">(filtered)</span>}
+        </div>
+      </div>
+
+      {/* Table — full page width */}
+      <div className="-mx-8 -mb-10 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Client</span>
+              </TableHead>
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">File</span>
+              </TableHead>
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Filing Type</span>
+              </TableHead>
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Document Type</span>
+              </TableHead>
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Confidence</span>
+              </TableHead>
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tax Year</span>
+              </TableHead>
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Received</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                  Loading uploads...
+                </TableCell>
+              </TableRow>
+            ) : sortedData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="py-12">
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <FileUp className="size-8 opacity-40" />
+                    <p className="text-sm">
+                      {hasActiveFilters ? 'No uploads match your filters' : 'No portal uploads yet'}
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedData.map((upload) => (
+                <TableRow
+                  key={upload.id}
+                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => upload.client_id && (window.location.href = `/clients/${upload.client_id}`)}
+                >
+                  <TableCell className="font-medium">
+                    {upload.client_id ? (
+                      <Link
+                        href={`/clients/${upload.client_id}`}
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {upload.client_name ?? '—'}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">Unknown client</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-[220px]">
+                    <span className="truncate block text-sm" title={upload.original_filename}>
+                      {upload.original_filename}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {upload.filing_type_id ? (FILING_LABELS[upload.filing_type_id] ?? upload.filing_type_name ?? upload.filing_type_id) : '—'}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {upload.document_type_label ?? '—'}
+                  </TableCell>
+                  <TableCell>
+                    <ConfidenceBadge confidence={upload.classification_confidence} />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {upload.extracted_tax_year ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                    {format(new Date(upload.received_at), 'd MMM yyyy, HH:mm')}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1 || loading}
+            >
+              <ChevronLeft className="size-4" />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || loading}
+            >
+              Next
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, X, Plus } from "lucide-react";
 
 import {
   Dialog,
@@ -13,7 +13,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -40,13 +39,35 @@ const CLIENT_TYPE_OPTIONS = [
   { value: "LLP", label: "LLP" },
 ];
 
+const VAT_SCHEME_OPTIONS = [
+  { value: "Standard", label: "Standard" },
+  { value: "Flat Rate", label: "Flat Rate" },
+  { value: "Cash Accounting", label: "Cash Accounting" },
+  { value: "Annual Accounting", label: "Annual Accounting" },
+];
+
+const VAT_REGISTERED_OPTIONS = [
+  { value: "no", label: "Not Registered" },
+  { value: "yes", label: "Registered" },
+];
+
+const VAT_STAGGER_GROUP_OPTIONS = [
+  { value: "1", label: "1 (Mar/Jun/Sep/Dec)" },
+  { value: "2", label: "2 (Jan/Apr/Jul/Oct)" },
+  { value: "3", label: "3 (Feb/May/Aug/Nov)" },
+];
+
+const labelClass = "text-xs font-semibold text-muted-foreground uppercase tracking-wide";
+
 export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReached }: CreateClientDialogProps) {
   const [companyName, setCompanyName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [clientType, setClientType] = useState("");
   const [yearEndDate, setYearEndDate] = useState("");
-  const [vatRegistered, setVatRegistered] = useState(false);
+  const [vatRegistered, setVatRegistered] = useState("");
+  const [vatStaggerGroup, setVatStaggerGroup] = useState("");
+  const [vatScheme, setVatScheme] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   // Client limit state
@@ -65,7 +86,9 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
       setEmail("");
       setClientType("");
       setYearEndDate("");
-      setVatRegistered(false);
+      setVatRegistered("");
+      setVatStaggerGroup("");
+      setVatScheme("");
       setLimitLoaded(false);
       return;
     }
@@ -109,7 +132,7 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
         company_name: companyName,
         primary_email: email,
         client_type: clientType,
-        vat_registered: vatRegistered,
+        vat_registered: vatRegistered === "yes",
       };
 
       if (displayName.trim()) {
@@ -118,6 +141,14 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
 
       if (yearEndDate) {
         body.year_end_date = yearEndDate;
+      }
+
+      if (vatRegistered === "yes" && vatStaggerGroup) {
+        body.vat_stagger_group = parseInt(vatStaggerGroup, 10);
+      }
+
+      if (vatRegistered === "yes" && vatScheme) {
+        body.vat_scheme = vatScheme;
       }
 
       const response = await fetch("/api/clients", {
@@ -157,11 +188,11 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Add Client</DialogTitle>
           <DialogDescription>
-            Create a new client for testing the email sending pipeline.
+            Add a new client to your practice.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,8 +217,10 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
           )}
 
           {/* Company Name */}
-          <div className="space-y-2">
-            <Label htmlFor="company-name">Company Name *</Label>
+          <div className="space-y-1.5">
+            <label htmlFor="company-name" className={labelClass}>
+              Company Name *
+            </label>
             <Input
               id="company-name"
               value={companyName}
@@ -198,8 +231,10 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
           </div>
 
           {/* Display Name */}
-          <div className="space-y-2">
-            <Label htmlFor="display-name">Display Name</Label>
+          <div className="space-y-1.5">
+            <label htmlFor="display-name" className={labelClass}>
+              Display Name
+            </label>
             <Input
               id="display-name"
               value={displayName}
@@ -209,8 +244,10 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
           </div>
 
           {/* Email */}
-          <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
+          <div className="space-y-1.5">
+            <label htmlFor="email" className={labelClass}>
+              Email *
+            </label>
             <Input
               id="email"
               type="email"
@@ -222,8 +259,8 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
           </div>
 
           {/* Client Type */}
-          <div className="space-y-2">
-            <Label>Client Type *</Label>
+          <div className="space-y-1.5">
+            <label className={labelClass}>Client Type *</label>
             <Select value={clientType} onValueChange={setClientType} required>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select client type..." />
@@ -239,8 +276,10 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
           </div>
 
           {/* Year End Date */}
-          <div className="space-y-2">
-            <Label htmlFor="year-end-date">Year End Date</Label>
+          <div className="space-y-1.5">
+            <label htmlFor="year-end-date" className={labelClass}>
+              Year End Date
+            </label>
             <Input
               id="year-end-date"
               type="date"
@@ -250,32 +289,78 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
           </div>
 
           {/* VAT Registered */}
-          <div className="flex items-center gap-2">
-            <input
-              id="vat-registered"
-              type="checkbox"
-              checked={vatRegistered}
-              onChange={(e) => setVatRegistered(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <Label htmlFor="vat-registered">VAT Registered</Label>
+          <div className="space-y-1.5">
+            <label className={labelClass}>VAT Registered</label>
+            <Select value={vatRegistered} onValueChange={setVatRegistered}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select VAT status..." />
+              </SelectTrigger>
+              <SelectContent>
+                {VAT_REGISTERED_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* VAT fields - only shown when VAT registered */}
+          {vatRegistered === "yes" && (
+            <>
+              {/* VAT Stagger Group */}
+              <div className="space-y-1.5">
+                <label className={labelClass}>VAT Stagger Group</label>
+                <Select value={vatStaggerGroup} onValueChange={setVatStaggerGroup}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select stagger group..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VAT_STAGGER_GROUP_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* VAT Scheme */}
+              <div className="space-y-1.5">
+                <label className={labelClass}>VAT Scheme</label>
+                <Select value={vatScheme} onValueChange={setVatScheme}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select VAT scheme..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VAT_SCHEME_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
 
           <DialogFooter>
             <ButtonBase
               type="button"
               onClick={() => onOpenChange(false)}
-              buttonType="text-only"
+              buttonType="icon-text"
+              variant="destructive"
             >
+              <X className="size-4" />
               Cancel
             </ButtonBase>
             <ButtonBase
               type="submit"
-              buttonType="text-only"
+              buttonType="icon-text"
               variant="green"
               disabled={isLoading || atLimit || !companyName.trim() || !email.trim() || !clientType}
             >
-              {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Create
             </ButtonBase>
           </DialogFooter>

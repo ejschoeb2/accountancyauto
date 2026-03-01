@@ -194,8 +194,10 @@ export async function PUT(
   // Insert new steps if provided
   if (data.steps && data.steps.length > 0) {
     const orgId = await getOrgId();
+    const { data: { user } } = await supabase.auth.getUser();
     const stepsToInsert = data.steps.map((step, index) => ({
       org_id: orgId,
+      owner_id: user!.id,
       schedule_id: id,
       email_template_id: step.email_template_id,
       step_number: index + 1, // 1-based indexing

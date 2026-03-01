@@ -27,8 +27,8 @@ const STATUS_CONFIG: Record<
   },
   blue: {
     label: 'Scheduled',
-    bg: 'bg-sky-500/10',
-    text: 'text-sky-500',
+    bg: 'bg-status-info/10',
+    text: 'text-status-info',
   },
   violet: {
     label: 'Records Received',
@@ -51,7 +51,7 @@ export function TrafficLightBadge({ status }: TrafficLightBadgeProps) {
   const config = STATUS_CONFIG[status];
 
   return (
-    <div className={`px-3 py-1.5 rounded-md ${config.bg} inline-flex items-center`}>
+    <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center`}>
       <span className={`text-sm font-medium ${config.text}`}>
         {config.label}
       </span>

@@ -12,10 +12,12 @@ export interface DashboardMetrics {
   approachingSentCount: number; // amber (1-4 weeks) - reminder already sent
   scheduledCount: number; // blue (> 4 weeks)
   completedCount: number; // green (records received)
+  violetCount: number; // violet (records received, awaiting submission)
   inactiveCount: number; // grey (paused)
   sentTodayCount: number;
   pausedCount: number;
   failedDeliveryCount: number;
+  completionRate: number; // percentage of non-inactive clients that are green/violet
 }
 
 export interface ClientStatusRow {
@@ -87,6 +89,7 @@ export async function getDashboardMetrics(
   let approachingSentCount = 0;
   let scheduledCount = 0;
   let completedCount = 0;
+  let violetCount = 0;
   let inactiveCount = 0;
 
   for (const client of clients || []) {
@@ -159,9 +162,16 @@ export async function getDashboardMetrics(
     }
     else if (status === 'blue') scheduledCount++;
     else if (status === 'green') completedCount++;
-    else if (status === 'violet') completedCount++; // Treat violet as completed for metrics
+    else if (status === 'violet') violetCount++;
     else if (status === 'grey') inactiveCount++;
   }
+
+  // Compute completion rate: (green + violet) / (total - inactive) * 100
+  const totalClients = (clients || []).length;
+  const activeClients = totalClients - inactiveCount;
+  const completionRate = activeClients > 0
+    ? ((completedCount + violetCount) / activeClients) * 100
+    : 0;
 
   // Query email_log for today's sent count
   const todayStart = new Date();
@@ -200,10 +210,12 @@ export async function getDashboardMetrics(
       approachingSentCount,
       scheduledCount,
       completedCount,
+      violetCount,
       inactiveCount,
       sentTodayCount: sentTodayCount || 0,
       pausedCount: pausedCount || 0,
       failedDeliveryCount: failedDeliveryCount || 0,
+      completionRate,
     };
   } catch (error) {
     console.error('Error in getDashboardMetrics:', error);

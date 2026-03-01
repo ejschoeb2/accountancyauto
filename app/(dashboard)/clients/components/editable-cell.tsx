@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,10 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckButton } from "@/components/ui/check-button";
-import { Badge } from "@/components/ui/badge";
-import { ButtonBase } from "@/components/ui/button-base";
-import { cn } from "@/lib/utils";
 
 interface EditableCellProps {
   value: unknown;
@@ -95,22 +91,12 @@ export function EditableCell({
           return formatDateDisplay(value);
         case "boolean":
           return value ? (
-            <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center gap-2">
-              <span className="text-green-600">
-                <Check className="h-4 w-4" />
-              </span>
-              <span className="text-sm font-medium text-green-600">
-                Yes
-              </span>
+            <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center">
+              <span className="text-sm font-medium text-green-600">Yes</span>
             </div>
           ) : (
-            <div className="px-3 py-2 rounded-md bg-status-danger/10 inline-flex items-center gap-2">
-              <span className="text-status-danger">
-                <X className="h-4 w-4" />
-              </span>
-              <span className="text-sm font-medium text-status-danger">
-                No
-              </span>
+            <div className="px-3 py-2 rounded-md bg-status-danger/10 inline-flex items-center">
+              <span className="text-sm font-medium text-status-danger">No</span>
             </div>
           );
         case "select":
@@ -191,53 +177,29 @@ export function EditableCell({
       )}
 
       {type === "boolean" && (
-        Boolean(editValue) ? (
-          <button
-            type="button"
-            onClick={() => {
-              setEditValue(false);
-              setTimeout(() => {
-                onSave(false).catch((error) => {
-                  const message = error instanceof Error ? error.message : "Failed to save";
-                  toast.error(message);
-                  setEditValue(value);
-                });
-              }, 100);
-            }}
-            disabled={isSaving}
-            className="px-3 py-2 rounded-md bg-green-500/10 hover:bg-green-500/20 inline-flex items-center gap-2 transition-colors"
-          >
-            <span className="text-green-600 hover:text-green-700">
-              <Check className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-medium text-green-600 hover:text-green-700">
-              Yes
-            </span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setEditValue(true);
-              setTimeout(() => {
-                onSave(true).catch((error) => {
-                  const message = error instanceof Error ? error.message : "Failed to save";
-                  toast.error(message);
-                  setEditValue(value);
-                });
-              }, 100);
-            }}
-            disabled={isSaving}
-            className="px-3 py-2 rounded-md bg-status-danger/10 hover:bg-status-danger/20 inline-flex items-center gap-2 transition-colors"
-          >
-            <span className="text-status-danger">
-              <X className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-medium text-status-danger">
-              No
-            </span>
-          </button>
-        )
+        <Select
+          value={Boolean(editValue) ? "true" : "false"}
+          onValueChange={(newValue) => {
+            const boolVal = newValue === "true";
+            setEditValue(boolVal);
+            setTimeout(() => {
+              onSave(boolVal).catch((error) => {
+                const message = error instanceof Error ? error.message : "Failed to save";
+                toast.error(message);
+                setEditValue(value);
+              });
+            }, 100);
+          }}
+          disabled={isSaving}
+        >
+          <SelectTrigger className="h-8 min-w-[100px]" autoFocus>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="true">Yes</SelectItem>
+            <SelectItem value="false">No</SelectItem>
+          </SelectContent>
+        </Select>
       )}
     </div>
   );

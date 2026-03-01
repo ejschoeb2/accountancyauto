@@ -35,7 +35,7 @@ interface SettingsTabsProps {
   orgId: string;
   hasSubscription: boolean;
   storageBackend: string | null;
-  googleDriveFolderExists: boolean;
+  googleDriveFolderId: string | null;
   storageBackendStatus: string | null;
   oneDriveConnected: boolean;
   dropboxConnected: boolean;
@@ -57,7 +57,7 @@ export function SettingsTabs({
   orgId,
   hasSubscription,
   storageBackend,
-  googleDriveFolderExists,
+  googleDriveFolderId,
   storageBackendStatus,
   oneDriveConnected,
   dropboxConnected,
@@ -80,7 +80,7 @@ export function SettingsTabs({
         <TabsContent value="general" className="space-y-8 mt-6">
           <StorageCard
             storageBackend={storageBackend}
-            googleDriveFolderExists={googleDriveFolderExists}
+            googleDriveFolderId={googleDriveFolderId}
             storageBackendStatus={storageBackendStatus}
             oneDriveConnected={oneDriveConnected}
             dropboxConnected={dropboxConnected}

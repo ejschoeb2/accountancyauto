@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import Image from "next/image";
+import { Brain } from "lucide-react";
 import { NavLinks } from "@/components/nav-links";
 import { HelpLink } from "@/components/help-link";
 import { SettingsLink } from "@/components/settings-link";
@@ -72,11 +72,12 @@ export default async function DashboardLayout({
         <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">
           {/* Branding */}
           <div className="flex items-center gap-3">
-            <Image src="/logofini.png" alt="Logo" width={32} height={32} className="object-contain" />
+            <Brain className="text-violet-600" size={22} />
+            <span className="text-lg font-bold tracking-tight">Prompt</span>
             {orgName && (
               <>
-                <span className="text-muted-foreground">/</span>
-                <span className="text-sm font-medium">{orgName}</span>
+                <span className="w-px h-4 bg-border" />
+                <span className="text-lg font-bold tracking-tight">{orgName}</span>
               </>
             )}
           </div>

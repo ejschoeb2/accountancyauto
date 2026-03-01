@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 
 export async function signIn(email: string, password: string, inviteToken?: string) {
@@ -71,6 +72,45 @@ export async function signIn(email: string, password: string, inviteToken?: stri
 
 export async function signUp(email: string, password: string, inviteToken?: string) {
   const supabase = await createClient();
+
+  // ── Invite signup: skip email confirmation ──────────────────────────────
+  // The invite itself validates the email (org admin chose it), so requiring
+  // a second confirmation email is redundant. Use the admin client to create
+  // the user as pre-confirmed, then sign them in immediately.
+  if (inviteToken) {
+    const admin = createAdminClient();
+
+    const { data: newUser, error: createError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+
+    if (createError) {
+      if (createError.message.toLowerCase().includes("already been registered") ||
+          createError.message.toLowerCase().includes("already exists")) {
+        return {
+          error: "An account with this email already exists. Please sign in.",
+        };
+      }
+      return { error: "Failed to create account. Please try again." };
+    }
+
+    // Sign the user in immediately so they have a session
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      return { error: "Account created but sign-in failed. Please sign in manually." };
+    }
+
+    // Redirect straight to invite accept — no email round-trip needed
+    redirect(`/invite/accept?token=${encodeURIComponent(inviteToken)}`);
+  }
+
+  // ── Normal signup: send confirmation email ──────────────────────────────
   const h = await headers();
   const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
@@ -105,10 +145,6 @@ export async function signUp(email: string, password: string, inviteToken?: stri
 
   // Email confirmation disabled — user is immediately signed in
   if (data.session) {
-    // If the user came from an invite link, send them back to accept it
-    if (inviteToken) {
-      redirect(`/invite/accept?token=${encodeURIComponent(inviteToken)}`);
-    }
     redirect("/setup/wizard");
   }
 

@@ -1,22 +1,57 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Copy, Check, AlertCircle, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Loader2, Copy, Check, AlertCircle, AlertTriangle,
+  ArrowLeft, ArrowRight, SkipForward,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   setupPostmarkForOrg,
   checkOrgDomainVerification,
 } from "../actions";
+import {
+  updateUserSendHour,
+  updateUserEmailSettings,
+  updateInboundCheckerMode,
+  type EmailSettings,
+  type InboundCheckerMode,
+} from "@/app/actions/settings";
+
+const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6am to 9pm
+
+function formatHour(hour: number): string {
+  if (hour === 0) return "12:00 AM";
+  if (hour < 12) return `${hour}:00 AM`;
+  if (hour === 12) return "12:00 PM";
+  return `${hour - 12}:00 PM`;
+}
 
 interface EmailSetupStepProps {
   onComplete: () => void;
+  onBack?: () => void;
+  defaultSendHour: number;
+  defaultEmailSettings: EmailSettings;
+  defaultInboundMode: InboundCheckerMode;
+  orgDomain?: string;
+  orgInboundAddress?: string;
+  isCompleting?: boolean;
+  completeError?: string | null;
 }
 
-type StepState = "input" | "setting-up" | "dns-records" | "verifying";
+type StepState =
+  | "input"
+  | "setting-up"
+  | "dns-records"
+  | "verifying"
+  | "email-identity"
+  | "send-settings";
 
 interface DnsData {
   dkimPendingHost: string;
@@ -31,7 +66,17 @@ interface VerifyState {
   returnPathVerified: boolean | null;
 }
 
-export function EmailSetupStep({ onComplete }: EmailSetupStepProps) {
+export function EmailSetupStep({
+  onComplete,
+  onBack,
+  defaultSendHour,
+  defaultEmailSettings,
+  defaultInboundMode,
+  orgDomain,
+  orgInboundAddress,
+  isCompleting = false,
+  completeError,
+}: EmailSetupStepProps) {
   const [state, setState] = useState<StepState>("input");
   const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +86,27 @@ export function EmailSetupStep({ onComplete }: EmailSetupStepProps) {
     dkimVerified: null,
     returnPathVerified: null,
   });
+
+  // ── Email identity state ────────────────────────────────────────────────
+  const [senderName, setSenderName] = useState(defaultEmailSettings.senderName);
+  const defaultLocalPart = defaultEmailSettings.senderAddress.split("@")[0] ?? "reminders";
+  const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
+  const [replyTo, setReplyTo] = useState(orgInboundAddress ?? defaultEmailSettings.replyTo);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+
+  // ── Send settings state ─────────────────────────────────────────────────
+  const [sendHour, setSendHour] = useState(String(defaultSendHour));
+  const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(defaultInboundMode);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // The sender domain: use the domain just configured in Postmark if available,
+  // otherwise fall back to the org domain or the stored default.
+  const senderDomain = dnsData
+    ? domain
+    : (orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "phasetwo.uk");
+
+  // ── Handlers ────────────────────────────────────────────────────────────
 
   async function handleSetup() {
     if (!domain.trim()) {
@@ -85,70 +151,135 @@ export function EmailSetupStep({ onComplete }: EmailSetupStepProps) {
     });
   }
 
+  function handleDnsContinue() {
+    // Pre-fill reply-to with the Postmark inbound address from the setup result
+    if (dnsData?.inboundAddress) {
+      setReplyTo(dnsData.inboundAddress);
+    }
+    setState("email-identity");
+  }
+
+  function handleSkipDomain() {
+    // Skip only the domain setup — identity + send settings still collected
+    setState("email-identity");
+  }
+
+  function handleIdentityNext() {
+    setIdentityError(null);
+    setState("send-settings");
+  }
+
+  async function handleSettingsSave() {
+    setSaveError(null);
+    setIsSaving(true);
+
+    const currentAddress = `${senderLocalPart}@${senderDomain}`;
+
+    const hourResult = await updateUserSendHour(parseInt(sendHour, 10));
+    if (hourResult.error) {
+      setSaveError(hourResult.error);
+      setIsSaving(false);
+      return;
+    }
+
+    const emailResult = await updateUserEmailSettings({
+      senderName: senderName.trim(),
+      senderAddress: currentAddress,
+      replyTo: replyTo.trim(),
+    });
+    if (emailResult.error) {
+      setSaveError(emailResult.error);
+      setIsSaving(false);
+      return;
+    }
+
+    const modeResult = await updateInboundCheckerMode(inboundMode);
+    if (modeResult.error) {
+      setSaveError(modeResult.error);
+      setIsSaving(false);
+      return;
+    }
+
+    setIsSaving(false);
+    onComplete();
+  }
+
   // ── "input" state ──────────────────────────────────────────────────────────
   if (state === "input") {
     return (
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Set up email sending</h2>
-          <p className="text-sm text-muted-foreground">
-            Prompt will configure Postmark to send emails from your domain.
-            You&apos;ll need to add two DNS records.
-          </p>
-        </div>
-
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email-domain">Your domain</Label>
-              <Input
-                id="email-domain"
-                type="text"
-                placeholder="yourfirm.co.uk"
-                value={domain}
-                onChange={(e) => {
-                  setDomain(e.target.value);
-                  setError(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSetup();
-                }}
-                autoFocus
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter your full domain (e.g. <span className="font-mono">peninsula-accounting.co.uk</span>).
-                Reminder emails will be sent from this domain.
-              </p>
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle className="size-4 shrink-0" />
-                {error}
-              </div>
-            )}
-
-            <Button
-              className="w-full active:scale-[0.97]"
-              onClick={handleSetup}
-              disabled={!domain.trim()}
-            >
-              Set Up Email
-            </Button>
-          </CardContent>
-        </Card>
-
-        <div className="border-t pt-4 space-y-2">
-          <div className="flex items-start gap-2 text-sm text-amber-600">
-            <AlertTriangle className="size-4 shrink-0 mt-0.5" />
-            <p>
-              <span className="font-medium">Not recommended.</span>{" "}
-              Reminders will send from the Prompt platform domain, which clients may not recognise.
-              You can configure your own domain later in Settings.
+      <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
+        <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">Set up email sending</h2>
+            <p className="text-sm text-muted-foreground">
+              Prompt will configure Postmark to send emails from your domain.
+              You&apos;ll need to add two DNS records.
             </p>
           </div>
-          <ButtonBase variant="muted" buttonType="text-only" onClick={onComplete}>
-            Skip — use platform email instead
+
+          {/* Warning above the input */}
+          <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+            <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-600">Not recommended to skip this step.</p>
+              <p className="text-sm text-amber-600/80">
+                Reminders will send from the Prompt platform domain, which clients may not recognise.
+                You can configure your own domain later in Settings.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email-domain" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Your domain
+            </Label>
+            <Input
+              id="email-domain"
+              type="text"
+              placeholder="yourfirm.co.uk"
+              value={domain}
+              onChange={(e) => {
+                setDomain(e.target.value);
+                setError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSetup();
+              }}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter your full domain (e.g. <span className="font-mono">peninsula-accounting.co.uk</span>).
+              Reminder emails will be sent from this domain.
+            </p>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="size-4 shrink-0" />
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2">
+          {onBack && (
+            <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
+              <ArrowLeft className="size-4" />
+              Back
+            </ButtonBase>
+          )}
+          <ButtonBase variant="destructive" buttonType="icon-text" onClick={handleSkipDomain}>
+            <SkipForward className="size-4" />
+            Skip
+          </ButtonBase>
+          <ButtonBase
+            variant="blue"
+            buttonType="icon-text"
+            onClick={handleSetup}
+            disabled={!domain.trim()}
+          >
+            Set Up Email
+            <ArrowRight className="size-4" />
           </ButtonBase>
         </div>
       </div>
@@ -273,6 +404,15 @@ export function EmailSetupStep({ onComplete }: EmailSetupStepProps) {
 
         <div className="flex items-center gap-3">
           <ButtonBase
+            variant="amber"
+            buttonType="icon-text"
+            onClick={() => setState("input")}
+            disabled={isVerifying}
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </ButtonBase>
+          <ButtonBase
             onClick={handleCheckDns}
             disabled={isVerifying}
             buttonType="text-only"
@@ -287,10 +427,206 @@ export function EmailSetupStep({ onComplete }: EmailSetupStepProps) {
               "Check DNS"
             )}
           </ButtonBase>
-
-          <ButtonBase onClick={onComplete} buttonType="text-only">
+          <ButtonBase
+            variant="blue"
+            buttonType="icon-text"
+            onClick={handleDnsContinue}
+            disabled={isVerifying}
+          >
             Continue
+            <ArrowRight className="size-4" />
           </ButtonBase>
+        </div>
+      </div>
+    );
+  }
+
+  // ── "email-identity" state ─────────────────────────────────────────────────
+  if (state === "email-identity") {
+    return (
+      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
+        <Card className="p-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold">Email identity</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Choose the name and email address clients will see when you send reminders
+                {senderDomain ? ` from @${senderDomain}` : ""}. These can be changed at any time in Settings.
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label htmlFor="identity-sender-name" className="text-sm font-medium">
+                  Sender Name
+                </label>
+                <Input
+                  id="identity-sender-name"
+                  type="text"
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  placeholder="John Smith"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="identity-sender-local" className="text-sm font-medium">
+                  Sender Email
+                </label>
+                <div className="flex items-center gap-0">
+                  <Input
+                    id="identity-sender-local"
+                    type="text"
+                    value={senderLocalPart}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
+                      setSenderLocalPart(value);
+                    }}
+                    placeholder="hello"
+                    className="rounded-r-none"
+                  />
+                  <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+                    @{senderDomain}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="identity-reply-to" className="text-sm font-medium">
+                Reply-To Address
+              </label>
+              <Input
+                id="identity-reply-to"
+                type="email"
+                value={replyTo}
+                onChange={(e) => setReplyTo(e.target.value)}
+                placeholder="replies@yourdomain.co.uk"
+              />
+              <p className="text-xs text-muted-foreground">
+                Where client replies are sent. Set this to your Postmark inbound address so replies
+                are automatically processed.
+              </p>
+            </div>
+
+            {identityError && (
+              <p className="text-sm text-status-danger font-medium">{identityError}</p>
+            )}
+          </div>
+        </Card>
+
+        <div className="flex justify-end gap-2">
+          <ButtonBase
+            variant="amber"
+            buttonType="icon-text"
+            onClick={() => setState(dnsData ? "dns-records" : "input")}
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </ButtonBase>
+          <ButtonBase variant="blue" buttonType="icon-text" onClick={handleIdentityNext}>
+            Next
+            <ArrowRight className="size-4" />
+          </ButtonBase>
+        </div>
+      </div>
+    );
+  }
+
+  // ── "send-settings" state ─────────────────────────────────────────────────
+  if (state === "send-settings") {
+    return (
+      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
+        <Card className="p-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold">Reminder settings</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure when reminders send and how incoming replies are handled.
+                These can be changed at any time in Settings.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="settings-send-hour" className="text-sm font-medium">
+                Send Hour (UK time)
+              </label>
+              <Select
+                value={sendHour}
+                onValueChange={setSendHour}
+                disabled={isSaving || isCompleting}
+              >
+                <SelectTrigger id="settings-send-hour" className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HOURS.map((h) => (
+                    <SelectItem key={h} value={String(h)}>
+                      {formatHour(h)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                When your daily reminder emails are sent.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium">Inbound Email Handling</p>
+              <Select
+                value={inboundMode}
+                onValueChange={(v) => setInboundMode(v as InboundCheckerMode)}
+                disabled={isSaving || isCompleting}
+              >
+                <SelectTrigger className="h-9 min-w-[280px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Make changes automatically</SelectItem>
+                  <SelectItem value="recommend">Provide recommendation only</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="space-y-2 text-xs text-muted-foreground">
+                <p className={inboundMode === "auto" ? "text-foreground font-medium" : ""}>
+                  <strong>Automatic:</strong> When a client emails you documents, the system automatically marks their records as received, updates their filing status, and logs the change. No manual action needed.
+                </p>
+                <p className={inboundMode === "recommend" ? "text-foreground font-medium" : ""}>
+                  <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
+                </p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <div className="space-y-2">
+          {(saveError || completeError) && (
+            <p className="text-sm text-status-danger font-medium text-right">
+              {saveError ?? completeError}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <ButtonBase
+              variant="amber"
+              buttonType="icon-text"
+              onClick={() => setState("email-identity")}
+              disabled={isSaving || isCompleting}
+            >
+              <ArrowLeft className="size-4" />
+              Back
+            </ButtonBase>
+            <ButtonBase
+              variant="green"
+              buttonType="icon-text"
+              onClick={handleSettingsSave}
+              disabled={isSaving || isCompleting}
+            >
+              {isSaving ? (
+                <><Loader2 className="size-4 animate-spin" /> Saving...</>
+              ) : (
+                <>Next Step <ArrowRight className="size-4" /></>
+              )}
+            </ButtonBase>
+          </div>
         </div>
       </div>
     );

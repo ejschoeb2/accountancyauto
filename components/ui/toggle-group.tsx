@@ -1,4 +1,4 @@
-import { ButtonWithText } from './button-with-text';
+import { cn } from '@/lib/utils';
 
 interface ToggleOption<T extends string> {
   value: T;
@@ -9,7 +9,7 @@ interface ToggleGroupProps<T extends string> {
   options: ToggleOption<T>[];
   value: T;
   onChange: (value: T) => void;
-  variant?: 'blue' | 'green' | 'red' | 'violet' | 'amber' | 'destructive' | 'ghost' | 'neutral' | 'info' | 'muted' | 'sky';
+  variant?: string; // kept for API compatibility
   disabled?: boolean;
 }
 
@@ -17,21 +17,25 @@ export function ToggleGroup<T extends string>({
   options,
   value,
   onChange,
-  variant = 'muted',
   disabled = false,
 }: ToggleGroupProps<T>) {
   return (
-    <div className="flex gap-2 items-center p-2 bg-white rounded-xl shadow-sm border border-gray-200 w-fit">
+    <div className="inline-flex items-center justify-center w-fit rounded-lg bg-muted p-[3px] h-11 text-muted-foreground shrink-0">
       {options.map((option) => (
-        <ButtonWithText
+        <button
           key={option.value}
+          type="button"
           onClick={() => !disabled && onChange(option.value)}
-          isSelected={value === option.value}
-          variant={variant}
           disabled={disabled}
+          className={cn(
+            "inline-flex items-center justify-center px-4 rounded-md text-sm font-medium whitespace-nowrap transition-all border border-transparent h-[calc(100%-2px)] disabled:pointer-events-none disabled:opacity-50",
+            value === option.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-foreground/60 hover:text-foreground"
+          )}
         >
           {option.label}
-        </ButtonWithText>
+        </button>
       ))}
     </div>
   );

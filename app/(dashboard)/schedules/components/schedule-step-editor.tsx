@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
 import { Trash2, Plus, Pencil, CheckCircle, X } from "lucide-react";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
@@ -17,6 +17,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -115,6 +116,42 @@ function EmailBodyPreview({ content }: { content: TipTapDocument }) {
   );
 }
 
+// Renders a subject line with {{variable}} tokens as styled pills
+function SubjectPreview({ subject }: { subject: string }) {
+  const parts = useMemo(() => {
+    const result: Array<{ type: 'text' | 'variable'; content: string }> = []
+    let lastIndex = 0
+    const regex = /\{\{([^}]+)\}\}/g
+    let match
+    while ((match = regex.exec(subject)) !== null) {
+      if (match.index > lastIndex) {
+        result.push({ type: 'text', content: subject.slice(lastIndex, match.index) })
+      }
+      const label = match[1].split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      result.push({ type: 'variable', content: label })
+      lastIndex = regex.lastIndex
+    }
+    if (lastIndex < subject.length) {
+      result.push({ type: 'text', content: subject.slice(lastIndex) })
+    }
+    return result
+  }, [subject])
+
+  return (
+    <div className="flex items-center flex-wrap gap-x-0.5">
+      {parts.map((part, i) =>
+        part.type === 'variable' ? (
+          <span key={i} className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-sm font-medium">
+            {part.content}
+          </span>
+        ) : (
+          <span key={i} className="text-sm">{part.content}</span>
+        )
+      )}
+    </div>
+  )
+}
+
 interface TemplateData {
   id: string;
   name: string;
@@ -136,10 +173,12 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
   const [editBodyJson, setEditBodyJson] = useState<TipTapDocument | null>(null);
   const [saving, setSaving] = useState(false);
   const [editor, setEditor] = useState<any>(null);
+  const [creatingForStepIndex, setCreatingForStepIndex] = useState<number | null>(null);
 
-  // Refs for placeholder insertion
+  // Refs for placeholder insertion and tracking
   const subjectInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<{ insertPlaceholder: (id: string, label: string) => void; getEditor: () => any } | null>(null);
+  const loadingRef = useRef<Set<string>>(new Set());
 
   // Update editor state when ref changes
   useEffect(() => {
@@ -155,47 +194,42 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
     return () => clearInterval(interval);
   }, [editor]);
 
-  // Load template data when a template is selected
+  // Load template data when step template IDs change
+  const watchedSteps = form.watch("steps");
+  const stepTemplateIdKey = watchedSteps.map(s => s.email_template_id).filter(Boolean).join(",");
+
   useEffect(() => {
-    const loadTemplate = async (templateId: string) => {
-      if (templateData[templateId] || loadingTemplates.has(templateId)) {
-        return;
-      }
+    watchedSteps.forEach((step) => {
+      const id = step.email_template_id;
+      if (id && !templateData[id] && !loadingRef.current.has(id)) {
+        loadingRef.current.add(id);
+        setLoadingTemplates(prev => new Set(prev).add(id));
 
-      setLoadingTemplates(prev => new Set(prev).add(templateId));
-
-      try {
-        const response = await fetch(`/api/email-templates/${templateId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setTemplateData(prev => ({
-            ...prev,
-            [templateId]: {
-              id: data.id,
-              name: data.name,
-              subject: data.subject,
-              body_json: data.body_json,
-            },
-          }));
-        }
-      } catch (error) {
-        console.error('Failed to load template:', error);
-      } finally {
-        setLoadingTemplates(prev => {
-          const next = new Set(prev);
-          next.delete(templateId);
-          return next;
-        });
-      }
-    };
-
-    // Load templates for all selected steps
-    form.watch("steps").forEach((step) => {
-      if (step.email_template_id) {
-        loadTemplate(step.email_template_id);
+        fetch(`/api/email-templates/${id}`)
+          .then(res => res.ok ? res.json() : Promise.reject(new Error('Failed to load')))
+          .then(data => {
+            setTemplateData(prev => ({
+              ...prev,
+              [id]: {
+                id: data.id,
+                name: data.name,
+                subject: data.subject,
+                body_json: data.body_json,
+              },
+            }));
+          })
+          .catch(err => console.error('Failed to load template:', err))
+          .finally(() => {
+            loadingRef.current.delete(id);
+            setLoadingTemplates(prev => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+          });
       }
     });
-  }, [form.watch("steps")]);
+  }, [stepTemplateIdKey]);
 
   // Check for duplicate template IDs
   const stepTemplateIds = form.watch("steps").map(s => s.email_template_id).filter(id => id !== "");
@@ -226,10 +260,15 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
     }
   };
 
-  // Save template changes
-  const handleSaveTemplate = async () => {
-    if (!editingTemplateId) return;
+  // Close dialog and reset state
+  const handleCloseDialog = () => {
+    setEditDialogOpen(false);
+    setCreatingForStepIndex(null);
+    setEditingTemplateId(null);
+  };
 
+  // Save template changes (create or update)
+  const handleSaveTemplate = async () => {
     // Validation
     if (!editSubject.trim()) {
       toast.error("Subject line is required");
@@ -242,32 +281,75 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
 
     setSaving(true);
     try {
-      const response = await fetch(`/api/email-templates/${editingTemplateId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: editSubject,
-          body_json: editBodyJson,
-        }),
-      });
+      if (editingTemplateId) {
+        // Update existing template (PUT)
+        const response = await fetch(`/api/email-templates/${editingTemplateId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject: editSubject,
+            body_json: editBodyJson,
+          }),
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update template");
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to update template");
+        }
+
+        toast.success("Template updated!");
+        handleCloseDialog();
+        // Reload template data
+        setTemplateData((prev) => {
+          const next = { ...prev };
+          delete next[editingTemplateId];
+          return next;
+        });
+        loadingRef.current.delete(editingTemplateId);
+        router.refresh();
+      } else {
+        // Create new template (POST)
+        const templateName = editSubject.trim().substring(0, 100);
+        const response = await fetch("/api/email-templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: templateName,
+            subject: editSubject,
+            body_json: editBodyJson,
+            is_active: true,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to create template");
+        }
+
+        const newTemplate = await response.json();
+
+        // Link template to the step
+        if (creatingForStepIndex !== null) {
+          form.setValue(`steps.${creatingForStepIndex}.email_template_id`, newTemplate.id);
+        }
+
+        // Cache the template data locally
+        setTemplateData((prev) => ({
+          ...prev,
+          [newTemplate.id]: {
+            id: newTemplate.id,
+            name: newTemplate.name,
+            subject: newTemplate.subject,
+            body_json: newTemplate.body_json,
+          },
+        }));
+
+        toast.success("Email template created!");
+        handleCloseDialog();
+        router.refresh();
       }
-
-      toast.success("Template updated!");
-      setEditDialogOpen(false);
-      // Reload template data
-      setTemplateData((prev) => {
-        const next = { ...prev };
-        delete next[editingTemplateId];
-        return next;
-      });
-      setLoadingTemplates((prev) => new Set(prev).add(editingTemplateId));
-      router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update template");
+      toast.error(error instanceof Error ? error.message : "Failed to save template");
     } finally {
       setSaving(false);
     }
@@ -361,13 +443,14 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
                         Email Template
                       </Label>
                       <Select
-                        value={selectedTemplateId}
-                        onValueChange={(value) => form.setValue(`steps.${index}.email_template_id`, value)}
+                        value={selectedTemplateId || "__none__"}
+                        onValueChange={(value) => form.setValue(`steps.${index}.email_template_id`, value === "__none__" ? "" : value)}
                       >
                         <SelectTrigger id={`steps.${index}.email_template_id`} className="h-9">
-                          <SelectValue placeholder="Select template" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__none__">No template</SelectItem>
                           {templates.map((template) => (
                             <SelectItem key={template.id} value={template.id}>
                               {template.name}
@@ -385,20 +468,34 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
 
                   {/* Edit and Delete buttons */}
                   <div className="shrink-0 pt-6 flex items-center gap-2">
-                    {selectedTemplateId && (
-                      <>
-                        <IconButtonWithText
-                          type="button"
-                          variant="violet"
-                          onClick={() => handleEditTemplate(selectedTemplateId)}
-                          title="Edit template"
-                        >
-                          <Pencil className="h-5 w-5" />
-                          Edit Template
-                        </IconButtonWithText>
-                        <div className="h-8 w-px bg-border" />
-                      </>
+                    {selectedTemplateId ? (
+                      <IconButtonWithText
+                        type="button"
+                        variant="violet"
+                        onClick={() => handleEditTemplate(selectedTemplateId)}
+                        title="Edit template"
+                      >
+                        <Pencil className="h-5 w-5" />
+                        Edit Template
+                      </IconButtonWithText>
+                    ) : (
+                      <IconButtonWithText
+                        type="button"
+                        variant="violet"
+                        onClick={() => {
+                          setEditSubject("");
+                          setEditBodyJson({ type: "doc", content: [{ type: "paragraph" }] });
+                          setEditingTemplateId(null);
+                          setCreatingForStepIndex(index);
+                          setEditDialogOpen(true);
+                        }}
+                        title="Compose email"
+                      >
+                        <Pencil className="h-5 w-5" />
+                        Compose Email
+                      </IconButtonWithText>
                     )}
+                    <div className="h-8 w-px bg-border" />
                     <IconButtonWithText
                       type="button"
                       variant="destructive"
@@ -411,31 +508,43 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
                   </div>
                 </div>
 
-                {/* Email preview - shown when template is selected */}
-                {selectedTemplateId && (
-                  <div className="border rounded-lg overflow-hidden bg-card">
-                    {isLoading ? (
-                      <div className="p-4 text-sm text-muted-foreground">
-                        Loading template preview...
+                {/* Email preview area */}
+                <div className="border rounded-lg overflow-hidden bg-card">
+                  {isLoading ? (
+                    <div className="p-4 text-sm text-muted-foreground">
+                      Loading template preview...
+                    </div>
+                  ) : template ? (
+                    <>
+                      {/* Header with subject */}
+                      <div className="border-b px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
+                          <SubjectPreview subject={template.subject} />
+                        </div>
                       </div>
-                    ) : template ? (
-                      <>
-                        {/* Header with subject */}
-                        <div className="border-b px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
-                            <span className="text-sm">{template.subject}</span>
-                          </div>
-                        </div>
 
-                        {/* Body preview */}
-                        <div className="p-4">
-                          <EmailBodyPreview content={template.body_json} />
+                      {/* Body preview */}
+                      <div className="p-4">
+                        <EmailBodyPreview content={template.body_json} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="border-b px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
+                          <span className="text-sm text-muted-foreground/50 italic">No template selected</span>
                         </div>
-                      </>
-                    ) : null}
-                  </div>
-                )}
+                      </div>
+                      <div className="p-4 min-h-[80px]">
+                        <p className="text-sm text-muted-foreground/50 italic">
+                          Select a template or compose a new email to preview content here.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
               </Card>
             </div>
           );
@@ -448,11 +557,18 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
         </p>
       )}
 
-      {/* Edit Template Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      {/* Edit / Create Template Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) handleCloseDialog(); }}>
         <DialogContent className="[&>button]:hidden sm:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-3xl">Edit Template</DialogTitle>
+            <DialogTitle className="text-3xl">
+              {editingTemplateId ? "Edit Template" : "Compose Email"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingTemplateId
+                ? "Changes here update the template globally — all reminder schedules that use this template will be affected."
+                : "Compose the email for this reminder step. A new email template will be created."}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
@@ -480,7 +596,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
               {/* Email Body */}
               <div className="flex-1">
                 <TemplateEditor
-                  key={editingTemplateId}
+                  key={editingTemplateId ?? "new"}
                   ref={editorRef}
                   initialContent={editBodyJson}
                   onUpdate={setEditBodyJson}
@@ -493,7 +609,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
               <IconButtonWithText
                 type="button"
                 variant="amber"
-                onClick={() => setEditDialogOpen(false)}
+                onClick={handleCloseDialog}
                 disabled={saving}
               >
                 <X className="h-5 w-5" />
@@ -504,10 +620,10 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
                 variant="blue"
                 onClick={handleSaveTemplate}
                 disabled={saving}
-                title={saving ? "Saving..." : "Save template"}
+                title={saving ? "Saving..." : editingTemplateId ? "Save template" : "Create template"}
               >
                 <CheckCircle className="h-5 w-5" />
-                {saving ? "Saving..." : "Save"}
+                {saving ? "Saving..." : editingTemplateId ? "Save changes to template" : "Create email template"}
               </IconButtonWithText>
             </div>
           </div>

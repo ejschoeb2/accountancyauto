@@ -3,7 +3,6 @@
 import { useState, useEffect, useTransition } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -14,19 +13,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import {
-  ChevronDown,
-  ChevronUp,
-  Download,
-  Settings,
   CheckCircle,
-  Square,
+  Download,
   Link,
   Copy,
   Plus,
   Loader2,
-  AlertTriangle,
-  ScanLine,
+  Settings,
 } from 'lucide-react';
+import { CheckButton } from '@/components/ui/check-button';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,12 +69,19 @@ interface Customisation {
   is_enabled: boolean;
   is_ad_hoc: boolean;
   ad_hoc_label: string | null;
+  manually_received: boolean;
 }
 
 interface EffectiveChecklistItem {
   documentTypeId: string;
   label: string;
   is_mandatory: boolean;
+  manuallyReceived: boolean;
+}
+
+export interface DocumentCardActions {
+  selectAll: () => void;
+  deselectAll: () => void;
 }
 
 export interface DocumentCardProps {
@@ -88,6 +90,12 @@ export interface DocumentCardProps {
   filingTypeName: string;
   docCount: number;
   lastReceivedAt: string | null;
+  checklistOpen?: boolean;
+  onChecklistClose?: () => void;
+  portalUrl?: string | null;
+  portalExpiresAt?: string | null;
+  onActionsReady?: (actions: DocumentCardActions) => void;
+  onReceivedCountChange?: (received: number, total: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -112,8 +120,8 @@ function ConfidenceBadge({ confidence }: { confidence: ClientDocument['classific
   const { bg, text, label } = config[confidence] ?? config.unclassified;
 
   return (
-    <div className={`px-2 py-0.5 rounded-md inline-flex items-center ${bg}`}>
-      <span className={`text-xs font-medium ${text}`}>{label}</span>
+    <div className={`px-3 py-2 rounded-md inline-flex items-center ${bg}`}>
+      <span className={`text-sm font-medium ${text}`}>{label}</span>
     </div>
   );
 }
@@ -122,9 +130,8 @@ function ConfidenceBadge({ confidence }: { confidence: ClientDocument['classific
 // Signal: extraction_source='rules' AND document_type_id IS NOT NULL
 function ScannedPdfBadge() {
   return (
-    <div className="px-2 py-0.5 rounded-md inline-flex items-center gap-1 bg-amber-500/10">
-      <ScanLine className="size-3 text-amber-600" />
-      <span className="text-xs font-medium text-amber-600">Scanned PDF</span>
+    <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
+      <span className="text-sm font-medium text-amber-600">Scanned PDF</span>
     </div>
   );
 }
@@ -133,9 +140,8 @@ function ScannedPdfBadge() {
 // Signal: classification_confidence='unclassified' AND document_type_id IS NULL
 function ReviewNeededBadge() {
   return (
-    <div className="px-2 py-0.5 rounded-md inline-flex items-center gap-1 bg-red-500/10">
-      <AlertTriangle className="size-3 text-red-500" />
-      <span className="text-xs font-medium text-red-500">Review needed</span>
+    <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10">
+      <span className="text-sm font-medium text-red-500">Review needed</span>
     </div>
   );
 }
@@ -372,7 +378,7 @@ function ChecklistModal({
         .eq('filing_type_id', filingTypeId),
       supabase
         .from('client_document_checklist_customisations')
-        .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label')
+        .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
         .eq('client_id', clientId)
         .eq('filing_type_id', filingTypeId),
     ]).then(([reqResult, custResult]) => {
@@ -403,12 +409,13 @@ function ChecklistModal({
       } else {
         setCustomisations(prev => [
           ...prev,
-          { id: '', document_type_id: req.document_type_id, is_enabled: newEnabled, is_ad_hoc: false, ad_hoc_label: null },
+          { id: '', document_type_id: req.document_type_id, is_enabled: newEnabled, is_ad_hoc: false, ad_hoc_label: null, manually_received: false },
         ]);
       }
     });
 
-    // Persist
+    // Persist — preserve manually_received from existing row
+    const existingCust = customisations.find(c => c.document_type_id === req.document_type_id);
     supabase
       .from('client_document_checklist_customisations')
       .upsert(
@@ -419,6 +426,7 @@ function ChecklistModal({
           document_type_id: req.document_type_id,
           is_enabled: newEnabled,
           is_ad_hoc: false,
+          manually_received: existingCust?.manually_received ?? false,
         },
         { onConflict: 'client_id,filing_type_id,document_type_id' }
       )
@@ -439,7 +447,7 @@ function ChecklistModal({
           // Reload to get real IDs
           supabase
             .from('client_document_checklist_customisations')
-            .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label')
+            .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
             .eq('client_id', clientId)
             .eq('filing_type_id', filingTypeId)
             .then(({ data }) => {
@@ -473,7 +481,7 @@ function ChecklistModal({
 
     const { data } = await supabase
       .from('client_document_checklist_customisations')
-      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label')
+      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
       .eq('client_id', clientId)
       .eq('filing_type_id', filingTypeId);
     if (data) setCustomisations(data as Customisation[]);
@@ -647,73 +655,47 @@ export function DocumentCard({
   filingTypeName,
   docCount,
   lastReceivedAt,
+  checklistOpen,
+  onChecklistClose,
+  portalUrl,
+  portalExpiresAt,
+  onActionsReady,
+  onReceivedCountChange,
 }: DocumentCardProps) {
-  // Expand / collapse state
-  const [expanded, setExpanded] = useState(false);
-  const [hasEverExpanded, setHasEverExpanded] = useState(false);
-
-  // Collapsed-header: total requirement count (Y in "X of Y")
-  const [requirementCount, setRequirementCount] = useState<number | null>(null);
-  const [requirementCountLoading, setRequirementCountLoading] = useState(true);
-
-  // Expanded content state
+  // Content state
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
   const [effectiveChecklist, setEffectiveChecklist] = useState<EffectiveChecklistItem[]>([]);
-  const [expandedLoading, setExpandedLoading] = useState(false);
-
-  // Gear icon / checklist modal
-  const [checklistOpen, setChecklistOpen] = useState(false);
-
-  // Portal link generation
-  const [generating, setGenerating] = useState(false);
-  const [portalUrl, setPortalUrl] = useState<string | null>(null);
-  const [portalExpiresAt, setPortalExpiresAt] = useState<string | null>(null);
+  const [customisations, setCustomisations] = useState<Customisation[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Download state
   const [downloading, setDownloading] = useState<string | null>(null);
 
+  // Org ID for upserts
+  const [orgId, setOrgId] = useState<string | null>(null);
+
   const supabase = createClient();
 
+  // Load org_id from user session
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const id = data.session?.user?.app_metadata?.org_id;
+      if (id) setOrgId(id);
+    });
+  }, []);
+
   // ---------------------------------------------------------------------------
-  // Load requirement count on mount (for collapsed header progress fraction)
+  // Load document list + effective checklist on mount
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    const loadCount = async () => {
+    const loadData = async () => {
       try {
-        const { count, error } = await supabase
-          .from('filing_document_requirements')
-          .select('id', { count: 'exact', head: true })
-          .eq('filing_type_id', filingTypeId);
-        if (!error) {
-          setRequirementCount(count ?? 0);
-        }
-      } finally {
-        setRequirementCountLoading(false);
-      }
-    };
-    loadCount();
-  }, [filingTypeId]);
-
-  // ---------------------------------------------------------------------------
-  // Load full document list + effective checklist on first expand
-  // ---------------------------------------------------------------------------
-  useEffect(() => {
-    if (!expanded || hasEverExpanded) return;
-
-    setHasEverExpanded(true);
-    setExpandedLoading(true);
-
-    const loadExpandedData = async () => {
-      try {
-        // Fetch documents filtered by filing type (server-side, per Plan 20-01)
         const docsRes = await fetch(
           `/api/clients/${clientId}/documents?filing_type_id=${filingTypeId}`
         );
         const docsData = docsRes.ok ? await docsRes.json() : { documents: [] };
-        const docs: ClientDocument[] = docsData.documents ?? [];
-        setDocuments(docs);
+        setDocuments(docsData.documents ?? []);
 
-        // Fetch effective checklist via Supabase client
         const [reqResult, custResult] = await Promise.all([
           supabase
             .from('filing_document_requirements')
@@ -721,7 +703,7 @@ export function DocumentCard({
             .eq('filing_type_id', filingTypeId),
           supabase
             .from('client_document_checklist_customisations')
-            .select('document_type_id, is_enabled')
+            .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
             .eq('client_id', clientId)
             .eq('filing_type_id', filingTypeId),
         ]);
@@ -732,15 +714,18 @@ export function DocumentCard({
           document_types: { id: string; code: string; label: string } | { id: string; code: string; label: string }[] | null;
         }>;
 
-        const customisationMap = new Map<string, boolean>();
-        for (const c of custResult.data ?? []) {
+        const custs = (custResult.data ?? []) as Customisation[];
+        setCustomisations(custs);
+
+        const customisationMap = new Map<string, { is_enabled: boolean; manually_received: boolean }>();
+        for (const c of custs) {
           if (c.document_type_id) {
-            customisationMap.set(c.document_type_id, c.is_enabled);
+            customisationMap.set(c.document_type_id, { is_enabled: c.is_enabled, manually_received: c.manually_received });
           }
         }
 
         const checklist: EffectiveChecklistItem[] = requirements
-          .filter(req => customisationMap.get(req.document_type_id) !== false)
+          .filter(req => customisationMap.get(req.document_type_id)?.is_enabled !== false)
           .map(req => {
             const docTypes = req.document_types;
             const label = Array.isArray(docTypes)
@@ -750,44 +735,36 @@ export function DocumentCard({
               documentTypeId: req.document_type_id,
               label,
               is_mandatory: req.is_mandatory,
+              manuallyReceived: customisationMap.get(req.document_type_id)?.manually_received ?? false,
             };
           });
 
         setEffectiveChecklist(checklist);
       } catch (err) {
-        console.error('[DocumentCard] Failed to load expanded data:', err);
+        console.error('[DocumentCard] Failed to load data:', err);
       } finally {
-        setExpandedLoading(false);
+        setLoading(false);
       }
     };
 
-    loadExpandedData();
-  }, [expanded, hasEverExpanded, clientId, filingTypeId]);
+    loadData();
+  }, [clientId, filingTypeId]);
 
   // ---------------------------------------------------------------------------
-  // Reload expanded data when checklist changes (gear icon saved)
+  // Reload data when checklist changes (configure modal saved)
   // ---------------------------------------------------------------------------
-  const reloadExpandedData = async () => {
-    const [reqResult, custResult, countResult] = await Promise.all([
+  const reloadData = async () => {
+    const [reqResult, custResult] = await Promise.all([
       supabase
         .from('filing_document_requirements')
         .select('document_type_id, is_mandatory, document_types(id, code, label)')
         .eq('filing_type_id', filingTypeId),
       supabase
         .from('client_document_checklist_customisations')
-        .select('document_type_id, is_enabled')
+        .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
         .eq('client_id', clientId)
         .eq('filing_type_id', filingTypeId),
-      supabase
-        .from('filing_document_requirements')
-        .select('id', { count: 'exact', head: true })
-        .eq('filing_type_id', filingTypeId),
     ]);
-
-    // Update requirement count (collapsed header)
-    if (!countResult.error) {
-      setRequirementCount(countResult.count ?? 0);
-    }
 
     const requirements = (reqResult.data ?? []) as Array<{
       document_type_id: string;
@@ -795,15 +772,18 @@ export function DocumentCard({
       document_types: { id: string; code: string; label: string } | { id: string; code: string; label: string }[] | null;
     }>;
 
-    const customisationMap = new Map<string, boolean>();
-    for (const c of custResult.data ?? []) {
+    const custs = (custResult.data ?? []) as Customisation[];
+    setCustomisations(custs);
+
+    const customisationMap = new Map<string, { is_enabled: boolean; manually_received: boolean }>();
+    for (const c of custs) {
       if (c.document_type_id) {
-        customisationMap.set(c.document_type_id, c.is_enabled);
+        customisationMap.set(c.document_type_id, { is_enabled: c.is_enabled, manually_received: c.manually_received });
       }
     }
 
     const checklist: EffectiveChecklistItem[] = requirements
-      .filter(req => customisationMap.get(req.document_type_id) !== false)
+      .filter(req => customisationMap.get(req.document_type_id)?.is_enabled !== false)
       .map(req => {
         const docTypes = req.document_types;
         const label = Array.isArray(docTypes)
@@ -813,11 +793,175 @@ export function DocumentCard({
           documentTypeId: req.document_type_id,
           label,
           is_mandatory: req.is_mandatory,
+          manuallyReceived: customisationMap.get(req.document_type_id)?.manually_received ?? false,
         };
       });
 
     setEffectiveChecklist(checklist);
   };
+
+  // ---------------------------------------------------------------------------
+  // Manual toggle handler
+  // ---------------------------------------------------------------------------
+  const handleManualToggle = async (item: EffectiveChecklistItem) => {
+    if (!orgId) return;
+    const newValue = !item.manuallyReceived;
+
+    // Optimistic update
+    setEffectiveChecklist(prev =>
+      prev.map(i =>
+        i.documentTypeId === item.documentTypeId ? { ...i, manuallyReceived: newValue } : i
+      )
+    );
+
+    const existing = customisations.find(c => c.document_type_id === item.documentTypeId);
+    const { error } = await supabase
+      .from('client_document_checklist_customisations')
+      .upsert(
+        {
+          org_id: orgId,
+          client_id: clientId,
+          filing_type_id: filingTypeId,
+          document_type_id: item.documentTypeId,
+          is_enabled: existing?.is_enabled ?? true,
+          is_ad_hoc: existing?.is_ad_hoc ?? false,
+          manually_received: newValue,
+        },
+        { onConflict: 'client_id,filing_type_id,document_type_id' }
+      );
+
+    if (error) {
+      toast.error('Failed to save change');
+      // Revert on error
+      setEffectiveChecklist(prev =>
+        prev.map(i =>
+          i.documentTypeId === item.documentTypeId ? { ...i, manuallyReceived: !newValue } : i
+        )
+      );
+      return;
+    }
+
+    // Reload customisations to keep IDs in sync
+    const { data } = await supabase
+      .from('client_document_checklist_customisations')
+      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
+      .eq('client_id', clientId)
+      .eq('filing_type_id', filingTypeId);
+    if (data) setCustomisations(data as Customisation[]);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Bulk select all / deselect all
+  // ---------------------------------------------------------------------------
+  const selectAll = async () => {
+    if (!orgId) return;
+
+    const toUpdate = effectiveChecklist.filter(item => {
+      const matchedDoc = findMatchingDocument(item.documentTypeId);
+      return !matchedDoc && !item.manuallyReceived;
+    });
+
+    if (toUpdate.length === 0) return;
+
+    // Optimistic update
+    setEffectiveChecklist(prev =>
+      prev.map(i => {
+        const matchedDoc = findMatchingDocument(i.documentTypeId);
+        return !matchedDoc ? { ...i, manuallyReceived: true } : i;
+      })
+    );
+
+    // Upsert all
+    const upserts = toUpdate.map(item => {
+      const existing = customisations.find(c => c.document_type_id === item.documentTypeId);
+      return {
+        org_id: orgId,
+        client_id: clientId,
+        filing_type_id: filingTypeId,
+        document_type_id: item.documentTypeId,
+        is_enabled: existing?.is_enabled ?? true,
+        is_ad_hoc: existing?.is_ad_hoc ?? false,
+        manually_received: true,
+      };
+    });
+
+    const { error } = await supabase
+      .from('client_document_checklist_customisations')
+      .upsert(upserts, { onConflict: 'client_id,filing_type_id,document_type_id' });
+
+    if (error) {
+      toast.error('Failed to select all');
+      reloadData();
+      return;
+    }
+
+    const { data } = await supabase
+      .from('client_document_checklist_customisations')
+      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
+      .eq('client_id', clientId)
+      .eq('filing_type_id', filingTypeId);
+    if (data) setCustomisations(data as Customisation[]);
+  };
+
+  const deselectAll = async () => {
+    if (!orgId) return;
+
+    const toUpdate = effectiveChecklist.filter(item => item.manuallyReceived);
+
+    if (toUpdate.length === 0) return;
+
+    // Optimistic update
+    setEffectiveChecklist(prev =>
+      prev.map(i => ({ ...i, manuallyReceived: false }))
+    );
+
+    // Upsert all with manually_received = false
+    const upserts = toUpdate.map(item => {
+      const existing = customisations.find(c => c.document_type_id === item.documentTypeId);
+      return {
+        org_id: orgId,
+        client_id: clientId,
+        filing_type_id: filingTypeId,
+        document_type_id: item.documentTypeId,
+        is_enabled: existing?.is_enabled ?? true,
+        is_ad_hoc: existing?.is_ad_hoc ?? false,
+        manually_received: false,
+      };
+    });
+
+    const { error } = await supabase
+      .from('client_document_checklist_customisations')
+      .upsert(upserts, { onConflict: 'client_id,filing_type_id,document_type_id' });
+
+    if (error) {
+      toast.error('Failed to deselect all');
+      reloadData();
+      return;
+    }
+
+    const { data } = await supabase
+      .from('client_document_checklist_customisations')
+      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
+      .eq('client_id', clientId)
+      .eq('filing_type_id', filingTypeId);
+    if (data) setCustomisations(data as Customisation[]);
+  };
+
+  // Expose selectAll/deselectAll to parent
+  useEffect(() => {
+    onActionsReady?.({ selectAll, deselectAll });
+  }, [orgId, effectiveChecklist, customisations, documents]);
+
+  // Report received counts to parent
+  useEffect(() => {
+    if (loading) return;
+    const total = effectiveChecklist.length;
+    const received = effectiveChecklist.filter(item => {
+      const matchedDoc = findMatchingDocument(item.documentTypeId);
+      return !!matchedDoc || item.manuallyReceived;
+    }).length;
+    onReceivedCountChange?.(received, total);
+  }, [effectiveChecklist, documents, loading]);
 
   // ---------------------------------------------------------------------------
   // Download handler
@@ -846,33 +990,6 @@ export function DocumentCard({
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Portal link generation
-  // ---------------------------------------------------------------------------
-  const handleGeneratePortalLink = async () => {
-    setGenerating(true);
-    try {
-      const taxYear = new Date().getFullYear().toString();
-      const res = await fetch(`/api/clients/${clientId}/portal-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filingTypeId, taxYear }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Failed to generate link' }));
-        throw new Error(err.error ?? 'Failed to generate link');
-      }
-      const data = await res.json();
-      setPortalUrl(data.portalUrl);
-      setPortalExpiresAt(data.expiresAt);
-      toast.success('Portal link generated!');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to generate portal link');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   const handleCopyPortalLink = async () => {
     if (!portalUrl) return;
     try {
@@ -886,39 +1003,6 @@ export function DocumentCard({
   // ---------------------------------------------------------------------------
   // Render helpers
   // ---------------------------------------------------------------------------
-
-  /** Build the progress fraction text for the collapsed header */
-  const buildProgressText = (): React.ReactNode => {
-    if (requirementCountLoading) {
-      return (
-        <div className="flex items-center gap-1">
-          <Loader2 className="size-3 animate-spin text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">Loading...</span>
-        </div>
-      );
-    }
-
-    const total = requirementCount ?? 0;
-
-    if (total === 0) {
-      // No checklist configured — show raw document count
-      return (
-        <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-neutral-500/10">
-          <span className="text-xs font-medium text-neutral-600">
-            {docCount} {docCount !== 1 ? 'documents' : 'document'} · no checklist
-          </span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-neutral-500/10">
-        <span className="text-xs font-medium text-neutral-600">
-          {docCount} of {total} documents received
-        </span>
-      </div>
-    );
-  };
 
   /** Find a matching document for a checklist item (high or medium confidence) */
   const findMatchingDocument = (documentTypeId: string): ClientDocument | undefined => {
@@ -935,8 +1019,6 @@ export function DocumentCard({
     return !effectiveChecklist.some(item => item.documentTypeId === doc.document_type_id);
   });
 
-  const isEmptyState = effectiveChecklist.length === 0 && docCount === 0;
-
   const expiryDisplay = portalExpiresAt
     ? new Date(portalExpiresAt).toLocaleDateString('en-GB', {
         day: 'numeric',
@@ -946,194 +1028,135 @@ export function DocumentCard({
     : null;
 
   // ---------------------------------------------------------------------------
-  // Render
+  // Render — inline checklist (no Card wrapper, no expand/collapse)
   // ---------------------------------------------------------------------------
 
   return (
     <>
-      <Card className="gap-0">
-        {/* Collapsed header — always visible */}
-        <div
-          role="button"
-          tabIndex={0}
-          className="w-full text-left px-5 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors rounded-t-lg cursor-pointer"
-          onClick={() => setExpanded(prev => !prev)}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(prev => !prev); } }}
-          aria-expanded={expanded}
-        >
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold">{filingTypeName}</span>
-            {buildProgressText()}
-            {lastReceivedAt && (
-              <span className="text-xs text-muted-foreground">
-                Last: {formatDate(lastReceivedAt)}
-              </span>
-            )}
+      <div className="space-y-1.5">
+        {loading ? (
+          <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading documents...
           </div>
-          <div className="flex items-center gap-2">
-            {/* Gear icon — opens checklist customisation modal */}
-            <button
-              type="button"
-              aria-label={`Customise ${filingTypeName} checklist`}
-              onClick={e => {
-                e.stopPropagation();
-                setChecklistOpen(true);
-              }}
-              className="p-1 rounded hover:bg-muted/50 transition-colors"
-            >
-              <Settings className="size-4 text-muted-foreground" />
-            </button>
-            {expanded ? (
-              <ChevronUp className="size-4 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-            )}
-          </div>
-        </div>
-
-        {/* Expanded content */}
-        {expanded && (
-          <CardContent className="px-5 pb-5 pt-0">
-            {expandedLoading ? (
-              <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Loading documents...
-              </div>
-            ) : isEmptyState ? (
-              /* Empty state — no checklist and no documents */
-              <div className="py-4 space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  No documents yet — set up a checklist or generate an upload link.
-                </p>
-                <button
-                  type="button"
-                  className="text-sm text-violet-600 underline underline-offset-2 hover:text-violet-700"
-                  onClick={() => setChecklistOpen(true)}
-                >
-                  Set up checklist
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Interleaved checklist */}
-                {effectiveChecklist.length > 0 && (
-                  <div className="space-y-1.5">
-                    {effectiveChecklist.map(item => {
-                      const matchedDoc = findMatchingDocument(item.documentTypeId);
-                      if (matchedDoc) {
-                        // Received row
-                        return (
-                          <DocumentRow
-                            key={item.documentTypeId}
-                            doc={matchedDoc}
-                            clientId={clientId}
-                            label={item.label}
-                            showLabel={true}
-                            onDownload={() => handleDownload(matchedDoc.id)}
-                            isDownloading={downloading === matchedDoc.id}
-                          />
-                        );
-                      } else {
-                        // Outstanding row
-                        return (
-                          <div
-                            key={item.documentTypeId}
-                            className="flex items-center gap-3 py-2 px-3 rounded-md bg-muted/30 border border-border/50"
-                          >
-                            <Square className="size-4 text-muted-foreground shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-gray-700">{item.label}</span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">Outstanding</span>
-                          </div>
-                        );
-                      }
-                    })}
-                  </div>
-                )}
-
-                {/* Extra / unmatched documents */}
-                {extraDocuments.length > 0 && (
-                  <div className="space-y-1.5">
-                    {effectiveChecklist.length > 0 && (
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Other Documents
-                      </p>
-                    )}
-                    {extraDocuments.map(doc => (
-                      <DocumentRow
-                        key={doc.id}
-                        doc={doc}
-                        clientId={clientId}
-                        showLabel={false}
-                        onDownload={() => handleDownload(doc.id)}
-                        isDownloading={downloading === doc.id}
+        ) : effectiveChecklist.length === 0 && documents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No documents yet — use Configure to set up a checklist.
+          </p>
+        ) : (
+          <>
+            {/* Checklist items using CheckButton styling */}
+            {effectiveChecklist.length > 0 && (
+              <div className="space-y-1.5">
+                {effectiveChecklist.map(item => {
+                  const matchedDoc = findMatchingDocument(item.documentTypeId);
+                  const isChecked = !!matchedDoc || item.manuallyReceived;
+                  const isDisabled = !!matchedDoc; // can't untick if a file was uploaded
+                  return (
+                    <div
+                      key={item.documentTypeId}
+                      className="flex items-center gap-2"
+                    >
+                      <CheckButton
+                        checked={isChecked}
+                        variant={isChecked ? 'success' : 'default'}
+                        disabled={isDisabled}
+                        onCheckedChange={() => handleManualToggle(item)}
                       />
-                    ))}
-                  </div>
-                )}
-
-                {/* Empty documents message when checklist configured but no docs */}
-                {effectiveChecklist.length > 0 && documents.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No documents uploaded yet.
-                  </p>
-                )}
-
-                {/* Generate Upload Link — at bottom of expanded section */}
-                <div className="pt-2 border-t border-border/50 space-y-3">
-                  <IconButtonWithText
-                    variant="violet"
-                    onClick={handleGeneratePortalLink}
-                    disabled={generating}
-                  >
-                    {generating ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Link className="size-4" />
-                    )}
-                    {generating ? 'Generating...' : 'Generate Upload Link'}
-                  </IconButtonWithText>
-
-                  {portalUrl && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          readOnly
-                          value={portalUrl}
-                          className="flex-1 h-9 px-3 rounded-md border border-input bg-muted font-mono text-xs text-muted-foreground"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCopyPortalLink}
-                          className="h-9 w-9 flex items-center justify-center rounded-md border border-input bg-background hover:bg-muted transition-colors"
-                          aria-label="Copy portal URL"
+                      <span
+                        className={`text-sm whitespace-nowrap ${
+                          isChecked
+                            ? 'line-through text-muted-foreground'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      {matchedDoc && (
+                        <IconButtonWithText
+                          variant="blue"
+                          onClick={() => handleDownload(matchedDoc.id)}
+                          disabled={downloading === matchedDoc.id}
                         >
-                          <Copy className="size-4" />
-                        </button>
-                      </div>
-                      {expiryDisplay && (
-                        <p className="text-xs text-muted-foreground">
-                          Expires {expiryDisplay}. Generating a new link will revoke this one.
-                        </p>
+                          <Download className="size-3" />
+                          {downloading === matchedDoc.id ? 'Opening...' : 'Download'}
+                        </IconButtonWithText>
                       )}
                     </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             )}
-          </CardContent>
+
+            {/* Extra / unmatched documents */}
+            {extraDocuments.length > 0 && (
+              <div className="space-y-1.5">
+                {effectiveChecklist.length > 0 && (
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">
+                    Other Documents
+                  </p>
+                )}
+                {extraDocuments.map(doc => (
+                  <div key={doc.id} className="flex items-center gap-2">
+                    <CheckButton
+                      checked={true}
+                      variant="success"
+                      disabled
+                      className="pointer-events-none"
+                    />
+                    <span className="text-sm text-muted-foreground line-through">
+                      {doc.document_types?.label || doc.original_filename}
+                    </span>
+                    <IconButtonWithText
+                      variant="blue"
+                      onClick={() => handleDownload(doc.id)}
+                      disabled={downloading === doc.id}
+                    >
+                      <Download className="size-3" />
+                      {downloading === doc.id ? 'Opening...' : 'Download'}
+                    </IconButtonWithText>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Portal URL display (generated from parent) */}
+            {portalUrl && (
+              <div className="pt-2 border-t border-border/50 space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={portalUrl}
+                    className="flex-1 h-9 px-3 rounded-md border border-input bg-muted font-mono text-xs text-muted-foreground"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyPortalLink}
+                    className="h-9 w-9 flex items-center justify-center rounded-md border border-input bg-background hover:bg-muted transition-colors"
+                    aria-label="Copy portal URL"
+                  >
+                    <Copy className="size-4" />
+                  </button>
+                </div>
+                {expiryDisplay && (
+                  <p className="text-xs text-muted-foreground">
+                    Expires {expiryDisplay}. Generating a new link will revoke this one.
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         )}
-      </Card>
+      </div>
 
       {/* Checklist customisation modal */}
       <ChecklistModal
-        open={checklistOpen}
-        onClose={() => setChecklistOpen(false)}
+        open={checklistOpen ?? false}
+        onClose={() => onChecklistClose?.()}
         clientId={clientId}
         filingTypeId={filingTypeId}
         filingTypeName={filingTypeName}
-        onChecklistChanged={reloadExpandedData}
+        onChecklistChanged={reloadData}
       />
     </>
   );

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ButtonBase } from "@/components/ui/button-base";
+import { Loader2, ArrowLeft, ArrowRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -11,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ToggleGroup } from "@/components/ui/toggle-group";
 import {
   updateUserSendHour,
   updateUserEmailSettings,
@@ -34,9 +34,12 @@ interface ConfigStepProps {
   defaultEmailSettings: EmailSettings;
   defaultInboundMode: InboundCheckerMode;
   onComplete: () => void;
+  onBack?: () => void;
   orgDomain?: string;
   orgInboundAddress?: string;
   isMember?: boolean;
+  isCompleting?: boolean;
+  completeError?: string | null;
 }
 
 export function ConfigStep({
@@ -44,9 +47,12 @@ export function ConfigStep({
   defaultEmailSettings,
   defaultInboundMode,
   onComplete,
+  onBack,
   orgDomain,
   orgInboundAddress,
   isMember = false,
+  isCompleting = false,
+  completeError,
 }: ConfigStepProps) {
   const [hour, setHour] = useState(String(defaultSendHour));
   const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(defaultInboundMode);
@@ -101,6 +107,7 @@ export function ConfigStep({
   }
 
   return (
+    <div className="max-w-lg mx-auto space-y-4">
     <Card className="p-6">
       <div className="space-y-6">
         <div>
@@ -144,26 +151,32 @@ export function ConfigStep({
         </div>
 
         {/* Inbound Checker Mode */}
-        <div className="space-y-1.5">
+        <div className="space-y-3">
           <p className="text-sm font-medium">Inbound Email Handling</p>
-          <ToggleGroup<InboundCheckerMode>
-            options={[
-              { value: "auto", label: "Auto Archive" },
-              { value: "recommend", label: "Review First" },
-            ]}
+          <Select
             value={inboundMode}
-            onChange={(v) => {
-              setInboundMode(v);
+            onValueChange={(v) => {
+              setInboundMode(v as InboundCheckerMode);
               setError(null);
             }}
-            variant="muted"
             disabled={isPending}
-          />
-          <p className="text-xs text-muted-foreground">
-            {inboundMode === "auto"
-              ? "Matched replies are automatically archived."
-              : "Matched replies appear as recommendations to review."}
-          </p>
+          >
+            <SelectTrigger className="h-9 min-w-[280px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">Make changes automatically</SelectItem>
+              <SelectItem value="recommend">Provide recommendation only</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="space-y-2 text-xs text-muted-foreground">
+            <p className={inboundMode === "auto" ? "text-foreground font-medium" : ""}>
+              <strong>Automatic:</strong> When a client emails you documents, the system automatically marks their records as received, updates their filing status, and logs the change. No manual action needed.
+            </p>
+            <p className={inboundMode === "recommend" ? "text-foreground font-medium" : ""}>
+              <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
+            </p>
+          </div>
         </div>
 
         {/* Email Identity */}
@@ -231,20 +244,48 @@ export function ConfigStep({
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-3">
-          <ButtonBase
-            onClick={handleSave}
-            disabled={isPending}
-            buttonType="text-only"
-          >
-            {isPending ? "Saving..." : "Save & Continue"}
-          </ButtonBase>
-          {error && (
-            <span className="text-sm text-status-danger font-medium">{error}</span>
-          )}
-        </div>
       </div>
     </Card>
+
+    {/* Buttons and status below the card */}
+    <div className="space-y-2">
+      {(error || completeError) && (
+        <p className="text-sm text-status-danger font-medium text-right">
+          {error ?? completeError}
+        </p>
+      )}
+      {isCompleting && (
+        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Completing setup...
+        </div>
+      )}
+      <div className="flex justify-end gap-2">
+        {onBack && (
+          <ButtonBase
+            variant="amber"
+            buttonType="icon-text"
+            onClick={onBack}
+            disabled={isPending || isCompleting}
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </ButtonBase>
+        )}
+        <ButtonBase
+          variant="green"
+          buttonType="icon-text"
+          onClick={handleSave}
+          disabled={isPending || isCompleting}
+        >
+          {isPending ? (
+            <><Loader2 className="size-4 animate-spin" /> Saving...</>
+          ) : (
+            <>Next Step <ArrowRight className="size-4" /></>
+          )}
+        </ButtonBase>
+      </div>
+    </div>
+    </div>
   );
 }

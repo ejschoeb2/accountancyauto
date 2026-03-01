@@ -143,7 +143,7 @@ export default async function SettingsPage() {
         orgId={orgId}
         hasSubscription={hasSubscription}
         storageBackend={orgResult.data?.storage_backend ?? null}
-        googleDriveFolderExists={!!orgResult.data?.google_drive_folder_id}
+        googleDriveFolderId={orgResult.data?.google_drive_folder_id ?? null}
         storageBackendStatus={orgResult.data?.storage_backend_status ?? null}
         oneDriveConnected={!!orgResult.data?.ms_home_account_id}
         dropboxConnected={dropboxConnected}

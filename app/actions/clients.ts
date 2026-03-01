@@ -10,7 +10,6 @@ import { z } from "zod";
 // Client type matching the database schema
 export interface Client {
   id: string;
-  quickbooks_id: string;
   company_name: string;
   display_name: string | null;
   primary_email: string | null;
@@ -24,7 +23,6 @@ export interface Client {
   reminders_paused: boolean;
   records_received_for: string[] | null; // Array of filing_type_id strings
   completed_for: string[] | null; // Array of filing_type_id strings for which accountant has completed processing
-  synced_at: string | null;
   created_at: string;
   updated_at: string;
 }

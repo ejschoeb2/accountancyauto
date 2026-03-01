@@ -90,28 +90,27 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Step 2: Refresh auth token — IMPORTANT: do not remove, required for session refresh
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
   const isDev = process.env.NODE_ENV === "development";
 
-  // Step 2.5: If an auth code lands at the root (Supabase falls back to Site URL when
-  // the /auth/callback path isn't explicitly listed in its Redirect URLs allowlist),
-  // forward all query params to the real callback handler.
+  // Step 2: If an auth code lands at the root (email confirmation redirect),
+  // forward to the callback handler BEFORE getUser() runs — getUser() triggers
+  // onAuthStateChange which can recreate supabaseResponse and interfere with
+  // the PKCE code-verifier cookie that exchangeCodeForSession needs.
   if (pathname === "/" && request.nextUrl.searchParams.has("code")) {
     const callbackUrl = new URL("/auth/callback", request.url);
     request.nextUrl.searchParams.forEach((value, key) => {
       callbackUrl.searchParams.set(key, value);
     });
-    const fwd = NextResponse.redirect(callbackUrl, 307);
-    copyCookies(supabaseResponse, fwd);
-    return fwd;
+    return NextResponse.redirect(callbackUrl, 307);
   }
 
-  // Step 3: Always allow public routes and API routes through (after session refresh)
+  // Step 3: Refresh auth token — IMPORTANT: do not remove, required for session refresh
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Step 4: Always allow public routes and API routes through (after session refresh)
   if (isPublicRoute(pathname) || isApiRoute(pathname)) {
     // For authenticated users hitting /login, redirect to home
     if (user && pathname === "/login") {

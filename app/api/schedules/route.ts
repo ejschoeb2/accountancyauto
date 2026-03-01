@@ -80,12 +80,17 @@ export async function POST(request: Request) {
 
   const data = validation.data;
   const orgId = await getOrgId();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   // Insert schedule
   const { data: schedule, error: scheduleError } = await supabase
     .from("schedules")
     .insert({
       org_id: orgId,
+      owner_id: user.id,
       schedule_type: data.schedule_type,
       filing_type_id: data.schedule_type === 'filing' ? data.filing_type_id : null,
       name: data.name,
@@ -120,6 +125,7 @@ export async function POST(request: Request) {
   if (data.steps && data.steps.length > 0) {
     const stepsToInsert = data.steps.map((step, index) => ({
       org_id: orgId,
+      owner_id: user.id,
       schedule_id: schedule.id,
       email_template_id: step.email_template_id,
       step_number: index + 1, // 1-based indexing

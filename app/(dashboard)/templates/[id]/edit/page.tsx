@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CheckButton } from '@/components/ui/check-button'
-import { CheckCircle, Pencil, Trash2, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Pencil, Trash2, X } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -200,7 +200,7 @@ export default function EditTemplatePage() {
     }
   }
 
-  const handleCancel = () => {
+  const handleGoBack = () => {
     if (hasUnsavedChanges) {
       setShowUnsavedDialog(true)
     } else {
@@ -208,9 +208,18 @@ export default function EditTemplatePage() {
     }
   }
 
-  const confirmCancel = () => {
+  const confirmGoBack = () => {
     setHasUnsavedChanges(false)
     router.push('/templates')
+  }
+
+  const handleDiscardChanges = () => {
+    if (originalValues) {
+      setName(originalValues.name)
+      setSubject(originalValues.subject)
+      setBodyJson(originalValues.bodyJson)
+      setIsActive(originalValues.isActive)
+    }
   }
 
   if (loading) {
@@ -224,6 +233,15 @@ export default function EditTemplatePage() {
         <h1 className="text-foreground">Edit Template</h1>
         <div className="flex items-center gap-2">
           <IconButtonWithText
+            variant="muted"
+            onClick={handleGoBack}
+            title="Go back to templates"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Go Back
+          </IconButtonWithText>
+          <div className="h-8 w-px bg-border" />
+          <IconButtonWithText
             variant="destructive"
             onClick={() => setShowDeleteDialog(true)}
             title="Delete template"
@@ -231,19 +249,20 @@ export default function EditTemplatePage() {
             <Trash2 className="h-5 w-5" />
             Delete
           </IconButtonWithText>
-          <div className="h-8 w-px bg-border" />
+          {hasUnsavedChanges && (
+            <IconButtonWithText
+              variant="amber"
+              onClick={handleDiscardChanges}
+              title="Discard changes"
+            >
+              <X className="h-5 w-5" />
+              Cancel
+            </IconButtonWithText>
+          )}
           <IconButtonWithText
-            variant="amber"
-            onClick={handleCancel}
-            title="Cancel"
-          >
-            <X className="h-5 w-5" />
-            Cancel
-          </IconButtonWithText>
-          <IconButtonWithText
-            variant="blue"
+            variant={hasUnsavedChanges ? "blue" : "ghost"}
             onClick={handleSave}
-            disabled={saving}
+            disabled={!hasUnsavedChanges || saving}
             title={saving ? 'Saving...' : 'Save template'}
           >
             <CheckCircle className="h-5 w-5" />
@@ -252,59 +271,63 @@ export default function EditTemplatePage() {
         </div>
       </div>
 
-      {/* Template Name */}
-      <div className="space-y-2">
-        <Label htmlFor="name">Template Name</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g., Monthly VAT Reminder"
-          className="hover:border-foreground/20"
-        />
-      </div>
+      <Card className="gap-1.5">
+        <CardContent className="space-y-8">
+          {/* Template Name */}
+          <div className="space-y-2">
+            <Label htmlFor="name">Template Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Monthly VAT Reminder"
+              className="hover:border-foreground/20"
+            />
+          </div>
 
-      {/* Active Checkbox */}
-      <div className="flex items-center space-x-2">
-        <CheckButton
-          checked={isActive}
-          onCheckedChange={(checked) => setIsActive(checked as boolean)}
-          aria-label="Active template"
-        />
-        <Label className="cursor-pointer" onClick={() => setIsActive(!isActive)}>
-          Active (available for use in schedules)
-        </Label>
-      </div>
+          {/* Active Checkbox */}
+          <div className="flex items-center space-x-2">
+            <CheckButton
+              checked={isActive}
+              onCheckedChange={(checked) => setIsActive(checked as boolean)}
+              aria-label="Active template"
+            />
+            <Label className="cursor-pointer" onClick={() => setIsActive(!isActive)}>
+              Active (available for use in schedules)
+            </Label>
+          </div>
 
-      {/* Toolbar with Insert Variable button on left */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <PlaceholderDropdown
-          subjectInputRef={subjectInputRef}
-          onEditorInsert={(id, label) => {
-            editorRef.current?.insertPlaceholder(id, label)
-          }}
-        />
-        <div className="w-px h-6 bg-border" />
-        <EditorToolbar editor={editor} />
-      </div>
+          {/* Toolbar with Insert Variable button on left */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <PlaceholderDropdown
+              subjectInputRef={subjectInputRef}
+              onEditorInsert={(id, label) => {
+                editorRef.current?.insertPlaceholder(id, label)
+              }}
+            />
+            <div className="w-px h-6 bg-border" />
+            <EditorToolbar editor={editor} />
+          </div>
 
-      {/* Email Composer */}
-      <Card className="overflow-hidden flex flex-col p-0">
-        {/* Subject Line */}
-        <SubjectLineEditor
-          ref={subjectInputRef}
-          value={subject}
-          onChange={setSubject}
-        />
+          {/* Email Composer */}
+          <Card className="overflow-hidden flex flex-col p-0">
+            {/* Subject Line */}
+            <SubjectLineEditor
+              ref={subjectInputRef}
+              value={subject}
+              onChange={setSubject}
+            />
 
-        {/* Email Body */}
-        <div className="flex-1">
-          <TemplateEditor
-            ref={editorRef}
-            initialContent={bodyJson}
-            onUpdate={setBodyJson}
-          />
-        </div>
+            {/* Email Body */}
+            <div className="flex-1">
+              <TemplateEditor
+                ref={editorRef}
+                initialContent={bodyJson}
+                onUpdate={setBodyJson}
+              />
+            </div>
+          </Card>
+        </CardContent>
       </Card>
 
       {/* Unsaved Changes Dialog */}
@@ -326,7 +349,7 @@ export default function EditTemplatePage() {
             </IconButtonWithText>
             <IconButtonWithText
               variant="destructive"
-              onClick={confirmCancel}
+              onClick={confirmGoBack}
             >
               <X className="h-5 w-5" />
               Discard Changes

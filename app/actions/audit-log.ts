@@ -1,6 +1,8 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { renderTipTapEmail } from '@/lib/email/render-tiptap';
+import { resolveDocumentsRequired } from '@/lib/documents/checklist';
 
 export interface AuditEntry {
   id: string;
@@ -174,7 +176,7 @@ export interface QueuedRemindersParams {
   dateFrom?: string;
   dateTo?: string;
   clientId?: string;
-  statusFilter?: string;
+  statusFilter?: string[];
   offset: number;
   limit: number;
 }
@@ -250,8 +252,8 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     query = query.lte('send_date', dateTo);
   }
 
-  if (statusFilter && statusFilter !== 'all') {
-    query = query.eq('status', statusFilter);
+  if (statusFilter && statusFilter.length > 0) {
+    query = query.in('status', statusFilter);
   }
 
   // Sort by send_date ASC (next emails to send first)
@@ -294,4 +296,191 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     data: reminders,
     totalCount: count || 0,
   };
+}
+
+// Preview a queued email with fully rendered HTML
+export async function previewQueuedEmail(
+  reminderId: string
+): Promise<{ html: string; subject: string; text: string } | { error: string }> {
+  try {
+    const supabase = await createClient();
+
+    // Fetch the reminder_queue row
+    const { data: reminder, error: reminderError } = await supabase
+      .from('reminder_queue')
+      .select('*')
+      .eq('id', reminderId)
+      .single();
+
+    if (reminderError || !reminder) {
+      return { error: `Reminder not found: ${reminderError?.message || 'Unknown error'}` };
+    }
+
+    // If html_body is already populated (pending/sent), return it directly
+    if (reminder.html_body) {
+      return {
+        html: reminder.html_body,
+        subject: reminder.resolved_subject || '',
+        text: reminder.resolved_body || '',
+      };
+    }
+
+    // Otherwise, resolve the template on-the-fly for scheduled reminders
+
+    // Fetch the client
+    const { data: client, error: clientError } = await supabase
+      .from('clients')
+      .select('id, company_name, client_type')
+      .eq('id', reminder.client_id)
+      .single();
+
+    if (clientError || !client) {
+      return { error: `Client not found: ${clientError?.message || 'Unknown error'}` };
+    }
+
+    // Fetch the schedule
+    let schedule;
+    if (reminder.filing_type_id) {
+      const { data, error } = await supabase
+        .from('schedules')
+        .select('*')
+        .eq('filing_type_id', reminder.filing_type_id)
+        .eq('is_active', true)
+        .single();
+      if (error || !data) {
+        return { error: `Schedule not found for filing type: ${error?.message || 'Not found'}` };
+      }
+      schedule = data;
+    } else if (reminder.template_id) {
+      const { data, error } = await supabase
+        .from('schedules')
+        .select('*')
+        .eq('id', reminder.template_id)
+        .eq('is_active', true)
+        .single();
+      if (error || !data) {
+        return { error: `Custom schedule not found: ${error?.message || 'Not found'}` };
+      }
+      schedule = data;
+    } else {
+      return { error: 'Reminder has no filing_type_id or template_id' };
+    }
+
+    // Fetch schedule steps
+    const { data: steps, error: stepsError } = await supabase
+      .from('schedule_steps')
+      .select('*')
+      .eq('schedule_id', schedule.id)
+      .order('step_number', { ascending: true });
+
+    if (stepsError || !steps || steps.length === 0) {
+      return { error: `Failed to fetch schedule steps: ${stepsError?.message || 'No steps found'}` };
+    }
+
+    // Find the step matching reminder.step_index
+    const step = steps.find((s: any) => s.step_number === reminder.step_index);
+    if (!step) {
+      return { error: `Step ${reminder.step_index} not found in schedule` };
+    }
+
+    // Fetch email template
+    const { data: template, error: templateError } = await supabase
+      .from('email_templates')
+      .select('*')
+      .eq('id', step.email_template_id)
+      .single();
+
+    if (templateError || !template) {
+      return { error: `Template not found: ${templateError?.message || 'Not found'}` };
+    }
+
+    // Resolve filing type name
+    let filingTypeName = schedule.name;
+    if (reminder.filing_type_id) {
+      const { data: filingType } = await supabase
+        .from('filing_types')
+        .select('name')
+        .eq('id', reminder.filing_type_id)
+        .single();
+      if (filingType) {
+        filingTypeName = filingType.name;
+      }
+    }
+
+    // Resolve documents_required for filing reminders
+    let documentsRequired = '';
+    if (reminder.filing_type_id) {
+      try {
+        documentsRequired = await resolveDocumentsRequired(supabase, client.id, reminder.filing_type_id);
+      } catch {
+        // Non-fatal — leave empty
+      }
+    }
+
+    // Fetch org name for accountant_name
+    let accountantName = 'PhaseTwo';
+    if (reminder.org_id) {
+      const { data: org } = await supabase
+        .from('organisations')
+        .select('name')
+        .eq('id', reminder.org_id)
+        .single();
+      if (org) {
+        accountantName = org.name;
+      }
+    }
+
+    // Render template
+    const rendered = await renderTipTapEmail({
+      bodyJson: template.body_json,
+      subject: template.subject,
+      context: {
+        client_name: client.company_name,
+        deadline: new Date(reminder.deadline_date + 'T00:00:00'),
+        filing_type: filingTypeName,
+        accountant_name: accountantName,
+        documents_required: documentsRequired,
+        portal_link: '#preview',
+      },
+      clientId: client.id,
+    });
+
+    return {
+      html: rendered.html,
+      subject: rendered.subject,
+      text: rendered.text,
+    };
+  } catch (error) {
+    console.error('previewQueuedEmail error:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function previewSentEmail(
+  emailLogId: string
+): Promise<{ html: string; subject: string; text: string } | { noBody: true } | { error: string }> {
+  try {
+    const supabase = await createClient();
+
+    const { data: emailLog, error: logError } = await supabase
+      .from('email_log')
+      .select('reminder_queue_id, subject')
+      .eq('id', emailLogId)
+      .single();
+
+    if (logError || !emailLog) {
+      return { error: 'Email log entry not found' };
+    }
+
+    if (!emailLog.reminder_queue_id) {
+      return { noBody: true };
+    }
+
+    return await previewQueuedEmail(emailLog.reminder_queue_id);
+  } catch (error) {
+    console.error('previewSentEmail error:', error);
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
 }

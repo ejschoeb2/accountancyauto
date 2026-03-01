@@ -6,6 +6,7 @@ import { AddClientsIllustration } from "./how-it-works-illustrations/add-clients
 import { DeadlinesCalculatedIllustration } from "./how-it-works-illustrations/deadlines-calculated";
 import { RemindersScheduledIllustration } from "./how-it-works-illustrations/reminders-scheduled";
 import { ClientUploadsIllustration } from "./how-it-works-illustrations/client-uploads";
+import { CloudForwardIllustration } from "./how-it-works-illustrations/cloud-forward";
 import { StayInControlIllustration } from "./how-it-works-illustrations/stay-in-control";
 
 type IllustrationComponent = React.FC<{ isActive: boolean }>;
@@ -46,6 +47,13 @@ const STEPS: {
   },
   {
     number: "05",
+    title: "Files go straight to your cloud",
+    description:
+      "Connect your Google Drive, OneDrive, or Dropbox and documents are forwarded directly into your existing folders — Prompt never stores your clients' files on its own servers. GDPR compliant by design: your data stays in your cloud, not ours.",
+    Illustration: CloudForwardIllustration,
+  },
+  {
+    number: "06",
     title: "You stay in control",
     description:
       "Every document received, email sent, and client reply is logged. Full audit trail per client, per filing. Nothing falls through the cracks.",

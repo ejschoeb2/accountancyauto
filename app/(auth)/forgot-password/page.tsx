@@ -60,56 +60,62 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-w-md space-y-4">
 
-        {/* Brand */}
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Reset your password</h1>
-          <p className="text-sm text-muted-foreground">
-            Enter your email and we&apos;ll send you a reset link
-          </p>
+        {/* Card box */}
+        <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+
+          {/* Brand */}
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight">Reset your password</h1>
+            <p className="text-sm text-muted-foreground">
+              Enter your email and we&apos;ll send you a reset link
+            </p>
+          </div>
+
+          {/* Form */}
+          <div className="space-y-4">
+            {error && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  autoComplete="email"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading || !email}
+                className="w-full"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    Sending link...
+                  </>
+                ) : (
+                  "Send reset link"
+                )}
+              </Button>
+            </form>
+          </div>
+
         </div>
 
-        {/* Form */}
-        <div className="space-y-4">
-          {error && (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-                autoComplete="email"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={isLoading || !email}
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                  Sending link...
-                </>
-              ) : (
-                "Send reset link"
-              )}
-            </Button>
-          </form>
-        </div>
-
+        {/* Outside the box */}
         <a
           href="/login"
           className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"

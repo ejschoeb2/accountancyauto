@@ -143,7 +143,7 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
               </TableRow>
             ) : (
               data.map((entry) => (
-                <TableRow key={entry.id} className="hover:bg-accent/5">
+                <TableRow key={entry.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell>{formatDate(entry.sent_at)}</TableCell>
                   <TableCell>{entry.filing_type_name || '-'}</TableCell>
                   <TableCell>

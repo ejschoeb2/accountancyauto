@@ -104,7 +104,7 @@ const generateParticles = (
   const sizeScale = Math.max(0.6, Math.min(1, containerWidth / baseWidth));
   const visibleHeight = Math.min(containerHeight, window.innerHeight * 0.7);
   const originX = containerWidth;
-  const originY = visibleHeight * 0.58;
+  const originY = visibleHeight * 0.65;
 
   const layers = [
     { count: 1,  radius: 0   },
@@ -271,13 +271,12 @@ export const HeroParticles = () => {
           let newY = p.y + newVy;
           const r  = p.size / 2;
 
-          if (newX + r < -100) {
+          if (newX + r < -100 || newY - r > containerHeight + 200) {
             removedIds.push(p.id);
             return null;
           }
 
-          if (newY - r < 0)               { newY = r;                   newVy *= -0.8; }
-          if (newY + r > containerHeight)  { newY = containerHeight - r; newVy *= -0.8; }
+          if (newY - r < 0) { newY = r; newVy *= -0.8; }
 
           return { ...p, x: newX, y: newY, vx: newVx, vy: newVy };
         }).filter((p): p is ParticlePhysics => p !== null);
@@ -347,7 +346,7 @@ export const HeroParticles = () => {
   if (isMobile) return null;
 
   return (
-    <div ref={containerRef} className="absolute inset-0 pointer-events-none z-10">
+    <div ref={containerRef} className="absolute inset-0 pointer-events-none z-0">
       {statics.map(s => (
         <Shape key={s.id} particle={s} registerUpdate={registerUpdate} />
       ))}

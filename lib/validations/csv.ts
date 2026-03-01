@@ -44,9 +44,17 @@ function parseFlexibleDate(dateStr: string): string | undefined {
  */
 export const csvRowSchema = z.object({
   company_name: z.string().min(1, "Company name is required"),
+  primary_email: z
+    .string()
+    .optional()
+    .transform((val) => (val === "" || val === undefined ? undefined : val)),
   client_type: z
-    .enum(["Limited Company", "Sole Trader", "Partnership", "LLP"])
-    .optional(),
+    .union([
+      z.enum(["Limited Company", "Sole Trader", "Partnership", "LLP"]),
+      z.literal(""),
+    ])
+    .optional()
+    .transform((val) => (val === "" || val === undefined ? undefined : val)),
   year_end_date: z
     .string()
     .optional()

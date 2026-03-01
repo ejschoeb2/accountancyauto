@@ -39,9 +39,6 @@ import {
   Search,
   X,
   SlidersHorizontal,
-  CheckCircle,
-  Mail,
-  MailOpen,
 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 20;
@@ -573,43 +570,34 @@ export function InboundEmailTable() {
               sortedData.map((email) => (
                 <TableRow
                   key={email.id}
-                  className="group cursor-pointer"
+                  className="group cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={() => handleRowClick(email)}
                 >
                   {/* Client Name */}
-                  <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="font-medium text-muted-foreground transition-colors">
                     {email.client_name || <span className="italic">Unknown Client</span>}
                   </TableCell>
                   {/* Received Date + Time */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {format(new Date(email.received_at), 'dd MMM yyyy HH:mm')}
                   </TableCell>
                   {/* Deadline Type */}
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {email.filing_type_id ? (FILING_TYPE_LABELS[email.filing_type_id] || email.filing_type_name) : '—'}
                   </TableCell>
                   {/* Read Status */}
                   <TableCell>
-                    {email.read ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MailOpen className="h-4 w-4" />
-                        <span className="text-sm">Read</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-blue-600">
-                        <Mail className="h-4 w-4" />
-                        <span className="text-sm font-medium">Unread</span>
-                      </div>
-                    )}
+                    <div className={`px-3 py-2 rounded-md inline-flex items-center ${email.read ? 'bg-status-neutral/10' : 'bg-blue-500/10'}`}>
+                      <span className={`text-sm font-medium ${email.read ? 'text-status-neutral' : 'text-blue-500'}`}>
+                        {email.read ? 'Read' : 'Unread'}
+                      </span>
+                    </div>
                   </TableCell>
                   {/* Records Received */}
                   <TableCell>
                     {email.records_received_detected ? (
-                      <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-600">
-                          Detected
-                        </span>
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10">
+                        <span className="text-sm font-medium text-green-600">Detected</span>
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>

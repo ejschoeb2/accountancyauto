@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
@@ -46,6 +47,7 @@ import {
   Trash2,
   Pencil,
   X,
+  Download,
 } from "lucide-react";
 import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
 import {
@@ -59,7 +61,8 @@ import * as XLSX from "xlsx";
 import { EditableCell } from "@/app/(dashboard)/clients/components/editable-cell";
 
 interface CsvImportStepProps {
-  onComplete: () => void; // Called when user finishes or skips the import
+  onComplete: () => void;
+  onBack?: () => void; // Optional: return to previous wizard step
 }
 
 type StepState = "upload" | "mapping" | "edit-data" | "importing" | "results";
@@ -77,6 +80,7 @@ interface ParsedCsvData {
 interface EditableRow {
   id: string; // UUID for React key
   company_name: string; // Required, readonly
+  primary_email: string | null;
   client_type: string | null;
   year_end_date: string | null; // YYYY-MM-DD format
   vat_registered: boolean | null;
@@ -90,7 +94,7 @@ interface EditableRow {
  * using Card-based layout instead of a Dialog wrapper.
  * The existing CsvImportDialog on the /clients page is NOT modified.
  */
-export function CsvImportStep({ onComplete }: CsvImportStepProps) {
+export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
   const [stepState, setStepState] = useState<StepState>("upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedCsvData | null>(null);
@@ -106,6 +110,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
   // ── Selection & bulk edit state ──────────────────────────────────────────
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set());
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isSelectionModeActive, setIsSelectionModeActive] = useState(false);
   const [bulkClientType, setBulkClientType] = useState<{ enabled: boolean; value: string | null }>({ enabled: false, value: null });
   const [bulkYearEnd, setBulkYearEnd] = useState<{ enabled: boolean; value: string | null }>({ enabled: false, value: null });
   const [bulkVatRegistered, setBulkVatRegistered] = useState<{ enabled: boolean; value: boolean }>({ enabled: false, value: true });
@@ -116,6 +121,13 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
   // ── Client limit state (for pre-import warning) ────────────────────────
   const [clientLimit, setClientLimit] = useState<number | null>(null);
   const [currentClientCount, setCurrentClientCount] = useState(0);
+
+  // ── Scroll to top when entering edit-data (prevents viewport starting at bottom) ──
+  useEffect(() => {
+    if (stepState === "edit-data") {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [stepState]);
 
   // ── Fetch client limit when entering edit-data step ──────────────────
   useEffect(() => {
@@ -274,7 +286,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
     [autoSuggestMapping]
   );
 
-  // Handle file selection - auto-parse and advance to mapping
+  // Handle file selection — parse immediately and advance to mapping
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -282,6 +294,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
         const fileName = file.name.toLowerCase();
         if (fileName.endsWith(".csv") || fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
           setSelectedFile(file);
+          setError(null);
           parseFile(file);
         } else {
           setError("Please select a CSV or Excel file (.csv, .xlsx)");
@@ -313,6 +326,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
         const fileName = file.name.toLowerCase();
         if (fileName.endsWith(".csv") || fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
           setSelectedFile(file);
+          setError(null);
           parseFile(file);
         } else {
           setError("Please select a CSV or Excel file (.csv, .xlsx)");
@@ -322,6 +336,11 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
     },
     [parseFile]
   );
+
+  // Continue from upload — parse the selected file
+  const handleContinueUpload = useCallback(() => {
+    if (selectedFile) parseFile(selectedFile);
+  }, [selectedFile, parseFile]);
 
   // Download template
   const handleDownloadTemplate = useCallback(() => {
@@ -427,6 +446,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
         const editableRow: EditableRow = {
           id: crypto.randomUUID(),
           company_name: mappedData.company_name || "",
+          primary_email: mappedData.primary_email || null,
           client_type: mappedData.client_type || null,
           year_end_date: parseDate(mappedData.year_end_date || ""),
           vat_registered: mappedData.vat_registered
@@ -660,20 +680,20 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
   const optionalColumns = CSV_COLUMNS.filter((col) => !col.required);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {stepState === "upload" && (
-        <>
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold">Import Client Metadata</h2>
-            <p className="text-sm text-muted-foreground">
-              Upload a CSV or Excel file to set metadata for your clients. Rows are
-              matched by company name.
-            </p>
-          </div>
+        <div className="max-w-3xl mx-auto space-y-4">
+          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+            {/* Header */}
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Import Client Metadata</h2>
+              <p className="text-sm text-muted-foreground">
+                Upload a CSV or Excel file to set metadata for your clients. Rows are matched by company name.
+              </p>
+            </div>
 
-          <div className="space-y-6">
-            {/* Help text */}
-            <div className="text-sm text-muted-foreground space-y-2">
+            {/* Column info + Download Template */}
+            <div className="text-sm text-muted-foreground space-y-1.5">
               <p>
                 <span className="font-medium text-foreground">Required:</span>{" "}
                 {requiredColumns.map((col) => col.name).join(", ")}
@@ -682,6 +702,12 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                 <span className="font-medium text-foreground">Optional:</span>{" "}
                 {optionalColumns.map((col) => col.name).join(", ")}
               </p>
+              <div className="pt-1">
+                <ButtonBase variant="violet" buttonType="icon-text" onClick={handleDownloadTemplate}>
+                  <Download className="size-4" />
+                  Download Template Table
+                </ButtonBase>
+              </div>
             </div>
 
             {/* File upload area */}
@@ -709,18 +735,12 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
               {selectedFile ? (
                 <div className="space-y-2">
                   <p className="font-medium">{selectedFile.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Click to change file
-                  </p>
+                  <p className="text-sm text-muted-foreground">Click to change file</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <p className="font-medium">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    CSV or Excel files (.csv, .xlsx) - max 1MB
-                  </p>
+                  <p className="font-medium">Click to upload or drag and drop</p>
+                  <p className="text-sm text-muted-foreground">CSV or Excel files (.csv, .xlsx) — max 1MB</p>
                 </div>
               )}
             </div>
@@ -731,34 +751,30 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                 {error}
               </div>
             )}
-
-            <Button
-              variant="link"
-              className="p-0 h-auto text-sm text-muted-foreground"
-              onClick={handleDownloadTemplate}
-            >
-              Download template CSV
-            </Button>
           </div>
 
-          <div className="flex justify-end gap-3">
-            <ButtonBase variant="muted" buttonType="text-only" onClick={onComplete}>
-              Skip for now
-            </ButtonBase>
-          </div>
-        </>
+          {onBack && (
+            <div className="flex justify-start">
+              <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
+                <ArrowLeft className="size-4" />
+                Back
+              </ButtonBase>
+            </div>
+          )}
+        </div>
       )}
 
       {stepState === "mapping" && parsedData && (
-        <>
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold">Map CSV Columns</h2>
-            <p className="text-sm text-muted-foreground">
-              Match your CSV columns to the system fields. Mapping is optional - you can enter values manually later.
-            </p>
-          </div>
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Map CSV Columns</h2>
+              <p className="text-sm text-muted-foreground">
+                Match your CSV columns to the system fields. Mapping is optional — you can enter values manually later.
+              </p>
+            </div>
 
-          <div className="space-y-4 max-h-[500px] overflow-y-auto">
+          <div className="space-y-4 max-h-[320px] overflow-y-auto">
             {error && (
               <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
                 <AlertCircle className="size-4" />
@@ -778,7 +794,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                 return (
                   <div
                     key={col.name}
-                    className="border rounded-lg p-4 space-y-3 hover:border-foreground/20 transition-colors"
+                    className="border hover:border-primary/20 shadow-sm hover:shadow-lg transition-all duration-300 rounded-xl p-4 space-y-3"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -823,8 +839,8 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
 
                     {/* Preview values */}
                     {mappedColumn && sampleValues && sampleValues.length > 0 && (
-                      <div className="bg-muted/50 rounded p-2 text-xs">
-                        <p className="text-muted-foreground mb-1">Preview:</p>
+                      <div className="bg-white border hover:border-primary/20 shadow-sm hover:shadow-md transition-all duration-300 rounded-xl p-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Preview</p>
                         <div className="space-y-0.5">
                           {sampleValues.map((value, idx) => {
                             // Format preview value based on field type
@@ -844,7 +860,7 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                             }
 
                             return (
-                              <p key={idx} className="font-mono truncate">
+                              <p key={idx} className="text-sm font-medium truncate">
                                 {displayValue}
                               </p>
                             );
@@ -858,27 +874,51 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3">
-            <IconButtonWithText variant="green" onClick={handleProceedWithMapping}>
-              <ArrowRight className="h-5 w-5" />
-              Next: Review Data
-            </IconButtonWithText>
           </div>
-        </>
+
+          <div className="flex justify-end gap-2">
+            <ButtonBase variant="amber" buttonType="icon-text" onClick={handleBackToUpload}>
+              <ArrowLeft className="size-4" />
+              Back
+            </ButtonBase>
+            <ButtonBase variant="blue" buttonType="icon-text" onClick={handleProceedWithMapping}>
+              Review Data
+              <ArrowRight className="size-4" />
+            </ButtonBase>
+          </div>
+        </div>
       )}
 
       {stepState === "edit-data" && (
         <>
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold">Review &amp; Edit Import Data</h2>
-            <p className="text-sm text-muted-foreground">
-              Review and complete your data before importing. Company names will be matched to existing clients.
-            </p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Review &amp; Edit Import Data</h2>
+              <p className="text-sm text-muted-foreground">
+                Review and complete your data before importing. Company names will be matched to existing clients.
+              </p>
+            </div>
+            <ButtonBase
+              variant="violet"
+              buttonType="icon-text"
+              isSelected={isSelectionModeActive}
+              onClick={() => {
+                if (isSelectionModeActive) {
+                  setIsSelectionModeActive(false);
+                  setSelectedRowIds(new Set());
+                } else {
+                  setIsSelectionModeActive(true);
+                }
+              }}
+            >
+              <Pencil className="size-4" />
+              Select rows to edit
+            </ButtonBase>
           </div>
 
           {(() => {
             const incompleteRows = editableRows.filter(
-              (row) => !row.client_type || !row.year_end_date
+              (row) => !row.primary_email || !row.client_type || !row.year_end_date
             );
 
             // Calculate how many rows can be imported within the plan limit
@@ -908,18 +948,18 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                 )}
 
                 {incompleteRows.length > 0 && (
-                  <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 border border-amber-200 text-amber-800 rounded-lg">
+                  <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 text-amber-800 rounded-lg">
                     <AlertTriangle className="size-4 mt-0.5 shrink-0" />
                     <span>
                       <strong>{incompleteRows.length} {incompleteRows.length === 1 ? "row is" : "rows are"}</strong> missing required fields.
-                      Fill in <strong>Client Type</strong> and <strong>Year End Date</strong> for every row before importing.
+                      Fill in <strong>Email</strong>, <strong>Client Type</strong> and <strong>Year End Date</strong> for every row before importing.
                     </span>
                   </div>
                 )}
 
-                {/* Editable data table — horizontal scroll so all columns are reachable */}
-                <div className="max-h-[560px] overflow-auto border shadow-sm rounded-lg bg-white">
-                  <Table className="min-w-[1320px]">
+                {/* Editable data table — bleeds to layout edges like client table */}
+                <div className="-mx-8 max-h-[560px] overflow-y-auto border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
+                  <Table className="min-w-[1520px]">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[52px]">
@@ -940,6 +980,11 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                         <TableHead className="min-w-[220px]">
                           <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                             Company Name
+                          </span>
+                        </TableHead>
+                        <TableHead className="min-w-[220px]">
+                          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            Email <span className="text-destructive">*</span>
                           </span>
                         </TableHead>
                         <TableHead className="min-w-[200px]">
@@ -971,9 +1016,10 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                     </TableHeader>
                     <TableBody>
                       {editableRows.map((row, rowIndex) => {
+                        const isMissingEmail = !row.primary_email;
                         const isMissingType = !row.client_type;
                         const isMissingYearEnd = !row.year_end_date;
-                        const rowIncomplete = isMissingType || isMissingYearEnd;
+                        const rowIncomplete = isMissingEmail || isMissingType || isMissingYearEnd;
                         const isSelected = selectedRowIds.has(row.id);
                         const isOverLimit = overLimitCount > 0 && rowIndex >= importableCount;
 
@@ -981,10 +1027,11 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                           <TableRow
                             key={row.id}
                             className={cn(
-                              "group",
+                              "group cursor-pointer transition-colors",
                               isOverLimit && "bg-red-50/80 opacity-60",
                               !isOverLimit && rowIncomplete && "bg-amber-50/50",
-                              !isOverLimit && isSelected && "bg-blue-50/60"
+                              !isOverLimit && isSelected && "bg-blue-50/60",
+                              !isOverLimit && !rowIncomplete && !isSelected && "hover:bg-muted/50"
                             )}
                           >
                             {/* Checkbox */}
@@ -1001,6 +1048,19 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                             {/* Company Name - readonly */}
                             <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                               {row.company_name || "—"}
+                            </TableCell>
+
+                            {/* Email (required) */}
+                            <TableCell className={cn(
+                              "transition-colors",
+                              isMissingEmail && "bg-amber-100/60"
+                            )}>
+                              <EditableCell
+                                value={row.primary_email || ""}
+                                onSave={(value) => handleCellEdit(row.id, "primary_email", value || null)}
+                                type="text"
+                                isEditMode
+                              />
                             </TableCell>
 
                             {/* Client Type - select (required) */}
@@ -1088,62 +1148,84 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                 <div
                   className={cn(
                     "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-in-out",
-                    selectedRowIds.size > 0
+                    isSelectionModeActive
                       ? "translate-y-0 opacity-100"
                       : "translate-y-20 opacity-0 pointer-events-none"
                   )}
                 >
                   <div className="bg-background border shadow-lg rounded-lg px-4 py-3 flex items-center gap-4">
                     <span className="text-sm font-medium whitespace-nowrap">
-                      {selectedRowIds.size} row{selectedRowIds.size !== 1 ? "s" : ""} selected
+                      {selectedRowIds.size === 0 ? "No rows selected" : `${selectedRowIds.size} row${selectedRowIds.size !== 1 ? "s" : ""} selected`}
                     </span>
 
-                    <div className="flex items-center gap-2">
-                      <ButtonBase
-                        variant="blue"
-                        buttonType="icon-text"
-                        onClick={handleOpenBulkEdit}
-                      >
-                        <Pencil className="size-4" />
-                        Bulk Edit
-                      </ButtonBase>
+                    {selectedRowIds.size > 0 && (
+                      <div className="flex items-center gap-2">
+                        <ButtonBase
+                          variant="destructive"
+                          buttonType="icon-text"
+                          onClick={handleBulkDelete}
+                        >
+                          <Trash2 className="size-4" />
+                          Delete
+                        </ButtonBase>
 
-                      <ButtonBase
-                        variant="destructive"
-                        buttonType="icon-text"
-                        onClick={handleBulkDelete}
-                      >
-                        <Trash2 className="size-4" />
-                        Delete
-                      </ButtonBase>
+                        <ButtonBase
+                          variant="amber"
+                          buttonType="icon-text"
+                          onClick={clearSelection}
+                        >
+                          <X className="size-4" />
+                          Clear
+                        </ButtonBase>
 
-                      <div className="h-8 w-px bg-border" />
+                        <div className="h-8 w-px bg-border" />
 
-                      <ButtonBase
-                        variant="amber"
-                        buttonType="icon-text"
-                        onClick={clearSelection}
-                      >
-                        <X className="size-4" />
-                        Clear
-                      </ButtonBase>
-                    </div>
+                        <ButtonBase
+                          variant="violet"
+                          buttonType="icon-text"
+                          onClick={handleOpenBulkEdit}
+                        >
+                          <Pencil className="size-4" />
+                          Bulk Edit
+                        </ButtonBase>
+                      </div>
+                    )}
+
+                    <div className="h-8 w-px bg-border" />
+
+                    <ButtonBase
+                      variant="muted"
+                      buttonType="icon-only"
+                      onClick={() => {
+                        setIsSelectionModeActive(false);
+                        setSelectedRowIds(new Set());
+                      }}
+                      title="Exit selection mode"
+                    >
+                      <X className="size-4" />
+                    </ButtonBase>
                   </div>
                 </div>
 
                 {/* ── Bulk edit modal ── */}
                 <Dialog open={isBulkEditOpen} onOpenChange={(isOpen) => !isOpen && handleCloseBulkEdit()}>
-                  <DialogContent className="sm:max-w-md">
+                  <DialogContent className="sm:max-w-md" showCloseButton={false}>
                     <DialogHeader>
                       <DialogTitle>
-                        Bulk Edit {selectedRowIds.size} Row{selectedRowIds.size !== 1 ? "s" : ""}
+                        {selectedRowIds.size === 0 ? "Bulk Edit" : `Bulk Edit ${selectedRowIds.size} Row${selectedRowIds.size !== 1 ? "s" : ""}`}
                       </DialogTitle>
                       <DialogDescription>
-                        Select which fields to update. Only checked fields will be applied to all selected rows.
+                        {selectedRowIds.size === 0
+                          ? "Select rows in the table to edit them in bulk."
+                          : "Select which fields to update. Only checked fields will be applied to all selected rows."}
                       </DialogDescription>
                     </DialogHeader>
 
-                    {!bulkConfirmStep ? (
+                    {selectedRowIds.size === 0 ? (
+                      <div className="py-8 flex flex-col items-center justify-center gap-3 text-center">
+                        <p className="text-sm text-muted-foreground">Select rows to edit</p>
+                      </div>
+                    ) : !bulkConfirmStep ? (
                       <div className="space-y-4 py-4">
                         {/* Client Type */}
                         <div className="flex items-start gap-4">
@@ -1306,38 +1388,51 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                     )}
 
                     <DialogFooter>
-                      {bulkConfirmStep ? (
+                      {selectedRowIds.size === 0 ? (
+                        <ButtonBase
+                          variant="amber"
+                          buttonType="icon-text"
+                          onClick={handleCloseBulkEdit}
+                        >
+                          <X className="size-4" />
+                          Close
+                        </ButtonBase>
+                      ) : bulkConfirmStep ? (
                         <>
                           <ButtonBase
-                            variant="neutral"
-                            buttonType="text-only"
+                            variant="amber"
+                            buttonType="icon-text"
                             onClick={() => setBulkConfirmStep(false)}
                           >
+                            <ArrowLeft className="size-4" />
                             Back
                           </ButtonBase>
                           <ButtonBase
-                            variant="blue"
-                            buttonType="text-only"
+                            variant="green"
+                            buttonType="icon-text"
                             onClick={handleApplyBulkEdit}
                           >
+                            <CheckCircle className="size-4" />
                             Apply Changes
                           </ButtonBase>
                         </>
                       ) : (
                         <>
                           <ButtonBase
-                            variant="neutral"
-                            buttonType="text-only"
+                            variant="amber"
+                            buttonType="icon-text"
                             onClick={handleCloseBulkEdit}
                           >
+                            <X className="size-4" />
                             Close
                           </ButtonBase>
                           <ButtonBase
-                            variant="blue"
-                            buttonType="text-only"
+                            variant="green"
+                            buttonType="icon-text"
                             onClick={handleApplyBulkEdit}
                             disabled={!bulkHasChanges}
                           >
+                            <ArrowRight className="size-4" />
                             Continue
                           </ButtonBase>
                         </>
@@ -1346,23 +1441,22 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
                   </DialogContent>
                 </Dialog>
 
-                <div className="flex justify-between gap-3">
-                  <IconButtonWithText variant="destructive" onClick={handleBackToMapping}>
-                    <ArrowLeft className="h-5 w-5" />
+                <div className="flex justify-end gap-2">
+                  <ButtonBase variant="amber" buttonType="icon-text" onClick={handleBackToMapping}>
+                    <ArrowLeft className="size-4" />
                     Back
-                  </IconButtonWithText>
-                  <IconButtonWithText
+                  </ButtonBase>
+                  <ButtonBase
                     variant="green"
+                    buttonType="icon-text"
                     onClick={handleImportEditedData}
                     disabled={incompleteRows.length > 0}
                   >
-                    <Sparkles className="h-5 w-5" />
-                    {incompleteRows.length > 0
-                      ? `Complete ${incompleteRows.length} remaining ${incompleteRows.length === 1 ? "row" : "rows"} first`
-                      : overLimitCount > 0
+                    <Sparkles className="size-4" />
+                    {overLimitCount > 0
                       ? `Import ${importableCount} of ${editableRows.length} Clients`
                       : `Import ${editableRows.length} ${editableRows.length === 1 ? "Client" : "Clients"}`}
-                  </IconButtonWithText>
+                  </ButtonBase>
                 </div>
               </div>
             );
@@ -1383,53 +1477,54 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
       )}
 
       {stepState === "results" && result && (
-        <>
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold">Import Complete</h2>
-            <p className="text-sm text-muted-foreground">
-              Your CSV file has been processed. Here&apos;s a summary of the
-              results.
-            </p>
-          </div>
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold">Import Complete</h2>
+              <p className="text-sm text-muted-foreground">
+                Your CSV file has been processed. Here&apos;s a summary of the results.
+              </p>
+            </div>
 
           <div className="space-y-6">
+            {/* Success message if no issues */}
+            {result.summary.unmatchedRows === 0 &&
+              result.summary.validationErrors === 0 &&
+              !result.limitInfo &&
+              (result.summary.createdClients > 0 || result.summary.updatedClients > 0) && (
+                <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
+                  <CheckCircle className="size-5 text-green-600 shrink-0" />
+                  <p className="text-sm text-green-600">
+                    All rows imported successfully!
+                  </p>
+                </div>
+              )}
+
             {/* Summary cards */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="p-4 bg-muted rounded-lg">
+              <Card className="px-4 py-4 gap-1">
                 <p className="text-sm text-muted-foreground">
                   Total rows processed
                 </p>
                 <p className="text-2xl font-semibold">
                   {result.summary.totalRows}
                 </p>
-              </div>
+              </Card>
               {result.summary.createdClients > 0 && (
-                <div className="p-4 bg-muted rounded-lg">
+                <Card className="px-4 py-4 gap-1">
                   <p className="text-sm text-muted-foreground">Clients created</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-2xl font-semibold">
-                      {result.summary.createdClients}
-                    </p>
-                    <Badge variant="default" className="bg-green-500">
-                      <CheckCircle className="size-4 mr-1" />
-                      New
-                    </Badge>
-                  </div>
-                </div>
+                  <p className="text-2xl font-semibold">
+                    {result.summary.createdClients}
+                  </p>
+                </Card>
               )}
               {result.summary.updatedClients > 0 && (
-                <div className="p-4 bg-muted rounded-lg">
+                <Card className="px-4 py-4 gap-1">
                   <p className="text-sm text-muted-foreground">Clients updated</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-2xl font-semibold">
-                      {result.summary.updatedClients}
-                    </p>
-                    <Badge variant="default" className="bg-green-500">
-                      <CheckCircle className="size-4 mr-1" />
-                      Updated
-                    </Badge>
-                  </div>
-                </div>
+                  <p className="text-2xl font-semibold">
+                    {result.summary.updatedClients}
+                  </p>
+                </Card>
               )}
             </div>
 
@@ -1519,26 +1614,17 @@ export function CsvImportStep({ onComplete }: CsvImportStepProps) {
               </div>
             )}
 
-            {/* Success message if no issues */}
-            {result.summary.unmatchedRows === 0 &&
-              result.summary.validationErrors === 0 &&
-              !result.limitInfo &&
-              (result.summary.createdClients > 0 || result.summary.updatedClients > 0) && (
-                <div className="flex items-center gap-2 p-4 bg-green-500/10 rounded-lg">
-                  <CheckCircle className="size-5 text-green-600" />
-                  <p className="text-sm text-green-600">
-                    All rows imported successfully!
-                  </p>
-                </div>
-              )}
           </div>
 
-          <div className="flex justify-end gap-3">
-            <ButtonBase variant="green" buttonType="text-only" onClick={onComplete}>
-              Next: Configure
+          </div>
+
+          <div className="flex justify-end">
+            <ButtonBase variant="green" buttonType="icon-text" onClick={onComplete}>
+              Next Step
+              <ArrowRight className="size-4" />
             </ButtonBase>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

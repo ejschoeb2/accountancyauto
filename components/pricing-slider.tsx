@@ -88,6 +88,8 @@ export interface PricingSliderProps {
   isLoading?: boolean;
   /** The tier key that is currently loading (to show spinner on the correct card). */
   loadingTier?: string | null;
+  /** If true, hides the left heading column (for use inside the setup wizard). */
+  hideHeader?: boolean;
 }
 
 export function PricingSlider({
@@ -98,6 +100,7 @@ export function PricingSlider({
   showUpgradeNote = false,
   isLoading = false,
   loadingTier = null,
+  hideHeader = false,
 }: PricingSliderProps) {
   const [clients, setClients] = useState(defaultClients);
   const tier = getTier(clients);
@@ -115,33 +118,50 @@ export function PricingSlider({
   }
 
   return (
-    <div className="max-w-screen-xl mx-auto px-4">
+    <div className={hideHeader ? "" : "max-w-screen-xl mx-auto px-4"}>
 
-      {/* ── Top row: header (left) + card (right) ──────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 lg:gap-16 items-stretch mb-0 lg:mb-0">
-
-        {/* Header + client count */}
-        <div className="flex flex-col justify-between gap-8 lg:py-1">
-          <div>
-            <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
-              Pricing
-            </p>
-            <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
-              Pay for what you use.<br className="hidden lg:block" /> Free until you need more.
-            </h2>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-3">
-              How many clients do you manage?
-            </p>
-            <div className="flex items-end gap-3">
-              <span className="text-7xl lg:text-8xl font-bold tabular-nums text-foreground leading-none">
-                {clients >= SLIDER_MAX ? `${SLIDER_MAX}+` : clients}
-              </span>
-              <span className="text-xl text-muted-foreground mb-2">clients</span>
-            </div>
+      {/* Compact client count — shown only in hideHeader mode */}
+      {hideHeader && (
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            How many clients do you manage?
+          </p>
+          <div className="flex items-end gap-2">
+            <span className="text-4xl font-bold tabular-nums text-foreground leading-none">
+              {clients >= SLIDER_MAX ? `${SLIDER_MAX}+` : clients}
+            </span>
+            <span className="text-base text-muted-foreground mb-1">clients</span>
           </div>
         </div>
+      )}
+
+      {/* ── Top row: header (left) + card (right) ──────────────── */}
+      <div className={hideHeader ? "" : "grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8 lg:gap-16 items-stretch mb-0 lg:mb-0"}>
+
+        {/* Header + client count — hidden in wizard mode */}
+        {!hideHeader && (
+          <div className="flex flex-col justify-between gap-8 lg:py-1">
+            <div>
+              <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
+                Pricing
+              </p>
+              <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+                Pay for what you use.<br className="hidden lg:block" /> Free until you need more.
+              </h2>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-3">
+                How many clients do you manage?
+              </p>
+              <div className="flex items-end gap-3">
+                <span className="text-7xl lg:text-8xl font-bold tabular-nums text-foreground leading-none">
+                  {clients >= SLIDER_MAX ? `${SLIDER_MAX}+` : clients}
+                </span>
+                <span className="text-xl text-muted-foreground mb-2">clients</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic pricing card */}
         <div className="flex flex-col">
@@ -256,7 +276,7 @@ export function PricingSlider({
       </div>
 
       {/* ── Full-width slider section ───────────────────────────── */}
-      <div className="mt-8 lg:mt-10">
+      <div className={hideHeader ? "mt-5" : "mt-8 lg:mt-10"}>
 
         {/* Custom slider */}
         <div className="relative select-none mb-3" style={{ paddingTop: "10px", paddingBottom: "10px" }}>

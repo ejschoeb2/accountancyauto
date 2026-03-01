@@ -110,6 +110,20 @@ export async function resolveDocumentsRequired(
   // Build set of satisfied document type IDs
   const receivedSet = new Set<string>((receivedDocs ?? []).map((d) => d.document_type_id));
 
+  // Also fetch manually received customisations
+  const { data: manualRows } = await supabase
+    .from('client_document_checklist_customisations')
+    .select('document_type_id')
+    .eq('client_id', clientId)
+    .eq('filing_type_id', filingTypeId)
+    .eq('manually_received', true);
+
+  for (const row of manualRows ?? []) {
+    if (row.document_type_id) {
+      receivedSet.add(row.document_type_id);
+    }
+  }
+
   // Determine outstanding mandatory items
   const outstanding = mandatoryItems.filter((item) => !receivedSet.has(item.documentTypeId));
 

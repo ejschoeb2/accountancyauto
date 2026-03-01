@@ -11,7 +11,7 @@ export function HelpLink() {
       title="Help"
       target="_blank"
     >
-      <HelpCircle className="size-5 text-muted-foreground hover:text-primary transition-colors" />
+      <HelpCircle className="size-5 text-muted-foreground/50 transition-opacity duration-150 hover:opacity-80" />
     </Link>
   );
 }

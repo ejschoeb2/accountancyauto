@@ -9,110 +9,55 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { ButtonBase } from "@/components/ui/button-base";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  FileText,
-  AlertCircle,
-  Download,
-  Upload,
-  Loader2,
-  CheckCircle,
-  ChevronDown,
-  ChevronRight,
-  AlertTriangle,
-  XCircle,
-  ArrowLeft,
-  ArrowRight,
-  X,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
+import { FileText, AlertCircle, Loader2, X, Download } from "lucide-react";
 import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
-import {
-  importClientMetadata,
-  type CsvImportResult,
-} from "@/app/actions/csv";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
-import { EditableCell } from "./editable-cell";
 
 interface CsvImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImportComplete: () => void;
-}
-
-type DialogState = "upload" | "mapping" | "edit-data" | "importing" | "results";
-
-interface ColumnMapping {
-  [systemField: string]: string | null; // systemField -> CSV column name
 }
 
 interface ParsedCsvData {
   headers: string[];
   rows: Record<string, string>[];
-  sampleRows: Record<string, string>[]; // First 3 rows for preview
-}
-
-interface EditableRow {
-  id: string; // UUID for React key
-  company_name: string; // Required, readonly
-  client_type: string | null;
-  year_end_date: string | null; // YYYY-MM-DD format
-  vat_registered: boolean | null;
-  vat_stagger_group: number | null; // 1, 2, or 3
-  vat_scheme: string | null;
+  sampleRows: Record<string, string>[];
 }
 
 /**
- * Dialog for importing client metadata from CSV files.
- * Supports file upload, template download, and results display.
+ * Upload-only dialog. Parses the file then hands off to /clients/import page
+ * via sessionStorage for the full mapping → edit → import flow.
  */
-export function CsvImportDialog({
-  open,
-  onOpenChange,
-  onImportComplete,
-}: CsvImportDialogProps) {
-  const [state, setState] = useState<DialogState>("upload");
+export function CsvImportDialog({ open, onOpenChange }: CsvImportDialogProps) {
+  const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<ParsedCsvData | null>(null);
-  const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
-  const [editableRows, setEditableRows] = useState<EditableRow[]>([]);
-  const [result, setResult] = useState<CsvImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showUnmatched, setShowUnmatched] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isParsing, setIsParsing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Client limit state (for pre-import warning) ────────────────────────
+  // Client limit (for upfront warning)
   const [clientLimit, setClientLimit] = useState<number | null>(null);
   const [currentClientCount, setCurrentClientCount] = useState(0);
+  const [limitLoaded, setLimitLoaded] = useState(false);
 
-  // ── Fetch client limit when entering edit-data step ──────────────────
+  const atLimit = clientLimit !== null && currentClientCount >= clientLimit;
+
   useEffect(() => {
-    if (state !== "edit-data") return;
+    if (!open) {
+      setSelectedFile(null);
+      setError(null);
+      setIsDragging(false);
+      setIsParsing(false);
+      setLimitLoaded(false);
+      return;
+    }
 
     async function fetchLimit() {
       try {
@@ -135,88 +80,31 @@ export function CsvImportDialog({
         setClientLimit(org?.client_count_limit ?? null);
         setCurrentClientCount(count ?? 0);
       } catch {
-        // Non-blocking — if we can't fetch, just don't show limit warning
+        // Non-blocking
+      } finally {
+        setLimitLoaded(true);
       }
     }
 
     fetchLimit();
-  }, [state]);
+  }, [open]);
 
-  // Reset state when dialog opens
-  const handleOpenChange = useCallback(
-    (newOpen: boolean) => {
-      if (!newOpen) {
-        // Reset state when closing
-        setTimeout(() => {
-          setState("upload");
-          setSelectedFile(null);
-          setParsedData(null);
-          setColumnMapping({});
-          setEditableRows([]);
-          setResult(null);
-          setError(null);
-          setShowUnmatched(false);
-          setShowErrors(false);
-          setClientLimit(null);
-          setCurrentClientCount(0);
-        }, 200);
-      }
-      onOpenChange(newOpen);
-    },
-    [onOpenChange]
-  );
-
-  // Auto-suggest column mapping based on header names
-  const autoSuggestMapping = useCallback((headers: string[]): ColumnMapping => {
-    const mapping: ColumnMapping = {};
-
-    CSV_COLUMNS.forEach((col) => {
-      const systemField = col.name;
-
-      // Try exact match first (case-insensitive)
-      const exactMatch = headers.find(
-        (h) => h.toLowerCase().replace(/[_\s]/g, "") === systemField.toLowerCase().replace(/[_\s]/g, "")
-      );
-
-      if (exactMatch) {
-        mapping[systemField] = exactMatch;
-        return;
-      }
-
-      // Try partial match
-      const partialMatch = headers.find((h) => {
-        const hNorm = h.toLowerCase().replace(/[_\s]/g, "");
-        const sNorm = systemField.toLowerCase().replace(/[_\s]/g, "");
-        return hNorm.includes(sNorm) || sNorm.includes(hNorm);
-      });
-
-      if (partialMatch) {
-        mapping[systemField] = partialMatch;
-      } else {
-        mapping[systemField] = null;
-      }
-    });
-
-    return mapping;
-  }, []);
-
-  // Parse CSV or XLSX file and advance to mapping
-  const parseFile = useCallback(
+  // Parse the file and navigate to the import page
+  const parseAndNavigate = useCallback(
     async (file: File) => {
+      setIsParsing(true);
+      setError(null);
+
       try {
         const fileName = file.name.toLowerCase();
         const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+        let parsedData: ParsedCsvData;
 
         if (isExcel) {
-          // Parse Excel file
           const arrayBuffer = await file.arrayBuffer();
           const workbook = XLSX.read(arrayBuffer, { type: "array" });
-
-          // Get first sheet
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
-
-          // Convert to JSON (array of arrays when header: 1)
           const jsonData = XLSX.utils.sheet_to_json(worksheet, {
             header: 1,
             defval: "",
@@ -224,92 +112,83 @@ export function CsvImportDialog({
 
           if (jsonData.length === 0) {
             setError("Excel file is empty");
+            setIsParsing(false);
             return;
           }
 
-          // First row is headers (filter out empty headers)
           const headers = jsonData[0]
             .map((h) => String(h).trim())
             .filter((h) => h.length > 0);
           const dataRows = jsonData.slice(1);
 
-          // Convert to objects
           const rows = dataRows.map((row) => {
             const obj: Record<string, string> = {};
             headers.forEach((header, idx) => {
-              obj[header] = String(row[idx] || "").trim();
+              obj[header] = String((row as unknown[])[idx] || "").trim();
             });
             return obj;
           });
 
-          const sampleRows = rows.slice(0, 3);
-
-          setParsedData({ headers, rows, sampleRows });
-
-          // Auto-suggest column mapping
-          const suggestedMapping = autoSuggestMapping(headers);
-          setColumnMapping(suggestedMapping);
-
-          // Advance to mapping step
-          setState("mapping");
-          setError(null);
+          parsedData = { headers, rows, sampleRows: rows.slice(0, 3) };
         } else {
-          // Parse CSV file
           const csvContent = await file.text();
-
-          Papa.parse<Record<string, string>>(csvContent, {
-            header: true,
-            skipEmptyLines: true,
-            complete: (result) => {
-              if (result.errors.length > 0) {
-                console.warn("CSV parse warnings:", result.errors);
-              }
-
-              const headers = result.meta.fields || [];
-              const rows = result.data;
-              const sampleRows = rows.slice(0, 3);
-
-              setParsedData({ headers, rows, sampleRows });
-
-              // Auto-suggest column mapping
-              const suggestedMapping = autoSuggestMapping(headers);
-              setColumnMapping(suggestedMapping);
-
-              // Advance to mapping step
-              setState("mapping");
-              setError(null);
-            },
-            error: (error: Error) => {
-              setError(`Failed to parse CSV: ${error.message}`);
-            },
+          parsedData = await new Promise<ParsedCsvData>((resolve, reject) => {
+            Papa.parse<Record<string, string>>(csvContent, {
+              header: true,
+              skipEmptyLines: true,
+              complete: (result) => {
+                resolve({
+                  headers: result.meta.fields || [],
+                  rows: result.data,
+                  sampleRows: result.data.slice(0, 3),
+                });
+              },
+              error: (err: Error) => reject(err),
+            });
           });
         }
+
+        // Store parsed data for the import page
+        sessionStorage.setItem(
+          "csv-import-data",
+          JSON.stringify({
+            parsedData,
+            clientLimit,
+            currentClientCount,
+          })
+        );
+
+        onOpenChange(false);
+        router.push("/clients/import");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to read file");
+        setIsParsing(false);
       }
     },
-    [autoSuggestMapping]
+    [router, onOpenChange, clientLimit, currentClientCount]
   );
 
-  // Handle file selection - auto-parse and advance to mapping
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
         const fileName = file.name.toLowerCase();
-        if (fileName.endsWith(".csv") || fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+        if (
+          fileName.endsWith(".csv") ||
+          fileName.endsWith(".xlsx") ||
+          fileName.endsWith(".xls")
+        ) {
           setSelectedFile(file);
-          parseFile(file);
+          parseAndNavigate(file);
         } else {
           setError("Please select a CSV or Excel file (.csv, .xlsx)");
           setSelectedFile(null);
         }
       }
     },
-    [parseFile]
+    [parseAndNavigate]
   );
 
-  // Handle drag and drop
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -324,23 +203,24 @@ export function CsvImportDialog({
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-
       const file = e.dataTransfer.files?.[0];
       if (file) {
         const fileName = file.name.toLowerCase();
-        if (fileName.endsWith(".csv") || fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+        if (
+          fileName.endsWith(".csv") ||
+          fileName.endsWith(".xlsx") ||
+          fileName.endsWith(".xls")
+        ) {
           setSelectedFile(file);
-          parseFile(file);
+          parseAndNavigate(file);
         } else {
           setError("Please select a CSV or Excel file (.csv, .xlsx)");
-          setSelectedFile(null);
         }
       }
     },
-    [parseFile]
+    [parseAndNavigate]
   );
 
-  // Download template
   const handleDownloadTemplate = useCallback(() => {
     const csvContent = generateCsvTemplate();
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -354,258 +234,83 @@ export function CsvImportDialog({
     URL.revokeObjectURL(url);
   }, []);
 
-  // Parse date from various formats to YYYY-MM-DD
-  const parseDate = useCallback((dateValue: string): string | null => {
-    if (!dateValue || dateValue.trim() === "") return null;
-
-    const trimmed = dateValue.trim();
-
-    // Already in YYYY-MM-DD format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      return trimmed;
-    }
-
-    // Handle DD/MM/YYYY or DD-MM-YYYY format
-    const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-    if (ddmmyyyyMatch) {
-      const [, day, month, year] = ddmmyyyyMatch;
-      const paddedDay = day.padStart(2, "0");
-      const paddedMonth = month.padStart(2, "0");
-      return `${year}-${paddedMonth}-${paddedDay}`;
-    }
-
-    // Handle Excel date serial number (days since 1900-01-01)
-    const serialNumber = parseFloat(trimmed);
-    if (!isNaN(serialNumber) && serialNumber > 0) {
-      // Excel epoch starts at 1900-01-01, but there's a leap year bug for 1900
-      const excelEpoch = new Date(1900, 0, 1);
-      const daysOffset = serialNumber > 59 ? serialNumber - 2 : serialNumber - 1; // Account for Excel 1900 leap year bug
-      const date = new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    }
-
-    // Try parsing as a general date string
-    try {
-      const parsed = new Date(trimmed);
-      if (!isNaN(parsed.getTime())) {
-        const year = parsed.getFullYear();
-        const month = String(parsed.getMonth() + 1).padStart(2, "0");
-        const day = String(parsed.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-      }
-    } catch {
-      // Fall through to return null
-    }
-
-    return null;
-  }, []);
-
-  // Validate that required fields are mapped
-  const validateMapping = useCallback((): string | null => {
-    const requiredFields = CSV_COLUMNS.filter((col) => col.required);
-
-    for (const field of requiredFields) {
-      if (!columnMapping[field.name]) {
-        return `Required field "${field.name}" must be mapped to a column`;
-      }
-    }
-
-    return null;
-  }, [columnMapping]);
-
-  // Apply mapping and proceed to edit-data step
-  const handleProceedWithMapping = useCallback(() => {
-    if (!parsedData) return;
-
-    // Validate mapping
-    const validationError = validateMapping();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setError(null);
-
-    // Transform rows based on column mapping into editable format
-    const transformed = parsedData.rows
-      .map((row) => {
-        const mappedData: Record<string, string> = {};
-
-        Object.entries(columnMapping).forEach(([systemField, csvColumn]) => {
-          if (csvColumn) {
-            mappedData[systemField] = row[csvColumn] || "";
-          }
-        });
-
-        // Convert to EditableRow format
-        const editableRow: EditableRow = {
-          id: crypto.randomUUID(),
-          company_name: mappedData.company_name || "",
-          client_type: mappedData.client_type || null,
-          year_end_date: parseDate(mappedData.year_end_date || ""),
-          vat_registered: mappedData.vat_registered
-            ? ["yes", "true", "1"].includes(mappedData.vat_registered.toLowerCase())
-            : true, // Default to true if not specified
-          vat_stagger_group: mappedData.vat_stagger_group
-            ? parseInt(mappedData.vat_stagger_group, 10)
-            : null,
-          vat_scheme: mappedData.vat_scheme || null,
-        };
-
-        return editableRow;
-      })
-      // Filter out rows with empty company names (data cleansing)
-      .filter((row) => row.company_name.trim() !== "");
-
-    setEditableRows(transformed);
-    setState("edit-data");
-  }, [parsedData, columnMapping, validateMapping, parseDate]);
-
-  // Handle mapping change
-  const handleMappingChange = useCallback((systemField: string, csvColumn: string | null) => {
-    setColumnMapping((prev) => ({
-      ...prev,
-      [systemField]: csvColumn,
-    }));
-  }, []);
-
-  // Handle cell edit in edit-data step
-  const handleCellEdit = useCallback(async (rowId: string, field: string, value: unknown) => {
-    setEditableRows((prev) =>
-      prev.map((row) => (row.id === rowId ? { ...row, [field]: value } : row))
-    );
-  }, []);
-
-  // Handle row deletion in edit-data step
-  const handleDeleteRow = useCallback((rowId: string) => {
-    setEditableRows((prev) => prev.filter((row) => row.id !== rowId));
-  }, []);
-
-  // Import with edited data
-  const handleImportEditedData = useCallback(async () => {
-    setState("importing");
-    setError(null);
-
-    try {
-      // Transform editableRows back to CSV format
-      const headers = CSV_COLUMNS.map((col) => col.name).join(",");
-      const csvRows = editableRows.map((row) =>
-        CSV_COLUMNS.map((col) => {
-          let value = "";
-
-          // Convert row data to string format for CSV
-          if (col.name === "vat_registered") {
-            value = row.vat_registered === true ? "Yes" : row.vat_registered === false ? "No" : "";
-          } else if (col.name === "vat_stagger_group") {
-            value = row.vat_stagger_group ? String(row.vat_stagger_group) : "";
-          } else {
-            value = (row[col.name as keyof EditableRow] as string) || "";
-          }
-
-          // Escape quotes and wrap in quotes if contains comma/quote/newline
-          if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-            return `"${value.replace(/"/g, '""')}"`;
-          }
-          return value;
-        }).join(",")
-      );
-      const csvContent = [headers, ...csvRows].join("\n");
-
-      // Create a new File object with transformed CSV
-      const transformedFile = new File([csvContent], "import.csv", {
-        type: "text/csv",
-      });
-
-      const formData = new FormData();
-      formData.append("file", transformedFile);
-      formData.append("createIfMissing", "true");
-
-      const importResult = await importClientMetadata(formData);
-      setResult(importResult);
-      setState("results");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
-      setState("edit-data");
-    }
-  }, [editableRows, selectedFile]);
-
-  // Go back to upload
-  const handleBackToUpload = useCallback(() => {
-    setState("upload");
-    setSelectedFile(null);
-    setParsedData(null);
-    setColumnMapping({});
-    setEditableRows([]);
-    setError(null);
-  }, []);
-
-  // Go back to mapping from edit-data
-  const handleBackToMapping = useCallback(() => {
-    setState("mapping");
-    setError(null);
-  }, []);
-
-  // Handle done
-  const handleDone = useCallback(() => {
-    handleOpenChange(false);
-    if (result?.success && (result.summary.updatedClients > 0 || result.summary.createdClients > 0)) {
-      onImportComplete();
-    }
-  }, [handleOpenChange, onImportComplete, result]);
-
-  // Required and optional columns for display
   const requiredColumns = CSV_COLUMNS.filter((col) => col.required);
   const optionalColumns = CSV_COLUMNS.filter((col) => !col.required);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-7xl" showCloseButton={false}>
-        {state === "upload" && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Import Clients</DialogTitle>
-              <DialogDescription>
-                Upload a CSV or Excel file to import clients. Matching names update existing clients; new names create new clients.
-              </DialogDescription>
-            </DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false} className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Import Clients</DialogTitle>
+          <DialogDescription>
+            Upload a CSV or Excel file to import client data.
+          </DialogDescription>
+        </DialogHeader>
 
-            <div className="space-y-6 py-4">
-              {/* Help text - moved above */}
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p>
-                  <span className="font-medium text-foreground">Required:</span>{" "}
-                  {requiredColumns.map((col) => col.name).join(", ")}
-                </p>
-                <p>
-                  <span className="font-medium text-foreground">Optional:</span>{" "}
-                  {optionalColumns.map((col) => col.name).join(", ")}
-                </p>
-              </div>
+        <div className="space-y-4">
+          {/* Plan limit warning */}
+          {limitLoaded && atLimit && (
+            <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
+              <AlertCircle className="size-4 mt-0.5 shrink-0" />
+              <span>
+                You&apos;ve reached your plan limit of{" "}
+                <strong>{clientLimit}</strong> clients. Upgrade your plan to
+                import more.
+              </span>
+            </div>
+          )}
 
-              {/* File upload area */}
-              <div
-                className={cn(
-                  "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
-                  isDragging
-                    ? "border-accent bg-accent/5"
-                    : "border-muted-foreground/25 hover:border-muted-foreground/50",
-                  error && "border-destructive bg-destructive/5"
-                )}
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+          {/* Field reference */}
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p>
+              <span className="font-medium text-foreground">Required:</span>{" "}
+              {requiredColumns.map((col) => col.name).join(", ")}
+            </p>
+            <p>
+              <span className="font-medium text-foreground">Optional:</span>{" "}
+              {optionalColumns.map((col) => col.name).join(", ")}
+            </p>
+            <div className="pt-1">
+              <ButtonBase
+                variant="violet"
+                buttonType="icon-text"
+                onClick={handleDownloadTemplate}
               >
-                <Input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
+                <Download className="size-4" />
+                Download template
+              </ButtonBase>
+            </div>
+          </div>
+
+          {/* Drop zone */}
+          <div
+            className={cn(
+              "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors",
+              isDragging
+                ? "border-accent bg-accent/5"
+                : "border-muted-foreground/25 hover:border-muted-foreground/50",
+              error && "border-destructive bg-destructive/5",
+              isParsing && "pointer-events-none opacity-60"
+            )}
+            onClick={() => !isParsing && fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            {isParsing ? (
+              <div className="space-y-2">
+                <Loader2 className="size-8 mx-auto text-muted-foreground animate-spin" />
+                <p className="text-sm text-muted-foreground">Reading file…</p>
+              </div>
+            ) : (
+              <>
                 <FileText className="size-8 mx-auto text-muted-foreground mb-4" />
                 {selectedFile ? (
                   <div className="space-y-2">
@@ -620,522 +325,33 @@ export function CsvImportDialog({
                       Click to upload or drag and drop
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      CSV or Excel files (.csv, .xlsx) - max 1MB
+                      CSV or Excel files (.csv, .xlsx)
                     </p>
                   </div>
                 )}
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 text-destructive text-sm">
-                  <AlertCircle className="size-4" />
-                  {error}
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <IconButtonWithText variant="destructive" onClick={() => handleOpenChange(false)}>
-                <X className="h-5 w-5" />
-                Cancel
-              </IconButtonWithText>
-            </DialogFooter>
-          </>
-        )}
-
-        {state === "mapping" && parsedData && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Map CSV Columns</DialogTitle>
-              <DialogDescription>
-                Match your CSV columns to the system fields. Mapping is optional - you can enter values manually later.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4 max-h-[500px] overflow-y-auto">
-              {error && (
-                <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
-                  <AlertCircle className="size-4" />
-                  {error}
-                </div>
-              )}
-
-              {/* Column mapping table */}
-              <div className="space-y-3">
-                {CSV_COLUMNS.map((col) => {
-                  const mappedColumn = columnMapping[col.name];
-                  const sampleValues = mappedColumn && parsedData.sampleRows
-                    .map((row) => row[mappedColumn])
-                    .filter(Boolean)
-                    .slice(0, 2);
-
-                  return (
-                    <div
-                      key={col.name}
-                      className="border rounded-lg p-4 space-y-3 hover:border-foreground/20 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">
-                            {col.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {col.description}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          {col.required && (
-                            <div className="px-3 py-2 rounded-md bg-status-danger/10 inline-flex items-center gap-1.5">
-                              <span className="text-sm font-medium text-status-danger">
-                                Required
-                              </span>
-                            </div>
-                          )}
-                          <Select
-                            value={mappedColumn || "__none__"}
-                            onValueChange={(value) =>
-                              handleMappingChange(col.name, value === "__none__" ? null : value)
-                            }
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Select column..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">
-                                <span className="text-muted-foreground">Don&apos;t map</span>
-                              </SelectItem>
-                              {parsedData.headers.map((header) => (
-                                <SelectItem key={header} value={header}>
-                                  {header}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-
-                      {/* Preview values */}
-                      {mappedColumn && sampleValues && sampleValues.length > 0 && (
-                        <div className="bg-muted/50 rounded p-2 text-xs">
-                          <p className="text-muted-foreground mb-1">Preview:</p>
-                          <div className="space-y-0.5">
-                            {sampleValues.map((value, idx) => {
-                              // Format preview value based on field type
-                              let displayValue = value;
-                              if (col.name === "year_end_date") {
-                                const parsedDate = parseDate(value);
-                                if (parsedDate) {
-                                  // Format as DD/MM/YYYY for preview
-                                  const [year, month, day] = parsedDate.split("-");
-                                  displayValue = `${day}/${month}/${year}`;
-                                } else {
-                                  displayValue = value + " (invalid date)";
-                                }
-                              } else if (col.name === "vat_registered") {
-                                const isYes = ["yes", "true", "1"].includes(value.toLowerCase());
-                                displayValue = isYes ? "Yes" : "No";
-                              }
-
-                              return (
-                                <p key={idx} className="font-mono truncate">
-                                  {displayValue}
-                                </p>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <IconButtonWithText variant="destructive" onClick={handleBackToUpload}>
-                <X className="h-5 w-5" />
-                Cancel
-              </IconButtonWithText>
-              <IconButtonWithText variant="green" onClick={handleProceedWithMapping}>
-                <ArrowRight className="h-5 w-5" />
-                Next: Review Data
-              </IconButtonWithText>
-            </DialogFooter>
-          </>
-        )}
-
-        {state === "edit-data" && (() => {
-          // Calculate how many rows can be imported within the plan limit
-          const remainingCapacity = clientLimit === null ? Infinity : clientLimit - currentClientCount;
-          const overLimitCount = remainingCapacity === Infinity ? 0 : Math.max(0, editableRows.length - remainingCapacity);
-          const importableCount = remainingCapacity === Infinity ? editableRows.length : Math.min(editableRows.length, Math.max(0, remainingCapacity));
-
-          return (
-          <>
-            <DialogHeader>
-              <DialogTitle>Review & Edit Import Data</DialogTitle>
-              <DialogDescription>
-                Review and edit your data before importing. Matching company names will update existing clients; new names will create new clients.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-4">
-              {error && (
-                <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
-                  <AlertCircle className="size-4" />
-                  {error}
-                </div>
-              )}
-
-              {overLimitCount > 0 && (
-                <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
-                  <AlertCircle className="size-4 mt-0.5 shrink-0" />
-                  <span>
-                    Your plan allows <strong>{clientLimit}</strong> clients ({currentClientCount} existing).
-                    Only the first <strong>{importableCount}</strong> of {editableRows.length} rows will be imported.
-                    The <strong>{overLimitCount} highlighted row{overLimitCount !== 1 ? "s" : ""}</strong> below will be skipped.{" "}
-                    <a href="/billing" className="underline underline-offset-2 hover:text-red-900">Upgrade your plan</a> to import all clients.
-                  </span>
-                </div>
-              )}
-
-              {/* Editable data table */}
-              <div className="max-h-[500px] overflow-y-auto border shadow-sm rounded-lg bg-white">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60px]" />
-                      <TableHead>
-                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                          Company Name
-                        </span>
-                      </TableHead>
-                      <TableHead>
-                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                          Client Type
-                        </span>
-                      </TableHead>
-                      <TableHead>
-                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                          Year End
-                        </span>
-                      </TableHead>
-                      <TableHead>
-                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                          VAT Registered
-                        </span>
-                      </TableHead>
-                      <TableHead>
-                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                          VAT Stagger
-                        </span>
-                      </TableHead>
-                      <TableHead>
-                        <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                          VAT Scheme
-                        </span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {editableRows.map((row, rowIndex) => {
-                      const isOverLimit = overLimitCount > 0 && rowIndex >= importableCount;
-
-                      return (
-                      <TableRow
-                        key={row.id}
-                        className={cn(
-                          "group",
-                          isOverLimit && "bg-red-50/80 opacity-60"
-                        )}
-                      >
-                        {/* Delete Button */}
-                        <TableCell>
-                          <div className="flex items-center justify-center">
-                            <ButtonBase
-                              variant="destructive"
-                              buttonType="icon-only"
-                              onClick={() => handleDeleteRow(row.id)}
-                              title="Delete this row"
-                            >
-                              <Trash2 className="h-5 w-5" />
-                            </ButtonBase>
-                          </div>
-                        </TableCell>
-
-                        {/* Company Name - readonly */}
-                        <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
-                          {row.company_name || "—"}
-                        </TableCell>
-
-                        {/* Client Type - select */}
-                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                          <EditableCell
-                            value={row.client_type || ""}
-                            onSave={(value) => handleCellEdit(row.id, "client_type", value)}
-                            type="select"
-                            options={[
-                              { value: "Limited Company", label: "Limited Company" },
-                              { value: "Sole Trader", label: "Sole Trader" },
-                              { value: "Partnership", label: "Partnership" },
-                              { value: "LLP", label: "LLP" },
-                            ]}
-                            isEditMode
-                          />
-                        </TableCell>
-
-                        {/* Year End Date - date */}
-                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                          <EditableCell
-                            value={row.year_end_date || ""}
-                            onSave={(value) => handleCellEdit(row.id, "year_end_date", value)}
-                            type="date"
-                            isEditMode
-                          />
-                        </TableCell>
-
-                        {/* VAT Registered - boolean */}
-                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                          <EditableCell
-                            value={row.vat_registered ?? ""}
-                            onSave={(value) => handleCellEdit(row.id, "vat_registered", value)}
-                            type="boolean"
-                            isEditMode
-                          />
-                        </TableCell>
-
-                        {/* VAT Stagger Group - select */}
-                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                          <EditableCell
-                            value={row.vat_stagger_group ? String(row.vat_stagger_group) : ""}
-                            onSave={(value) =>
-                              handleCellEdit(row.id, "vat_stagger_group", value ? parseInt(String(value), 10) : null)
-                            }
-                            type="select"
-                            options={[
-                              { value: "1", label: "1 (Mar/Jun/Sep/Dec)" },
-                              { value: "2", label: "2 (Jan/Apr/Jul/Oct)" },
-                              { value: "3", label: "3 (Feb/May/Aug/Nov)" },
-                            ]}
-                            isEditMode
-                          />
-                        </TableCell>
-
-                        {/* VAT Scheme - select */}
-                        <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
-                          <EditableCell
-                            value={row.vat_scheme || ""}
-                            onSave={(value) => handleCellEdit(row.id, "vat_scheme", value)}
-                            type="select"
-                            options={[
-                              { value: "Standard", label: "Standard" },
-                              { value: "Flat Rate", label: "Flat Rate" },
-                              { value: "Cash Accounting", label: "Cash Accounting" },
-                              { value: "Annual Accounting", label: "Annual Accounting" },
-                            ]}
-                            isEditMode
-                          />
-                        </TableCell>
-                      </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <IconButtonWithText variant="destructive" onClick={handleBackToMapping}>
-                <ArrowLeft className="h-5 w-5" />
-                Back
-              </IconButtonWithText>
-              <IconButtonWithText variant="green" onClick={handleImportEditedData}>
-                <Sparkles className="h-5 w-5" />
-                {overLimitCount > 0
-                  ? `Import ${importableCount} of ${editableRows.length} Clients`
-                  : `Import ${editableRows.length} ${editableRows.length === 1 ? "Client" : "Clients"}`}
-              </IconButtonWithText>
-            </DialogFooter>
-          </>
-          );
-        })()}
-
-        {state === "importing" && (
-          <div className="py-12 flex flex-col items-center justify-center space-y-4">
-            <Loader2 className="size-8 animate-spin text-primary" />
-            <div className="text-center space-y-2">
-              <p className="font-medium text-lg">Importing...</p>
-              <p className="text-sm text-muted-foreground">
-                Processing your CSV file and updating client records
-              </p>
-            </div>
+              </>
+            )}
           </div>
-        )}
 
-        {state === "results" && result && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Import Complete</DialogTitle>
-              <DialogDescription>
-                Your CSV file has been processed. Here&apos;s a summary of the
-                results.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-6 py-4">
-              {/* Summary cards */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Total rows processed
-                  </p>
-                  <p className="text-2xl font-semibold">
-                    {result.summary.totalRows}
-                  </p>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Clients updated</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-2xl font-semibold">
-                      {result.summary.updatedClients}
-                    </p>
-                    {result.summary.updatedClients > 0 && (
-                      <Badge variant="default" className="bg-green-500">
-                        <CheckCircle className="size-4 mr-1" />
-                        Success
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">Clients created</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-2xl font-semibold">
-                      {result.summary.createdClients}
-                    </p>
-                    {result.summary.createdClients > 0 && (
-                      <Badge variant="default" className="bg-green-500">
-                        <CheckCircle className="size-4 mr-1" />
-                        New
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Unmatched rows */}
-              {result.summary.unmatchedRows > 0 && (
-                <div className="space-y-2">
-                  <button
-                    className="flex items-center gap-2 w-full text-left"
-                    onClick={() => setShowUnmatched(!showUnmatched)}
-                  >
-                    {showUnmatched ? (
-                      <ChevronDown className="size-4" />
-                    ) : (
-                      <ChevronRight className="size-4" />
-                    )}
-                    <span className="text-sm text-muted-foreground">
-                      Unmatched rows ({result.summary.unmatchedRows})
-                    </span>
-                    <Badge variant="outline" className="ml-auto text-status-warning">
-                      <AlertTriangle className="size-4 mr-1" />
-                      Skipped
-                    </Badge>
-                  </button>
-                  {showUnmatched && (
-                    <div className="pl-6 space-y-1 max-h-32 overflow-y-auto">
-                      {result.details.unmatchedCompanies.map((name, index) => (
-                        <p key={index} className="text-sm text-muted-foreground">
-                          • {name}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Validation errors */}
-              {result.summary.validationErrors > 0 && (
-                <div className="space-y-2">
-                  <button
-                    className="flex items-center gap-2 w-full text-left"
-                    onClick={() => setShowErrors(!showErrors)}
-                  >
-                    {showErrors ? (
-                      <ChevronDown className="size-4" />
-                    ) : (
-                      <ChevronRight className="size-4" />
-                    )}
-                    <span className="text-sm text-muted-foreground">
-                      Validation errors ({result.summary.validationErrors})
-                    </span>
-                    <Badge variant="outline" className="ml-auto text-destructive">
-                      <XCircle className="size-4 mr-1" />
-                      Failed
-                    </Badge>
-                  </button>
-                  {showErrors && (
-                    <div className="pl-6 space-y-2 max-h-40 overflow-y-auto">
-                      {result.details.validationErrors.map((err, index) => (
-                        <div key={index}>
-                          <p className="text-sm font-medium">Row {err.row}:</p>
-                          <ul className="text-sm text-muted-foreground">
-                            {err.errors.map((e, i) => (
-                              <li key={i}>• {e}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Plan limit warning */}
-              {result.limitInfo && (
-                <div className="rounded-md bg-amber-500/10 px-4 py-3 text-sm space-y-2">
-                  <p className="font-medium text-amber-700">
-                    Plan limit reached
-                  </p>
-                  <p className="text-amber-600">
-                    {result.limitInfo.importedClients} of {result.limitInfo.totalNewClients} new
-                    clients were imported. {result.limitInfo.skippedClients} clients were skipped
-                    because your plan allows up to {result.limitInfo.limit} clients.
-                  </p>
-                  <p className="text-amber-600">
-                    <a
-                      href="/billing"
-                      className="underline underline-offset-2 hover:text-amber-700"
-                    >
-                      Upgrade your plan
-                    </a>{" "}
-                    to import all clients.
-                  </p>
-                </div>
-              )}
-
-              {/* Success message if no issues */}
-              {result.summary.unmatchedRows === 0 &&
-                result.summary.validationErrors === 0 &&
-                !result.limitInfo && (
-                  <div className="flex items-center gap-2 p-4 bg-green-500/10 rounded-lg">
-                    <CheckCircle className="size-5 text-green-600" />
-                    <p className="text-sm text-green-600">
-                      All rows imported successfully!
-                    </p>
-                  </div>
-                )}
+          {error && (
+            <div className="flex items-center gap-2 text-destructive text-sm">
+              <AlertCircle className="size-4" />
+              {error}
             </div>
+          )}
+        </div>
 
-            <DialogFooter>
-              <ButtonBase variant="green" buttonType="text-only" onClick={handleDone}>
-                Done
-              </ButtonBase>
-            </DialogFooter>
-          </>
-        )}
+        <DialogFooter>
+          <ButtonBase
+            type="button"
+            onClick={() => onOpenChange(false)}
+            buttonType="icon-text"
+            variant="destructive"
+          >
+            <X className="size-4" />
+            Close
+          </ButtonBase>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

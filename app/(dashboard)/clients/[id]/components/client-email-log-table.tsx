@@ -156,8 +156,8 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
     },
     scheduled: {
       label: 'Scheduled',
-      bg: 'bg-sky-500/10',
-      text: 'text-sky-500',
+      bg: 'bg-status-info/10',
+      text: 'text-status-info',
       icon: <Clock className="h-4 w-4" />,
     },
     rescheduled: {
@@ -442,24 +442,21 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
               </TableRow>
             ) : viewMode === 'sent' ? (
               (data as AuditEntry[]).map((entry) => (
-                <TableRow key={entry.id} className="group hover:bg-accent/5">
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                <TableRow key={entry.id} className="group hover:bg-muted/50 transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {format(new Date(entry.sent_at), 'dd MMM yyyy')}
                   </TableCell>
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {entry.deadline_date ? format(new Date(entry.deadline_date), 'dd MMM yyyy') : '—'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {entry.filing_type_id ? (FILING_TYPE_LABELS[entry.filing_type_id] || entry.filing_type_name) : '—'}
                   </TableCell>
-                  <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableCell className="text-muted-foreground transition-colors">
                     {entry.template_name || '—'}
                   </TableCell>
                   <TableCell>
-                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center gap-2`}>
-                      <span className={statusConfig[entry.delivery_status]?.text || 'text-gray-500'}>
-                        {statusConfig[entry.delivery_status]?.icon}
-                      </span>
+                    <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
                       <span className={`text-sm font-medium ${statusConfig[entry.delivery_status]?.text || 'text-gray-500'}`}>
                         {statusConfig[entry.delivery_status]?.label || entry.delivery_status}
                       </span>
@@ -474,8 +471,8 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
                 const canEdit = isStatusEditable(reminder.status);
 
                 return (
-                  <TableRow key={reminder.id} className="group hover:bg-accent/5">
-                    <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                  <TableRow key={reminder.id} className="group hover:bg-muted/50 transition-colors">
+                    <TableCell className="text-muted-foreground transition-colors">
                       {isEditMode && canEdit ? (
                         <Input
                           type="date"
@@ -487,13 +484,13 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
                         format(new Date(reminder.send_date), 'dd MMM yyyy')
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    <TableCell className="text-muted-foreground transition-colors">
                       {format(new Date(reminder.deadline_date), 'dd MMM yyyy')}
                     </TableCell>
-                    <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    <TableCell className="text-muted-foreground transition-colors">
                       {reminder.filing_type_id ? (FILING_TYPE_LABELS[reminder.filing_type_id] || reminder.filing_type_name) : '—'}
                     </TableCell>
-                    <TableCell className="text-muted-foreground group-hover:text-foreground transition-colors">
+                    <TableCell className="text-muted-foreground transition-colors">
                       {reminder.template_name || '—'}
                     </TableCell>
                     <TableCell>
@@ -527,10 +524,7 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
                           </SelectContent>
                         </Select>
                       ) : (
-                        <div className={`px-3 py-2 rounded-md ${statusConfig[currentStatus]?.bg || 'bg-gray-500/10'} inline-flex items-center gap-2`}>
-                          <span className={statusConfig[currentStatus]?.text || 'text-gray-500'}>
-                            {statusConfig[currentStatus]?.icon}
-                          </span>
+                        <div className={`px-3 py-2 rounded-md ${statusConfig[currentStatus]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
                           <span className={`text-sm font-medium ${statusConfig[currentStatus]?.text || 'text-gray-500'}`}>
                             {statusConfig[currentStatus]?.label || currentStatus}
                           </span>

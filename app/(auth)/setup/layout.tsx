@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMemberSetupComplete } from "@/app/actions/settings";
@@ -42,17 +41,17 @@ export default async function SetupLayout({
         if (org?.slug) {
           const isDev = process.env.NODE_ENV === "development";
           if (isDev) {
-            redirect(`/?org=${org.slug}`);
+            redirect(`/dashboard?org=${org.slug}`);
           } else {
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.qpon";
             const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
-            redirect(`https://${org.slug}.app.${baseDomain}/`);
+            redirect(`https://${org.slug}.app.${baseDomain}/dashboard`);
           }
         }
       }
 
-      // Fallback if slug resolution fails — just redirect to root
-      redirect("/");
+      // Fallback if slug resolution fails — just redirect to dashboard
+      redirect("/dashboard");
     }
   } catch {
     // getMemberSetupComplete may throw if no org context yet (new member
@@ -61,27 +60,8 @@ export default async function SetupLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-5xl space-y-8">
-        {/* Branding — same as onboarding */}
-        <div className="flex items-center justify-center gap-4">
-          <Image
-            src="/logofini.png"
-            alt="Logo"
-            width={48}
-            height={48}
-            className="object-contain"
-          />
-          <div className="w-px h-12 bg-border" />
-          <Image
-            src="/peninsulaccountinglogo.jpg"
-            alt="Peninsula Accounting"
-            width={140}
-            height={48}
-            className="object-contain"
-          />
-        </div>
-
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
+      <div className="w-full">
         {children}
       </div>
     </div>

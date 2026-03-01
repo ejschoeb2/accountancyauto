@@ -1,8 +1,15 @@
 "use client";
 
-import { Brain, ArrowRight, LogIn } from "lucide-react";
+import { Brain, UserPlus, LogIn } from "lucide-react";
 
-export const MarketingNav = () => {
+interface MarketingNavProps {
+  hideLogin?: boolean;
+  hideSignup?: boolean;
+  signupLabel?: string;
+  signupBlue?: boolean;
+}
+
+export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", signupBlue }: MarketingNavProps = {}) => {
   return (
     <header className="bg-background">
       <div className="max-w-screen-xl mx-auto px-4">
@@ -24,20 +31,28 @@ export const MarketingNav = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <a
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all duration-200"
-            >
-              Login
-              <LogIn size={15} />
-            </a>
-            <a
-              href="/signup"
-              className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
-            >
-              Get started
-              <ArrowRight size={15} />
-            </a>
+            {!hideLogin && (
+              <a
+                href="/login"
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all duration-200"
+              >
+                Login
+                <LogIn size={15} />
+              </a>
+            )}
+            {!hideSignup && (
+              <a
+                href="/signup"
+                className={
+                  signupBlue
+                    ? "inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all duration-200"
+                    : "inline-flex items-center gap-2 rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
+                }
+              >
+                {signupLabel}
+                <UserPlus size={15} />
+              </a>
+            )}
           </div>
 
         </div>

@@ -2,9 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
-import { Loader2, CheckCircle, AlertCircle, Users } from "lucide-react";
+import { Brain, Loader2, CheckCircle, AlertCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
@@ -103,15 +102,9 @@ function AcceptInviteContent() {
       <div className="w-full max-w-md space-y-8">
         {/* Branding */}
         <div className="flex flex-col items-center gap-4">
-          <Image
-            src="/logofini.png"
-            alt="Logo"
-            width={64}
-            height={64}
-            className="object-contain"
-          />
-          <div className="text-center space-y-1">
-            <p className="text-sm text-muted-foreground">Peninsula Accounting</p>
+          <div className="flex items-center gap-2">
+            <Brain className="text-violet-600" size={28} />
+            <span className="text-2xl font-bold tracking-tight">Prompt</span>
           </div>
         </div>
 
@@ -214,8 +207,7 @@ function AcceptInviteContent() {
               </Button>
 
               <p className="text-xs text-muted-foreground text-center">
-                By accepting, you&apos;ll join the {orgName} workspace on Peninsula
-                Accounting.
+                By accepting, you&apos;ll join the {orgName} workspace on Prompt.
               </p>
             </CardContent>
           </Card>

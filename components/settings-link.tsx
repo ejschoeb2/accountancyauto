@@ -4,18 +4,9 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-interface SettingsLinkProps {
-  orgRole?: string;
-}
-
-export function SettingsLink({ orgRole = "member" }: SettingsLinkProps) {
+export function SettingsLink() {
   const pathname = usePathname();
   const isActive = pathname === "/settings";
-
-  // Members do not have access to settings
-  if (orgRole !== "admin") {
-    return null;
-  }
 
   return (
     <Link
@@ -23,7 +14,7 @@ export function SettingsLink({ orgRole = "member" }: SettingsLinkProps) {
       className="p-2"
       title="Settings"
     >
-      <Settings className={`size-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+      <Settings className={`size-5 transition-opacity duration-150 ${isActive ? "text-foreground" : "text-muted-foreground/50 hover:opacity-80"}`} />
     </Link>
   );
 }

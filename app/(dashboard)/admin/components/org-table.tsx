@@ -210,7 +210,7 @@ export function OrgTable({ orgs }: OrgTableProps) {
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="cursor-pointer group"
+                className="cursor-pointer group hover:bg-muted/50 transition-colors"
                 onClick={() => router.push(`/admin/${row.original.slug}`)}
               >
                 {row.getVisibleCells().map((cell) => (

@@ -109,6 +109,18 @@ No other external service configuration required for this plan.
 - `ENCRYPTION_KEY` must be provisioned in Vercel before any Phase 25 OAuth token write reaches production; the runtime error message is clear if it is missing
 - Phase 25 callers must call `encryptToken()` before any INSERT into `_enc` columns and `decryptToken()` after any SELECT from `_enc` columns — no other setup required
 
+## Self-Check: PASSED
+
+- lib/crypto/tokens.ts: FOUND
+- ENV_VARIABLES.md: FOUND (ENCRYPTION_KEY section at line 388)
+- 24-03-SUMMARY.md: FOUND
+- Commit 0d1a9aa (Task 1): FOUND
+- Commit 73691ea (Task 2): FOUND
+- Round-trip test (AES-256-GCM logic): PASS
+- Format validation (3-part colon-delimited): PASS
+- Missing key detection (lazy validation): PASS
+- npm run build: PASSED (zero TypeScript errors)
+
 ---
 *Phase: 24-storage-abstraction-layer*
 *Completed: 2026-02-28*

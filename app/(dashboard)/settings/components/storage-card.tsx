@@ -3,20 +3,22 @@
 import { useState, useTransition, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, XCircle, HardDrive, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, HardDrive, AlertTriangle, ExternalLink, FolderOpen } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
+import { Input } from "@/components/ui/input";
 import {
   disconnectGoogleDrive,
   disconnectOneDrive,
   disconnectDropbox,
   getDocumentCountByBackend,
+  updateGoogleDriveFolderId,
 } from "@/app/actions/settings";
 import { DisconnectConfirmModal } from "./disconnect-confirm-modal";
 
 interface StorageCardProps {
   storageBackend: string | null;
-  googleDriveFolderExists: boolean;
+  googleDriveFolderId: string | null;
   storageBackendStatus: string | null;
   oneDriveConnected: boolean;
   dropboxConnected: boolean;
@@ -24,7 +26,7 @@ interface StorageCardProps {
 
 function StorageCardInner({
   storageBackend,
-  googleDriveFolderExists,
+  googleDriveFolderId,
   storageBackendStatus,
   dropboxConnected,
 }: StorageCardProps) {
@@ -33,6 +35,11 @@ function StorageCardInner({
   const [isGooglePending, startGoogleTransition] = useTransition();
   const [isOneDrivePending, startOneDriveTransition] = useTransition();
   const [isDropboxPending, startDropboxTransition] = useTransition();
+
+  const [folderInput, setFolderInput] = useState("");
+  const [isFolderPending, startFolderTransition] = useTransition();
+  const [folderError, setFolderError] = useState<string | null>(null);
+  const [folderSaved, setFolderSaved] = useState(false);
 
   const [googleDisconnectError, setGoogleDisconnectError] = useState<string | null>(null);
   const [oneDriveDisconnectError, setOneDriveDisconnectError] = useState<string | null>(null);
@@ -92,46 +99,58 @@ function StorageCardInner({
   const isGoogleConnected = storageBackend === "google_drive";
   const isOneDriveConnected = storageBackend === "onedrive";
   const isDropboxConnected = dropboxConnected;
-  const isSupabaseActive = !storageBackend;
+  const isSupabaseActive = !storageBackend || storageBackend === "supabase";
+  const anyProviderConnected = isGoogleConnected || isOneDriveConnected || isDropboxConnected;
+
+  function handleFolderSave() {
+    setFolderError(null);
+    setFolderSaved(false);
+    startFolderTransition(async () => {
+      const result = await updateGoogleDriveFolderId(folderInput);
+      if (result.error) {
+        setFolderError(result.error);
+      } else {
+        setFolderInput("");
+        setFolderSaved(true);
+        router.refresh();
+      }
+    });
+  }
 
   return (
     <div className="space-y-4">
       {/* Error / success banners */}
       {error === "conditional_access_blocked" && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-amber-500/10 border border-amber-500/20">
-          <AlertTriangle className="size-4 text-amber-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-amber-700 dark:text-amber-400">
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10">
+          <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-600">
             Your IT admin has blocked this app with a Conditional Access policy. Ask your IT admin
             to grant consent for Prompt in Azure Active Directory.
           </p>
         </div>
       )}
       {error === "invalid_state" && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-red-500/10 border border-red-500/20">
-          <AlertTriangle className="size-4 text-red-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-red-700 dark:text-red-400">
-            Connection failed: security state mismatch. Please try again.
-          </p>
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10">
+          <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-500">Connection failed: security state mismatch. Please try again.</p>
         </div>
       )}
       {error === "auth_failed" && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-red-500/10 border border-red-500/20">
-          <AlertTriangle className="size-4 text-red-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-red-700 dark:text-red-400">
-            Connection failed. Please try again.
-          </p>
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10">
+          <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-red-500">Connection failed. Please try again.</p>
         </div>
       )}
       {connected === "onedrive" && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-green-500/10 border border-green-500/20">
-          <CheckCircle className="size-4 text-green-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-green-700 dark:text-green-400">OneDrive connected successfully.</p>
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-500/10">
+          <CheckCircle className="size-5 text-green-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-green-600">OneDrive connected successfully.</p>
         </div>
       )}
       {connected === "google_drive" && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-md bg-green-500/10 border border-green-500/20">
-          <CheckCircle className="size-4 text-green-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-green-700 dark:text-green-400">Google Drive connected successfully.</p>
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-green-500/10">
+          <CheckCircle className="size-5 text-green-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-green-600">Google Drive connected successfully.</p>
         </div>
       )}
 
@@ -143,7 +162,11 @@ function StorageCardInner({
           <div>
             <h2 className="text-lg font-semibold">Document Storage</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Connect a cloud storage provider to store client documents in your own storage. Only one provider can be active at a time.
+              Connect a cloud storage provider to keep client documents in your own storage. When connected, files are automatically organised into subfolders by client name, filing type, and tax year — for example{" "}
+              <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                Prompt / Smith Ltd / Corp Tax / 2024 /
+              </span>
+              . Only one provider can be active at a time. Documents uploaded before connecting are not migrated.
             </p>
           </div>
         </div>
@@ -161,42 +184,38 @@ function StorageCardInner({
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                {isSupabaseActive && (
-                  <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
-                    <span className="text-xs font-medium text-green-600">Active</span>
-                  </div>
-                )}
+                <ButtonBase
+                  variant="blue"
+                  buttonType="icon-text"
+                  disabled
+                >
+                  <HardDrive className="size-4" />
+                  {isSupabaseActive ? "Active" : "Connect"}
+                </ButtonBase>
               </div>
             </div>
           </div>
 
           {/* Google Drive */}
-          <div className="py-4 first:pt-0 last:pb-0">
+          <div className="py-4 first:pt-0 last:pb-0 space-y-3">
             <div className="flex items-center gap-4">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">Google Drive</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isGoogleConnected
-                    ? googleDriveFolderExists
-                      ? "Stored in the Prompt/ folder in your Google Drive"
-                      : "Connected"
-                    : "Store documents in your Google Drive"}
+                  Store documents in your Google Drive
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {isGoogleConnected ? (
                   <>
-                    <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
-                      <span className="text-xs font-medium text-green-600">Connected</span>
-                    </div>
                     {storageBackendStatus === "reauth_required" && (
-                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-red-500/10">
-                        <span className="text-xs font-medium text-red-500">Re-auth required</span>
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10">
+                        <span className="text-sm font-medium text-red-500">Re-auth required</span>
                       </div>
                     )}
                     {storageBackendStatus === "error" && (
-                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-amber-500/10">
-                        <span className="text-xs font-medium text-amber-600">Connection error</span>
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
+                        <span className="text-sm font-medium text-amber-600">Connection error</span>
                       </div>
                     )}
                     {storageBackendStatus === "reauth_required" && (
@@ -232,6 +251,7 @@ function StorageCardInner({
                     variant="violet"
                     buttonType="icon-text"
                     onClick={() => (window.location.href = "/api/auth/google-drive/connect")}
+                    disabled={anyProviderConnected}
                   >
                     <HardDrive className="size-4" />
                     Connect
@@ -239,6 +259,58 @@ function StorageCardInner({
                 )}
               </div>
             </div>
+
+            {/* Root folder config — shown only when Google Drive is connected */}
+            {isGoogleConnected && (
+              <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+                <div className="flex items-center gap-1.5">
+                  <FolderOpen className="size-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs font-medium">Root folder</span>
+                  {googleDriveFolderId && (
+                    <a
+                      href={`https://drive.google.com/drive/folders/${googleDriveFolderId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-1 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                    >
+                      Open in Drive
+                      <ExternalLink className="size-3" />
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Client files are stored inside this folder. Paste a Google Drive folder URL or ID to change it.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={folderInput}
+                    onChange={(e) => {
+                      setFolderInput(e.target.value);
+                      setFolderError(null);
+                      setFolderSaved(false);
+                    }}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="h-9 text-xs max-w-sm"
+                    disabled={isFolderPending}
+                  />
+                  <ButtonBase
+                    variant="blue"
+                    buttonType="icon-text"
+                    onClick={handleFolderSave}
+                    disabled={isFolderPending || !folderInput.trim()}
+                  >
+                    <CheckCircle className="size-4" />
+                    {isFolderPending ? "Saving…" : "Save"}
+                  </ButtonBase>
+                </div>
+                {folderError && (
+                  <p className="text-xs text-destructive">{folderError}</p>
+                )}
+                {folderSaved && (
+                  <p className="text-xs text-green-600">Root folder updated.</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Microsoft OneDrive */}
@@ -255,17 +327,14 @@ function StorageCardInner({
               <div className="flex items-center gap-2 shrink-0">
                 {isOneDriveConnected ? (
                   <>
-                    <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
-                      <span className="text-xs font-medium text-green-600">Connected</span>
-                    </div>
                     {storageBackendStatus === "reauth_required" && (
-                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-red-500/10">
-                        <span className="text-xs font-medium text-red-500">Re-auth required</span>
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10">
+                        <span className="text-sm font-medium text-red-500">Re-auth required</span>
                       </div>
                     )}
                     {storageBackendStatus === "error" && (
-                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-amber-500/10">
-                        <span className="text-xs font-medium text-amber-600">Connection error</span>
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
+                        <span className="text-sm font-medium text-amber-600">Connection error</span>
                       </div>
                     )}
                     {storageBackendStatus === "reauth_required" && (
@@ -301,6 +370,7 @@ function StorageCardInner({
                     variant="violet"
                     buttonType="icon-text"
                     onClick={() => (window.location.href = "/api/auth/onedrive/connect")}
+                    disabled={anyProviderConnected}
                   >
                     <HardDrive className="size-4" />
                     Connect
@@ -324,17 +394,14 @@ function StorageCardInner({
               <div className="flex items-center gap-2 shrink-0">
                 {isDropboxConnected ? (
                   <>
-                    <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-green-500/10">
-                      <span className="text-xs font-medium text-green-600">Connected</span>
-                    </div>
                     {storageBackendStatus === "reauth_required" && (
-                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-red-500/10">
-                        <span className="text-xs font-medium text-red-500">Re-auth required</span>
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10">
+                        <span className="text-sm font-medium text-red-500">Re-auth required</span>
                       </div>
                     )}
                     {storageBackendStatus === "error" && (
-                      <div className="px-2.5 py-1 rounded-md inline-flex items-center bg-amber-500/10">
-                        <span className="text-xs font-medium text-amber-600">Connection error</span>
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-amber-500/10">
+                        <span className="text-sm font-medium text-amber-600">Connection error</span>
                       </div>
                     )}
                     {storageBackendStatus === "reauth_required" && (
@@ -370,6 +437,7 @@ function StorageCardInner({
                     variant="violet"
                     buttonType="icon-text"
                     onClick={() => (window.location.href = "/api/auth/dropbox/connect")}
+                    disabled={anyProviderConnected}
                   >
                     <HardDrive className="size-4" />
                     Connect

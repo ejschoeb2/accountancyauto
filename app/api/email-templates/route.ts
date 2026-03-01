@@ -54,10 +54,16 @@ export async function POST(request: Request) {
   }
 
   const orgId = await getOrgId();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { data, error } = await supabase
     .from("email_templates")
     .insert({
       org_id: orgId,
+      owner_id: user.id,
       name: validation.data.name,
       subject: validation.data.subject,
       body_json: validation.data.body_json,

@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getDashboardMetrics, getClientStatusList, type DashboardMetrics, type ClientStatusRow } from '@/lib/dashboard/metrics';
+import { getWorkloadForecast, type MonthlyWorkload } from '@/lib/dashboard/forecast';
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading';
 import { SummaryCards } from './components/summary-cards';
 import { UpcomingDeadlines } from './components/upcoming-deadlines';
 import { StatusDistribution } from './components/status-distribution';
+import { AlertFeed } from './components/alert-feed';
+import { WorkloadForecast } from './components/workload-forecast';
 
 function DashboardContent() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -16,12 +19,15 @@ function DashboardContent() {
     approachingSentCount: 0,
     scheduledCount: 0,
     completedCount: 0,
+    violetCount: 0,
     inactiveCount: 0,
     sentTodayCount: 0,
     pausedCount: 0,
     failedDeliveryCount: 0,
+    completionRate: 0,
   });
   const [clientStatusList, setClientStatusList] = useState<ClientStatusRow[]>([]);
+  const [forecastData, setForecastData] = useState<MonthlyWorkload[]>([]);
   const [loading, setLoading] = useState(true);
 
   usePageLoading('dashboard-data', loading);
@@ -32,10 +38,12 @@ function DashboardContent() {
     Promise.all([
       getDashboardMetrics(supabase),
       getClientStatusList(supabase),
+      getWorkloadForecast(supabase),
     ])
-      .then(([metricsData, clientsData]) => {
+      .then(([metricsData, clientsData, forecast]) => {
         setMetrics(metricsData);
         setClientStatusList(clientsData);
+        setForecastData(forecast);
       })
       .catch((error) => {
         console.error('Error loading dashboard:', error);
@@ -58,11 +66,17 @@ function DashboardContent() {
       {/* Summary metrics */}
       <SummaryCards metrics={metrics} />
 
-      {/* Upcoming Deadlines & Client Status Distribution */}
+      {/* Status distribution - full width */}
+      <StatusDistribution clients={clientStatusList} />
+
+      {/* Upcoming Deadlines & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingDeadlines clients={clientStatusList} />
-        <StatusDistribution clients={clientStatusList} />
+        <AlertFeed />
       </div>
+
+      {/* Workload forecast - full width */}
+      <WorkloadForecast data={forecastData} />
     </div>
   );
 }

@@ -12,15 +12,12 @@ import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading'
 import {
   Card,
-  CardHeader,
-  CardTitle,
-  CardAction,
   CardContent,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Bell, BellOff, CheckCircle, Pencil, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Bell, BellOff, CheckCircle, Pencil, RotateCcw, Trash2, X } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -342,6 +339,11 @@ export default function EditSchedulePage() {
     router.push('/schedules')
   }
 
+  const handleResetChanges = () => {
+    form.reset()
+    setSelectedClientIds(new Set(initialClientIds))
+  }
+
   return (
     <PageLoadingProvider>
     {loading ? null : (
@@ -369,7 +371,17 @@ export default function EditSchedulePage() {
               )}
               <IconButtonWithText
                 type="button"
-                variant={isActive ? 'amber' : 'green'}
+                variant="amber"
+                onClick={handleCancel}
+                title="Go back"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                Go Back
+              </IconButtonWithText>
+              <div className="h-8 w-px bg-border" />
+              <IconButtonWithText
+                type="button"
+                variant={isActive ? 'destructive' : 'green'}
                 onClick={handleToggleActive}
                 disabled={toggling}
                 title={isActive ? 'Deactivate schedule' : 'Activate schedule'}
@@ -377,22 +389,34 @@ export default function EditSchedulePage() {
                 {isActive ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
                 {toggling ? '...' : isActive ? 'Deactivate' : 'Activate'}
               </IconButtonWithText>
-              <div className="h-8 w-px bg-border" />
             </>
           )}
-          <IconButtonWithText
-            type="button"
-            variant="amber"
-            onClick={handleCancel}
-            title="Cancel"
-          >
-            <X className="h-5 w-5" />
-            Cancel
-          </IconButtonWithText>
+          {isNew && (
+            <IconButtonWithText
+              type="button"
+              variant="amber"
+              onClick={handleCancel}
+              title="Cancel"
+            >
+              <X className="h-5 w-5" />
+              Cancel
+            </IconButtonWithText>
+          )}
+          {!isNew && hasUnsavedChanges && (
+            <IconButtonWithText
+              type="button"
+              variant="amber"
+              onClick={handleResetChanges}
+              title="Undo changes"
+            >
+              <RotateCcw className="h-5 w-5" />
+              Cancel Changes
+            </IconButtonWithText>
+          )}
           <IconButtonWithText
             type="submit"
             variant="blue"
-            disabled={saving}
+            disabled={saving || (!isNew && !hasUnsavedChanges)}
             title={saving ? 'Saving...' : isNew ? 'Create schedule' : 'Save changes'}
           >
             <CheckCircle className="h-5 w-5" />
@@ -406,14 +430,21 @@ export default function EditSchedulePage() {
 
       {/* Basic Information */}
       <Card className="gap-1.5">
-        <CardHeader>
-          <CardTitle className="text-2xl">Basic Information</CardTitle>
-        </CardHeader>
+        <div className="px-8">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Basic Information</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure the name, filing type, and basic settings for this schedule.
+              </p>
+            </div>
+          </div>
+        </div>
         <CardContent className="space-y-6">
           {/* Schedule Type indicator (read-only for existing schedules) */}
           {!isNew && (
             <div className="space-y-2">
-              <Label>Reminder Type</Label>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reminder Type</Label>
               <p className="text-sm text-muted-foreground">
                 {scheduleType === 'custom' ? 'Custom Reminder' : 'Filing Deadline Reminder'}
                 {' '}&mdash; type cannot be changed after creation.
@@ -424,7 +455,7 @@ export default function EditSchedulePage() {
           {/* Filing Type dropdown - only for filing schedules */}
           {scheduleType === 'filing' && (
             <div className="space-y-2">
-              <Label htmlFor="filing_type_id">Filing Type</Label>
+              <Label htmlFor="filing_type_id" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filing Type</Label>
               <Select
                 value={form.watch('filing_type_id') as string ?? ''}
                 onValueChange={(value) => form.setValue('filing_type_id', value as FilingTypeId)}
@@ -463,32 +494,18 @@ export default function EditSchedulePage() {
             const mandatory = docs.filter(d => d.is_mandatory)
             const optional = docs.filter(d => !d.is_mandatory)
             return (
-              <div className="space-y-3">
-                <Label>Documents to collect</Label>
-                {mandatory.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Required</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {mandatory.map(d => (
-                        <span key={d.label} className="bg-blue-500/10 text-blue-500 rounded-md px-3 py-1.5 text-sm font-normal">
-                          {d.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {optional.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">May also need</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {optional.map(d => (
-                        <span key={d.label} className="bg-blue-500/5 text-blue-400 rounded-md px-3 py-1.5 text-sm font-normal border border-blue-500/20">
-                          {d.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documents to collect</Label>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  {mandatory.map(d => (
+                    <li key={d.label} className="text-sm font-medium">{d.label}</li>
+                  ))}
+                  {optional.map(d => (
+                    <li key={d.label} className="text-sm font-medium">
+                      {d.label} <span className="text-muted-foreground font-normal">(may also need)</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )
           })()}
@@ -496,7 +513,7 @@ export default function EditSchedulePage() {
           {/* Custom schedule send hour */}
           {scheduleType === 'custom' && (
             <div className="space-y-2">
-              <Label htmlFor="send_hour">Send Hour (UK time)</Label>
+              <Label htmlFor="send_hour" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Send Hour (UK time)</Label>
               <Select
                 value={form.watch('send_hour') != null ? String(form.watch('send_hour')) : 'default'}
                 onValueChange={(value) =>
@@ -525,7 +542,7 @@ export default function EditSchedulePage() {
           {scheduleType === 'custom' && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Date Configuration</Label>
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date Configuration</Label>
                 <Select
                   value={dateMode}
                   onValueChange={(value: DateMode) => {
@@ -550,7 +567,7 @@ export default function EditSchedulePage() {
 
               {dateMode === 'one-off' ? (
                 <div className="space-y-2">
-                  <Label htmlFor="custom_date">Target Date</Label>
+                  <Label htmlFor="custom_date" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Target Date</Label>
                   <Input
                     id="custom_date"
                     type="date"
@@ -565,7 +582,7 @@ export default function EditSchedulePage() {
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="recurrence_rule">Recurrence</Label>
+                    <Label htmlFor="recurrence_rule" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recurrence</Label>
                     <Select
                       value={form.watch('recurrence_rule') || ''}
                       onValueChange={(value) => form.setValue('recurrence_rule', value as 'monthly' | 'quarterly' | 'annually')}
@@ -581,7 +598,7 @@ export default function EditSchedulePage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="recurrence_anchor">Anchor Date</Label>
+                    <Label htmlFor="recurrence_anchor" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Anchor Date</Label>
                     <Input
                       id="recurrence_anchor"
                       type="date"
@@ -599,7 +616,7 @@ export default function EditSchedulePage() {
           )}
 
         <div className="space-y-2">
-          <Label htmlFor="name">Reminder Name</Label>
+          <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reminder Name</Label>
           <Input
             id="name"
             placeholder={scheduleType === 'custom'
@@ -616,7 +633,7 @@ export default function EditSchedulePage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</Label>
           <Textarea
             id="description"
             rows={3}
@@ -636,7 +653,7 @@ export default function EditSchedulePage() {
       {/* Reminder Steps */}
       <Card className="gap-1.5">
         <div className="px-8">
-          <div className="flex items-start justify-between gap-4 mb-6">
+          <div className="flex items-start justify-between gap-4 mb-4">
             <div className="space-y-1">
               <h2 className="text-2xl font-semibold">Reminder Steps</h2>
               <p className="text-sm text-muted-foreground">
@@ -655,9 +672,12 @@ export default function EditSchedulePage() {
       {isNew && scheduleType === 'custom' && (
         <Card className="gap-1.5">
           <div className="px-8">
-            <div className="mb-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold">Applies To</h2>
+                <p className="text-sm text-muted-foreground">
+                  Select which clients this schedule should apply to.
+                </p>
               </div>
             </div>
           </div>
@@ -684,9 +704,12 @@ export default function EditSchedulePage() {
       {!isNew && (
         <Card className="gap-1.5">
           <div className="px-8">
-            <div className="mb-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold">Applies To</h2>
+                <p className="text-sm text-muted-foreground">
+                  This schedule applies to all clients by default. Untick any clients to exclude them.
+                </p>
               </div>
             </div>
           </div>

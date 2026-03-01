@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ButtonBase } from '@/components/ui/button-base'
-import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { Trash2 } from 'lucide-react'
 import {
@@ -135,13 +134,9 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
             <CardContent className="space-y-4 flex-1 flex flex-col">
               {/* Client types & deadline rule */}
               <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-foreground">Applies to:</span>
-                  {ft.applicable_client_types.map((type) => (
-                    <Badge key={type} variant="secondary" className="font-normal bg-blue-500/10 text-blue-500 rounded-md px-3 py-1.5 text-sm">
-                      {type}
-                    </Badge>
-                  ))}
+                <div className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Applies to:</span>{' '}
+                  {ft.applicable_client_types.join(', ')}
                 </div>
                 <div className="text-muted-foreground">
                   <span className="font-medium text-foreground">Deadline rule:</span>{' '}

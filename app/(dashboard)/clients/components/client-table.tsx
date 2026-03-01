@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { Upload, Pencil, X as XIcon, Plus, CheckCircle, XCircle, AlertCircle, Minus, Loader2, Trash2 } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -152,8 +152,10 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
 
   // Initialize filters based on initialFilter parameter
   const getInitialStatusFilters = () => {
-    if (initialFilter === "red") return new Set<TrafficLightStatus>(["red"]);
-    if (initialFilter === "amber") return new Set<TrafficLightStatus>(["amber"]);
+    const validStatuses: TrafficLightStatus[] = ['red', 'orange', 'amber', 'blue', 'violet', 'green', 'grey'];
+    if (initialFilter && validStatuses.includes(initialFilter as TrafficLightStatus)) {
+      return new Set<TrafficLightStatus>([initialFilter as TrafficLightStatus]);
+    }
     return new Set<TrafficLightStatus>();
   };
 
@@ -179,10 +181,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
     currentCount: number;
     limit: number;
   } | null>(null);
-
-  const handleImportComplete = () => {
-    window.location.reload();
-  };
 
   const handleClientCreated = (newClient: Client) => {
     setData((prev) => [...prev, newClient]);
@@ -506,7 +504,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         cell: ({ row }) => {
           const client = row.original;
           return (
-            <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+            <span className="text-muted-foreground transition-colors">
               {client.display_name || client.company_name}
             </span>
           );
@@ -522,7 +520,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         cell: ({ row }) => {
           const client = row.original;
           return (
-            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+            <span className="text-sm text-muted-foreground transition-colors">
               {client.client_type || '—'}
             </span>
           );
@@ -626,7 +624,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           const client = row.original;
           return (
             <span
-              className="text-muted-foreground group-hover:text-foreground transition-colors"
+              className="text-muted-foreground transition-colors"
             >
               {client.display_name || client.company_name}
             </span>
@@ -742,7 +740,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           const info = statusMap[row.original.id];
           if (!info?.next_deadline) return <span className="text-muted-foreground">—</span>;
           return (
-            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+            <span className="text-sm text-muted-foreground transition-colors">
               {format(new Date(info.next_deadline), "dd MMM yyyy")}
             </span>
           );
@@ -768,7 +766,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           const typeId = info?.next_deadline_type;
           if (!typeId) return <span className="text-muted-foreground">—</span>;
           return (
-            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+            <span className="text-sm text-muted-foreground transition-colors">
               {FILING_TYPE_LABELS[typeId] || typeId}
             </span>
           );
@@ -790,19 +788,13 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           if (!isEditMode) {
             if (!client.reminders_paused) {
               return (
-                <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center gap-2">
-                  <span className="text-green-600">
-                    <CheckCircle className="h-4 w-4" />
-                  </span>
+                <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center">
                   <span className="text-sm font-medium text-green-600">Active</span>
                 </div>
               );
             }
             return (
-              <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center gap-2">
-                <span className="text-status-neutral">
-                  <Minus className="h-4 w-4" />
-                </span>
+              <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
                 <span className="text-sm font-medium text-status-neutral">Paused</span>
               </div>
             );
@@ -856,41 +848,35 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           // No status info or grey (paused/no filings) — show dash
           if (!info || info.status === 'grey') return <span className="text-muted-foreground">—</span>;
 
-          const statusConfig: Record<string, { bg: string; text: string; icon: React.ReactNode; label: string }> = {
+          const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
             red: {
               bg: 'bg-status-danger/10',
               text: 'text-status-danger',
-              icon: <XCircle className="h-4 w-4" />,
               label: 'Overdue',
             },
             orange: {
               bg: 'bg-status-critical/10',
               text: 'text-status-critical',
-              icon: <AlertCircle className="h-4 w-4" />,
               label: 'Critical',
             },
             amber: {
               bg: 'bg-status-warning/10',
               text: 'text-status-warning',
-              icon: <AlertCircle className="h-4 w-4" />,
               label: 'Approaching',
             },
             blue: {
               bg: 'bg-status-info/10',
               text: 'text-status-info',
-              icon: <CheckCircle className="h-4 w-4" />,
               label: 'Scheduled',
             },
             violet: {
               bg: 'bg-violet-500/10',
               text: 'text-violet-600',
-              icon: <CheckCircle className="h-4 w-4" />,
               label: 'Records Received',
             },
             green: {
               bg: 'bg-green-500/10',
               text: 'text-green-600',
-              icon: <CheckCircle className="h-4 w-4" />,
               label: 'Completed',
             },
           };
@@ -899,10 +885,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           if (!config) return <span className="text-muted-foreground">—</span>;
 
           return (
-            <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center gap-2`}>
-              <span className={config.text}>
-                {config.icon}
-              </span>
+            <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center`}>
               <span className={`text-sm font-medium ${config.text}`}>
                 {config.label}
               </span>
@@ -954,8 +937,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
       {/* Page Header with Add Client / Import CSV */}
       <div className="max-w-7xl mx-auto space-y-4">
         {/* Page Header */}
-        <div className="flex items-start justify-between">
-          <div className="space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-1">
             <h1>Clients</h1>
             <p className="text-muted-foreground">
               Manage your client records and reminder settings
@@ -1206,7 +1189,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="group cursor-pointer"
+                  className="group cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={(e) => {
                     // Don't navigate if in edit mode
                     if (isEditMode) {
@@ -1310,7 +1293,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
       <CsvImportDialog
         open={isCsvDialogOpen}
         onOpenChange={setIsCsvDialogOpen}
-        onImportComplete={handleImportComplete}
       />
 
       {/* Create Client Dialog */}

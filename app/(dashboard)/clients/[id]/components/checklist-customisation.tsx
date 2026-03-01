@@ -39,6 +39,7 @@ interface Customisation {
   is_enabled: boolean;
   is_ad_hoc: boolean;
   ad_hoc_label: string | null;
+  manually_received: boolean;
 }
 
 interface ChecklistCustomisationProps {
@@ -93,7 +94,7 @@ export function ChecklistCustomisation({ clientId }: ChecklistCustomisationProps
         .eq('filing_type_id', selectedFilingTypeId),
       supabase
         .from('client_document_checklist_customisations')
-        .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label')
+        .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
         .eq('client_id', clientId)
         .eq('filing_type_id', selectedFilingTypeId),
     ]).then(([reqResult, custResult]) => {
@@ -123,12 +124,13 @@ export function ChecklistCustomisation({ clientId }: ChecklistCustomisationProps
       } else {
         setCustomisations(prev => [
           ...prev,
-          { id: '', document_type_id: req.document_type_id, is_enabled: newEnabled, is_ad_hoc: false, ad_hoc_label: null },
+          { id: '', document_type_id: req.document_type_id, is_enabled: newEnabled, is_ad_hoc: false, ad_hoc_label: null, manually_received: false },
         ]);
       }
     });
 
     // Persist
+    const existing = customisations.find(c => c.document_type_id === req.document_type_id);
     supabase.from('client_document_checklist_customisations').upsert({
       org_id: orgId,
       client_id: clientId,
@@ -136,6 +138,7 @@ export function ChecklistCustomisation({ clientId }: ChecklistCustomisationProps
       document_type_id: req.document_type_id,
       is_enabled: newEnabled,
       is_ad_hoc: false,
+      manually_received: existing?.manually_received ?? false,
     }, { onConflict: 'client_id,filing_type_id,document_type_id' })
     .then(({ error }) => {
       if (error) {
@@ -149,7 +152,7 @@ export function ChecklistCustomisation({ clientId }: ChecklistCustomisationProps
       } else {
         // Reload to get real IDs
         supabase.from('client_document_checklist_customisations')
-          .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label')
+          .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
           .eq('client_id', clientId)
           .eq('filing_type_id', selectedFilingTypeId)
           .then(({ data }) => {
@@ -183,7 +186,7 @@ export function ChecklistCustomisation({ clientId }: ChecklistCustomisationProps
     // Reload customisations
     const { data } = await supabase
       .from('client_document_checklist_customisations')
-      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label')
+      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
       .eq('client_id', clientId)
       .eq('filing_type_id', selectedFilingTypeId);
     if (data) setCustomisations(data as Customisation[]);

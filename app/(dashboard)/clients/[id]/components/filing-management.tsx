@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { format, isPast } from 'date-fns';
 import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Calendar, CheckCircle, X, RefreshCw, Loader2, ExternalLink } from 'lucide-react';
+import { Calendar, CheckCircle, X, RefreshCw, Loader2, ExternalLink, Settings, Link2 } from 'lucide-react';
 import { rolloverFiling } from '@/lib/rollover/executor';
 import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -26,10 +26,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ButtonBase } from '@/components/ui/button-base';
 import { CheckButton } from '@/components/ui/check-button';
 import { Separator } from '@/components/ui/separator';
 import type { FilingType } from '@/lib/types/database';
-import { DocumentCard } from './document-card';
+import { DocumentCard, type DocumentCardActions } from './document-card';
 
 interface FilingAssignment {
   filing_type: FilingType;
@@ -59,6 +60,11 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
   const [overrideDate, setOverrideDate] = useState('');
   const [overrideReason, setOverrideReason] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const [checklistOpenFor, setChecklistOpenFor] = useState<string | null>(null);
+  const documentCardActionsRef = useRef<Record<string, DocumentCardActions>>({});
+  const [effectiveCounts, setEffectiveCounts] = useState<Record<string, { received: number; total: number }>>({});
+  const [portalStates, setPortalStates] = useState<Record<string, { generating: boolean; url: string | null; expiresAt: string | null }>>({});
 
   const [showRolloverDialog, setShowRolloverDialog] = useState(false);
   const [rolloverFilingType, setRolloverFilingType] = useState<string | null>(null);
@@ -210,6 +216,16 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
   const handleRecordsReceivedToggle = async (filingTypeId: string, checked: boolean) => {
     setIsUpdating(true);
 
+    // Trigger selectAll/deselectAll on the document card
+    const actions = documentCardActionsRef.current[filingTypeId];
+    if (actions) {
+      if (checked) {
+        actions.selectAll();
+      } else {
+        actions.deselectAll();
+      }
+    }
+
     try {
       const newRecordsReceived = checked
         ? [...recordsReceived, filingTypeId]
@@ -330,6 +346,29 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
       return isPast(new Date(deadline));
     } catch {
       return false;
+    }
+  };
+
+  // Generate portal upload link
+  const handleGeneratePortalLink = async (filingTypeId: string) => {
+    setPortalStates(prev => ({ ...prev, [filingTypeId]: { generating: true, url: null, expiresAt: null } }));
+    try {
+      const taxYear = new Date().getFullYear().toString();
+      const res = await fetch(`/api/clients/${clientId}/portal-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filingTypeId, taxYear }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to generate link' }));
+        throw new Error(err.error ?? 'Failed to generate link');
+      }
+      const data = await res.json();
+      setPortalStates(prev => ({ ...prev, [filingTypeId]: { generating: false, url: data.portalUrl, expiresAt: data.expiresAt } }));
+      toast.success('Portal link generated!');
+    } catch (err) {
+      setPortalStates(prev => ({ ...prev, [filingTypeId]: { generating: false, url: null, expiresAt: null } }));
+      toast.error(err instanceof Error ? err.message : 'Failed to generate portal link');
     }
   };
 
@@ -519,7 +558,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                     </div>
                   </div>
 
-                  {/* Right side: Records received and completed checkboxes + button */}
+                  {/* Right side: Completed + action buttons + Configure */}
                   <div className="flex items-center gap-3">
                     {!filing.is_active ? (
                       <Badge variant="outline" className="text-muted-foreground">
@@ -527,30 +566,6 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                       </Badge>
                     ) : (
                       <>
-                        {/* Records received checkbox */}
-                        <div className="flex items-center gap-2">
-                          <CheckButton
-                            checked={isReceived}
-                            onCheckedChange={(checked) =>
-                              handleRecordsReceivedToggle(
-                                filing.filing_type.id,
-                                checked as boolean
-                              )
-                            }
-                            disabled={isUpdating}
-                            aria-label={`Mark ${filing.filing_type.name} records as received`}
-                            variant={isReceived ? "success" : "default"}
-                          />
-                          <label
-                            className={`text-sm cursor-pointer whitespace-nowrap ${
-                              isReceived ? "line-through text-muted-foreground" : "text-foreground"
-                            }`}
-                            onClick={() => !isUpdating && handleRecordsReceivedToggle(filing.filing_type.id, !isReceived)}
-                          >
-                            Records received
-                          </label>
-                        </div>
-
                         {/* Completed checkbox */}
                         <div className="flex items-center gap-2">
                           <CheckButton
@@ -576,14 +591,25 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                         </div>
 
                         {/* Divider */}
-                        {filing.calculated_deadline && (
-                          <Separator orientation="vertical" className="h-8" />
-                        )}
+                        <Separator orientation="vertical" className="h-8" />
+
+                        {/* Generate Upload Link */}
+                        <IconButtonWithText
+                          variant="violet"
+                          onClick={() => handleGeneratePortalLink(filing.filing_type.id)}
+                          disabled={portalStates[filing.filing_type.id]?.generating}
+                        >
+                          {portalStates[filing.filing_type.id]?.generating ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Link2 className="size-4" />
+                          )}
+                          {portalStates[filing.filing_type.id]?.generating ? 'Generating...' : 'Generate Upload Link'}
+                        </IconButtonWithText>
 
                         {/* Action button */}
                         {filing.calculated_deadline && (
                           <>
-                            {/* Show Roll Over button if both records received AND completed */}
                             {isReceived && isCompleted ? (
                               <IconButtonWithText
                                 variant="green"
@@ -593,7 +619,6 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                                 Roll Over
                               </IconButtonWithText>
                             ) : isReceived && !isCompleted ? (
-                              /* Show "Take me to HMRC/Companies House" button when records received but not yet completed */
                               (() => {
                                 const portal = getFilingPortal(filing.filing_type.name);
                                 return (
@@ -628,21 +653,76 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                             )}
                           </>
                         )}
+
+                        {/* Configure — far right */}
+                        <ButtonBase
+                          variant="blue"
+                          buttonType="icon-text"
+                          onClick={() => setChecklistOpenFor(filing.filing_type.id)}
+                        >
+                          <Settings className="size-4" />
+                          Configure
+                        </ButtonBase>
                       </>
                     )}
                   </div>
                 </div>
 
-                {/* DocumentCard — document collection section for this filing type */}
+                {/* Documents received checkbox + nested checklist */}
                 {filing.is_active && (
                   <div className="mt-4">
-                    <DocumentCard
-                      clientId={clientId}
-                      filingTypeId={filing.filing_type.id}
-                      filingTypeName={filing.filing_type.name}
-                      docCount={filing.doc_count ?? 0}
-                      lastReceivedAt={filing.last_received_at ?? null}
-                    />
+                    {/* Documents received — parent checkbox above checklist */}
+                    <div className="flex items-center gap-2">
+                      <CheckButton
+                        checked={isReceived}
+                        onCheckedChange={(checked) =>
+                          handleRecordsReceivedToggle(
+                            filing.filing_type.id,
+                            checked as boolean
+                          )
+                        }
+                        disabled={isUpdating}
+                        aria-label={`Mark ${filing.filing_type.name} records as received`}
+                        variant={isReceived ? "success" : "default"}
+                      />
+                      <label
+                        className={`text-sm cursor-pointer whitespace-nowrap ${
+                          isReceived ? "line-through text-muted-foreground" : "text-foreground"
+                        }`}
+                        onClick={() => !isUpdating && handleRecordsReceivedToggle(filing.filing_type.id, !isReceived)}
+                      >
+                        {(() => {
+                          const counts = effectiveCounts[filing.filing_type.id];
+                          return counts && counts.total > 0
+                            ? `${counts.received} of ${counts.total} documents received`
+                            : 'Records received';
+                        })()}
+                      </label>
+                    </div>
+                    {/* Indented checklist — nestled under documents received */}
+                    <div className="pl-10 mt-1.5">
+                      <DocumentCard
+                        clientId={clientId}
+                        filingTypeId={filing.filing_type.id}
+                        filingTypeName={filing.filing_type.name}
+                        docCount={filing.doc_count ?? 0}
+                        lastReceivedAt={filing.last_received_at ?? null}
+                        checklistOpen={checklistOpenFor === filing.filing_type.id}
+                        onChecklistClose={() => setChecklistOpenFor(null)}
+                        portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
+                        portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
+                        onActionsReady={(actions) => {
+                          documentCardActionsRef.current[filing.filing_type.id] = actions;
+                        }}
+                        onReceivedCountChange={(received, total) => {
+                          setEffectiveCounts(prev => {
+                            const existing = prev[filing.filing_type.id];
+                            if (existing?.received === received && existing?.total === total) return prev;
+                            return { ...prev, [filing.filing_type.id]: { received, total } };
+                          });
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

@@ -43,7 +43,7 @@ export const FooterSection = () => {
       <FooterParticles isTriggered={shouldExplode} />
 
       {/* CTA — vertically centered */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 pb-32">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 pb-16 pt-10">
         <div className="flex flex-col items-center gap-8 text-center">
           <h2 className="max-w-4xl text-7xl lg:text-9xl font-bold text-white">
             Ready to stop chasing?
@@ -60,31 +60,27 @@ export const FooterSection = () => {
 
       {/* Footer nav — pinned to the bottom of the section */}
       <div className="absolute bottom-0 left-0 right-0 z-10">
-        <div className="max-w-screen-xl mx-auto px-4 pb-8 flex flex-col items-center gap-6">
+        <div className="max-w-screen-xl mx-auto px-4 pb-8 flex flex-col items-center gap-4">
 
-          {/* Logo + nav links */}
-          <div className="w-full flex flex-col md:flex-row items-center justify-between gap-6">
+          {/* Nav links — centered */}
+          <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-white">
+            <a href="#features" className="hover:text-white/70 transition-colors">Features</a>
+            <a href="#pricing" className="hover:text-white/70 transition-colors">Pricing</a>
+            <a href="/news" className="hover:text-white/70 transition-colors">News</a>
+            <a href="/changelog" className="hover:text-white/70 transition-colors">Changelog</a>
+            <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy Policy</a>
+            <a href="/terms" className="hover:text-white/70 transition-colors">Terms of Service</a>
+          </nav>
+
+          {/* Logo + copyright — same line, centered */}
+          <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-2">
-              <Brain className="text-violet-400" size={22} />
+              <Brain className="text-violet-400" size={20} />
               <span className="font-bold text-white">Prompt</span>
             </a>
-
-            <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-white/60">
-              <a href="#features" className="hover:text-white transition-colors">Features</a>
-              <a href="#pricing" className="hover:text-white transition-colors">Pricing</a>
-              <a href="/news" className="hover:text-white transition-colors">News</a>
-              <a href="/changelog" className="hover:text-white transition-colors">Changelog</a>
-              <a href="/login" className="hover:text-white transition-colors">Login</a>
-              <a href="/setup/wizard" className="hover:text-white transition-colors">Sign Up</a>
-              <a href="/privacy" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="/terms" className="hover:text-white transition-colors">Terms of Service</a>
-            </nav>
+            <span className="text-white/40">·</span>
+            <p className="text-sm text-white">&copy; 2026 Prompt. All rights reserved.</p>
           </div>
-
-          {/* Copyright */}
-          <p className="text-sm text-white/40 text-center">
-            &copy; 2026 Prompt. All rights reserved.
-          </p>
 
         </div>
       </div>

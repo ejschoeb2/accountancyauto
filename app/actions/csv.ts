@@ -176,6 +176,10 @@ export async function importClientMetadata(
         // Build update object - only include non-undefined fields
         const metadata: Record<string, unknown> = {};
 
+        if (row.primary_email !== undefined) {
+          metadata.primary_email = row.primary_email;
+        }
+
         if (row.client_type !== undefined) {
           metadata.client_type = row.client_type;
         }
@@ -286,6 +290,7 @@ export async function importClientMetadata(
         owner_id: user.id,
         active: true,
         reminders_paused: false,
+        primary_email: row.primary_email || null,
         client_type: row.client_type || null,
         year_end_date: row.year_end_date && row.year_end_date !== "" ? row.year_end_date : null,
         vat_registered: row.vat_registered ?? false,

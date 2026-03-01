@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { company_name, primary_email, client_type, year_end_date, vat_registered, display_name } = result.data;
+  const { company_name, primary_email, client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme, display_name } = result.data;
 
   const supabase = await createClient();
 
@@ -104,6 +104,8 @@ export async function POST(request: NextRequest) {
       client_type,
       year_end_date: year_end_date ?? null,
       vat_registered,
+      vat_stagger_group: vat_stagger_group ?? null,
+      vat_scheme: vat_scheme ?? null,
       display_name: display_name ?? null,
       active: true,
       reminders_paused: false,

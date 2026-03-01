@@ -95,6 +95,20 @@ export async function checkAndAutoSetRecordsReceived(
       .filter((id): id is string => id !== null)
   );
 
+  // Step 6b: Also include manually received items
+  const { data: manualRows } = await supabase
+    .from('client_document_checklist_customisations')
+    .select('document_type_id')
+    .eq('client_id', clientId)
+    .eq('filing_type_id', filingTypeId)
+    .eq('manually_received', true);
+
+  for (const row of manualRows ?? []) {
+    if (row.document_type_id) {
+      satisfiedSet.add(row.document_type_id);
+    }
+  }
+
   // Step 7: Check if all mandatory items are satisfied
   const allSatisfied = mandatoryItems.every((item) =>
     satisfiedSet.has(item.document_type_id)

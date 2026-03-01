@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { ButtonBase } from '@/components/ui/button-base';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,9 +42,9 @@ export function DsarExportButton({ clientId, clientName }: DsarExportButtonProps
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={handleExport} disabled={loading}>
-      {loading ? <Loader2 className="size-4 mr-2 animate-spin" /> : <Download className="size-4 mr-2" />}
+    <ButtonBase variant="blue" buttonType="icon-text" onClick={handleExport} disabled={loading}>
+      {loading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
       {loading ? 'Preparing export...' : 'DSAR Export'}
-    </Button>
+    </ButtonBase>
   );
 }
