@@ -19,6 +19,7 @@ import { WizardStepper } from "@/components/wizard-stepper";
 import { CsvImportStep } from "./components/csv-import-step";
 import { ConfigStep } from "./components/config-step";
 import { EmailSetupStep } from "./components/email-setup-step";
+import { StorageSetupStep } from "./components/storage-setup-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import {
@@ -42,7 +43,7 @@ import {
 type UserType = "new-admin" | "invited-member" | null;
 
 // New-admin step names (index matches ADMIN_STEPS position)
-type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "complete";
+type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "storage" | "complete";
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ const ADMIN_STEPS = [
   { label: "Plan" },
   { label: "Import Clients" },
   { label: "Email Setup" },
+  { label: "Storage" },
   { label: "Complete" },
 ];
 
@@ -124,7 +126,8 @@ function adminStepToIndex(step: AdminStep): number {
     plan: 1,
     import: 2,
     email: 3,
-    complete: 4,
+    storage: 4,
+    complete: 5,
   };
   return map[step];
 }
@@ -179,6 +182,10 @@ export default function WizardPage() {
   // ── Postmark settings (loaded alongside config defaults) ─────────────────
   const [orgDomain, setOrgDomain] = useState<string | undefined>(undefined);
   const [orgInboundAddress, setOrgInboundAddress] = useState<string | undefined>(undefined);
+
+  // ── Storage step ─────────────────────────────────────────────────────────
+  const [storageConnected, setStorageConnected] = useState<string | null>(null);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
   // ── Complete step ────────────────────────────────────────────────────────
   const [dashboardUrl, setDashboardUrl] = useState("/dashboard");
@@ -236,11 +243,23 @@ export default function WizardPage() {
         setUserType("new-admin");
         setAdminStep("firm");
       } else if (userOrg.role === "admin") {
-        // Admin with org → returning from Stripe, start at import
+        const urlParams = new URLSearchParams(window.location.search);
+        const sc = urlParams.get("storage_connected");
+        const se = urlParams.get("storage_error");
         setUserType("new-admin");
-        setAdminStep("import");
         setOrgCreated(true);
-        prefetchConfigDefaults();
+        if (sc || se) {
+          // Returning from storage OAuth
+          setStorageConnected(sc);
+          setStorageError(se);
+          setAdminStep("storage");
+          const url = await getWizardDashboardUrl();
+          setDashboardUrl(url);
+        } else {
+          // Returning from Stripe, start at import
+          setAdminStep("import");
+          prefetchConfigDefaults();
+        }
       } else {
         // Invited member → 2-step flow, start at import
         setUserType("invited-member");
@@ -422,12 +441,16 @@ export default function WizardPage() {
     setDashboardUrl(url);
     setIsCompleting(false);
 
-    // Advance to the complete step
+    // Advance to the storage step (admin) or complete step (member)
     if (userType === "new-admin") {
-      setAdminStep("complete");
+      setAdminStep("storage");
     } else {
       setMemberStep(2);
     }
+  };
+
+  const handleStorageComplete = () => {
+    setAdminStep("complete");
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -664,9 +687,7 @@ export default function WizardPage() {
                     {slugStatus === "checking" && (
                       <Loader2 className="size-4 animate-spin text-muted-foreground" />
                     )}
-                    {slugStatus === "available" && (
-                      <Check className="size-4 text-green-600" />
-                    )}
+                    {slugStatus === "available" && null}
                     {slugStatus === "unavailable" && (
                       <X className="size-4 text-destructive" />
                     )}
@@ -674,15 +695,18 @@ export default function WizardPage() {
                 </div>
 
                 {slug && slugStatus === "available" && (
-                  <p className="text-xs text-green-600">
-                    Your workspace URL:{" "}
-                    <span className="font-medium">
-                      {slug}.app.
-                      {(
-                        process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants"
-                      ).replace(/^https?:\/\/(www\.)?/, "")}
-                    </span>
-                  </p>
+                  <div className="flex items-center gap-3 p-3 mt-3 bg-green-500/10 rounded-xl">
+                    <CheckCircle className="size-5 text-green-600 shrink-0" />
+                    <p className="text-sm text-green-600">
+                      Your workspace URL:{" "}
+                      <span className="font-medium">
+                        {slug}.app.
+                        {(
+                          process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants"
+                        ).replace(/^https?:\/\/(www\.)?/, "")}
+                      </span>
+                    </p>
+                  </div>
                 )}
                 {slugStatus === "unavailable" && slugReason && (
                   <p className="text-xs text-destructive">{slugReason}</p>
@@ -872,6 +896,19 @@ export default function WizardPage() {
         </div>
       )}
 
+      {/* ── Step 5b: Storage Setup ── */}
+      {adminStep === "storage" && (
+        <div className="min-h-[520px]">
+          <StorageSetupStep
+            storageConnected={storageConnected}
+            storageError={storageError}
+            onComplete={handleStorageComplete}
+            onBack={() => setAdminStep("email")}
+            onBeforeProviderConnect={() => { isNavigatingAway.current = true; }}
+          />
+        </div>
+      )}
+
       {/* ── Step 6: Complete ── */}
       {adminStep === "complete" && (
         <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
@@ -914,7 +951,7 @@ export default function WizardPage() {
             <ButtonBase
               variant="amber"
               buttonType="icon-text"
-              onClick={() => setAdminStep("email")}
+              onClick={() => setAdminStep("storage")}
             >
               <ArrowLeft className="size-4" />
               Back

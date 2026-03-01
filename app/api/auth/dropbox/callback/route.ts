@@ -130,7 +130,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
-  return NextResponse.redirect(
-    `${appUrl}/settings?tab=storage&connected=dropbox`,
-  );
+  const fromWizard = request.cookies.get('wizard_oauth_return')?.value === '1';
+  const successUrl = fromWizard
+    ? `${appUrl}/setup/wizard?storage_connected=dropbox`
+    : `${appUrl}/settings?tab=storage&connected=dropbox`;
+  const successResponse = NextResponse.redirect(successUrl);
+  successResponse.cookies.delete('wizard_oauth_return');
+  return successResponse;
 }

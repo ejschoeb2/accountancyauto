@@ -45,8 +45,8 @@ async function getEmailFromForOrg(
 
   const map = new Map(data?.map(r => [r.key, r.value]) ?? []);
   return {
-    from: `${map.get('email_sender_name') || 'PhaseTwo'} <${map.get('email_sender_address') || 'hello@phasetwo.uk'}>`,
-    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@phasetwo.uk',
+    from: `${map.get('email_sender_name') || 'Prompt'} <${map.get('email_sender_address') || 'hello@prompt.accountants'}>`,
+    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@prompt.accountants',
   };
 }
 
@@ -83,8 +83,8 @@ async function getEmailFromForUser(
   (userRows ?? []).forEach(r => map.set(r.key, r.value));
 
   return {
-    from: `${map.get('email_sender_name') || 'PhaseTwo'} <${map.get('email_sender_address') || 'hello@phasetwo.uk'}>`,
-    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@phasetwo.uk',
+    from: `${map.get('email_sender_name') || 'Prompt'} <${map.get('email_sender_address') || 'hello@prompt.accountants'}>`,
+    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@prompt.accountants',
   };
 }
 

@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import crypto from 'crypto';
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const fromWizard = request.nextUrl.searchParams.get('from') === 'wizard';
   // Verify the user is authenticated
   const supabase = await createClient();
   const {
@@ -41,9 +42,19 @@ export async function GET(): Promise<NextResponse> {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 600, // 10 minutes
+    maxAge: 600,
     path: '/',
   });
+
+  if (fromWizard) {
+    response.cookies.set('wizard_oauth_return', '1', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600,
+      path: '/',
+    });
+  }
 
   return response;
 }

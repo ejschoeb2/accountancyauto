@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Loader2, Copy, Check, AlertCircle, AlertTriangle,
-  ArrowLeft, ArrowRight, SkipForward,
+  ArrowLeft, ArrowRight, SkipForward, RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -207,7 +207,7 @@ export function EmailSetupStep({
   // ── "input" state ──────────────────────────────────────────────────────────
   if (state === "input") {
     return (
-      <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
+      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
         <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
           <div className="space-y-1">
             <h2 className="text-2xl font-bold tracking-tight">Set up email sending</h2>
@@ -304,6 +304,8 @@ export function EmailSetupStep({
   // ── "dns-records" / "verifying" state ─────────────────────────────────────
   if ((state === "dns-records" || state === "verifying") && dnsData) {
     const isVerifying = state === "verifying";
+    const allVerified =
+      verifyState.dkimVerified === true && verifyState.returnPathVerified === true;
 
     const rows: { type: string; host: string; value: string; field: string }[] = [
       {
@@ -321,26 +323,27 @@ export function EmailSetupStep({
     ];
 
     return (
-      <div className="space-y-6">
-        <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Add DNS records</h2>
-          <p className="text-sm text-muted-foreground">
-            Add these two records to your DNS provider for <span className="font-medium">{domain}</span>.
-          </p>
-        </div>
+      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
+        <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold tracking-tight">Add DNS records</h2>
+            <p className="text-sm text-muted-foreground">
+              Add these two records to your DNS provider for{" "}
+              <span className="font-medium">{domain}</span>.
+            </p>
+          </div>
 
-        {/* DNS Records Table */}
-        <Card>
-          <CardContent className="pt-6 p-0 overflow-hidden">
+          {/* DNS Records Table */}
+          <div className="rounded-xl border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b">
+                  <tr className="border-b bg-muted/40">
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-16">Type</th>
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Host</th>
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Value</th>
                     <th className="w-10 px-4 py-2.5" />
-                    <th className="w-24 px-4 py-2.5" />
+                    <th className="w-20 px-4 py-2.5" />
                   </tr>
                 </thead>
                 <tbody>
@@ -359,7 +362,7 @@ export function EmailSetupStep({
                         <td className="px-4 py-3 font-mono text-xs break-all">
                           {row.host}
                         </td>
-                        <td className="px-4 py-3 font-mono text-xs max-w-xs">
+                        <td className="px-4 py-3 font-mono text-xs max-w-[120px]">
                           <span className="block truncate" title={row.value}>
                             {row.value}
                           </span>
@@ -394,15 +397,15 @@ export function EmailSetupStep({
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <p className="text-xs text-muted-foreground">
-          DNS changes can take up to 48 hours to propagate. You can check
-          verification status in Settings at any time.
-        </p>
+          <p className="text-xs text-muted-foreground">
+            DNS changes can take up to 48 hours to propagate. You can check
+            verification status in Settings at any time.
+          </p>
+        </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-2">
           <ButtonBase
             variant="amber"
             buttonType="icon-text"
@@ -415,23 +418,26 @@ export function EmailSetupStep({
           <ButtonBase
             onClick={handleCheckDns}
             disabled={isVerifying}
-            buttonType="text-only"
-            variant="muted"
+            buttonType="icon-text"
+            variant="green"
           >
             {isVerifying ? (
               <>
-                <Loader2 className="size-4 animate-spin mr-1.5" />
+                <Loader2 className="size-4 animate-spin" />
                 Checking...
               </>
             ) : (
-              "Check DNS"
+              <>
+                <RefreshCw className="size-4" />
+                Check DNS
+              </>
             )}
           </ButtonBase>
           <ButtonBase
             variant="blue"
             buttonType="icon-text"
             onClick={handleDnsContinue}
-            disabled={isVerifying}
+            disabled={isVerifying || !allVerified}
           >
             Continue
             <ArrowRight className="size-4" />

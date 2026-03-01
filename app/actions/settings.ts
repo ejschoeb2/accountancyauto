@@ -535,6 +535,31 @@ export async function disconnectDropbox(): Promise<{ error?: string }> {
   return {};
 }
 
+// --- Storage: Full info for wizard step ---
+
+export interface StorageInfo {
+  storageBackend: string | null;
+  googleDriveFolderId: string | null;
+  storageBackendStatus: string | null;
+  dropboxConnected: boolean;
+}
+
+export async function getStorageInfo(): Promise<StorageInfo> {
+  const { orgId } = await getOrgContext();
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('organisations')
+    .select('storage_backend, storage_backend_status, google_drive_folder_id, dropbox_refresh_token_enc')
+    .eq('id', orgId)
+    .single();
+  return {
+    storageBackend: data?.storage_backend ?? null,
+    googleDriveFolderId: data?.google_drive_folder_id ?? null,
+    storageBackendStatus: data?.storage_backend_status ?? null,
+    dropboxConnected: !!data?.dropbox_refresh_token_enc,
+  };
+}
+
 // --- Storage: Current Backend ---
 
 export async function getOrgStorageBackend(): Promise<string | null> {

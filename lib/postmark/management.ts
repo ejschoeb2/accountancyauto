@@ -39,6 +39,15 @@ export interface CreateOrgServerResult {
  *
  * Configures inbound and delivery/bounce webhook URLs from NEXT_PUBLIC_APP_URL.
  */
+function isPublicUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return hostname !== "localhost" && !hostname.startsWith("127.") && !hostname.startsWith("192.168.");
+  } catch {
+    return false;
+  }
+}
+
 export async function createOrgServer(
   orgName: string,
   orgSlug: string
@@ -46,17 +55,21 @@ export async function createOrgServer(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
   const webhookSecret = process.env.POSTMARK_WEBHOOK_SECRET ?? "";
 
-  const inboundHookUrl = `${appUrl}/api/postmark/inbound?token=${webhookSecret}`;
-  const deliveryHookUrl = `${appUrl}/api/webhooks/postmark`;
+  // Postmark rejects non-public URLs (localhost, private IPs) with ErrorCode 606.
+  // Only include webhook URLs when running against a real public deployment.
+  const useWebhooks = isPublicUrl(appUrl);
 
-  const body = {
+  const body: Record<string, unknown> = {
     Name: `${orgName} (${orgSlug})`,
     Color: "Blue",
     SmtpApiActivated: true,
-    InboundHookUrl: inboundHookUrl,
-    BounceHookUrl: deliveryHookUrl,
-    DeliveryHookUrl: deliveryHookUrl,
   };
+
+  if (useWebhooks) {
+    body.InboundHookUrl = `${appUrl}/api/postmark/inbound?token=${webhookSecret}`;
+    body.BounceHookUrl = `${appUrl}/api/webhooks/postmark`;
+    body.DeliveryHookUrl = `${appUrl}/api/webhooks/postmark`;
+  }
 
   const res = await fetch(`${POSTMARK_API_BASE}/servers`, {
     method: "POST",

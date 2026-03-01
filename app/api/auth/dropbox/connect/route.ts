@@ -17,13 +17,14 @@
  * The column dropbox_oauth_state was added in Plan 01 migration.
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
 import { DropboxAuth } from 'dropbox';
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const fromWizard = request.nextUrl.searchParams.get('from') === 'wizard';
   // ── Auth check ─────────────────────────────────────────────────────────────
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
@@ -61,5 +62,15 @@ export async function GET(): Promise<NextResponse> {
   );
 
   // ── Redirect to Dropbox consent screen ───────────────────────────────────
-  return NextResponse.redirect(authUrl as string);
+  const response = NextResponse.redirect(authUrl as string);
+  if (fromWizard) {
+    response.cookies.set('wizard_oauth_return', '1', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600,
+      path: '/',
+    });
+  }
+  return response;
 }

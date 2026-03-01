@@ -151,10 +151,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Clean up state cookie and redirect ───────────────────────────────────
-  const response = NextResponse.redirect(
-    new URL('/settings?tab=storage&connected=google_drive', request.url),
-  );
+  const fromWizard = request.cookies.get('wizard_oauth_return')?.value === '1';
+  const successUrl = fromWizard
+    ? new URL('/setup/wizard?storage_connected=google_drive', request.url)
+    : new URL('/settings?tab=storage&connected=google_drive', request.url);
+
+  const response = NextResponse.redirect(successUrl);
   response.cookies.delete('google_oauth_state');
+  response.cookies.delete('wizard_oauth_return');
 
   return response;
 }
