@@ -117,6 +117,19 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Practice tier metered billing constants
+// ---------------------------------------------------------------------------
+
+/** Number of clients included in the Practice base price (overage kicks in above this). */
+export const PRACTICE_OVERAGE_THRESHOLD = 200;
+
+/** Stripe Price ID for Practice tier overage (per-client above threshold). */
+export const PRACTICE_OVERAGE_PRICE_ID = process.env.STRIPE_PRICE_PRACTICE_OVERAGE ?? "";
+
+/** Stripe Billing Meter event name for Practice tier overage reporting. */
+export const PRACTICE_METER_EVENT_NAME = process.env.STRIPE_METER_EVENT_NAME ?? "";
+
 /** Get the plan configuration for a specific tier. */
 export function getPlanByTier(tier: PlanTier): PlanConfig {
   return PLAN_TIERS[tier];
