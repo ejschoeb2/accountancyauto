@@ -18,8 +18,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WizardStepper } from "@/components/wizard-stepper";
 import { CsvImportStep } from "./components/csv-import-step";
 import { ConfigStep } from "./components/config-step";
-import { EmailSetupStep } from "./components/email-setup-step";
+import { EmailSetupStep, type StepState as EmailSubStep } from "./components/email-setup-step";
 import { StorageSetupStep } from "./components/storage-setup-step";
+import { ClientPortalStep } from "./components/client-portal-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import {
@@ -42,18 +43,50 @@ import {
 type UserType = "new-admin" | "invited-member" | null;
 
 // New-admin step names (index matches ADMIN_STEPS position)
-type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "storage" | "complete";
+type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "portal" | "storage" | "complete";
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
-const ADMIN_STEPS = [
-  { label: "Firm Details" },
-  { label: "Plan" },
-  { label: "Import Clients" },
-  { label: "Email Setup" },
-  { label: "Storage" },
-  { label: "Complete" },
-];
+function getAdminSteps(portalEnabled: boolean) {
+  const steps = [
+    { label: "Firm Details" },
+    { label: "Plan" },
+    { label: "Import Clients" },
+    { label: "Email Setup" },
+    { label: "Client Portal" },
+  ];
+  if (portalEnabled) steps.push({ label: "Storage" });
+  steps.push({ label: "Complete" });
+  return steps;
+}
+
+function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
+  if (portalEnabled) {
+    const map: Record<AdminStep, number> = {
+      account: -1,
+      firm: 0,
+      plan: 1,
+      import: 2,
+      email: 3,
+      portal: 4,
+      storage: 5,
+      complete: 6,
+    };
+    return map[step];
+  } else {
+    const map: Record<AdminStep, number> = {
+      account: -1,
+      firm: 0,
+      plan: 1,
+      import: 2,
+      email: 3,
+      portal: 4,
+      storage: -1,
+      complete: 5,
+    };
+    return map[step];
+  }
+}
 
 const MEMBER_STEPS = [
   { label: "Import Clients" },
@@ -72,7 +105,6 @@ const PLAN_TIERS = [
     range: "Up to 20 clients",
     tagline: "Get started at no cost. Upgrade naturally when your practice grows.",
     featured: false,
-    isEnterprise: false,
   },
   {
     key: "solo",
@@ -82,7 +114,6 @@ const PLAN_TIERS = [
     range: "21 – 50 clients",
     tagline: "For sole traders and bookkeepers managing a small client list.",
     featured: false,
-    isEnterprise: false,
   },
   {
     key: "starter",
@@ -92,7 +123,6 @@ const PLAN_TIERS = [
     range: "51 – 100 clients",
     tagline: "For independent accountants and small practices.",
     featured: false,
-    isEnterprise: false,
   },
   {
     key: "practice",
@@ -102,7 +132,6 @@ const PLAN_TIERS = [
     range: "101 – 200 clients",
     tagline: "For growing practices managing a wide range of deadlines.",
     featured: true,
-    isEnterprise: false,
   },
   {
     key: "firm",
@@ -112,17 +141,6 @@ const PLAN_TIERS = [
     range: "201 – 400 clients",
     tagline: "For established firms with a broad portfolio of clients.",
     featured: false,
-    isEnterprise: false,
-  },
-  {
-    key: "enterprise",
-    name: "Enterprise",
-    price: null,
-    priceNote: "pricing",
-    range: "400+ clients",
-    tagline: "For large firms with complex needs. Let's build a plan around you.",
-    featured: false,
-    isEnterprise: true,
   },
 ];
 
@@ -136,19 +154,6 @@ function slugifyFirmName(name: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function adminStepToIndex(step: AdminStep): number {
-  const map: Record<AdminStep, number> = {
-    account: -1, // not shown in progress bar
-    firm: 0,
-    plan: 1,
-    import: 2,
-    email: 3,
-    storage: 4,
-    complete: 5,
-  };
-  return map[step];
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -194,9 +199,14 @@ export default function WizardPage() {
   const [orgDomain, setOrgDomain] = useState<string | undefined>(undefined);
   const [orgInboundAddress, setOrgInboundAddress] = useState<string | undefined>(undefined);
 
+  // ── Client portal ─────────────────────────────────────────────────────────
+  // Tracks the user's choice made during the wizard; true = storage step shown
+  const [clientPortalEnabled, setClientPortalEnabled] = useState(true);
+
   // ── Storage step ─────────────────────────────────────────────────────────
   const [storageConnected, setStorageConnected] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [emailInitialSubStep, setEmailInitialSubStep] = useState<EmailSubStep>("input");
 
   // ── Complete step ────────────────────────────────────────────────────────
   const [dashboardUrl, setDashboardUrl] = useState("/dashboard");
@@ -429,11 +439,20 @@ export default function WizardPage() {
     setDashboardUrl(url);
     setIsCompleting(false);
 
-    // Advance to the storage step (admin) or complete step (member)
+    // Advance to the portal step (admin) or complete step (member)
     if (userType === "new-admin") {
-      setAdminStep("storage");
+      setAdminStep("portal");
     } else {
       setMemberStep(2);
+    }
+  };
+
+  const handlePortalComplete = (enabled: boolean) => {
+    setClientPortalEnabled(enabled);
+    if (enabled) {
+      setAdminStep("storage");
+    } else {
+      setAdminStep("complete");
     }
   };
 
@@ -533,19 +552,22 @@ export default function WizardPage() {
     );
   }
 
-  // ── New-admin path (5 steps) ─────────────────────────────────────────────────
-  const currentStepIndex = adminStepToIndex(adminStep);
+  // ── New-admin path ─────────────────────────────────────────────────────────
+  const adminSteps = getAdminSteps(clientPortalEnabled);
+  const currentStepIndex = adminStepToIndex(adminStep, clientPortalEnabled);
 
   return (
     <div className="space-y-12">
       {adminStep !== "account" && (
         <WizardStepper
-          steps={ADMIN_STEPS}
+          steps={adminSteps}
           currentStep={currentStepIndex}
           onStepClick={(index) => {
             // Firm step is locked once the org is created (slug already registered)
             if (index === 0 && orgCreated) return;
-            const stepNames: AdminStep[] = ["firm", "plan", "import", "email", "storage", "complete"];
+            const stepNames: AdminStep[] = clientPortalEnabled
+              ? ["firm", "plan", "import", "email", "portal", "storage", "complete"]
+              : ["firm", "plan", "import", "email", "portal", "complete"];
             setAdminStep(stepNames[index]);
           }}
         />
@@ -659,8 +681,8 @@ export default function WizardPage() {
               <p className="text-sm text-destructive">{planError}</p>
             )}
 
-            {/* 6 cards — 2 rows of 3 */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* 5 cards — single row */}
+            <div className="grid grid-cols-5 gap-2">
               {PLAN_TIERS.map((plan) => {
                 const isSelected = selectedTier === plan.key;
                 const isThisLoading = isCreatingOrg && isSelected;
@@ -668,7 +690,7 @@ export default function WizardPage() {
                   <div key={plan.key} className="flex flex-col">
                     <div
                       className={[
-                        "flex flex-col flex-1 p-5 rounded-xl border-2 transition-all duration-200",
+                        "flex flex-col flex-1 p-4 rounded-xl border-2 transition-all duration-200",
                         isSelected
                           ? "border-violet-500"
                           : "border-border/60 hover:border-border",
@@ -676,17 +698,15 @@ export default function WizardPage() {
                     >
                       <p className="text-sm font-bold text-foreground mb-3">{plan.name}</p>
                       <div className="mb-1">
-                        {plan.price === null ? (
-                          <span className="text-2xl font-bold text-foreground">Custom</span>
-                        ) : plan.price === 0 ? (
+                        {plan.price === 0 ? (
                           <>
-                            <span className="text-3xl font-bold text-foreground tabular-nums">£0</span>
-                            <span className="text-xs text-muted-foreground ml-1.5">forever free</span>
+                            <span className="text-2xl font-bold text-foreground tabular-nums">£0</span>
+                            <span className="text-xs text-muted-foreground ml-1">free</span>
                           </>
                         ) : (
                           <>
-                            <span className="text-3xl font-bold text-foreground tabular-nums">£{plan.price}</span>
-                            <span className="text-xs text-muted-foreground ml-1.5">/mo</span>
+                            <span className="text-2xl font-bold text-foreground tabular-nums">£{plan.price}</span>
+                            <span className="text-xs text-muted-foreground ml-1">/mo</span>
                           </>
                         )}
                       </div>
@@ -698,10 +718,6 @@ export default function WizardPage() {
                         buttonType="icon-text"
                         disabled={isCreatingOrg}
                         onClick={() => {
-                          if (plan.isEnterprise) {
-                            window.location.href = "mailto:hello@prompt.accountants";
-                            return;
-                          }
                           setSelectedTier(plan.key as PlanTier);
                           setPlanError(null);
                         }}
@@ -710,8 +726,6 @@ export default function WizardPage() {
                           <Loader2 className="size-4 animate-spin" />
                         ) : isSelected ? (
                           <><Check className="size-4" /> Selected</>
-                        ) : plan.isEnterprise ? (
-                          "Get in Touch"
                         ) : (
                           "Select"
                         )}
@@ -783,6 +797,7 @@ export default function WizardPage() {
             orgInboundAddress={orgInboundAddress}
             isCompleting={isCompleting}
             completeError={completeError}
+            initialState={emailInitialSubStep}
           />
         </div>
       )}
@@ -792,14 +807,27 @@ export default function WizardPage() {
         </div>
       )}
 
-      {/* ── Step 5b: Storage Setup ── */}
+      {/* ── Step 5b: Client Portal ── */}
+      {adminStep === "portal" && (
+        <div className="min-h-[520px]">
+          <ClientPortalStep
+            onComplete={handlePortalComplete}
+            onBack={() => {
+              setEmailInitialSubStep("send-settings");
+              setAdminStep("email");
+            }}
+          />
+        </div>
+      )}
+
+      {/* ── Step 5c: Storage Setup ── */}
       {adminStep === "storage" && (
         <div className="min-h-[520px]">
           <StorageSetupStep
             storageConnected={storageConnected}
             storageError={storageError}
             onComplete={handleStorageComplete}
-            onBack={() => setAdminStep("email")}
+            onBack={() => setAdminStep("portal")}
             onBeforeProviderConnect={() => { isNavigatingAway.current = true; }}
           />
         </div>
@@ -847,7 +875,7 @@ export default function WizardPage() {
             <ButtonBase
               variant="amber"
               buttonType="icon-text"
-              onClick={() => setAdminStep("storage")}
+              onClick={() => setAdminStep(clientPortalEnabled ? "storage" : "portal")}
             >
               <ArrowLeft className="size-4" />
               Back

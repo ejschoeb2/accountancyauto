@@ -66,7 +66,7 @@ export default async function SettingsPage() {
     admin
       .from("organisations")
       .select(
-        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, storage_backend, storage_backend_status, google_drive_folder_id, ms_home_account_id, dropbox_refresh_token_enc"
+        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, storage_backend, storage_backend_status, google_drive_folder_id, ms_home_account_id, dropbox_refresh_token_enc, client_portal_enabled"
       )
       .eq("id", orgId)
       .single(),
@@ -147,6 +147,7 @@ export default async function SettingsPage() {
         storageBackendStatus={orgResult.data?.storage_backend_status ?? null}
         oneDriveConnected={!!orgResult.data?.ms_home_account_id}
         dropboxConnected={dropboxConnected}
+        clientPortalEnabled={orgResult.data?.client_portal_enabled ?? true}
       />
     </div>
   );

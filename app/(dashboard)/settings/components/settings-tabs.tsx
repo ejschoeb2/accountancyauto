@@ -10,6 +10,7 @@ import { PostmarkSettingsCard } from "./postmark-settings-card";
 import { TeamCard, type AccountantStats } from "./team-card";
 import { SignOutCard } from "./sign-out-card";
 import { StorageCard } from "./storage-card";
+import { ClientPortalCard } from "./client-portal-card";
 import { BillingStatusCard } from "@/app/(dashboard)/billing/components/billing-status-card";
 import { UsageBars } from "@/app/(dashboard)/billing/components/usage-bars";
 import type { EmailSettings, InboundCheckerMode } from "@/app/actions/settings";
@@ -39,6 +40,7 @@ interface SettingsTabsProps {
   storageBackendStatus: string | null;
   oneDriveConnected: boolean;
   dropboxConnected: boolean;
+  clientPortalEnabled: boolean;
 }
 
 export function SettingsTabs({
@@ -61,6 +63,7 @@ export function SettingsTabs({
   storageBackendStatus,
   oneDriveConnected,
   dropboxConnected,
+  clientPortalEnabled,
 }: SettingsTabsProps) {
   return (
     <div className="space-y-8">
@@ -78,13 +81,16 @@ export function SettingsTabs({
         </div>
 
         <TabsContent value="general" className="space-y-8 mt-6">
-          <StorageCard
-            storageBackend={storageBackend}
-            googleDriveFolderId={googleDriveFolderId}
-            storageBackendStatus={storageBackendStatus}
-            oneDriveConnected={oneDriveConnected}
-            dropboxConnected={dropboxConnected}
-          />
+          <ClientPortalCard clientPortalEnabled={clientPortalEnabled} />
+          {clientPortalEnabled && (
+            <StorageCard
+              storageBackend={storageBackend}
+              googleDriveFolderId={googleDriveFolderId}
+              storageBackendStatus={storageBackendStatus}
+              oneDriveConnected={oneDriveConnected}
+              dropboxConnected={dropboxConnected}
+            />
+          )}
           <SendHourPicker defaultHour={sendHour} />
           <TeamCard
             accountants={accountants}

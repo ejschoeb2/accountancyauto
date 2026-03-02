@@ -338,7 +338,7 @@ export async function markOnboardingComplete(): Promise<{ error?: string }> {
 
 // --- Inbound Email Checker Mode ---
 
-export type InboundCheckerMode = "auto" | "recommend";
+export type InboundCheckerMode = "auto" | "recommend" | "off";
 
 export async function getInboundCheckerMode(): Promise<InboundCheckerMode> {
   const supabase = await createClient();
@@ -351,14 +351,16 @@ export async function getInboundCheckerMode(): Promise<InboundCheckerMode> {
     .eq("key", "inbound_checker_mode")
     .maybeSingle();
 
-  return data?.value === "auto" ? "auto" : "recommend";
+  const v = data?.value;
+  if (v === "auto" || v === "recommend" || v === "off") return v;
+  return "recommend";
 }
 
 export async function updateInboundCheckerMode(
   mode: InboundCheckerMode
 ): Promise<{ error?: string }> {
-  if (mode !== "auto" && mode !== "recommend") {
-    return { error: "Mode must be 'auto' or 'recommend'" };
+  if (mode !== "auto" && mode !== "recommend" && mode !== "off") {
+    return { error: "Invalid inbound checker mode" };
   }
 
   const supabase = await createClient();
@@ -571,6 +573,34 @@ export async function getOrgStorageBackend(): Promise<string | null> {
     .eq('id', orgId)
     .single();
   return data?.storage_backend ?? null;
+}
+
+// --- Client Portal ---
+
+export async function getClientPortalEnabled(): Promise<boolean> {
+  const admin = createAdminClient();
+  const { orgId } = await getOrgContext();
+  const { data } = await admin
+    .from('organisations')
+    .select('client_portal_enabled')
+    .eq('id', orgId)
+    .single();
+  return data?.client_portal_enabled ?? true;
+}
+
+export async function setClientPortalEnabled(
+  enabled: boolean
+): Promise<{ error: string | null }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Only admins can change this setting.' };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('organisations')
+    .update({ client_portal_enabled: enabled })
+    .eq('id', orgId);
+  if (error) return { error: error.message };
+  revalidatePath('/settings');
+  return { error: null };
 }
 
 // --- Storage: Document Count by Backend ---

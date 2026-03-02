@@ -90,12 +90,23 @@ export function StorageSetupStep({
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Document Storage</h2>
           <p className="text-sm text-muted-foreground">
-            Connect a cloud storage provider to keep client documents in your own account. Files are
-            organised automatically — e.g.{" "}
+            When you connect a cloud storage provider, any documents uploaded through Prompt — such
+            as tax returns, filed accounts, or client correspondence — are saved directly to your
+            own account rather than Prompt&apos;s servers. You stay in full control of your files
+            and can access them from Google Drive, OneDrive, or Dropbox like any other folder on
+            your device.
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Files are organised automatically into a logical folder structure — for example:{" "}
             <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
               Prompt / Smith Ltd / Corp Tax / 2024 /
             </span>
-            . This is optional — you can configure it later from Settings.
+            . No manual filing needed. Documents received via the client portal (which you enabled
+            in the previous step) will be routed here automatically.
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            This is optional. If you skip it now, documents will be stored securely in Prompt&apos;s
+            built-in storage and you can connect a provider at any time from Settings.
           </p>
         </div>
 
@@ -321,9 +332,6 @@ export function StorageSetupStep({
         <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
           <ArrowLeft className="size-4" />
           Back
-        </ButtonBase>
-        <ButtonBase variant="muted" buttonType="text-only" onClick={onComplete}>
-          Skip
         </ButtonBase>
         <ButtonBase variant="green" buttonType="icon-text" onClick={onComplete}>
           Continue
