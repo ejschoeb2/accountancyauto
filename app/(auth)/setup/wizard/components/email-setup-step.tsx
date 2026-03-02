@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  Loader2, Copy, Check, AlertCircle, AlertTriangle,
+  Loader2, Check, CheckCircle, AlertCircle, AlertTriangle,
   ArrowLeft, ArrowRight, SkipForward, RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -69,8 +69,8 @@ function getProviderSteps(id: string): string[] {
                  "Click Add Record → Type: TXT, fill in Host and Data from the table below → Add.",
                  "Click Add Record → Type: CNAME, fill in Host and Data from the table below → Add."],
     porkbun:    ["Click Manage next to your domain on porkbun.com → DNS records.",
-                 "Add a TXT record → fill in Subdomain and Answer from the table below → Add.",
-                 "Add a CNAME record → fill in Subdomain and Answer from the table below → Add."],
+                 "Add a TXT record → set Type to TXT, paste the Host into the Subdomain field, paste the Value / Answer into the Answer field → click Add. (Porkbun appends your domain automatically — do not add it again.)",
+                 "Add a CNAME record → set Type to CNAME, paste the Host into Subdomain, paste the Value / Answer into the Answer field → click Add."],
     other:      ["Log in to your domain registrar and find DNS Management for your domain.",
                  "Add a TXT record using the Host and Value from the table below → Save.",
                  "Add a CNAME record using the Host and Value from the table below → Save."],
@@ -88,15 +88,15 @@ interface EmailSetupStepProps {
   orgInboundAddress?: string;
   isCompleting?: boolean;
   completeError?: string | null;
+  initialState?: StepState;
 }
 
-type StepState =
+export type StepState =
   | "input"
   | "setting-up"
   | "dns-records"
   | "verifying"
-  | "email-identity"
-  | "send-settings";
+  | "settings";
 
 interface DnsData {
   dkimPendingHost: string;
@@ -121,8 +121,9 @@ export function EmailSetupStep({
   orgInboundAddress,
   isCompleting = false,
   completeError,
+  initialState,
 }: EmailSetupStepProps) {
-  const [state, setState] = useState<StepState>("input");
+  const [state, setState] = useState<StepState>(initialState ?? "input");
   const [domain, setDomain] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dnsData, setDnsData] = useState<DnsData | null>(null);
@@ -137,11 +138,13 @@ export function EmailSetupStep({
   const defaultLocalPart = defaultEmailSettings.senderAddress.split("@")[0] ?? "reminders";
   const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
   const [replyTo, setReplyTo] = useState(orgInboundAddress ?? defaultEmailSettings.replyTo);
-  const [identityError, setIdentityError] = useState<string | null>(null);
 
   // ── Send settings state ─────────────────────────────────────────────────
   const [sendHour, setSendHour] = useState(String(defaultSendHour));
-  const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(defaultInboundMode);
+  const [trackInbound, setTrackInbound] = useState(defaultInboundMode !== "off");
+  const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(
+    defaultInboundMode === "off" ? "recommend" : defaultInboundMode
+  );
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -202,17 +205,12 @@ export function EmailSetupStep({
     if (dnsData?.inboundAddress) {
       setReplyTo(dnsData.inboundAddress);
     }
-    setState("email-identity");
+    setState("settings");
   }
 
   function handleSkipDomain() {
     // Skip only the domain setup — identity + send settings still collected
-    setState("email-identity");
-  }
-
-  function handleIdentityNext() {
-    setIdentityError(null);
-    setState("send-settings");
+    setState("settings");
   }
 
   async function handleSettingsSave() {
@@ -239,7 +237,7 @@ export function EmailSetupStep({
       return;
     }
 
-    const modeResult = await updateInboundCheckerMode(inboundMode);
+    const modeResult = await updateInboundCheckerMode(trackInbound ? inboundMode : "off");
     if (modeResult.error) {
       setSaveError(modeResult.error);
       setIsSaving(false);
@@ -354,12 +352,18 @@ export function EmailSetupStep({
   // ── "dns-records" / "verifying" state ─────────────────────────────────────
   if ((state === "dns-records" || state === "verifying") && dnsData) {
     const isVerifying = state === "verifying";
-    const allVerified =
-      verifyState.dkimVerified === true && verifyState.returnPathVerified === true;
 
-    const rows: { type: string; host: string; value: string; field: string }[] = [
-      { type: "TXT",   host: dnsData.dkimPendingHost, value: dnsData.dkimPendingValue,    field: "dkim" },
-      { type: "CNAME", host: dnsData.returnPathHost,  value: dnsData.returnPathCnameValue, field: "cname" },
+    // Strip the domain suffix from host values — most registrars (Porkbun, GoDaddy,
+    // Namecheap, Cloudflare etc.) auto-append the domain to the subdomain you enter,
+    // so showing the full FQDN would result in a doubled domain like foo.domain.com.domain.com.
+    const stripDomain = (host: string) => {
+      const suffix = `.${domain}`;
+      return host.endsWith(suffix) ? host.slice(0, -suffix.length) : host;
+    };
+
+    const rows: { type: string; host: string; value: string; ttl: string; field: string }[] = [
+      { type: "TXT",   host: stripDomain(dnsData.dkimPendingHost), value: dnsData.dkimPendingValue,    ttl: "60", field: "dkim" },
+      { type: "CNAME", host: stripDomain(dnsData.returnPathHost),  value: dnsData.returnPathCnameValue, ttl: "60", field: "cname" },
     ];
 
     const providerSteps = selectedProvider ? getProviderSteps(selectedProvider) : null;
@@ -409,9 +413,12 @@ export function EmailSetupStep({
 
           {/* DNS Records Table */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Your two DNS records
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Your two DNS records
+              </p>
+              <p className="text-xs text-muted-foreground">Host shown without domain · click any cell to copy</p>
+            </div>
             <div className="rounded-xl border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -419,58 +426,96 @@ export function EmailSetupStep({
                     <tr className="border-b bg-muted/40">
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">Type</th>
                       <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Host</th>
-                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value</th>
-                      <th className="w-10 px-4 py-2.5" />
-                      <th className="w-20 px-4 py-2.5" />
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value / Answer</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-20">TTL</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => {
-                      const isCopied = copiedField === row.field;
-                      const isVerifiedField =
-                        row.field === "dkim" ? verifyState.dkimVerified : verifyState.returnPathVerified;
-
-                      return (
-                        <tr key={row.field} className="border-b last:border-0">
-                          <td className="px-4 py-3 font-mono text-xs">
-                            <span className="bg-muted px-1.5 py-0.5 rounded">{row.type}</span>
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs break-all">{row.host}</td>
-                          <td className="px-4 py-3 font-mono text-xs max-w-[120px]">
-                            <span className="block truncate" title={row.value}>{row.value}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <button
-                              onClick={() => handleCopy(row.field, row.value)}
-                              className="text-muted-foreground hover:text-foreground transition-colors"
-                              title="Copy value"
-                            >
-                              {isCopied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
-                            </button>
-                          </td>
-                          <td className="px-4 py-3">
-                            {isVerifiedField === true && (
-                              <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
-                                <Check className="size-3.5" /> Verified
-                              </span>
-                            )}
-                            {isVerifiedField === false && (
-                              <span className="text-xs text-muted-foreground">Pending</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {rows.map((row) => (
+                      <tr key={row.field} className="border-b last:border-0">
+                        <td className="px-4 py-3 font-mono text-xs">
+                          <span className="bg-muted px-1.5 py-0.5 rounded">{row.type}</span>
+                        </td>
+                        <td
+                          className={[
+                            "px-4 py-3 font-mono text-xs break-all cursor-pointer transition-colors select-none",
+                            copiedField === row.field + "-host" ? "bg-green-500/10" : "hover:bg-muted/50",
+                          ].join(" ")}
+                          onClick={() => handleCopy(row.field + "-host", row.host)}
+                          title="Click to copy"
+                        >
+                          {row.host}
+                        </td>
+                        <td
+                          className={[
+                            "px-4 py-3 font-mono text-xs cursor-pointer transition-colors select-none",
+                            copiedField === row.field ? "bg-green-500/10" : "hover:bg-muted/50",
+                          ].join(" ")}
+                          onClick={() => handleCopy(row.field, row.value)}
+                          title="Click to copy"
+                        >
+                          <span className="block break-all">{row.value}</span>
+                        </td>
+                        <td
+                          className={[
+                            "px-4 py-3 font-mono text-xs cursor-pointer transition-colors select-none",
+                            copiedField === row.field + "-ttl" ? "bg-green-500/10" : "hover:bg-muted/50",
+                          ].join(" ")}
+                          onClick={() => handleCopy(row.field + "-ttl", row.ttl)}
+                          title="Click to copy"
+                        >
+                          {row.ttl}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground">
-              Records can take up to 48 hours to propagate. You can re-check at any time in Settings.
-            </p>
+          {/* Verification status alert */}
+          {(() => {
+            const { dkimVerified, returnPathVerified } = verifyState;
+            if (dkimVerified === null && returnPathVerified === null) {
+              return (
+                <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-xl">
+                  <AlertCircle className="size-5 text-blue-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-blue-500">Ready to verify</p>
+                    <p className="text-sm text-blue-500/80">Once you&apos;ve added both records, click Verify Records to check they&apos;re live. If propagation is taking a while, you can continue with the rest of setup now and verify your domain later in Settings → Email.</p>
+                  </div>
+                </div>
+              );
+            }
+            if (dkimVerified === true && returnPathVerified === true) {
+              return (
+                <div className="flex items-start gap-3 p-4 bg-green-500/10 rounded-xl">
+                  <CheckCircle className="size-5 text-green-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-green-600">Both records verified</p>
+                    <p className="text-sm text-green-600/80">Your domain is fully authenticated and ready to send email. You can now continue to the next step.</p>
+                  </div>
+                </div>
+              );
+            }
+            const parts: string[] = [];
+            if (dkimVerified === true) parts.push("DKIM (TXT) record verified.");
+            else parts.push("DKIM (TXT) record not yet detected.");
+            if (returnPathVerified === true) parts.push("Return-Path (CNAME) record verified.");
+            else parts.push("Return-Path (CNAME) record not yet detected.");
+            return (
+              <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-600">Records not yet propagated</p>
+                  <p className="text-sm text-amber-600/80">{parts.join(" ")} DNS changes can take up to 48 hours to propagate. Feel free to continue with setup now and check back in Settings → Email once they&apos;re live.</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          <div className="flex justify-end">
             <ButtonBase
               onClick={handleCheckDns}
               disabled={isVerifying}
@@ -500,7 +545,7 @@ export function EmailSetupStep({
             variant="blue"
             buttonType="icon-text"
             onClick={handleDnsContinue}
-            disabled={isVerifying || !allVerified}
+            disabled={isVerifying}
           >
             Continue
             <ArrowRight className="size-4" />
@@ -510,17 +555,16 @@ export function EmailSetupStep({
     );
   }
 
-  // ── "email-identity" state ─────────────────────────────────────────────────
-  if (state === "email-identity") {
+  // ── "settings" state (email identity + reminder settings merged) ────────────
+  if (state === "settings") {
     return (
-      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
+      <div className="max-w-2xl mx-auto space-y-4 min-h-[520px]">
         <Card className="p-6">
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold">Email identity</h2>
+              <h2 className="text-lg font-semibold">Email identity &amp; reminder settings</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Choose the name and email address clients will see when you send reminders
-                {senderDomain ? ` from @${senderDomain}` : ""}. These can be changed at any time in Settings.
+                Configure how reminders appear to clients and how replies are handled. These can be changed at any time in Settings.
               </p>
             </div>
 
@@ -535,6 +579,7 @@ export function EmailSetupStep({
                   value={senderName}
                   onChange={(e) => setSenderName(e.target.value)}
                   placeholder="John Smith"
+                  disabled={isSaving || isCompleting}
                 />
               </div>
               <div className="space-y-1.5">
@@ -552,67 +597,13 @@ export function EmailSetupStep({
                     }}
                     placeholder="hello"
                     className="rounded-r-none"
+                    disabled={isSaving || isCompleting}
                   />
                   <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
                     @{senderDomain}
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="identity-reply-to" className="text-sm font-medium">
-                Reply-To Address
-              </label>
-              <Input
-                id="identity-reply-to"
-                type="email"
-                value={replyTo}
-                onChange={(e) => setReplyTo(e.target.value)}
-                placeholder="replies@yourdomain.co.uk"
-              />
-              <p className="text-xs text-muted-foreground">
-                Where client replies are sent. Set this to your Postmark inbound address so replies
-                are automatically processed.
-              </p>
-            </div>
-
-            {identityError && (
-              <p className="text-sm text-status-danger font-medium">{identityError}</p>
-            )}
-          </div>
-        </Card>
-
-        <div className="flex justify-end gap-2">
-          <ButtonBase
-            variant="amber"
-            buttonType="icon-text"
-            onClick={() => setState(dnsData ? "dns-records" : "input")}
-          >
-            <ArrowLeft className="size-4" />
-            Back
-          </ButtonBase>
-          <ButtonBase variant="blue" buttonType="icon-text" onClick={handleIdentityNext}>
-            Next
-            <ArrowRight className="size-4" />
-          </ButtonBase>
-        </div>
-      </div>
-    );
-  }
-
-  // ── "send-settings" state ─────────────────────────────────────────────────
-  if (state === "send-settings") {
-    return (
-      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
-        <Card className="p-6">
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Reminder settings</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Configure when reminders send and how incoming replies are handled.
-                These can be changed at any time in Settings.
-              </p>
             </div>
 
             <div className="space-y-1.5">
@@ -641,29 +632,63 @@ export function EmailSetupStep({
             </div>
 
             <div className="space-y-3">
-              <p className="text-sm font-medium">Inbound Email Handling</p>
+              <p className="text-sm font-medium">Track inbound replies</p>
               <Select
-                value={inboundMode}
-                onValueChange={(v) => setInboundMode(v as InboundCheckerMode)}
+                value={trackInbound ? "yes" : "no"}
+                onValueChange={(v) => setTrackInbound(v === "yes")}
                 disabled={isSaving || isCompleting}
               >
                 <SelectTrigger className="h-9 min-w-[280px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auto">Make changes automatically</SelectItem>
-                  <SelectItem value="recommend">Provide recommendation only</SelectItem>
+                  <SelectItem value="yes">Yes — track client replies</SelectItem>
+                  <SelectItem value="no">No — don&apos;t track replies</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <p className={inboundMode === "auto" ? "text-foreground font-medium" : ""}>
-                  <strong>Automatic:</strong> When a client emails you documents, the system automatically marks their records as received, updates their filing status, and logs the change. No manual action needed.
-                </p>
-                <p className={inboundMode === "recommend" ? "text-foreground font-medium" : ""}>
-                  <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
-                </p>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                When a client replies to a reminder, Prompt captures the email via Postmark, matches it to the client by email address, and checks whether they mention sending documents. If enabled, this can automatically update their filing status — so you don&apos;t have to manually chase up or mark records as received. Disable this if you prefer to manage client replies entirely outside of Prompt.
+              </p>
             </div>
+
+            {trackInbound && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Reply-To Address</label>
+                  <div className="flex items-center h-9 px-3 border rounded-md bg-muted text-muted-foreground text-sm font-mono truncate">
+                    {replyTo || <span className="italic">not configured</span>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Client replies are routed to this Postmark inbound address. It cannot be changed here — update it in Settings if needed.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Inbound Email Handling</p>
+                  <Select
+                    value={inboundMode}
+                    onValueChange={(v) => setInboundMode(v as InboundCheckerMode)}
+                    disabled={isSaving || isCompleting}
+                  >
+                    <SelectTrigger className="h-9 min-w-[280px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Make changes automatically</SelectItem>
+                      <SelectItem value="recommend">Provide recommendation only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <p className={inboundMode === "auto" ? "text-foreground font-medium" : ""}>
+                      <strong>Automatic:</strong> When a client emails you documents, the system automatically marks their records as received, updates their filing status, and logs the change. No manual action needed.
+                    </p>
+                    <p className={inboundMode === "recommend" ? "text-foreground font-medium" : ""}>
+                      <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </Card>
 
@@ -677,7 +702,7 @@ export function EmailSetupStep({
             <ButtonBase
               variant="amber"
               buttonType="icon-text"
-              onClick={() => setState("email-identity")}
+              onClick={() => setState(dnsData ? "dns-records" : "input")}
               disabled={isSaving || isCompleting}
             >
               <ArrowLeft className="size-4" />

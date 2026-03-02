@@ -813,7 +813,7 @@ export default function WizardPage() {
           <ClientPortalStep
             onComplete={handlePortalComplete}
             onBack={() => {
-              setEmailInitialSubStep("send-settings");
+              setEmailInitialSubStep("settings");
               setAdminStep("email");
             }}
           />
