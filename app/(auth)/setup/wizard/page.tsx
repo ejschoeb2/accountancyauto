@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { WizardStepper } from "@/components/wizard-stepper";
-import { CsvImportStep } from "./components/csv-import-step";
+import { CsvImportStep, type EditableRow } from "./components/csv-import-step";
 import { ConfigStep } from "./components/config-step";
 import { EmailSetupStep, type StepState as EmailSubStep } from "./components/email-setup-step";
 import { StorageSetupStep } from "./components/storage-setup-step";
@@ -188,6 +188,9 @@ export default function WizardPage() {
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [orgCreated, setOrgCreated] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+
+  // ── Import: persist rows so returning to the step skips re-upload ──────────
+  const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(null);
 
   // ── Import + Config (steps 3–4 for member, 4–6 for admin) ──────────────────
   const [sendHour, setSendHour] = useState<number | null>(null);
@@ -498,7 +501,11 @@ export default function WizardPage() {
 
         {memberStep === 0 && (
           <div className="min-h-[520px]">
-            <CsvImportStep onComplete={handleImportComplete} />
+            <CsvImportStep
+              onComplete={handleImportComplete}
+              initialRows={savedImportRows ?? undefined}
+              onRowsChange={setSavedImportRows}
+            />
           </div>
         )}
 
@@ -798,6 +805,8 @@ export default function WizardPage() {
           <CsvImportStep
             onComplete={handleImportComplete}
             onBack={() => setAdminStep("plan")}
+            initialRows={savedImportRows ?? undefined}
+            onRowsChange={setSavedImportRows}
           />
         </div>
       )}

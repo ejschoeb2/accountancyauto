@@ -7,70 +7,73 @@
  * 2. Gets the org ID via getOrgContext().
  * 3. Generates a UUID CSRF state token via crypto.randomUUID().
  * 4. Stores the state token in organisations.dropbox_oauth_state (DB-based CSRF).
- * 5. Constructs a DropboxAuth instance lazily (NOT at module level — prevents build
- *    failures when DROPBOX_APP_KEY env var is absent at build/CI time).
- * 6. Generates the authorization URL with token_access_type='offline' as the
- *    CRITICAL 4th argument — REQUIRED for refresh token (DRPBX-01).
- * 7. Redirects to Dropbox OAuth consent screen.
+ * 5. Builds the authorization URL with token_access_type=offline — REQUIRED
+ *    for refresh token (DRPBX-01).
+ * 6. Redirects to Dropbox OAuth consent screen.
  *
- * Note: DB-based CSRF state (not cookie) matches the plan spec for Phase 27.
- * The column dropbox_oauth_state was added in Plan 01 migration.
+ * Note: The auth URL is built manually rather than via DropboxAuth SDK because
+ * the SDK constructor does require('node-fetch') which fails with node-fetch v3
+ * (ESM-only). The URL is simple query-string construction — no SDK needed.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
-import { DropboxAuth } from 'dropbox';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const fromWizard = request.nextUrl.searchParams.get('from') === 'wizard';
-  // ── Auth check ─────────────────────────────────────────────────────────────
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const errorUrl = fromWizard
+    ? new URL('/setup/wizard?storage_error=connect_failed', request.url)
+    : new URL('/settings?tab=storage&error=connect_failed', request.url);
 
-  if (error || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  try {
+    // ── Auth check ───────────────────────────────────────────────────────────
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-  // ── Get org context ──────────────────────────────────────────────────────
-  const { orgId } = await getOrgContext();
+    if (error || !user) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
 
-  // ── Generate UUID CSRF state token ──────────────────────────────────────
-  const state = crypto.randomUUID();
+    // ── Get org context ────────────────────────────────────────────────────
+    const { orgId } = await getOrgContext();
 
-  // ── Store CSRF state in DB (organisations.dropbox_oauth_state) ──────────
-  const admin = createAdminClient();
-  await admin.from('organisations')
-    .update({ dropbox_oauth_state: state })
-    .eq('id', orgId);
+    // ── Generate UUID CSRF state token ────────────────────────────────────
+    const state = crypto.randomUUID();
 
-  // ── Construct DropboxAuth lazily (never at module level) ─────────────────
-  const auth = new DropboxAuth({
-    clientId: process.env.DROPBOX_APP_KEY!,
-    fetch: fetch,
-  });
+    // ── Store CSRF state in DB (organisations.dropbox_oauth_state) ────────
+    const admin = createAdminClient();
+    await admin.from('organisations')
+      .update({ dropbox_oauth_state: state })
+      .eq('id', orgId);
 
-  // ── Generate authorization URL with token_access_type='offline' ───────────
-  // The 4th argument 'offline' is CRITICAL — without it Dropbox will not
-  // return a refresh_token in the callback, violating DRPBX-01.
-  const authUrl = await auth.getAuthenticationUrl(
-    process.env.DROPBOX_REDIRECT_URI!,
-    state,
-    'code',     // response_type
-    'offline',  // token_access_type — REQUIRED for refresh token (DRPBX-01)
-  );
-
-  // ── Redirect to Dropbox consent screen ───────────────────────────────────
-  const response = NextResponse.redirect(authUrl as string);
-  if (fromWizard) {
-    response.cookies.set('wizard_oauth_return', '1', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 600,
-      path: '/',
+    // ── Build Dropbox authorization URL ──────────────────────────────────
+    // token_access_type=offline is CRITICAL — without it Dropbox will not
+    // return a refresh_token in the callback, violating DRPBX-01.
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: process.env.DROPBOX_APP_KEY!,
+      redirect_uri: process.env.DROPBOX_REDIRECT_URI!,
+      state,
+      token_access_type: 'offline',
     });
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?${params.toString()}`;
+
+    // ── Redirect to Dropbox consent screen ───────────────────────────────
+    const response = NextResponse.redirect(authUrl);
+    if (fromWizard) {
+      response.cookies.set('wizard_oauth_return', '1', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 600,
+        path: '/',
+      });
+    }
+    return response;
+  } catch (err) {
+    console.error('[dropbox/connect] Error initiating OAuth flow:', err);
+    return NextResponse.redirect(errorUrl);
   }
-  return response;
 }

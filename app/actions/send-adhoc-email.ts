@@ -8,6 +8,7 @@ import { getOrgId } from '@/lib/auth/org-context';
 import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { sendRichEmail } from '@/lib/email/sender';
+import { calculateDeadline } from '@/lib/deadlines/calculators';
 
 const SendAdhocEmailParamsSchema = z.object({
   clientId: z.string().uuid(),
@@ -20,7 +21,6 @@ const SendAdhocEmailParamsSchema = z.object({
   // Filing context — when provided, enables per-client rendering + portal link generation
   filingTypeId: z.string().optional(),
   filingTypeName: z.string().optional(),
-  deadlineDate: z.string().optional(),  // 'YYYY-MM-DD'
   bodyJson: z.record(z.string(), z.any()).optional(),
   rawSubject: z.string().optional(),    // subject with {{placeholders}} unresolved
 });
@@ -36,7 +36,6 @@ interface SendAdhocEmailParams {
   // Filing context
   filingTypeId?: string;
   filingTypeName?: string;
-  deadlineDate?: string;
   bodyJson?: Record<string, any>;
   rawSubject?: string;
 }
@@ -85,13 +84,21 @@ export async function sendAdhocEmail(
     const hasFilingContext =
       validated.filingTypeId &&
       validated.filingTypeName &&
-      validated.deadlineDate &&
       validated.bodyJson &&
       validated.rawSubject;
 
     if (hasFilingContext) {
-      // Per-client render path: generate a fresh portal token, then render with full context
-      const deadline = new Date(validated.deadlineDate!);
+      // Per-client render path: auto-calculate deadline from client data, then render with full context
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('year_end_date, vat_stagger_group')
+        .eq('id', validated.clientId)
+        .single();
+
+      const deadline = calculateDeadline(validated.filingTypeId!, {
+        year_end_date: clientData?.year_end_date ?? undefined,
+        vat_stagger_group: clientData?.vat_stagger_group ?? undefined,
+      }) ?? new Date();
       const taxYear = deadline.getFullYear().toString();
 
       let portalLink = '';

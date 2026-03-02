@@ -63,6 +63,10 @@ import { EditableCell } from "@/app/(dashboard)/clients/components/editable-cell
 interface CsvImportStepProps {
   onComplete: () => void;
   onBack?: () => void; // Optional: return to previous wizard step
+  /** Pre-populate the edit table (restores a previous import when navigating back) */
+  initialRows?: EditableRow[];
+  /** Called whenever the edit table rows change, so parent can persist them */
+  onRowsChange?: (rows: EditableRow[]) => void;
 }
 
 type StepState = "upload" | "mapping" | "edit-data" | "importing" | "results";
@@ -77,7 +81,7 @@ interface ParsedCsvData {
   sampleRows: Record<string, string>[]; // First 3 rows for preview
 }
 
-interface EditableRow {
+export interface EditableRow {
   id: string; // UUID for React key
   company_name: string; // Required, readonly
   primary_email: string | null;
@@ -94,12 +98,14 @@ interface EditableRow {
  * using Card-based layout instead of a Dialog wrapper.
  * The existing CsvImportDialog on the /clients page is NOT modified.
  */
-export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
-  const [stepState, setStepState] = useState<StepState>("upload");
+export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }: CsvImportStepProps) {
+  const [stepState, setStepState] = useState<StepState>(
+    initialRows && initialRows.length > 0 ? "edit-data" : "upload"
+  );
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedCsvData | null>(null);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
-  const [editableRows, setEditableRows] = useState<EditableRow[]>([]);
+  const [editableRows, setEditableRows] = useState<EditableRow[]>(initialRows ?? []);
   const [result, setResult] = useState<CsvImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showUnmatched, setShowUnmatched] = useState(false);
@@ -121,6 +127,12 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
   // ── Client limit state (for pre-import warning) ────────────────────────
   const [clientLimit, setClientLimit] = useState<number | null>(null);
   const [currentClientCount, setCurrentClientCount] = useState(0);
+
+  // ── Notify parent whenever rows change so it can persist them ───────────
+  useEffect(() => {
+    onRowsChange?.(editableRows);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editableRows]);
 
   // ── Scroll to top when entering edit-data (prevents viewport starting at bottom) ──
   const reviewTopRef = useRef<HTMLDivElement>(null);

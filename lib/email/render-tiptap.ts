@@ -6,13 +6,71 @@
  *
  * For ad-hoc emails, use renderTipTapEmailSimple() which skips the React Email
  * template wrapper and produces a lightweight HTML email preserving bold/italic.
+ *
+ * NOTE: This module deliberately does NOT import @tiptap/html or tiptap-extensions.
+ * Those packages contain "use client" code. When loaded in a Next.js Server Action,
+ * their exports become React client-reference proxies. Accessing any property on a
+ * proxy (e.g. extension.id) throws "Cannot access id on the server". Instead we use
+ * tiptapJsonToHtml(), a pure recursive converter that needs no TipTap imports.
  */
 
-import { generateHTML } from '@tiptap/html'
 import { render } from '@react-email/render'
-import { getSharedExtensions } from './tiptap-extensions'
 import { substituteVariables, TemplateContext } from '@/lib/templates/variables'
 import ReminderEmail from './templates/reminder'
+
+/**
+ * Server-safe TipTap JSON → HTML converter
+ *
+ * Walks the TipTap document JSON and produces HTML without importing any TipTap
+ * packages. Handles all node/mark types used in this app's email templates.
+ */
+function tiptapJsonToHtml(node: Record<string, any>): string {
+  if (!node || typeof node !== 'object') return '';
+
+  const renderChildren = (n: Record<string, any>): string =>
+    ((n.content ?? []) as Record<string, any>[])
+      .map((child) => tiptapJsonToHtml(child))
+      .join('');
+
+  switch (node.type) {
+    case 'doc':
+      return renderChildren(node);
+    case 'paragraph': {
+      const inner = renderChildren(node);
+      return `<p>${inner || '<br>'}</p>`;
+    }
+    case 'text': {
+      let text = (node.text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      for (const mark of (node.marks ?? []) as Array<{ type: string; attrs?: Record<string, any> }>) {
+        if (mark.type === 'bold') text = `<strong>${text}</strong>`;
+        else if (mark.type === 'italic') text = `<em>${text}</em>`;
+        else if (mark.type === 'link') {
+          const href = (mark.attrs?.href ?? '').replace(/"/g, '&quot;');
+          text = `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        }
+      }
+      return text;
+    }
+    case 'placeholder': {
+      const id = node.attrs?.id ?? '';
+      const escaped = String(id).replace(/"/g, '&quot;');
+      return `<span data-type="placeholder" data-id="${escaped}">{{${id}}}</span>`;
+    }
+    case 'bulletList':
+      return `<ul>${renderChildren(node)}</ul>`;
+    case 'orderedList':
+      return `<ol>${renderChildren(node)}</ol>`;
+    case 'listItem':
+      return `<li>${renderChildren(node)}</li>`;
+    case 'hardBreak':
+      return '<br>';
+    default:
+      return renderChildren(node);
+  }
+}
 
 interface RenderTipTapEmailParams {
   bodyJson: Record<string, any>    // TipTap JSON content
@@ -30,6 +88,9 @@ interface RenderTipTapEmailResult {
 /**
  * Render TipTap JSON content to email HTML
  *
+ * Used server-side (in Server Actions). Wraps output in the React Email
+ * branded template.
+ *
  * @param params - Template content and client context
  * @returns Email HTML, plain text, and resolved subject
  * @throws Error if bodyJson is malformed or invalid
@@ -39,10 +100,10 @@ export async function renderTipTapEmail(
 ): Promise<RenderTipTapEmailResult> {
   const { bodyJson, subject, context, clientId } = params
 
-  // Step 1: Validate and convert TipTap JSON to raw HTML
+  // Step 1: Convert TipTap JSON to raw HTML
   let rawHtml: string
   try {
-    rawHtml = generateHTML(bodyJson, getSharedExtensions())
+    rawHtml = tiptapJsonToHtml(bodyJson)
   } catch (error) {
     throw new Error(
       `Invalid template content: ${
@@ -74,7 +135,6 @@ export async function renderTipTapEmail(
   )
 
   // Step 5: Generate plain text fallback
-  // Convert <br> and </p> to newlines before stripping HTML
   const plainText = resolvedHtml
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
@@ -90,11 +150,10 @@ export async function renderTipTapEmail(
 }
 
 /**
- * Render TipTap JSON to a simple HTML email (for ad-hoc sends)
+ * Render TipTap JSON to a simple HTML email (for ad-hoc sends / client-side preview)
  *
  * Skips the React Email template wrapper. Produces a minimal HTML envelope
  * that preserves bold, italic, links, and lists without any branding chrome.
- * Safe to call client-side (no React Email dependency).
  *
  * @param params - Template content and client context
  * @returns Minimal HTML email, plain text, and resolved subject
@@ -105,10 +164,10 @@ export function renderTipTapEmailSimple(
 ): RenderTipTapEmailResult {
   const { bodyJson, subject, context } = params
 
-  // Step 1: Validate and convert TipTap JSON to raw HTML
+  // Step 1: Convert TipTap JSON to raw HTML
   let rawHtml: string
   try {
-    rawHtml = generateHTML(bodyJson, getSharedExtensions())
+    rawHtml = tiptapJsonToHtml(bodyJson)
   } catch (error) {
     throw new Error(
       `Invalid template content: ${

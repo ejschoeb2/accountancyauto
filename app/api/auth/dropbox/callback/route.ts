@@ -9,7 +9,7 @@
  *    organisations.dropbox_oauth_state (DB-based CSRF, set in connect route).
  *    Redirects to /settings?tab=storage&error=invalid_state on mismatch.
  * 3. Token exchange — exchanges `code` for access/refresh tokens via
- *    DropboxAuth.getAccessTokenFromCode().
+ *    direct POST to Dropbox token endpoint.
  * 4. DRPBX-01: Mandatory refresh_token presence check — rejects immediately
  *    if refresh_token is absent. This validates that token_access_type=offline
  *    was correctly included in the connect route's authorization URL.
@@ -22,16 +22,14 @@
  * All error paths redirect to /settings with an error query param — OAuth
  * callbacks must never expose raw error state to users.
  *
- * DropboxAuth is constructed lazily (not at module level) — mirrors D-11-05-01
- * (Stripe lazy init) to prevent Next.js build failures when DROPBOX_* env vars
- * are absent at build time or in CI.
+ * Token exchange uses direct fetch() to the Dropbox API rather than the
+ * DropboxAuth SDK — avoids constructor issues with node-fetch v3 (ESM-only).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
-import { DropboxAuth } from 'dropbox';
 import { encryptToken } from '@/lib/crypto/tokens';
 
 /**
@@ -94,18 +92,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // ── Token exchange + persist ─────────────────────────────────────────────
   try {
-    // Construct DropboxAuth lazily — never at module level
-    const auth = new DropboxAuth({
-      clientId: process.env.DROPBOX_APP_KEY!,
-      clientSecret: process.env.DROPBOX_APP_SECRET!,
-      fetch: fetch,
+    // Exchange code for tokens via Dropbox token endpoint directly.
+    // Avoids DropboxAuth SDK constructor which fails due to node-fetch v3
+    // being ESM-only (require('node-fetch') in the SDK constructor throws).
+    const tokenRes = await fetch('https://api.dropboxapi.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        grant_type: 'authorization_code',
+        client_id: process.env.DROPBOX_APP_KEY!,
+        client_secret: process.env.DROPBOX_APP_SECRET!,
+        redirect_uri: process.env.DROPBOX_REDIRECT_URI!,
+      }).toString(),
     });
 
-    const tokenResponse = await auth.getAccessTokenFromCode(
-      process.env.DROPBOX_REDIRECT_URI!,
-      code,
-    );
-    const result = tokenResponse.result as {
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      throw new Error(`Token exchange failed (${tokenRes.status}): ${errText}`);
+    }
+
+    const result = (await tokenRes.json()) as {
       access_token?: string;
       refresh_token?: string;
       expires_in?: number;
