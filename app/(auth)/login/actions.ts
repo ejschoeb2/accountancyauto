@@ -53,11 +53,16 @@ export async function signIn(email: string, password: string, inviteToken?: stri
   if (orgId) {
     const { data: org } = await supabase
       .from("organisations")
-      .select("slug")
+      .select("slug, setup_complete")
       .eq("id", orgId)
       .single();
 
     if (org?.slug) {
+      // If the admin closed the wizard before finishing, send them back to complete it
+      if (!org.setup_complete) {
+        redirect("/setup/wizard");
+      }
+
       if (isDev) {
         redirect(`/dashboard?org=${org.slug}`);
       } else {
@@ -112,16 +117,19 @@ export async function signUp(email: string, password: string, inviteToken?: stri
 
   // ── Normal signup: send confirmation email ──────────────────────────────
   const h = await headers();
-  const host = h.get("host") || "";
   const proto = h.get("x-forwarded-proto") || "https";
-  // Use the request's own origin as the callback base — NEXT_PUBLIC_APP_URL may
-  // point to the marketing apex domain (e.g. prompt.accountants) rather than the app
-  // subdomain (e.g. app.prompt.accountants), which would send the email link to a page
-  // with no callback handler. The signup request always originates from the app.
-  const appUrl =
-    h.get("origin") ||
-    `${proto}://${host}` ||
-    process.env.NEXT_PUBLIC_APP_URL;
+  const host = h.get("host") || "";
+  // Always use the canonical base URL (NEXT_PUBLIC_APP_URL origin) as emailRedirectTo.
+  // Using the request origin risks sending a subdomain (e.g. app.prompt.accountants)
+  // that Supabase doesn't recognise as an allowed redirect URL. When Supabase rejects
+  // the URL it falls back to its configured Site URL, which may include a path like
+  // /signup, causing the confirmation link to land on the wrong page.
+  let appUrl: string;
+  try {
+    appUrl = new URL(process.env.NEXT_PUBLIC_APP_URL || "").origin;
+  } catch {
+    appUrl = `${proto}://${host}`;
+  }
 
   const { data, error } = await supabase.auth.signUp({
     email,

@@ -93,11 +93,15 @@ export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isDev = process.env.NODE_ENV === "development";
 
-  // Step 2: If an auth code lands at the root (email confirmation redirect),
-  // forward to the callback handler BEFORE getUser() runs — getUser() triggers
+  // Step 2: If an auth code lands at the root or any public auth page, forward
+  // to the callback handler BEFORE getUser() runs — getUser() triggers
   // onAuthStateChange which can recreate supabaseResponse and interfere with
   // the PKCE code-verifier cookie that exchangeCodeForSession needs.
-  if (pathname === "/" && request.nextUrl.searchParams.has("code")) {
+  // We also intercept /signup and /login as a fallback: if Supabase rejects the
+  // emailRedirectTo URL (e.g. a subdomain not in the allowed list) and falls back
+  // to a Site URL that includes a path like /signup, the code will land there instead.
+  const CODE_INTERCEPT_PATHS = ["/", "/signup", "/login"];
+  if (CODE_INTERCEPT_PATHS.includes(pathname) && request.nextUrl.searchParams.has("code")) {
     const callbackUrl = new URL("/auth/callback", request.url);
     request.nextUrl.searchParams.forEach((value, key) => {
       callbackUrl.searchParams.set(key, value);
@@ -161,11 +165,19 @@ export async function updateSession(request: NextRequest) {
       if (userOrg?.org_id) {
         const { data: org } = await supabase
           .from("organisations")
-          .select("slug")
+          .select("slug, setup_complete")
           .eq("id", userOrg.org_id)
           .single();
 
         if (org?.slug) {
+          // If setup wasn't completed, send the user back to finish the wizard
+          if (!org.setup_complete) {
+            const setupUrl = new URL("/setup/wizard", request.url);
+            const setupRedirect = NextResponse.redirect(setupUrl, 307);
+            copyCookies(supabaseResponse, setupRedirect);
+            return setupRedirect;
+          }
+
           let redirectUrl: URL;
           if (isDev) {
             // Add ?org= param in development
@@ -220,6 +232,14 @@ export async function updateSession(request: NextRequest) {
     const redirect = NextResponse.redirect(loginUrl, 307);
     copyCookies(supabaseResponse, redirect);
     return redirect;
+  }
+
+  // Step 7.5: Org setup not yet complete — send authenticated user back to wizard
+  if (!org.setup_complete) {
+    const setupUrl = new URL("/setup/wizard", request.url);
+    const setupRedirect = NextResponse.redirect(setupUrl, 307);
+    copyCookies(supabaseResponse, setupRedirect);
+    return setupRedirect;
   }
 
   // Step 8: Authenticated user — validate org membership

@@ -27,6 +27,7 @@ import {
   checkSlugAvailable,
   createOrgAndJoinAsAdmin,
   getWizardDashboardUrl,
+  markOrgSetupComplete,
 } from "./actions";
 import {
   markMemberSetupComplete,
@@ -210,6 +211,7 @@ export default function WizardPage() {
 
   // ── Complete step ────────────────────────────────────────────────────────
   const [dashboardUrl, setDashboardUrl] = useState("/dashboard");
+  const [isLeavingWizard, setIsLeavingWizard] = useState(false);
   // Set to true before intentional navigations so the beforeunload guard doesn't fire
   const isNavigatingAway = useRef(false);
 
@@ -467,6 +469,13 @@ export default function WizardPage() {
     setAdminStep("complete");
   };
 
+  const handleGoToDashboard = async () => {
+    setIsLeavingWizard(true);
+    await markOrgSetupComplete();
+    isNavigatingAway.current = true;
+    window.location.href = dashboardUrl;
+  };
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   if (isCheckingAuth || userType === null) {
@@ -548,8 +557,10 @@ export default function WizardPage() {
 
             <Button
               className="w-full active:scale-[0.97]"
-              onClick={() => { isNavigatingAway.current = true; window.location.href = dashboardUrl; }}
+              onClick={handleGoToDashboard}
+              disabled={isLeavingWizard}
             >
+              {isLeavingWizard ? <Loader2 className="size-4 animate-spin mr-2" /> : null}
               Go to Dashboard
               <ArrowRight className="size-4 ml-2" />
             </Button>
@@ -890,10 +901,11 @@ export default function WizardPage() {
             <ButtonBase
               variant="green"
               buttonType="icon-text"
-              onClick={() => { isNavigatingAway.current = true; window.location.href = dashboardUrl; }}
+              onClick={handleGoToDashboard}
+              disabled={isLeavingWizard}
             >
-              Go to Dashboard
-              <ArrowRight className="size-4" />
+              {isLeavingWizard ? <Loader2 className="size-4 animate-spin" /> : "Go to Dashboard"}
+              {!isLeavingWizard && <ArrowRight className="size-4" />}
             </ButtonBase>
           </div>
         </div>

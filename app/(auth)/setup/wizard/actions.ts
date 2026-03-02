@@ -11,6 +11,39 @@ import {
 } from "@/lib/postmark/management";
 
 /**
+ * Mark the current user's organisation as having completed the setup wizard.
+ *
+ * Called when the admin clicks "Go to Dashboard" on the final wizard step.
+ * Until this is set, sign-in redirects the user back to the wizard.
+ */
+export async function markOrgSetupComplete(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  const { error } = await admin
+    .from("organisations")
+    .update({ setup_complete: true })
+    .eq("id", membership.org_id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
+/**
  * Resolve the dashboard URL for the current user after wizard completion.
  *
  * Uses the admin client to bypass RLS — safe because we verify the user's

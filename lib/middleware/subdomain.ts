@@ -7,6 +7,7 @@ export interface OrgInfo {
   name: string;
   subscription_status: string;
   trial_ends_at: string | null;
+  setup_complete: boolean;
 }
 
 /**
@@ -63,7 +64,7 @@ export async function resolveOrgFromSlug(
 ): Promise<OrgInfo | null> {
   const { data, error } = await supabase
     .from('organisations')
-    .select('id, slug, name, subscription_status, trial_ends_at')
+    .select('id, slug, name, subscription_status, trial_ends_at, setup_complete')
     .eq('slug', slug)
     .single();
 
