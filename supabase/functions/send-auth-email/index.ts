@@ -79,6 +79,10 @@ function getEmailContent(actionType: string): EmailContent {
 }
 
 function buildHtml(content: EmailContent, verificationUrl: string): string {
+  const font = "'Figtree',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+  // Brain icon SVG (lucide-react, violet #7c3aed)
+  const brainSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:6px;"><path d="M12 18V5"></path><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4"></path><path d="M17.598 6.5A3 3 0 1 0 12 5a3 3 0 1 0-5.598 1.5"></path><path d="M17.997 5.125a4 4 0 0 1 2.526 5.77"></path><path d="M18 18a4 4 0 0 0 2-7.464"></path><path d="M19.967 17.483A4 4 0 1 1 12 18a4 4 0 1 1-7.967-.517"></path><path d="M6 18a4 4 0 0 1-2-7.464"></path><path d="M6.003 5.125a4 4 0 0 0-2.526 5.77"></path></svg>`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -87,33 +91,35 @@ function buildHtml(content: EmailContent, verificationUrl: string): string {
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>${content.subject}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f4f4f5;padding:48px 16px;">
+<body style="margin:0;padding:0;background-color:#faf9f6;font-family:${font};">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#faf9f6;padding:52px 16px;">
     <tr>
       <td align="center">
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:520px;">
 
-          <!-- Wordmark -->
+          <!-- Logo: Brain icon + Prompt wordmark -->
           <tr>
             <td style="padding-bottom:28px;text-align:center;">
-              <span style="font-size:20px;font-weight:700;color:#09090b;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">Prompt</span>
+              <a href="https://prompt.accountants" style="text-decoration:none;display:inline-flex;align-items:center;">
+                ${brainSvg}<span style="font-size:18px;font-weight:700;color:#1a1a1a;letter-spacing:-0.3px;font-family:${font};vertical-align:middle;">Prompt</span>
+              </a>
             </td>
           </tr>
 
           <!-- Card -->
           <tr>
-            <td style="background:#ffffff;border-radius:12px;border:1px solid #e4e4e7;padding:40px 40px 36px;">
+            <td style="background:#ffffff;border-radius:16px;border:1px solid #e8e5de;padding:40px 40px 36px;">
 
-              <h1 style="margin:0 0 10px;font-size:20px;font-weight:600;color:#09090b;line-height:1.3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${content.heading}</h1>
+              <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#1a1a1a;line-height:1.3;font-family:${font};">${content.heading}</h1>
 
-              <p style="margin:0 0 28px;font-size:15px;color:#52525b;line-height:1.65;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${content.body}</p>
+              <p style="margin:0 0 32px;font-size:15px;color:#64748b;line-height:1.7;font-family:${font};">${content.body}</p>
 
-              <!-- CTA Button -->
+              <!-- CTA Button — pill, violet -->
               <table cellpadding="0" cellspacing="0" role="presentation">
                 <tr>
-                  <td>
+                  <td style="border-radius:100px;">
                     <a href="${verificationUrl}"
-                       style="display:inline-block;background-color:#09090b;color:#fafafa;font-size:14px;font-weight:500;text-decoration:none;padding:11px 22px;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+                       style="display:inline-block;background-color:#7c3aed;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:13px 28px;border-radius:100px;font-family:${font};">
                       ${content.buttonText} &rarr;
                     </a>
                   </td>
@@ -121,14 +127,14 @@ function buildHtml(content: EmailContent, verificationUrl: string): string {
               </table>
 
               <!-- Fallback link -->
-              <p style="margin:24px 0 0;font-size:12px;color:#a1a1aa;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+              <p style="margin:28px 0 0;font-size:12px;color:#94a3b8;line-height:1.6;font-family:${font};">
                 If the button doesn't work, copy and paste this link into your browser:<br>
-                <a href="${verificationUrl}" style="color:#52525b;word-break:break-all;">${verificationUrl}</a>
+                <a href="${verificationUrl}" style="color:#64748b;word-break:break-all;">${verificationUrl}</a>
               </p>
 
-              <hr style="border:none;border-top:1px solid #f4f4f5;margin:24px 0 0;">
+              <hr style="border:none;border-top:1px solid #f1ede4;margin:28px 0 0;">
 
-              <p style="margin:16px 0 0;font-size:12px;color:#a1a1aa;line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+              <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;line-height:1.6;font-family:${font};">
                 If you didn't request this, you can safely ignore this email. This link will expire after 24 hours.
               </p>
             </td>
@@ -136,10 +142,10 @@ function buildHtml(content: EmailContent, verificationUrl: string): string {
 
           <!-- Footer -->
           <tr>
-            <td style="padding-top:20px;text-align:center;">
-              <p style="margin:0;font-size:12px;color:#a1a1aa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-                Prompt &middot; Automated deadline reminders for UK accountants<br>
-                <a href="https://prompt.accountants" style="color:#a1a1aa;text-decoration:none;">prompt.accountants</a>
+            <td style="padding-top:24px;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.8;font-family:${font};">
+                Automated deadline reminders for UK accountants<br>
+                <a href="https://prompt.accountants" style="color:#94a3b8;text-decoration:none;">prompt.accountants</a>
               </p>
             </td>
           </tr>
@@ -189,9 +195,12 @@ Deno.serve(async (req: Request) => {
   const payload = await req.text();
   const headers = Object.fromEntries(req.headers);
 
+  // Supabase displays secrets as "v1,whsec_..." but standardwebhooks expects "whsec_..." only
+  const secret = hookSecret.startsWith("v1,") ? hookSecret.slice(3) : hookSecret;
+
   let data: HookPayload;
   try {
-    const wh = new Webhook(hookSecret);
+    const wh = new Webhook(secret);
     data = wh.verify(payload, headers) as HookPayload;
   } catch (err) {
     console.error("Webhook verification failed:", err);
