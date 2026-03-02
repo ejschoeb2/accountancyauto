@@ -21,7 +21,7 @@ const SendAdhocEmailParamsSchema = z.object({
   filingTypeId: z.string().optional(),
   filingTypeName: z.string().optional(),
   deadlineDate: z.string().optional(),  // 'YYYY-MM-DD'
-  bodyJson: z.record(z.any()).optional(),
+  bodyJson: z.record(z.string(), z.any()).optional(),
   rawSubject: z.string().optional(),    // subject with {{placeholders}} unresolved
 });
 
