@@ -69,6 +69,7 @@ export function InboundCheckerCard({ defaultMode }: InboundCheckerCardProps) {
               <SelectContent>
                 <SelectItem value="auto">Make changes automatically</SelectItem>
                 <SelectItem value="recommend">Provide recommendation only</SelectItem>
+                <SelectItem value="off">Disabled — don&apos;t track replies</SelectItem>
               </SelectContent>
             </Select>
 
@@ -78,6 +79,9 @@ export function InboundCheckerCard({ defaultMode }: InboundCheckerCardProps) {
               </p>
               <p className={mode === "recommend" ? "text-foreground font-medium" : ""}>
                 <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
+              </p>
+              <p className={mode === "off" ? "text-foreground font-medium" : ""}>
+                <strong>Disabled:</strong> Client replies are not tracked. Inbound emails received at your Postmark address are ignored.
               </p>
             </div>
           </div>

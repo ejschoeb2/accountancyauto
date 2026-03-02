@@ -417,6 +417,58 @@ export async function markMemberSetupComplete(): Promise<{ error?: string }> {
   return {};
 }
 
+// --- Domain DNS Data ---
+
+export interface OrgDomainDnsData {
+  domain: string;
+  dkimPendingHost: string;
+  dkimPendingValue: string;
+  returnPathHost: string;
+  returnPathCnameValue: string;
+  dkimVerified: boolean;
+  returnPathVerified: boolean;
+  inboundAddress: string;
+}
+
+export async function getOrgDomainDnsData(): Promise<OrgDomainDnsData | null> {
+  const orgId = await getOrgId();
+  const admin = createAdminClient();
+  const { data: org } = await admin
+    .from('organisations')
+    .select('postmark_domain_id, postmark_sender_domain, inbound_address')
+    .eq('id', orgId)
+    .single();
+
+  if (!org?.postmark_domain_id || !org?.postmark_sender_domain) {
+    return null;
+  }
+
+  try {
+    const res = await fetch(`https://api.postmarkapp.com/domains/${org.postmark_domain_id}`, {
+      headers: {
+        Accept: 'application/json',
+        'X-Postmark-Account-Token': process.env.POSTMARK_ACCOUNT_TOKEN ?? '',
+      },
+    });
+    if (!res.ok) return null;
+
+    const data = await res.json();
+
+    return {
+      domain: org.postmark_sender_domain,
+      dkimPendingHost: data.DKIMPendingHost || data.DKIMTextHost || '',
+      dkimPendingValue: data.DKIMPendingTextValue || data.DKIMPendingValue || data.DKIMTextValue || '',
+      returnPathHost: `pm-bounces.${org.postmark_sender_domain}`,
+      returnPathCnameValue: data.ReturnPathDomainCNAMEValue ?? 'pm.mtasv.net',
+      dkimVerified: Boolean(data.DKIMVerified),
+      returnPathVerified: Boolean(data.ReturnPathDomainVerified),
+      inboundAddress: org.inbound_address || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
 // --- Postmark Settings ---
 
 export async function getPostmarkSettings(): Promise<{ token: string; senderDomain: string; inboundAddress: string }> {

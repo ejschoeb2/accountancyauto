@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import crypto from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgId } from '@/lib/auth/org-context';
@@ -16,6 +17,12 @@ const SendAdhocEmailParamsSchema = z.object({
   customSubject: z.string().optional(),
   customText: z.string().optional(),
   customHtml: z.string().optional(),
+  // Filing context — when provided, enables per-client rendering + portal link generation
+  filingTypeId: z.string().optional(),
+  filingTypeName: z.string().optional(),
+  deadlineDate: z.string().optional(),  // 'YYYY-MM-DD'
+  bodyJson: z.record(z.any()).optional(),
+  rawSubject: z.string().optional(),    // subject with {{placeholders}} unresolved
 });
 
 interface SendAdhocEmailParams {
@@ -26,6 +33,12 @@ interface SendAdhocEmailParams {
   customSubject?: string;
   customText?: string;
   customHtml?: string;
+  // Filing context
+  filingTypeId?: string;
+  filingTypeName?: string;
+  deadlineDate?: string;
+  bodyJson?: Record<string, any>;
+  rawSubject?: string;
 }
 
 interface SendAdhocEmailResult {
@@ -60,40 +73,72 @@ export async function sendAdhocEmail(
     const admin = createAdminClient();
     const { data: orgData } = await admin
       .from('organisations')
-      .select('postmark_server_token')
+      .select('postmark_server_token, name')
       .eq('id', orgId)
       .single();
 
-    // Use custom subject/text if provided, otherwise fetch and render the template
+    // Determine rendering path
     let finalSubject: string;
     let finalText: string;
-    let finalHtml: string;
+    let finalHtml: string | undefined;
 
-    if (validated.customSubject && validated.customText) {
-      // Use the custom content directly (from template edit or scratch composition)
+    const hasFilingContext =
+      validated.filingTypeId &&
+      validated.filingTypeName &&
+      validated.deadlineDate &&
+      validated.bodyJson &&
+      validated.rawSubject;
+
+    if (hasFilingContext) {
+      // Per-client render path: generate a fresh portal token, then render with full context
+      const deadline = new Date(validated.deadlineDate!);
+      const taxYear = deadline.getFullYear().toString();
+
+      let portalLink = '';
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      const { error: tokenError } = await supabase
+        .from('upload_portal_tokens')
+        .insert({
+          org_id: orgId,
+          client_id: validated.clientId,
+          filing_type_id: validated.filingTypeId!,
+          tax_year: taxYear,
+          token_hash: tokenHash,
+          expires_at: expiresAt.toISOString(),
+        });
+
+      if (!tokenError) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+        portalLink = `${appUrl}/portal/${rawToken}`;
+      }
+
+      const rendered = await renderTipTapEmail({
+        bodyJson: validated.bodyJson!,
+        subject: validated.rawSubject!,
+        context: {
+          client_name: validated.clientName,
+          filing_type: validated.filingTypeName!,
+          deadline,
+          accountant_name: orgData?.name || 'Prompt',
+          portal_link: portalLink,
+        },
+        clientId: validated.clientId,
+      });
+      finalSubject = rendered.subject;
+      finalText = rendered.text;
+      finalHtml = rendered.html;
+
+    } else if (validated.customSubject && validated.customText) {
+      // Pre-rendered custom content (no filing context)
       finalSubject = validated.customSubject;
       finalText = validated.customText;
-      // Use custom HTML if provided, otherwise convert plain text to simple HTML
-      if (validated.customHtml) {
-        finalHtml = validated.customHtml;
-      } else {
-        finalHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  ${validated.customText.split('\n\n').map(para => `<p style="margin: 0 0 16px 0;">${para.replace(/\n/g, '<br>')}</p>`).join('')}
-  <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
-  <p style="font-size: 12px; color: #666; margin: 0;">
-    <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/unsubscribe?client_id=${validated.clientId}" style="color: #666;">Unsubscribe from these emails</a>
-  </p>
-</body>
-</html>`;
-      }
+      finalHtml = validated.customHtml;
+
     } else {
-      // Fetch the email template
+      // Fetch and render a named template (no filing context)
       const { data: template, error: templateError } = await supabase
         .from('email_templates')
         .select('id, subject, body_json')
@@ -107,8 +152,6 @@ export async function sendAdhocEmail(
         };
       }
 
-      // Render the template
-      // Ad-hoc sends don't have a filing type or deadline, so use defaults
       const rendered = await renderTipTapEmail({
         bodyJson: template.body_json,
         subject: template.subject,
@@ -116,7 +159,7 @@ export async function sendAdhocEmail(
           client_name: validated.clientName,
           filing_type: 'Ad-hoc',
           deadline: new Date(),
-          accountant_name: 'PhaseTwo',
+          accountant_name: orgData?.name || 'Prompt',
         },
         clientId: validated.clientId,
       });
@@ -125,8 +168,7 @@ export async function sendAdhocEmail(
       finalHtml = rendered.html;
     }
 
-    // Send via Postmark (HTML + plain text with List-Unsubscribe)
-    // Use org's Postmark token if configured
+    // Send via Postmark — simple HTML preserving bold/italic, with plain text fallback
     const sendResult = await sendRichEmail({
       to: validated.clientEmail,
       subject: finalSubject,
@@ -206,7 +248,7 @@ export async function previewAdhocEmail(params: {
         client_name: params.clientName,
         filing_type: 'Ad-hoc',
         deadline: new Date(),
-        accountant_name: 'PhaseTwo',
+        accountant_name: 'Prompt',
       },
       clientId: params.clientId,
     });

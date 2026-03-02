@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { ButtonBase } from "@/components/ui/button-base";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,7 +32,7 @@ import { EditorToolbar } from "@/app/(dashboard)/templates/components/template-e
 
 import type { Client } from "@/app/actions/clients";
 import { sendAdhocEmail, previewAdhocEmail } from "@/app/actions/send-adhoc-email";
-import { renderTipTapEmail } from "@/lib/email/render-tiptap";
+import { renderTipTapEmailSimple } from "@/lib/email/render-tiptap";
 import type { TipTapDocument } from "@/lib/types/database";
 
 type SendStep = 'compose' | 'confirm' | 'sending' | 'results';
@@ -69,6 +70,12 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
   const [sentCount, setSentCount] = useState(0);
   const [failures, setFailures] = useState<SendResult[]>([]);
 
+  // Filing context (optional — enables per-client rendering + portal links)
+  const [filingTypes, setFilingTypes] = useState<{ id: string; name: string }[]>([]);
+  const [isLoadingFilingTypes, setIsLoadingFilingTypes] = useState(false);
+  const [selectedFilingTypeId, setSelectedFilingTypeId] = useState<string>('');
+  const [selectedDeadlineDate, setSelectedDeadlineDate] = useState<string>('');
+
   // For email editing
   const [templateSubject, setTemplateSubject] = useState<string>("");
   const [templateBodyJson, setTemplateBodyJson] = useState<TipTapDocument | null>(null);
@@ -97,9 +104,10 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
   );
   const skippedCount = selectedClients.length - eligibleClients.length;
 
-  // Load templates when modal opens
+  // Load templates and filing types when modal opens
   useEffect(() => {
-    if (open && templates.length === 0) {
+    if (!open) return;
+    if (templates.length === 0) {
       setIsLoadingTemplates(true);
       fetch('/api/email-templates')
         .then((res) => res.json())
@@ -113,7 +121,17 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
           setIsLoadingTemplates(false);
         });
     }
-  }, [open, templates.length]);
+    if (filingTypes.length === 0) {
+      setIsLoadingFilingTypes(true);
+      fetch('/api/filing-types')
+        .then((res) => res.json())
+        .then((data: any[]) => {
+          setFilingTypes((data ?? []).map((ft) => ({ id: ft.id, name: ft.name ?? ft.id })));
+          setIsLoadingFilingTypes(false);
+        })
+        .catch(() => setIsLoadingFilingTypes(false));
+    }
+  }, [open, templates.length, filingTypes.length]);
 
   // Update template content when selected template changes
   useEffect(() => {
@@ -154,6 +172,8 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         setEditedHtml("");
         setTemplateSubject("");
         setTemplateBodyJson(null);
+        setSelectedFilingTypeId('');
+        setSelectedDeadlineDate('');
         setProgress(0);
         setSentCount(0);
         setFailures([]);
@@ -177,15 +197,18 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
       setIsLoadingPreview(true);
       setStep('confirm');
       const firstClient = eligibleClients[0];
+      const hasFilingContext = selectedFilingTypeId && selectedDeadlineDate;
+      const previewFilingTypeName = filingTypes.find(ft => ft.id === selectedFilingTypeId)?.name;
       try {
-        const rendered = await renderTipTapEmail({
+        const rendered = renderTipTapEmailSimple({
           bodyJson: templateBodyJson,
           subject: templateSubject,
           context: {
             client_name: firstClient.display_name || firstClient.company_name,
-            filing_type: 'Ad-hoc',
-            deadline: new Date(),
+            filing_type: previewFilingTypeName ?? 'Ad-hoc',
+            deadline: hasFilingContext ? new Date(selectedDeadlineDate) : new Date(),
             accountant_name: 'Peninsula Accounting',
+            portal_link: hasFilingContext ? '[Portal Link — generated on send]' : '',
           },
           clientId: firstClient.id,
         });
@@ -215,6 +238,9 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
     setSentCount(0);
     setFailures([]);
 
+    const hasFilingContext = selectedFilingTypeId && selectedDeadlineDate && templateBodyJson;
+    const sendFilingTypeName = filingTypes.find(ft => ft.id === selectedFilingTypeId)?.name;
+
     for (const client of eligibleClients) {
       const result = await sendAdhocEmail({
         clientId: client.id,
@@ -223,9 +249,19 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         templateId: (selectedTemplateId === "no-template" || !selectedTemplateId)
           ? '00000000-0000-0000-0000-000000000000' // Dummy ID for custom emails
           : selectedTemplateId,
-        customSubject: editedSubject,
-        customText: editedText,
-        customHtml: editedHtml,
+        ...(hasFilingContext
+          ? {
+              filingTypeId: selectedFilingTypeId,
+              filingTypeName: sendFilingTypeName ?? selectedFilingTypeId,
+              deadlineDate: selectedDeadlineDate,
+              bodyJson: templateBodyJson as Record<string, any>,
+              rawSubject: templateSubject,
+            }
+          : {
+              customSubject: editedSubject,
+              customText: editedText,
+              customHtml: editedHtml,
+            }),
       });
 
       if (result.success) {
@@ -333,6 +369,60 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                     </Select>
                   </div>
 
+                  {/* Optional filing context */}
+                  <div className="rounded-lg border border-dashed p-4 space-y-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        Filing context{' '}
+                        <span className="text-muted-foreground font-normal">(optional)</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Fills in {'{{'} filing_type {'}}'}, {'{{'} deadline {'}}'}, and {'{{'} days_until_deadline {'}}'}. Also generates a unique portal link for each recipient.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Filing Type
+                        </label>
+                        <Select value={selectedFilingTypeId || ''} onValueChange={setSelectedFilingTypeId}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select filing type..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {isLoadingFilingTypes ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="size-4 animate-spin" />
+                              </div>
+                            ) : (
+                              filingTypes.map((ft) => (
+                                <SelectItem key={ft.id} value={ft.id}>
+                                  {ft.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Deadline
+                        </label>
+                        <Input
+                          type="date"
+                          value={selectedDeadlineDate}
+                          onChange={(e) => setSelectedDeadlineDate(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                    {selectedFilingTypeId && selectedDeadlineDate && (
+                      <p className="text-xs text-green-600 dark:text-green-500">
+                        A unique portal link will be generated for each recipient on send.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="w-full space-y-4">
                     {isLoadingTemplateContent ? (
                       <Card className="overflow-hidden flex flex-col p-0 min-h-[400px] items-center justify-center">
@@ -395,6 +485,11 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
               <DialogDescription>
                 Preview for {eligibleClients[0]?.display_name || eligibleClients[0]?.company_name}.
                 Placeholders will be personalized for each of the {eligibleClients.length} recipient{eligibleClients.length !== 1 ? 's' : ''}.
+                {selectedFilingTypeId && selectedDeadlineDate && (
+                  <span className="text-green-600 dark:text-green-500">
+                    {' '}A unique portal link will be generated for each recipient on send.
+                  </span>
+                )}
               </DialogDescription>
             </DialogHeader>
 

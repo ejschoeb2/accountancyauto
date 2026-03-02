@@ -49,7 +49,7 @@ export function substituteVariables(template: string, context: TemplateContext):
     deadline_short: format(context.deadline, 'dd/MM/yyyy'),
     filing_type: context.filing_type,
     days_until_deadline: differenceInDays(context.deadline, new Date()).toString(),
-    accountant_name: context.accountant_name || 'PhaseTwo',
+    accountant_name: context.accountant_name || 'Prompt',
     documents_required: context.documents_required ?? '',
     portal_link: context.portal_link ?? '',
   };

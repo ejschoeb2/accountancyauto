@@ -34,9 +34,21 @@ import { getOrgContext } from '@/lib/auth/org-context';
 import { DropboxAuth } from 'dropbox';
 import { encryptToken } from '@/lib/crypto/tokens';
 
+/**
+ * Build the org's subdomain base URL from its slug.
+ * e.g. slug="acme", NEXT_PUBLIC_APP_URL="https://prompt.accountants"
+ *      → "https://acme.app.prompt.accountants"
+ */
+function buildOrgBaseUrl(slug: string): string {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+  const hostname = appUrl.replace(/^https?:\/\//, '').split('/')[0];
+  return `https://${slug}.app.${hostname}`;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
-  const errorBase = `${appUrl}/settings?tab=storage&error=`;
+  // Early-error fallback uses main domain (org not yet resolved)
+  const earlyErrorBase = `${appUrl}/settings?tab=storage&error=`;
 
   // ── Auth check ─────────────────────────────────────────────────────────────
   const supabase = await createClient();
@@ -52,7 +64,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const stateParam = searchParams.get('state');
 
   if (!code) {
-    return NextResponse.redirect(`${errorBase}missing_code`);
+    return NextResponse.redirect(`${earlyErrorBase}missing_code`);
   }
 
   // ── Get org context ──────────────────────────────────────────────────────
@@ -61,16 +73,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const ctx = await getOrgContext();
     orgId = ctx.orgId;
   } catch {
-    return NextResponse.redirect(`${errorBase}no_org_context`);
+    return NextResponse.redirect(`${earlyErrorBase}no_org_context`);
   }
 
-  // ── CSRF state validation (DB-based) ────────────────────────────────────
+  // ── Fetch org state + slug (slug needed for subdomain redirect) ──────────
   const admin = createAdminClient();
   const { data: org } = await admin.from('organisations')
-    .select('dropbox_oauth_state')
+    .select('dropbox_oauth_state, slug')
     .eq('id', orgId)
     .single();
 
+  // Org subdomain base URL — used for all post-resolution redirects
+  const orgBaseUrl = org?.slug ? buildOrgBaseUrl(org.slug) : appUrl;
+  const errorBase = `${orgBaseUrl}/settings?tab=storage&error=`;
+
+  // ── CSRF state validation (DB-based) ────────────────────────────────────
   if (!stateParam || !org?.dropbox_oauth_state || stateParam !== org.dropbox_oauth_state) {
     return NextResponse.redirect(`${errorBase}invalid_state`);
   }
@@ -130,10 +147,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
+  // Wizard lives on the main domain; settings lives on the org subdomain.
   const fromWizard = request.cookies.get('wizard_oauth_return')?.value === '1';
   const successUrl = fromWizard
     ? `${appUrl}/setup/wizard?storage_connected=dropbox`
-    : `${appUrl}/settings?tab=storage&connected=dropbox`;
+    : `${orgBaseUrl}/settings?tab=storage&connected=dropbox`;
   const successResponse = NextResponse.redirect(successUrl);
   successResponse.cookies.delete('wizard_oauth_return');
   return successResponse;

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing - PhaseTwo",
+  title: "Pricing - Prompt",
   description: "Choose the right plan for your accounting practice",
 };
 
@@ -21,7 +21,7 @@ export default function PricingLayout({
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <a href="/" className="text-xl font-bold tracking-tight">
-              PhaseTwo
+              Prompt
             </a>
             <a
               href="/login"

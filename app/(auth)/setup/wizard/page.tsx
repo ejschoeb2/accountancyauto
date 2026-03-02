@@ -432,8 +432,15 @@ export default function WizardPage() {
       // Non-blocking — cron will catch up if this fails
     });
 
-    // Resolve dashboard URL via server action (uses admin client, bypasses RLS
-    // and avoids the session-clearing risk of calling refreshSession() here).
+    // Refresh the session so the JWT contains org_id in app_metadata.
+    // Without this, the middleware's fallback RLS query on user_organisations
+    // (which requires org_id = auth_org_id()) returns no rows and redirects
+    // the user to the marketing site instead of their dashboard.
+    // This is critical for paid-tier users who go through Stripe and never
+    // had refreshSession() called after org creation.
+    await supabase.auth.refreshSession();
+
+    // Resolve dashboard URL via server action (uses admin client, bypasses RLS).
     const url = await getWizardDashboardUrl();
 
     setDashboardUrl(url);

@@ -186,7 +186,7 @@ export async function processRemindersForUser(
 
     // Step 6: Resolve this user's sender name for template rendering context
     // Try user-specific email_sender_name first, fall back to org default
-    let accountantName = 'PhaseTwo';
+    let accountantName = 'Prompt';
     const { data: userSenderNameRow } = await supabase
       .from('app_settings')
       .select('value')

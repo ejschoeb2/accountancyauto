@@ -4,7 +4,7 @@ import {
   getSendHour,
   getEmailSettings,
   getInboundCheckerMode,
-  getPostmarkSettings,
+  getOrgDomainDnsData,
   getUserSendHour,
   getUserEmailSettings,
 } from "@/app/actions/settings";
@@ -46,7 +46,7 @@ export default async function SettingsPage() {
     sendHour,
     emailSettings,
     inboundCheckerMode,
-    postmarkSettings,
+    domainDnsData,
     membershipsResult,
     clientCountsResult,
     orgResult,
@@ -54,7 +54,7 @@ export default async function SettingsPage() {
     getSendHour(),
     getEmailSettings(),
     getInboundCheckerMode(),
-    getPostmarkSettings(),
+    getOrgDomainDnsData(),
     admin
       .from("user_organisations")
       .select("user_id, role")
@@ -124,8 +124,8 @@ export default async function SettingsPage() {
         sendHour={sendHour}
         emailSettings={emailSettings}
         inboundCheckerMode={inboundCheckerMode}
-        postmarkSettings={postmarkSettings}
-        senderDomain={process.env.POSTMARK_SENDER_DOMAIN ?? "phasetwo.uk"}
+        domainDnsData={domainDnsData}
+        senderDomain={domainDnsData?.domain ?? process.env.POSTMARK_SENDER_DOMAIN ?? "prompt.accountants"}
         accountants={accountants}
         totalClients={totalClients}
         clientLimit={clientLimit}

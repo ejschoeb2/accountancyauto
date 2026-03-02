@@ -349,8 +349,8 @@ export async function setupPostmarkForOrg(
         }
       );
       const domainData = await res.json();
-      dkimPendingHost = domainData.DKIMPendingHost ?? domainData.DKIMTextHost ?? "";
-      dkimPendingValue = domainData.DKIMPendingValue ?? domainData.DKIMTextValue ?? "";
+      dkimPendingHost = domainData.DKIMPendingHost || domainData.DKIMTextHost || "";
+      dkimPendingValue = domainData.DKIMPendingTextValue || domainData.DKIMPendingValue || domainData.DKIMTextValue || "";
       returnPathHost = `pm-bounces.${org.postmark_sender_domain ?? domain}`;
       returnPathCnameValue = domainData.ReturnPathDomainCNAMEValue ?? "pm.mtasv.net";
 

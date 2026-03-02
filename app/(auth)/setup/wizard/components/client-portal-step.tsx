@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { ArrowLeft, ArrowRight, Users, HardDrive, Mail } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -37,7 +38,7 @@ export function ClientPortalStep({ onComplete, onBack }: ClientPortalStepProps) 
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 min-h-[520px]">
+    <div className="max-w-3xl mx-auto space-y-4 min-h-[520px]">
       <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Client Portal</h2>
@@ -50,34 +51,46 @@ export function ClientPortalStep({ onComplete, onBack }: ClientPortalStepProps) 
 
         {/* Feature highlights */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-            <Users className="size-4 text-violet-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium">Client self-service</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Clients upload documents themselves via a secure link
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-            <Mail className="size-4 text-violet-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium">Email integration</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Include a portal link in reminder emails so clients can respond directly
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-            <HardDrive className="size-4 text-violet-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-medium">Your storage</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                In the next step, connect Google Drive, OneDrive, or Dropbox so uploaded files go
-                straight there
-              </p>
-            </div>
-          </div>
+          <Card className="group py-5">
+            <CardContent className="px-5 py-0 space-y-3">
+              <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
+                <Users className="size-5 text-violet-500" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold">Client self-service</p>
+                <p className="text-sm text-muted-foreground">
+                  Clients upload documents themselves via a secure link
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="group py-5">
+            <CardContent className="px-5 py-0 space-y-3">
+              <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
+                <Mail className="size-5 text-violet-500" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold">Email integration</p>
+                <p className="text-sm text-muted-foreground">
+                  Include a portal link in reminder emails so clients can respond directly
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="group py-5">
+            <CardContent className="px-5 py-0 space-y-3">
+              <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
+                <HardDrive className="size-5 text-violet-500" />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold">Your storage</p>
+                <p className="text-sm text-muted-foreground">
+                  In the next step, connect Google Drive, OneDrive, or Dropbox so uploaded files
+                  go straight there
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Selection */}

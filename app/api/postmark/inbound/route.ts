@@ -123,6 +123,24 @@ export async function POST(request: NextRequest) {
       orgId = foundingOrg?.id;
     }
 
+    // Fetch inbound_checker_mode once — used to gate processing and auto-update
+    let checkerMode = 'auto';
+    if (orgId) {
+      const { data: modeSetting } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('org_id', orgId)
+        .is('user_id', null)
+        .eq('key', 'inbound_checker_mode')
+        .maybeSingle();
+      checkerMode = modeSetting?.value ?? 'auto';
+    }
+
+    if (checkerMode === 'off') {
+      console.log('[Postmark Inbound] Inbound tracking disabled for org — email ignored');
+      return NextResponse.json({ success: true, message: 'Inbound tracking disabled' });
+    }
+
     // Step 2: Detect if documents are present
     const detection = detectDocumentKeywords(subject, body, hasAttachments);
 
@@ -175,16 +193,19 @@ export async function POST(request: NextRequest) {
       filingType: detectedFilingType,
     });
 
-    // Step 5: Auto-update client status if documents detected
+    // Step 5: Auto-update client status if documents detected (only in "auto" mode)
     if (detection.documentsDetected && client?.id && detectedFilingType) {
-      // Import auto-update logic (will be created in task #10)
-      try {
-        const { autoUpdateRecordsReceived } = await import('@/lib/email/auto-update-records-received');
-        await autoUpdateRecordsReceived(client.id, detectedFilingType, supabase);
-        console.log('[Postmark Inbound] Auto-updated records_received status for:', client.company_name);
-      } catch (autoUpdateError) {
-        // Log but don't fail the webhook - auto-update is non-critical
-        console.error('[Postmark Inbound] Auto-update failed:', autoUpdateError);
+      if (checkerMode === 'auto') {
+        try {
+          const { autoUpdateRecordsReceived } = await import('@/lib/email/auto-update-records-received');
+          await autoUpdateRecordsReceived(client.id, detectedFilingType, supabase);
+          console.log('[Postmark Inbound] Auto-updated records_received status for:', client.company_name);
+        } catch (autoUpdateError) {
+          // Log but don't fail the webhook - auto-update is non-critical
+          console.error('[Postmark Inbound] Auto-update failed:', autoUpdateError);
+        }
+      } else {
+        console.log('[Postmark Inbound] Recommend mode — documents detected but records_received not auto-updated for:', client.company_name);
       }
     }
 

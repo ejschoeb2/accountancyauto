@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Users, CheckCircle, XCircle } from "lucide-react";
+import { Cloud, CheckCircle, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { ButtonBase } from "@/components/ui/button-base";
 import {
   Select,
   SelectContent,
@@ -25,10 +24,11 @@ export function ClientPortalCard({ clientPortalEnabled: initial }: ClientPortalC
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleSave() {
-    const enabled = value === "yes";
-    setError(null);
+  function handleChange(v: "yes" | "no") {
+    setValue(v);
     setSaved(false);
+    setError(null);
+    const enabled = v === "yes";
     startTransition(async () => {
       const result = await setClientPortalEnabled(enabled);
       if (result.error) {
@@ -40,13 +40,11 @@ export function ClientPortalCard({ clientPortalEnabled: initial }: ClientPortalC
     });
   }
 
-  const isDirty = (value === "yes") !== initial;
-
   return (
     <Card className="p-6">
       <div className="flex items-start gap-4 mb-6">
-        <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
-          <Users className="size-6 text-violet-500" />
+        <div className="flex items-center justify-center size-12 rounded-lg bg-sky-500/10 shrink-0">
+          <Cloud className="size-6 text-sky-500" />
         </div>
         <div>
           <h2 className="text-lg font-semibold">Client Portal</h2>
@@ -61,7 +59,7 @@ export function ClientPortalCard({ clientPortalEnabled: initial }: ClientPortalC
       </div>
 
       <div className="flex items-center gap-3">
-        <Select value={value} onValueChange={(v) => { setValue(v as "yes" | "no"); setSaved(false); }}>
+        <Select value={value} onValueChange={(v) => handleChange(v as "yes" | "no")} disabled={isPending}>
           <SelectTrigger className="w-56">
             <SelectValue />
           </SelectTrigger>
@@ -71,16 +69,10 @@ export function ClientPortalCard({ clientPortalEnabled: initial }: ClientPortalC
           </SelectContent>
         </Select>
 
-        <ButtonBase
-          variant="blue"
-          buttonType="icon-text"
-          onClick={handleSave}
-          disabled={!isDirty || isPending}
-        >
-          {isPending ? "Saving…" : "Save"}
-        </ButtonBase>
-
-        {saved && !isDirty && (
+        {isPending && (
+          <span className="text-sm text-muted-foreground">Saving…</span>
+        )}
+        {saved && !isPending && (
           <div className="flex items-center gap-1.5 text-green-600">
             <CheckCircle className="size-4" />
             <span className="text-sm">Saved</span>

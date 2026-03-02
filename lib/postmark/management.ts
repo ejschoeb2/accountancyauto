@@ -178,10 +178,29 @@ export async function createOrgDomain(
 
   const data = await res.json();
 
+  // Postmark's correct field name for the pending DKIM TXT value is DKIMPendingTextValue
+  // (not DKIMPendingValue). We try all known variants and fall back to the active key's
+  // DKIMTextValue. If still empty, make a follow-up GET to fetch the full domain record.
+  // Use || not ?? — Postmark returns "" (empty string) for fields that don't apply,
+  // and ?? only skips null/undefined, so it would stop at "" and never reach the fallback.
+  let dkimHost = (data.DKIMPendingHost || data.DKIMTextHost || "") as string;
+  let dkimValue = (data.DKIMPendingTextValue || data.DKIMPendingValue || data.DKIMTextValue || "") as string;
+
+  if (!dkimValue) {
+    const detailRes = await fetch(`${POSTMARK_API_BASE}/domains/${data.ID}`, {
+      headers: accountHeaders(),
+    });
+    if (detailRes.ok) {
+      const detail = await detailRes.json();
+      dkimHost = (detail.DKIMPendingHost || detail.DKIMTextHost || dkimHost) as string;
+      dkimValue = (detail.DKIMPendingTextValue || detail.DKIMPendingValue || detail.DKIMTextValue || "") as string;
+    }
+  }
+
   return {
     domainId: data.ID as number,
-    dkimPendingHost: data.DKIMPendingHost as string,
-    dkimPendingValue: data.DKIMPendingValue as string,
+    dkimPendingHost: dkimHost,
+    dkimPendingValue: dkimValue,
     returnPathHost: `pm-bounces.${domain}`,
     returnPathCnameValue: (data.ReturnPathDomainCNAMEValue as string) ?? "pm.mtasv.net",
   };
@@ -215,8 +234,8 @@ async function findDomainByName(domain: string): Promise<CreateOrgDomainResult |
 
   return {
     domainId: d.ID as number,
-    dkimPendingHost: (d.DKIMPendingHost ?? d.DKIMTextHost ?? "") as string,
-    dkimPendingValue: (d.DKIMPendingValue ?? d.DKIMTextValue ?? "") as string,
+    dkimPendingHost: (d.DKIMPendingHost || d.DKIMTextHost || "") as string,
+    dkimPendingValue: (d.DKIMPendingTextValue || d.DKIMPendingValue || d.DKIMTextValue || "") as string,
     returnPathHost: `pm-bounces.${domain}`,
     returnPathCnameValue: (d.ReturnPathDomainCNAMEValue ?? "pm.mtasv.net") as string,
   };

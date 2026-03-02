@@ -418,7 +418,7 @@ export async function previewQueuedEmail(
     }
 
     // Fetch org name for accountant_name
-    let accountantName = 'PhaseTwo';
+    let accountantName = 'Prompt';
     if (reminder.org_id) {
       const { data: org } = await supabase
         .from('organisations')

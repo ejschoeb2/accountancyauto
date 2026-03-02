@@ -106,8 +106,8 @@ interface SendReminderEmailParams {
 interface SendRichEmailParams {
   to: string;
   subject: string;
-  html: string;  // Pre-rendered HTML from renderTipTapEmail
-  text: string;  // Plain text fallback from renderTipTapEmail
+  html?: string;  // Pre-rendered HTML from renderTipTapEmail (omit for plain text only)
+  text: string;  // Plain text body
   clientId?: string;  // Optional: for List-Unsubscribe header
   orgPostmarkToken?: string | null;  // Optional: use org's Postmark token instead of env var
 }
@@ -223,7 +223,7 @@ export async function sendRichEmail(
       To: params.to,
       ReplyTo: emailFrom.replyTo,
       Subject: params.subject,
-      HtmlBody: params.html,
+      ...(params.html ? { HtmlBody: params.html } : {}),
       TextBody: params.text,
       MessageStream: 'outbound',
       TrackOpens: false,

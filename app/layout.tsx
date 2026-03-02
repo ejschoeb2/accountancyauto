@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PhaseTwo",
+  title: "Prompt",
   description: "Client reminder system",
 };
 
