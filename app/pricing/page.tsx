@@ -11,9 +11,9 @@ export default function PricingPage() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleSelectTier(tierKey: string) {
-    // Free → redirect to wizard
+    // Free → redirect to signup
     if (tierKey === "free") {
-      window.location.href = "/setup/wizard";
+      window.location.href = "/signup";
       return;
     }
     // Enterprise → mailto (handled by default href)

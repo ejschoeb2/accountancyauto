@@ -1,5 +1,25 @@
 import { z } from "zod";
 
+const MONTH_NAMES: Record<string, string> = {
+  jan: "01", january: "01",
+  feb: "02", february: "02",
+  mar: "03", march: "03",
+  apr: "04", april: "04",
+  may: "05",
+  jun: "06", june: "06",
+  jul: "07", july: "07",
+  aug: "08", august: "08",
+  sep: "09", september: "09",
+  oct: "10", october: "10",
+  nov: "11", november: "11",
+  dec: "12", december: "12",
+};
+
+function expandYear(yy: string): string {
+  const n = parseInt(yy, 10);
+  return n < 50 ? `20${yy.padStart(2, "0")}` : `19${yy.padStart(2, "0")}`;
+}
+
 /**
  * Parse various date formats and convert to YYYY-MM-DD
  */
@@ -13,26 +33,47 @@ function parseFlexibleDate(dateStr: string): string | undefined {
     return trimmed;
   }
 
-  // DD/MM/YYYY or DD-MM-YYYY
-  const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (ddmmyyyyMatch) {
-    const [, day, month, year] = ddmmyyyyMatch;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
-
-  // MM/DD/YYYY or MM-DD-YYYY (common in US)
-  const mmddyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (mmddyyyyMatch) {
-    const [, month, day, year] = mmddyyyyMatch;
-    // Ambiguous - assume DD/MM/YYYY for UK context (Peninsula is UK-based)
+  // DD/MM/YYYY or DD-MM-YYYY (4-digit year, UK-first assumption)
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
 
   // YYYY/MM/DD or YYYY.MM.DD
-  const yyyymmddMatch = trimmed.match(/^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/);
-  if (yyyymmddMatch) {
-    const [, year, month, day] = yyyymmddMatch;
+  const yyyymmdd = trimmed.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$/);
+  if (yyyymmdd) {
+    const [, year, month, day] = yyyymmdd;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  // DD/MM/YY or DD-MM-YY (2-digit year)
+  const ddmmyy = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})$/);
+  if (ddmmyy) {
+    const [, day, month, yy] = ddmmyy;
+    return `${expandYear(yy)}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  // "31 March 2026", "31 Mar 2026", "31-Mar-2026", "31/Mar/2026"
+  const dayMonthYear = trimmed.match(/^(\d{1,2})[\s\-/]([A-Za-z]+)[\s\-/](\d{2,4})$/);
+  if (dayMonthYear) {
+    const [, day, monthStr, yearStr] = dayMonthYear;
+    const month = MONTH_NAMES[monthStr.toLowerCase()];
+    if (month) {
+      const year = yearStr.length === 2 ? expandYear(yearStr) : yearStr;
+      return `${year}-${month}-${day.padStart(2, "0")}`;
+    }
+  }
+
+  // "March 31 2026", "March 31, 2026", "Mar 31 2026"
+  const monthDayYear = trimmed.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{2,4})$/);
+  if (monthDayYear) {
+    const [, monthStr, day, yearStr] = monthDayYear;
+    const month = MONTH_NAMES[monthStr.toLowerCase()];
+    if (month) {
+      const year = yearStr.length === 2 ? expandYear(yearStr) : yearStr;
+      return `${year}-${month}-${day.padStart(2, "0")}`;
+    }
   }
 
   return undefined;
@@ -50,7 +91,7 @@ export const csvRowSchema = z.object({
     .transform((val) => (val === "" || val === undefined ? undefined : val)),
   client_type: z
     .union([
-      z.enum(["Limited Company", "Sole Trader", "Partnership", "LLP"]),
+      z.enum(["Limited Company", "Sole Trader", "Partnership", "LLP", "Individual"]),
       z.literal(""),
     ])
     .optional()

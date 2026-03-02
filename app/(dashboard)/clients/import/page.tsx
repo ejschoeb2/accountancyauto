@@ -894,6 +894,7 @@ export default function ClientImportPage() {
                                     label: "Partnership",
                                   },
                                   { value: "LLP", label: "LLP" },
+                                  { value: "Individual", label: "Individual" },
                                 ]}
                                 isEditMode
                               />
@@ -1123,6 +1124,7 @@ export default function ClientImportPage() {
                                   Partnership
                                 </SelectItem>
                                 <SelectItem value="LLP">LLP</SelectItem>
+                                <SelectItem value="Individual">Individual</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

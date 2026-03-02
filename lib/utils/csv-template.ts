@@ -15,7 +15,7 @@ export const CSV_COLUMNS = [
   {
     name: "client_type",
     required: false,
-    description: "Limited Company, Sole Trader, Partnership, or LLP",
+    description: "Limited Company, Sole Trader, Partnership, LLP, or Individual",
   },
   {
     name: "year_end_date",
@@ -30,7 +30,7 @@ export const CSV_COLUMNS = [
   {
     name: "vat_stagger_group",
     required: false,
-    description: "1 (Mar/Jun/Sep/Dec), 2 (Jan/Apr/Jul/Oct), or 3 (Feb/May/Aug/Nov)",
+    description: "HMRC VAT stagger: 1 = quarters end Mar/Jun/Sep/Dec · 2 = quarters end Jan/Apr/Jul/Oct · 3 = quarters end Feb/May/Aug/Nov",
   },
   {
     name: "vat_scheme",
@@ -89,20 +89,27 @@ export function generateCsvTemplate(): string {
 export function generateCsvTemplateWithComments(): string {
   const template = generateCsvTemplate();
   const comments = [
-    "# Client Metadata Import Template",
+    "# Prompt - Client Import Template",
     "#",
     "# Instructions:",
-    "# 1. Required column: company_name (must match existing client names exactly)",
-    "# 2. Optional columns: primary_email, client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme",
-    "# 3. Dates must be in YYYY-MM-DD format",
-    "# 4. Boolean values can be: Yes/No, yes/no, TRUE/FALSE, true/false",
-    "# 5. Empty optional fields will not overwrite existing data",
+    "# 1. Required: company_name — must match client names exactly (case-insensitive)",
+    "# 2. All other columns are optional — leave blank to skip that field",
+    "# 3. Dates accepted in any of: DD/MM/YYYY, DD/MM/YY, YYYY-MM-DD, '31 March 2026', '31 Mar 2026'",
+    "# 4. Yes/No fields accept: Yes, No, yes, no, TRUE, FALSE, true, false",
     "#",
-    "# Valid values:",
-    "# - client_type: Limited Company, Sole Trader, Partnership, LLP",
-    "# - vat_stagger_group: 1 (Mar/Jun/Sep/Dec), 2 (Jan/Apr/Jul/Oct), 3 (Feb/May/Aug/Nov)",
-    "# - vat_scheme: Standard, Flat Rate, Cash Accounting, Annual Accounting",
+    "# client_type values:",
+    "#   Limited Company | Sole Trader | Partnership | LLP | Individual",
     "#",
+    "# vat_stagger_group — which HMRC VAT stagger group the client is in:",
+    "#   1 = VAT quarters end in March, June, September, December",
+    "#   2 = VAT quarters end in January, April, July, October",
+    "#   3 = VAT quarters end in February, May, August, November",
+    "#   (Return and payment due 1 month + 7 days after each quarter end)",
+    "#",
+    "# vat_scheme values:",
+    "#   Standard | Flat Rate | Cash Accounting | Annual Accounting",
+    "#",
+    "# --- DATA ROWS BELOW THIS LINE ---",
   ].join("\n");
 
   return comments + "\n" + template;

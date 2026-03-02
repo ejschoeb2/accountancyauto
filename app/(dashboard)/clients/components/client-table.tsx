@@ -110,6 +110,7 @@ const CLIENT_TYPE_OPTIONS = [
   { value: "Sole Trader", label: "Sole Trader" },
   { value: "Partnership", label: "Partnership" },
   { value: "LLP", label: "LLP" },
+  { value: "Individual", label: "Individual" },
 ];
 
 // VAT stagger group options
@@ -198,17 +199,24 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
     price: string;
     limitLabel: string;
   } | null {
-    if (currentLimit <= 25)
+    if (currentLimit <= 20)
+      return { tier: "solo", name: "Solo", price: "£19", limitLabel: "50 clients" };
+    if (currentLimit <= 50)
       return { tier: "starter", name: "Starter", price: "£39", limitLabel: "100 clients" };
     if (currentLimit <= 100)
-      return { tier: "practice", name: "Practice", price: "£89", limitLabel: "Unlimited clients" };
+      return { tier: "practice", name: "Practice", price: "£69", limitLabel: "200 clients" };
+    if (currentLimit <= 200)
+      return { tier: "firm", name: "Firm", price: "£109", limitLabel: "400 clients" };
     return null;
   }
 
   function getCurrentTierName(currentLimit: number): string {
-    if (currentLimit <= 25) return "Free";
+    if (currentLimit <= 20) return "Free";
+    if (currentLimit <= 50) return "Solo";
     if (currentLimit <= 100) return "Starter";
-    return "Practice";
+    if (currentLimit <= 200) return "Practice";
+    if (currentLimit <= 400) return "Firm";
+    return "Enterprise";
   }
 
   const handleUpgradeClick = async () => {

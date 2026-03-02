@@ -5,6 +5,7 @@ export const clientTypeSchema = z.enum([
   "Sole Trader",
   "Partnership",
   "LLP",
+  "Individual",
 ]);
 
 // ISO date validation (YYYY-MM-DD)

@@ -5,7 +5,6 @@ import { stripe } from "@/lib/stripe/client";
 import {
   getPlanByTier,
   PAID_PLAN_TIERS,
-  PRACTICE_OVERAGE_PRICE_ID,
   type PlanTier,
 } from "@/lib/stripe/plans";
 
@@ -107,17 +106,9 @@ export async function POST(request: NextRequest) {
 
     const existingCustomerId = org.stripe_customer_id;
 
-    // Build line items — Practice tier adds a metered overage component
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
       { price: plan.priceId, quantity: 1 },
     ];
-
-    // Practice tier: attach metered overage price when configured
-    // Metered prices (usage_type: 'metered') must NOT have a quantity at checkout —
-    // usage is reported via Stripe Billing Meter events during the billing period.
-    if (planTier === "practice" && PRACTICE_OVERAGE_PRICE_ID) {
-      lineItems.push({ price: PRACTICE_OVERAGE_PRICE_ID });
-    }
 
     // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({

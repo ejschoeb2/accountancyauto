@@ -31,7 +31,7 @@ import { SendEmailModal } from '../components/send-email-modal';
 import { toast } from 'sonner';
 import type { Client } from '@/app/actions/clients';
 
-type ClientType = 'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP';
+type ClientType = 'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP' | 'Individual';
 type VATScheme = 'Standard' | 'Flat Rate' | 'Cash Accounting';
 
 export default function ClientPage() {
@@ -241,31 +241,36 @@ export default function ClientPage() {
                 placeholder="+44 20 1234 5678"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="year_end_date">Year-End Date</Label>
-              <Input
-                id="year_end_date"
-                type="date"
-                value={formData.year_end_date || ''}
-                onChange={(e) => setFormData({ ...formData, year_end_date: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="vat_registered">VAT Registered</Label>
-              <Select
-                value={formData.vat_registered ? 'true' : 'false'}
-                onValueChange={(value) => setFormData({ ...formData, vat_registered: value === 'true' })}
-              >
-                <SelectTrigger id="vat_registered">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Yes</SelectItem>
-                  <SelectItem value="false">No</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {formData.vat_registered && (
+            {/* Year-End Date and VAT — not applicable for Individual clients */}
+            {formData.client_type !== 'Individual' && (
+              <div className="space-y-2">
+                <Label htmlFor="year_end_date">Year-End Date</Label>
+                <Input
+                  id="year_end_date"
+                  type="date"
+                  value={formData.year_end_date || ''}
+                  onChange={(e) => setFormData({ ...formData, year_end_date: e.target.value })}
+                />
+              </div>
+            )}
+            {formData.client_type !== 'Individual' && (
+              <div className="space-y-2">
+                <Label htmlFor="vat_registered">VAT Registered</Label>
+                <Select
+                  value={formData.vat_registered ? 'true' : 'false'}
+                  onValueChange={(value) => setFormData({ ...formData, vat_registered: value === 'true' })}
+                >
+                  <SelectTrigger id="vat_registered">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Yes</SelectItem>
+                    <SelectItem value="false">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {formData.client_type !== 'Individual' && formData.vat_registered && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="vat_stagger_group">VAT Stagger Group</Label>
@@ -320,21 +325,25 @@ export default function ClientPage() {
                 )}
               </dd>
             </div>
-            <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Year-End Date</dt>
-              <dd className="text-sm font-medium">
-                {client.year_end_date || (
-                  <span className="text-muted-foreground">Not set</span>
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Registered</dt>
-              <dd className="text-sm font-medium">
-                {client.vat_registered ? 'Yes' : 'No'}
-              </dd>
-            </div>
-            {client.vat_registered && (
+            {client.client_type !== 'Individual' && (
+              <div>
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Year-End Date</dt>
+                <dd className="text-sm font-medium">
+                  {client.year_end_date || (
+                    <span className="text-muted-foreground">Not set</span>
+                  )}
+                </dd>
+              </div>
+            )}
+            {client.client_type !== 'Individual' && (
+              <div>
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Registered</dt>
+                <dd className="text-sm font-medium">
+                  {client.vat_registered ? 'Yes' : 'No'}
+                </dd>
+              </div>
+            )}
+            {client.client_type !== 'Individual' && client.vat_registered && (
               <>
                 <div>
                   <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Stagger Group</dt>

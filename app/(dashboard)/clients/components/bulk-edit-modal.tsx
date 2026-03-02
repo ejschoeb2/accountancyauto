@@ -192,6 +192,7 @@ export function BulkEditModal({
                     <SelectItem value="Sole Trader">Sole Trader</SelectItem>
                     <SelectItem value="Partnership">Partnership</SelectItem>
                     <SelectItem value="LLP">LLP</SelectItem>
+                    <SelectItem value="Individual">Individual (Personal Tax)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

@@ -37,6 +37,7 @@ const CLIENT_TYPE_OPTIONS = [
   { value: "Sole Trader", label: "Sole Trader" },
   { value: "Partnership", label: "Partnership" },
   { value: "LLP", label: "LLP" },
+  { value: "Individual", label: "Individual (Personal Tax)" },
 ];
 
 const VAT_SCHEME_OPTIONS = [
@@ -275,38 +276,42 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
             </Select>
           </div>
 
-          {/* Year End Date */}
-          <div className="space-y-1.5">
-            <label htmlFor="year-end-date" className={labelClass}>
-              Year End Date
-            </label>
-            <Input
-              id="year-end-date"
-              type="date"
-              value={yearEndDate}
-              onChange={(e) => setYearEndDate(e.target.value)}
-            />
-          </div>
+          {/* Year End Date — not applicable for Individual clients */}
+          {clientType !== "Individual" && (
+            <div className="space-y-1.5">
+              <label htmlFor="year-end-date" className={labelClass}>
+                Year End Date
+              </label>
+              <Input
+                id="year-end-date"
+                type="date"
+                value={yearEndDate}
+                onChange={(e) => setYearEndDate(e.target.value)}
+              />
+            </div>
+          )}
 
-          {/* VAT Registered */}
-          <div className="space-y-1.5">
-            <label className={labelClass}>VAT Registered</label>
-            <Select value={vatRegistered} onValueChange={setVatRegistered}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select VAT status..." />
-              </SelectTrigger>
-              <SelectContent>
-                {VAT_REGISTERED_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* VAT fields — not applicable for Individual clients */}
+          {clientType !== "Individual" && (
+            <div className="space-y-1.5">
+              <label className={labelClass}>VAT Registered</label>
+              <Select value={vatRegistered} onValueChange={setVatRegistered}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select VAT status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {VAT_REGISTERED_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          {/* VAT fields - only shown when VAT registered */}
-          {vatRegistered === "yes" && (
+          {/* VAT sub-fields - only shown when VAT registered and not Individual */}
+          {clientType !== "Individual" && vatRegistered === "yes" && (
             <>
               {/* VAT Stagger Group */}
               <div className="space-y-1.5">

@@ -33,6 +33,51 @@ function formatHour(hour: number): string {
   return `${hour - 12}:00 PM`;
 }
 
+const PROVIDERS = [
+  { id: "godaddy",    label: "GoDaddy" },
+  { id: "ionos",     label: "IONOS / 1&1" },
+  { id: "123reg",    label: "123-reg" },
+  { id: "namecheap", label: "Namecheap" },
+  { id: "cloudflare",label: "Cloudflare" },
+  { id: "fasthosts", label: "Fasthosts" },
+  { id: "squarespace",label: "Squarespace" },
+  { id: "porkbun",   label: "Porkbun" },
+  { id: "other",     label: "Other" },
+];
+
+function getProviderSteps(id: string): string[] {
+  const steps: Record<string, string[]> = {
+    godaddy:    ["Find your domain under My Products on godaddy.com and open its DNS settings.",
+                 "Click Add New Record → Type: TXT, fill in Host and TXT Value from the table below, TTL: 1 Hour → Save.",
+                 "Click Add New Record → Type: CNAME, fill in Host and Points to from the table below, TTL: 1 Hour → Save."],
+    ionos:      ["Go to Domains & SSL on ionos.co.uk, click the gear icon next to your domain → DNS.",
+                 "Click Add Record → Type: TXT, fill in Subdomain and Value from the table below, TTL: 1 hour → Save.",
+                 "Click Add Record → Type: CNAME, fill in Subdomain and Alias from the table below, TTL: 1 hour → Save."],
+    "123reg":   ["Go to Control Panel on 123-reg.co.uk → Manage next to your domain → Manage DNS → Advanced DNS.",
+                 "Click Add new entry → Type: TXT, fill in Subdomain and Destination from the table below → Add new entry.",
+                 "Click Add new entry → Type: CNAME, fill in Subdomain and Destination from the table below → Add new entry → Update DNS."],
+    namecheap:  ["Go to Domain List on namecheap.com → Manage next to your domain → Advanced DNS tab.",
+                 "Click Add New Record → Type: TXT Record, fill in Host and Value from the table below → save (green tick).",
+                 "Click Add New Record → Type: CNAME Record, fill in Host and Value from the table below → save (green tick)."],
+    cloudflare: ["Click your domain on cloudflare.com → DNS → Records.",
+                 "Click Add record → Type: TXT, fill in Name and Content from the table below, TTL: Auto → Save.",
+                 "Click Add record → Type: CNAME, fill in Name and Target from the table below, set Proxy status to DNS only (grey cloud, not orange) → Save."],
+    fasthosts:  ["Go to Manage Domains on fasthosts.co.uk → click your domain → DNS Management.",
+                 "Add a TXT record, fill in Host and Value from the table below → Save.",
+                 "Add a CNAME record, fill in Host and Target from the table below → Save."],
+    squarespace:["Click your domain on domains.squarespace.com → DNS → DNS Records.",
+                 "Click Add Record → Type: TXT, fill in Host and Data from the table below → Add.",
+                 "Click Add Record → Type: CNAME, fill in Host and Data from the table below → Add."],
+    porkbun:    ["Click Manage next to your domain on porkbun.com → DNS records.",
+                 "Add a TXT record → fill in Subdomain and Answer from the table below → Add.",
+                 "Add a CNAME record → fill in Subdomain and Answer from the table below → Add."],
+    other:      ["Log in to your domain registrar and find DNS Management for your domain.",
+                 "Add a TXT record using the Host and Value from the table below → Save.",
+                 "Add a CNAME record using the Host and Value from the table below → Save."],
+  };
+  return steps[id] ?? steps.other;
+}
+
 interface EmailSetupStepProps {
   onComplete: () => void;
   onBack?: () => void;
@@ -97,6 +142,7 @@ export function EmailSetupStep({
   // ── Send settings state ─────────────────────────────────────────────────
   const [sendHour, setSendHour] = useState(String(defaultSendHour));
   const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(defaultInboundMode);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -104,7 +150,7 @@ export function EmailSetupStep({
   // otherwise fall back to the org domain or the stored default.
   const senderDomain = dnsData
     ? domain
-    : (orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "phasetwo.uk");
+    : (orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "prompt.accountants");
 
   // ── Handlers ────────────────────────────────────────────────────────────
 
@@ -207,24 +253,26 @@ export function EmailSetupStep({
   // ── "input" state ──────────────────────────────────────────────────────────
   if (state === "input") {
     return (
-      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
+      <div className="max-w-2xl mx-auto space-y-4 min-h-[520px]">
         <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight">Set up email sending</h2>
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-bold tracking-tight">Set up email sending from your domain</h2>
             <p className="text-sm text-muted-foreground">
-              Prompt will configure Postmark to send emails from your domain.
-              You&apos;ll need to add two DNS records.
+              This lets Prompt send reminder emails that appear to come from your own firm — for example,{" "}
+              <span className="font-mono text-foreground">reminders@yourfirm.co.uk</span>. Your clients will
+              recognise the sender and be more likely to open the email.
             </p>
           </div>
 
-          {/* Warning above the input */}
+          {/* Warning */}
           <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
             <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-amber-600">Not recommended to skip this step.</p>
+              <p className="text-sm font-medium text-amber-600">Strongly recommended — takes under 5 minutes</p>
               <p className="text-sm text-amber-600/80">
-                Reminders will send from the Prompt platform domain, which clients may not recognise.
-                You can configure your own domain later in Settings.
+                If you skip, reminders will send from <span className="font-mono">noreply@prompt.accountants</span>.
+                Clients who don&apos;t recognise the sender are more likely to ignore the email or mark it as spam.
+                You can set up your own domain at any time in Settings.
               </p>
             </div>
           </div>
@@ -248,8 +296,8 @@ export function EmailSetupStep({
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
-              Enter your full domain (e.g. <span className="font-mono">peninsula-accounting.co.uk</span>).
-              Reminder emails will be sent from this domain.
+              Enter just the domain — no <span className="font-mono">https://</span> or <span className="font-mono">www</span>.
+              For example: <span className="font-mono">peninsula-accounting.co.uk</span>
             </p>
           </div>
 
@@ -261,26 +309,28 @@ export function EmailSetupStep({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2">
-          {onBack && (
-            <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
-              <ArrowLeft className="size-4" />
-              Back
-            </ButtonBase>
-          )}
+        <div className="flex items-center justify-between gap-2">
           <ButtonBase variant="destructive" buttonType="icon-text" onClick={handleSkipDomain}>
             <SkipForward className="size-4" />
-            Skip
+            Skip step
           </ButtonBase>
-          <ButtonBase
-            variant="blue"
-            buttonType="icon-text"
-            onClick={handleSetup}
-            disabled={!domain.trim()}
-          >
-            Set Up Email
-            <ArrowRight className="size-4" />
-          </ButtonBase>
+          <div className="flex items-center gap-2">
+            {onBack && (
+              <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
+                <ArrowLeft className="size-4" />
+                Back
+              </ButtonBase>
+            )}
+            <ButtonBase
+              variant="blue"
+              buttonType="icon-text"
+              onClick={handleSetup}
+              disabled={!domain.trim()}
+            >
+              Set Up Email
+              <ArrowRight className="size-4" />
+            </ButtonBase>
+          </div>
         </div>
       </div>
     );
@@ -308,101 +358,132 @@ export function EmailSetupStep({
       verifyState.dkimVerified === true && verifyState.returnPathVerified === true;
 
     const rows: { type: string; host: string; value: string; field: string }[] = [
-      {
-        type: "TXT",
-        host: dnsData.dkimPendingHost,
-        value: dnsData.dkimPendingValue,
-        field: "dkim",
-      },
-      {
-        type: "CNAME",
-        host: dnsData.returnPathHost,
-        value: dnsData.returnPathCnameValue,
-        field: "cname",
-      },
+      { type: "TXT",   host: dnsData.dkimPendingHost, value: dnsData.dkimPendingValue,    field: "dkim" },
+      { type: "CNAME", host: dnsData.returnPathHost,  value: dnsData.returnPathCnameValue, field: "cname" },
     ];
 
+    const providerSteps = selectedProvider ? getProviderSteps(selectedProvider) : null;
+    const providerLabel = PROVIDERS.find((p) => p.id === selectedProvider)?.label;
+
     return (
-      <div className="max-w-lg mx-auto space-y-4 min-h-[520px]">
+      <div className="max-w-4xl mx-auto space-y-4 min-h-[520px]">
         <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
           <div className="space-y-1">
-            <h2 className="text-2xl font-bold tracking-tight">Add DNS records</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Add Domain Name System (DNS) Records</h2>
             <p className="text-sm text-muted-foreground">
-              Add these two records to your DNS provider for{" "}
-              <span className="font-medium">{domain}</span>.
+              Who hosts your domain? Select your provider for step-by-step guidance.
             </p>
           </div>
 
-          {/* DNS Records Table */}
-          <div className="rounded-xl border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40">
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground w-16">Type</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Host</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Value</th>
-                    <th className="w-10 px-4 py-2.5" />
-                    <th className="w-20 px-4 py-2.5" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => {
-                    const isCopied = copiedField === row.field;
-                    const isVerifiedField =
-                      row.field === "dkim"
-                        ? verifyState.dkimVerified
-                        : verifyState.returnPathVerified;
+          {/* Provider picker */}
+          <div className="flex flex-wrap gap-2">
+            {PROVIDERS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedProvider(p.id)}
+                className={`inline-flex items-center justify-center rounded-lg transition-all duration-200 active:scale-[0.97] shrink-0 px-4 py-2 h-10 text-sm font-medium ${
+                  selectedProvider === p.id
+                    ? "bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 hover:text-blue-500"
+                    : "bg-status-neutral/10 hover:bg-status-neutral/20 text-status-neutral hover:text-status-neutral"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
 
-                    return (
-                      <tr key={row.field} className="border-b last:border-0">
-                        <td className="px-4 py-3 font-mono text-xs">
-                          <span className="bg-muted px-1.5 py-0.5 rounded">{row.type}</span>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs break-all">
-                          {row.host}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs max-w-[120px]">
-                          <span className="block truncate" title={row.value}>
-                            {row.value}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleCopy(row.field, row.value)}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            title="Copy value"
-                          >
-                            {isCopied ? (
-                              <Check className="size-4 text-green-600" />
-                            ) : (
-                              <Copy className="size-4" />
+          {/* Step-by-step instructions */}
+          {providerSteps && (
+            <Card className="p-4 space-y-0">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">How to add records in {providerLabel}</p>
+              <ol className="space-y-2">
+                {providerSteps.map((step, i) => (
+                  <li key={i} className="flex gap-2 text-sm">
+                    <span className="font-semibold shrink-0">{i + 1}.</span>
+                    <span className="leading-relaxed">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          )}
+
+          {/* DNS Records Table */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Your two DNS records
+            </p>
+            <div className="rounded-xl border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40">
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-16">Type</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Host</th>
+                      <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value</th>
+                      <th className="w-10 px-4 py-2.5" />
+                      <th className="w-20 px-4 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row) => {
+                      const isCopied = copiedField === row.field;
+                      const isVerifiedField =
+                        row.field === "dkim" ? verifyState.dkimVerified : verifyState.returnPathVerified;
+
+                      return (
+                        <tr key={row.field} className="border-b last:border-0">
+                          <td className="px-4 py-3 font-mono text-xs">
+                            <span className="bg-muted px-1.5 py-0.5 rounded">{row.type}</span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs break-all">{row.host}</td>
+                          <td className="px-4 py-3 font-mono text-xs max-w-[120px]">
+                            <span className="block truncate" title={row.value}>{row.value}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleCopy(row.field, row.value)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title="Copy value"
+                            >
+                              {isCopied ? <Check className="size-4 text-green-600" /> : <Copy className="size-4" />}
+                            </button>
+                          </td>
+                          <td className="px-4 py-3">
+                            {isVerifiedField === true && (
+                              <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
+                                <Check className="size-3.5" /> Verified
+                              </span>
                             )}
-                          </button>
-                        </td>
-                        <td className="px-4 py-3">
-                          {isVerifiedField === true && (
-                            <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium">
-                              <Check className="size-3.5" />
-                              Verified
-                            </span>
-                          )}
-                          {isVerifiedField === false && (
-                            <span className="text-xs text-muted-foreground">Pending</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                            {isVerifiedField === false && (
+                              <span className="text-xs text-muted-foreground">Pending</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            DNS changes can take up to 48 hours to propagate. You can check
-            verification status in Settings at any time.
-          </p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              Records can take up to 48 hours to propagate. You can re-check at any time in Settings.
+            </p>
+            <ButtonBase
+              onClick={handleCheckDns}
+              disabled={isVerifying}
+              buttonType="icon-text"
+              variant="green"
+            >
+              {isVerifying ? (
+                <><Loader2 className="size-4 animate-spin" /> Checking...</>
+              ) : (
+                <><RefreshCw className="size-4" /> Verify Records</>
+              )}
+            </ButtonBase>
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-2">
@@ -414,24 +495,6 @@ export function EmailSetupStep({
           >
             <ArrowLeft className="size-4" />
             Back
-          </ButtonBase>
-          <ButtonBase
-            onClick={handleCheckDns}
-            disabled={isVerifying}
-            buttonType="icon-text"
-            variant="green"
-          >
-            {isVerifying ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Checking...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="size-4" />
-                Check DNS
-              </>
-            )}
           </ButtonBase>
           <ButtonBase
             variant="blue"

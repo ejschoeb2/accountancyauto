@@ -17,7 +17,7 @@ export interface FilingType {
   id: FilingTypeId;
   name: string;
   description: string | null;
-  applicable_client_types: Array<'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP'>;
+  applicable_client_types: Array<'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP' | 'Individual'>;
   created_at: string;
   document_requirements?: Array<{ label: string; is_mandatory: boolean }>;
 }

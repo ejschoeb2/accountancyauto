@@ -144,10 +144,10 @@ export const ComparisonSection = () => {
           className="mt-10 flex justify-center"
         >
           <a
-            href="/setup/wizard"
+            href="/signup"
             className="group inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold bg-violet-600 text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
           >
-            Start free — no credit card needed
+            Start for free — no credit card needed
             <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
           </a>
         </motion.div>

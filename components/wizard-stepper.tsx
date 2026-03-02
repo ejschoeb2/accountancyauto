@@ -6,24 +6,33 @@ import { cn } from "@/lib/utils";
 interface WizardStepperProps {
   steps: { label: string }[];
   currentStep: number; // 0-indexed
+  onStepClick?: (index: number) => void; // called when a completed step is clicked
 }
 
-export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
+export function WizardStepper({ steps, currentStep, onStepClick }: WizardStepperProps) {
   return (
     <div className="flex items-start justify-center w-full">
       {steps.map((step, index) => {
         const isCompleted = index < currentStep;
         const isCurrent = index === currentStep;
         const isFuture = index > currentStep;
+        const isClickable = isCompleted && !!onStepClick;
 
         return (
           <div key={index} className="flex items-start">
             {/* Step indicator + label */}
-            <div className="flex flex-col items-center gap-1.5">
+            <div
+              className={cn(
+                "flex flex-col items-center gap-1.5",
+                isClickable && "cursor-pointer group"
+              )}
+              onClick={() => isClickable && onStepClick(index)}
+            >
               <div
                 className={cn(
                   "flex items-center justify-center size-9 rounded-lg text-xs font-semibold transition-all duration-200",
                   isCompleted && "bg-green-500/10 text-green-600",
+                  isCompleted && isClickable && "group-hover:bg-green-500/20",
                   isCurrent && "bg-violet-500/10 text-violet-500",
                   isFuture && "bg-muted text-muted-foreground"
                 )}
@@ -34,6 +43,7 @@ export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
                 className={cn(
                   "text-[10px] font-semibold uppercase tracking-wide whitespace-nowrap",
                   isCompleted && "text-green-600",
+                  isCompleted && isClickable && "group-hover:underline",
                   isCurrent && "text-foreground",
                   isFuture && "text-muted-foreground"
                 )}

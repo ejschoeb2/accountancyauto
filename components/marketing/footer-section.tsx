@@ -49,7 +49,7 @@ export const FooterSection = () => {
             Ready to stop chasing?
           </h2>
           <a
-            href="/setup/wizard"
+            href="/signup"
             className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-8 py-4 text-lg font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
           >
             Get started

@@ -7,8 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   PLAN_TIERS,
   PAID_PLAN_TIERS,
-  PRACTICE_OVERAGE_THRESHOLD,
-  PRACTICE_OVERAGE_RATE_PENCE,
   type PlanTier,
 } from "@/lib/stripe/plans";
 
@@ -59,10 +57,10 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
         <p className="text-sm text-destructive">{error}</p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {PAID_PLAN_TIERS.map((tier) => {
           const plan = PLAN_TIERS[tier];
-          const isPopular = tier === "practice";
+          const isPopular = tier === "practice" || tier === "firm";
           const isLoading = loadingTier === tier;
 
           return (
@@ -87,11 +85,6 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
                     </span>
                     <span className="text-muted-foreground text-sm">/mo</span>
                   </div>
-                  {tier === "practice" && (
-                    <p className="text-xs text-muted-foreground">
-                      Base price. £{(PRACTICE_OVERAGE_RATE_PENCE / 100).toFixed(2)}/client above {PRACTICE_OVERAGE_THRESHOLD}.
-                    </p>
-                  )}
                 </div>
 
                 <div className="space-y-1.5 flex-1">

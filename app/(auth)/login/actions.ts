@@ -135,9 +135,15 @@ export async function signUp(email: string, password: string, inviteToken?: stri
   });
 
   if (error) {
-    if (error.message.toLowerCase().includes("already registered")) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("already registered")) {
       return {
         error: "An account with this email already exists. Please sign in.",
+      };
+    }
+    if (msg.includes("rate limit") || error.status === 429) {
+      return {
+        error: "Too many sign-up attempts. Please wait a few minutes and try again.",
       };
     }
     return { error: "Failed to create account. Please try again." };

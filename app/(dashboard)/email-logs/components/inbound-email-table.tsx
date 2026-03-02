@@ -57,6 +57,7 @@ const CLIENT_TYPE_OPTIONS = [
   { value: "Sole Trader", label: "Sole Trader" },
   { value: "Partnership", label: "Partnership" },
   { value: "LLP", label: "LLP" },
+  { value: "Individual", label: "Individual" },
 ];
 
 // Deadline type options (filing types)

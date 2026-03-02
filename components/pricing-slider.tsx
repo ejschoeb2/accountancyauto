@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 
 const SLIDER_MIN = 1;
-const SLIDER_MAX = 500;
+const SLIDER_MAX = 400;
 
 function sliderPct(value: number): number {
   return ((value - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)) * 100;
@@ -19,58 +19,63 @@ interface TierInfo {
   featured: boolean;
   isEnterprise: boolean;
   price: number | null;
-  overage?: { clients: number; rate: number };
   cta: string;
   ctaHref: string;
 }
 
 function getTier(clients: number): TierInfo {
-  if (clients <= 25) return {
-    key: "free", name: "Free", range: "Up to 25 clients",
+  if (clients <= 20) return {
+    key: "free", name: "Free", range: "Up to 20 clients",
     tagline: "Get started at no cost. Upgrade naturally when your practice grows.",
     featured: false, isEnterprise: false,
-    price: 0, cta: "Start Free", ctaHref: "/setup/wizard",
+    price: 0, cta: "Start Free", ctaHref: "/signup",
+  };
+  if (clients <= 50) return {
+    key: "solo", name: "Solo", range: "21 – 50 clients",
+    tagline: "For sole traders and bookkeepers managing a small client list.",
+    featured: false, isEnterprise: false,
+    price: 19, cta: "Get Started", ctaHref: "/signup",
   };
   if (clients <= 100) return {
-    key: "starter", name: "Starter", range: "26 – 100 clients",
+    key: "starter", name: "Starter", range: "51 – 100 clients",
     tagline: "For independent accountants and small practices.",
     featured: false, isEnterprise: false,
-    price: 39, cta: "Get Started", ctaHref: "/setup/wizard",
+    price: 39, cta: "Get Started", ctaHref: "/signup",
   };
-  if (clients < SLIDER_MAX) {
-    // Practice: 101-300 base, 301+ with overage
-    const overageClients = Math.max(0, clients - 300);
-    const hasOverage = overageClients > 0;
-    return {
-      key: "practice", name: "Practice", range: "101+ clients",
-      tagline: hasOverage
-        ? "Scales with your practice. No ceiling, no surprises."
-        : "For growing practices managing a wide range of deadlines.",
-      featured: !hasOverage, // Only featured when in base range (101-300)
-      isEnterprise: false,
-      price: hasOverage ? Math.round(89 + overageClients * 0.60) : 89,
-      overage: hasOverage ? { clients: overageClients, rate: 0.60 } : undefined,
-      cta: "Get Started", ctaHref: "/setup/wizard",
-    };
-  }
+  if (clients <= 200) return {
+    key: "practice", name: "Practice", range: "101 – 200 clients",
+    tagline: "For growing practices managing a wide range of deadlines.",
+    featured: true, isEnterprise: false,
+    price: 69, cta: "Get Started", ctaHref: "/signup",
+  };
+  if (clients < SLIDER_MAX) return {
+    key: "firm", name: "Firm", range: "201 – 400 clients",
+    tagline: "For established firms with a broad portfolio of clients.",
+    featured: false, isEnterprise: false,
+    price: 109, cta: "Get Started", ctaHref: "/signup",
+  };
   return {
-    key: "enterprise", name: "Enterprise", range: "500+ clients",
+    key: "enterprise", name: "Enterprise", range: "400+ clients",
     tagline: "For large firms with complex needs. Let's build a plan around you.",
     featured: false, isEnterprise: true,
     price: null, cta: "Get in Touch", ctaHref: "mailto:hello@phasetwo.uk",
   };
 }
 
-// Free zone = 0–5% of track (clients 1–25), rest is unified violet
+// Free zone = 0–5% of track (clients 1–20 out of 400), rest is unified violet
 const TRACK_SEGMENTS = [
   { from: 0,  to: 5,   cls: "bg-green-400"  },  // Free
-  { from: 5,  to: 100, cls: "bg-violet-600" },  // Starter → Practice → Enterprise
+  { from: 5,  to: 100, cls: "bg-violet-600" },  // Solo → Firm → Enterprise
 ];
 
+// Percentages calculated for range 1–400:
+//   pct(n) = (n-1)/(400-1)*100
+//   20→5%, 50→12%, 100→25%, 200→50%
 const TICK_MARKS = [
-  { pct: 5,  label: "25"  },
-  { pct: 20, label: "100" },
-  { pct: 60, label: "300" },
+  { pct: 5,  label: "20"  },
+  { pct: 12, label: "50"  },
+  { pct: 25, label: "100" },
+  { pct: 50, label: "200" },
 ];
 
 export interface PricingSliderProps {
@@ -185,7 +190,7 @@ export function PricingSlider({
 
           <AnimatePresence mode="wait">
           <motion.div
-            key={tier.key + (tier.overage ? "-overage" : "")}
+            key={tier.key}
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -14 }}
@@ -222,15 +227,6 @@ export function PricingSlider({
                 <span className="text-sm text-muted-foreground ml-1.5">/mo</span>
               </div>
             )}
-
-            {/* Practice overage breakdown */}
-            <div className="mb-4 min-h-[1.25rem]">
-              {tier.overage && (
-                <p className="text-xs text-muted-foreground">
-                  £89 base + {tier.overage.clients} × £0.60
-                </p>
-              )}
-            </div>
 
             <p className="text-sm font-semibold text-foreground/65 mb-3">
               {tier.range}
@@ -325,7 +321,7 @@ export function PricingSlider({
               {t.label}
             </span>
           ))}
-          <span className="absolute right-0 text-xs text-muted-foreground/40">500+</span>
+          <span className="absolute right-0 text-xs text-muted-foreground/40">400+</span>
         </div>
 
       </div>

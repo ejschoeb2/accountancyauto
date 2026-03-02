@@ -49,7 +49,7 @@ import {
   X,
   Download,
 } from "lucide-react";
-import { generateCsvTemplate, CSV_COLUMNS } from "@/lib/utils/csv-template";
+import { generateCsvTemplateWithComments, CSV_COLUMNS } from "@/lib/utils/csv-template";
 import {
   importClientMetadata,
   type CsvImportResult,
@@ -123,9 +123,12 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
   const [currentClientCount, setCurrentClientCount] = useState(0);
 
   // ── Scroll to top when entering edit-data (prevents viewport starting at bottom) ──
+  const reviewTopRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (stepState === "edit-data") {
-      window.scrollTo({ top: 0, behavior: "instant" });
+      requestAnimationFrame(() => {
+        reviewTopRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+      });
     }
   }, [stepState]);
 
@@ -344,7 +347,7 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
 
   // Download template
   const handleDownloadTemplate = useCallback(() => {
-    const csvContent = generateCsvTemplate();
+    const csvContent = generateCsvTemplateWithComments();
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -362,44 +365,73 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
 
     const trimmed = dateValue.trim();
 
+    const MONTH_MAP: Record<string, string> = {
+      jan: "01", january: "01", feb: "02", february: "02",
+      mar: "03", march: "03", apr: "04", april: "04",
+      may: "05", jun: "06", june: "06", jul: "07", july: "07",
+      aug: "08", august: "08", sep: "09", september: "09",
+      oct: "10", october: "10", nov: "11", november: "11",
+      dec: "12", december: "12",
+    };
+
+    const expandYear = (yy: string) => {
+      const n = parseInt(yy, 10);
+      return n < 50 ? `20${yy.padStart(2, "0")}` : `19${yy.padStart(2, "0")}`;
+    };
+
     // Already in YYYY-MM-DD format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-      return trimmed;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+
+    // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY (4-digit year, UK-first)
+    const ddmmyyyy = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+    if (ddmmyyyy) {
+      const [, d, m, y] = ddmmyyyy;
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
     }
 
-    // Handle DD/MM/YYYY or DD-MM-YYYY format
-    const ddmmyyyyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-    if (ddmmyyyyMatch) {
-      const [, day, month, year] = ddmmyyyyMatch;
-      const paddedDay = day.padStart(2, "0");
-      const paddedMonth = month.padStart(2, "0");
-      return `${year}-${paddedMonth}-${paddedDay}`;
+    // YYYY/MM/DD or YYYY.MM.DD
+    const yyyymmdd = trimmed.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$/);
+    if (yyyymmdd) {
+      const [, y, m, d] = yyyymmdd;
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
     }
 
-    // Handle Excel date serial number (days since 1900-01-01)
-    const serialNumber = parseFloat(trimmed);
-    if (!isNaN(serialNumber) && serialNumber > 0) {
-      // Excel epoch starts at 1900-01-01, but there's a leap year bug for 1900
-      const excelEpoch = new Date(1900, 0, 1);
-      const daysOffset = serialNumber > 59 ? serialNumber - 2 : serialNumber - 1; // Account for Excel 1900 leap year bug
-      const date = new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
+    // DD/MM/YY or DD-MM-YY (2-digit year, UK-first)
+    const ddmmyy = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})$/);
+    if (ddmmyy) {
+      const [, d, m, yy] = ddmmyy;
+      return `${expandYear(yy)}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
     }
 
-    // Try parsing as a general date string
-    try {
-      const parsed = new Date(trimmed);
-      if (!isNaN(parsed.getTime())) {
-        const year = parsed.getFullYear();
-        const month = String(parsed.getMonth() + 1).padStart(2, "0");
-        const day = String(parsed.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
+    // "31 March 2026", "31 Mar 2026", "31-Mar-2026", "31/Mar/2026"
+    const dayMonthYear = trimmed.match(/^(\d{1,2})[\s\-/]([A-Za-z]+)[\s\-/](\d{2,4})$/);
+    if (dayMonthYear) {
+      const [, d, monthStr, yearStr] = dayMonthYear;
+      const m = MONTH_MAP[monthStr.toLowerCase()];
+      if (m) {
+        const y = yearStr.length === 2 ? expandYear(yearStr) : yearStr;
+        return `${y}-${m}-${d.padStart(2, "0")}`;
       }
-    } catch {
-      // Fall through to return null
+    }
+
+    // "March 31, 2026", "March 31 2026", "Mar 31 2026"
+    const monthDayYear = trimmed.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{2,4})$/);
+    if (monthDayYear) {
+      const [, monthStr, d, yearStr] = monthDayYear;
+      const m = MONTH_MAP[monthStr.toLowerCase()];
+      if (m) {
+        const y = yearStr.length === 2 ? expandYear(yearStr) : yearStr;
+        return `${y}-${m}-${d.padStart(2, "0")}`;
+      }
+    }
+
+    // Excel date serial number (days since 1900-01-01)
+    const serialNumber = parseFloat(trimmed);
+    if (!isNaN(serialNumber) && serialNumber > 1000 && /^\d+(\.\d+)?$/.test(trimmed)) {
+      const excelEpoch = new Date(1900, 0, 1);
+      const daysOffset = serialNumber > 59 ? serialNumber - 2 : serialNumber - 1;
+      const date = new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     }
 
     return null;
@@ -891,7 +923,7 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
 
       {stepState === "edit-data" && (
         <>
-          <div className="flex items-start justify-between gap-4">
+          <div ref={reviewTopRef} className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold">Review &amp; Edit Import Data</h2>
               <p className="text-sm text-muted-foreground">
@@ -936,24 +968,29 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
                 )}
 
                 {overLimitCount > 0 && (
-                  <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
-                    <AlertCircle className="size-4 mt-0.5 shrink-0" />
-                    <span>
-                      Your plan allows <strong>{clientLimit}</strong> clients ({currentClientCount} existing).
-                      Only the first <strong>{importableCount}</strong> of {editableRows.length} rows will be imported.
-                      The <strong>{overLimitCount} highlighted row{overLimitCount !== 1 ? "s" : ""}</strong> below will be skipped.
-                      Upgrade your plan to import all clients.
-                    </span>
+                  <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-xl">
+                    <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-red-500">
+                        Plan limit reached — {overLimitCount} row{overLimitCount !== 1 ? "s" : ""} will not be imported
+                      </p>
+                      <p className="text-sm text-red-500/80">
+                        Your plan allows {clientLimit} clients ({currentClientCount} already imported, {importableCount} slot{importableCount !== 1 ? "s" : ""} remaining).
+                        The last {overLimitCount} {overLimitCount === 1 ? "row" : "rows"} in the table are highlighted in red and will be skipped.
+                        Delete rows or upgrade your plan to import all clients.
+                      </p>
+                    </div>
                   </div>
                 )}
 
                 {incompleteRows.length > 0 && (
-                  <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 text-amber-800 rounded-lg">
-                    <AlertTriangle className="size-4 mt-0.5 shrink-0" />
-                    <span>
-                      <strong>{incompleteRows.length} {incompleteRows.length === 1 ? "row is" : "rows are"}</strong> missing required fields.
-                      Fill in <strong>Email</strong>, <strong>Client Type</strong> and <strong>Year End Date</strong> for every row before importing.
-                    </span>
+                  <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+                    <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-600">
+                      <strong>{incompleteRows.length} {incompleteRows.length === 1 ? "row is" : "rows are"}</strong>{" "}
+                      missing required fields. Fill in <strong>Email</strong>, <strong>Client Type</strong> and{" "}
+                      <strong>Year End Date</strong> for every row before importing.
+                    </p>
                   </div>
                 )}
 
@@ -1077,6 +1114,7 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
                                   { value: "Sole Trader", label: "Sole Trader" },
                                   { value: "Partnership", label: "Partnership" },
                                   { value: "LLP", label: "LLP" },
+                                  { value: "Individual", label: "Individual" },
                                 ]}
                                 isEditMode
                               />
@@ -1253,6 +1291,7 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
                                 <SelectItem value="Sole Trader">Sole Trader</SelectItem>
                                 <SelectItem value="Partnership">Partnership</SelectItem>
                                 <SelectItem value="LLP">LLP</SelectItem>
+                                <SelectItem value="Individual">Individual</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1599,18 +1638,16 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
 
             {/* Plan limit warning */}
             {result.limitInfo && (
-              <div className="rounded-md bg-amber-500/10 px-4 py-3 text-sm space-y-2">
-                <p className="font-medium text-amber-700">
-                  Plan limit reached
-                </p>
-                <p className="text-amber-600">
-                  {result.limitInfo.importedClients} of {result.limitInfo.totalNewClients} new
-                  clients were imported. {result.limitInfo.skippedClients} clients were skipped
-                  because your plan allows up to {result.limitInfo.limit} clients.
-                </p>
-                <p className="text-amber-600">
-                  Upgrade your plan to import all clients.
-                </p>
+              <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-600">Plan limit reached</p>
+                  <p className="text-sm text-amber-600/80">
+                    {result.limitInfo.importedClients} of {result.limitInfo.totalNewClients} new clients were imported.{" "}
+                    {result.limitInfo.skippedClients} {result.limitInfo.skippedClients === 1 ? "client was" : "clients were"} skipped because your plan allows up to {result.limitInfo.limit} clients.
+                    Upgrade your plan to import all clients.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1618,7 +1655,11 @@ export function CsvImportStep({ onComplete, onBack }: CsvImportStepProps) {
 
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <ButtonBase variant="amber" buttonType="icon-text" onClick={() => setStepState("edit-data")}>
+              <ArrowLeft className="size-4" />
+              Back to Edit
+            </ButtonBase>
             <ButtonBase variant="green" buttonType="icon-text" onClick={onComplete}>
               Next Step
               <ArrowRight className="size-4" />

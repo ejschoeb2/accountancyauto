@@ -15,9 +15,9 @@ export interface EmailSettings {
 }
 
 const EMAIL_DEFAULTS: EmailSettings = {
-  senderName: "PhaseTwo",
-  senderAddress: "hello@phasetwo.uk",
-  replyTo: "hello@phasetwo.uk",
+  senderName: "Prompt",
+  senderAddress: "hello@prompt.accountants",
+  replyTo: "hello@prompt.accountants",
 };
 
 const EMAIL_KEYS = {

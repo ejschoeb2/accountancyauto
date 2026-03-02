@@ -9,10 +9,10 @@
  */
 
 // Matches the plan_tier_enum in the database
-export type PlanTier = "free" | "starter" | "practice" | "enterprise";
+export type PlanTier = "free" | "solo" | "starter" | "practice" | "firm" | "enterprise";
 
 /** Tiers that go through Stripe Checkout (i.e. have a Stripe Price ID) */
-export const PAID_PLAN_TIERS: PlanTier[] = ["starter", "practice"];
+export const PAID_PLAN_TIERS: PlanTier[] = ["solo", "starter", "practice", "firm"];
 
 export interface PlanConfig {
   tier: PlanTier;
@@ -22,7 +22,7 @@ export interface PlanConfig {
   priceId: string;
   /** Monthly price in pence (for display purposes). 0 for free/enterprise. */
   monthlyPrice: number;
-  /** Maximum number of clients, null = unlimited (overage billing applies for Practice) */
+  /** Maximum number of clients, null = unlimited */
   clientLimit: number | null;
   /** Feature bullet points for pricing page */
   features: string[];
@@ -34,11 +34,24 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     name: "Free",
     priceId: "",
     monthlyPrice: 0,
-    clientLimit: 25,
+    clientLimit: 20,
     features: [
-      "Up to 25 clients",
+      "Up to 20 clients",
       "Email reminders",
       "Filing tracking",
+    ],
+  },
+  solo: {
+    tier: "solo",
+    name: "Solo",
+    priceId: process.env.STRIPE_PRICE_SOLO ?? "",
+    monthlyPrice: 1900, // £19/mo
+    clientLimit: 50,
+    features: [
+      "Up to 50 clients",
+      "Email reminders",
+      "Filing tracking",
+      "Cloud storage integration",
     ],
   },
   starter: {
@@ -52,21 +65,37 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
       "Email reminders",
       "Custom templates",
       "Filing tracking",
+      "Cloud storage integration",
     ],
   },
   practice: {
     tier: "practice",
     name: "Practice",
     priceId: process.env.STRIPE_PRICE_PRACTICE ?? "",
-    monthlyPrice: 8900, // £89/mo base
-    clientLimit: null, // unlimited — overage billing above 300 via metered component
+    monthlyPrice: 6900, // £69/mo
+    clientLimit: 200,
     features: [
-      "Unlimited clients",
+      "Up to 200 clients",
       "Email reminders",
       "Custom templates",
       "Filing tracking",
+      "Cloud storage integration",
       "Priority support",
-      "£0.60/client above 300",
+    ],
+  },
+  firm: {
+    tier: "firm",
+    name: "Firm",
+    priceId: process.env.STRIPE_PRICE_FIRM ?? "",
+    monthlyPrice: 10900, // £109/mo
+    clientLimit: 400,
+    features: [
+      "Up to 400 clients",
+      "Email reminders",
+      "Custom templates",
+      "Filing tracking",
+      "Cloud storage integration",
+      "Priority support",
     ],
   },
   enterprise: {
@@ -80,32 +109,13 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
       "Email reminders",
       "Custom templates",
       "Filing tracking",
+      "Cloud storage integration",
       "Priority support",
       "Dedicated account manager",
       "Custom integrations",
     ],
   },
 };
-
-/** Practice tier overage threshold — clients above this count incur per-client charges */
-export const PRACTICE_OVERAGE_THRESHOLD = 300;
-/** Practice overage rate in pence per client per month */
-export const PRACTICE_OVERAGE_RATE_PENCE = 60; // £0.60
-
-/**
- * Stripe Price ID for Practice overage metered billing.
- * Must be a Stripe metered price (usage_type: 'metered') configured in the Dashboard.
- * Empty string if not configured — Practice checkout falls back to flat-rate only.
- */
-export const PRACTICE_OVERAGE_PRICE_ID = process.env.STRIPE_PRICE_PRACTICE_OVERAGE ?? "";
-
-/**
- * Stripe Billing Meter event name for Practice overage.
- * Must match the `event_name` on the Billing Meter created in Stripe Dashboard.
- * Used by the metered billing cron to report client overage counts.
- */
-export const PRACTICE_METER_EVENT_NAME =
-  process.env.STRIPE_METER_EVENT_NAME ?? "practice_overage_clients";
 
 /** Get the plan configuration for a specific tier. */
 export function getPlanByTier(tier: PlanTier): PlanConfig {

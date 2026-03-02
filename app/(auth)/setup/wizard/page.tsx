@@ -23,7 +23,6 @@ import { StorageSetupStep } from "./components/storage-setup-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import {
-  sendSetupMagicLink,
   checkSlugAvailable,
   createOrgAndJoinAsAdmin,
   getWizardDashboardUrl,
@@ -70,8 +69,18 @@ const PLAN_TIERS = [
     name: "Free",
     price: 0 as number | null,
     priceNote: "forever free",
-    range: "Up to 25 clients",
+    range: "Up to 20 clients",
     tagline: "Get started at no cost. Upgrade naturally when your practice grows.",
+    featured: false,
+    isEnterprise: false,
+  },
+  {
+    key: "solo",
+    name: "Solo",
+    price: 19 as number | null,
+    priceNote: "/mo",
+    range: "21 – 50 clients",
+    tagline: "For sole traders and bookkeepers managing a small client list.",
     featured: false,
     isEnterprise: false,
   },
@@ -80,7 +89,7 @@ const PLAN_TIERS = [
     name: "Starter",
     price: 39 as number | null,
     priceNote: "/mo",
-    range: "26 – 100 clients",
+    range: "51 – 100 clients",
     tagline: "For independent accountants and small practices.",
     featured: false,
     isEnterprise: false,
@@ -88,11 +97,21 @@ const PLAN_TIERS = [
   {
     key: "practice",
     name: "Practice",
-    price: 89 as number | null,
+    price: 69 as number | null,
     priceNote: "/mo",
-    range: "101+ clients",
+    range: "101 – 200 clients",
     tagline: "For growing practices managing a wide range of deadlines.",
     featured: true,
+    isEnterprise: false,
+  },
+  {
+    key: "firm",
+    name: "Firm",
+    price: 109 as number | null,
+    priceNote: "/mo",
+    range: "201 – 400 clients",
+    tagline: "For established firms with a broad portfolio of clients.",
+    featured: false,
     isEnterprise: false,
   },
   {
@@ -100,7 +119,7 @@ const PLAN_TIERS = [
     name: "Enterprise",
     price: null,
     priceNote: "pricing",
-    range: "500+ clients",
+    range: "400+ clients",
     tagline: "For large firms with complex needs. Let's build a plan around you.",
     featured: false,
     isEnterprise: true,
@@ -143,18 +162,10 @@ export default function WizardPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // ── New-admin step ──────────────────────────────────────────────────────────
-  const [adminStep, setAdminStep] = useState<AdminStep>("account");
+  const [adminStep, setAdminStep] = useState<AdminStep>("firm");
 
   // ── Invited-member step (0=Import, 1=Config) ────────────────────────────────
   const [memberStep, setMemberStep] = useState(0);
-
-  // ── Step 1: Account ─────────────────────────────────────────────────────────
-  const [email, setEmail] = useState("");
-  const [isSendingLink, setIsSendingLink] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
-  const [accountError, setAccountError] = useState<string | null>(null);
-  // Only true when user started unauthenticated (so Back on firm step is valid)
-  const [canGoBackToAccount, setCanGoBackToAccount] = useState(false);
 
   // ── Step 2: Firm Details ────────────────────────────────────────────────────
   const [firmName, setFirmName] = useState("");
@@ -222,11 +233,8 @@ export default function WizardPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        // Unauthenticated → new-admin, start at account
-        setUserType("new-admin");
-        setAdminStep("account");
-        setCanGoBackToAccount(true);
-        setIsCheckingAuth(false);
+        // Unauthenticated → redirect to signup
+        router.replace("/signup");
         return;
       }
 
@@ -318,26 +326,6 @@ export default function WizardPage() {
   };
 
   // ── Handlers ────────────────────────────────────────────────────────────────
-
-  const handleSendMagicLink = async () => {
-    if (!email.trim()) {
-      setAccountError("Please enter your email address.");
-      return;
-    }
-
-    setIsSendingLink(true);
-    setAccountError(null);
-
-    const result = await sendSetupMagicLink(email.trim());
-
-    if (result.error) {
-      setAccountError(result.error);
-    } else {
-      setLinkSent(true);
-    }
-
-    setIsSendingLink(false);
-  };
 
   const handleFirmContinue = () => {
     if (!firmName.trim()) {
@@ -467,7 +455,11 @@ export default function WizardPage() {
   if (userType === "invited-member") {
     return (
       <div className="space-y-12">
-        <WizardStepper steps={MEMBER_STEPS} currentStep={memberStep} />
+        <WizardStepper
+          steps={MEMBER_STEPS}
+          currentStep={memberStep}
+          onStepClick={(index) => setMemberStep(index)}
+        />
 
         {memberStep === 0 && (
           <div className="min-h-[520px]">
@@ -547,105 +539,19 @@ export default function WizardPage() {
   return (
     <div className="space-y-12">
       {adminStep !== "account" && (
-        <WizardStepper steps={ADMIN_STEPS} currentStep={currentStepIndex} />
+        <WizardStepper
+          steps={ADMIN_STEPS}
+          currentStep={currentStepIndex}
+          onStepClick={(index) => {
+            // Firm step is locked once the org is created (slug already registered)
+            if (index === 0 && orgCreated) return;
+            const stepNames: AdminStep[] = ["firm", "plan", "import", "email", "storage", "complete"];
+            setAdminStep(stepNames[index]);
+          }}
+        />
       )}
 
-      {/* ── Step 1: Account ── */}
-      {adminStep === "account" && (
-        <div className="max-w-md mx-auto space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold tracking-tight">
-              Create your account
-            </h1>
-            <p className="text-muted-foreground">
-              Enter your email address to get started. We&apos;ll send you a
-              magic link to verify your account.
-            </p>
-          </div>
-
-          {!linkSent ? (
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@yourfirm.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSendMagicLink();
-                    }}
-                    disabled={isSendingLink}
-                    autoFocus
-                  />
-                </div>
-
-                {accountError && (
-                  <p className="text-sm text-destructive">{accountError}</p>
-                )}
-
-                <Button
-                  className="w-full active:scale-[0.97]"
-                  onClick={handleSendMagicLink}
-                  disabled={isSendingLink || !email.trim()}
-                >
-                  {isSendingLink ? (
-                    <>
-                      <Loader2 className="size-4 mr-2 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send Magic Link"
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
-              <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                    <CheckCircle className="size-5 text-green-600 shrink-0" />
-                    <p className="text-sm text-green-700 dark:text-green-400 font-medium">Magic link sent — check your inbox.</p>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email address</Label>
-                    <div className="flex h-10 w-full rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground items-center cursor-not-allowed select-none">
-                      {email}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Didn&apos;t receive it?{" "}
-                    <button
-                      className="underline hover:text-foreground transition-colors"
-                      onClick={() => {
-                        setLinkSent(false);
-                        setAccountError(null);
-                      }}
-                    >
-                      Try again
-                    </button>
-                  </p>
-                </CardContent>
-              </Card>
-              <div className="flex justify-end">
-                <ButtonBase
-                  variant="green"
-                  buttonType="icon-text"
-                  onClick={() => setAdminStep("firm")}
-                >
-                  Next Step
-                  <ArrowRight className="size-4" />
-                </ButtonBase>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── Step 2: Firm Details ── */}
+      {/* ── Step 1: Firm Details ── */}
       {adminStep === "firm" && (
         <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
           <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
@@ -726,16 +632,6 @@ export default function WizardPage() {
 
           {/* Buttons outside the box, right-aligned together */}
           <div className="flex justify-end gap-2">
-            {canGoBackToAccount && (
-              <ButtonBase
-                variant="amber"
-                buttonType="icon-text"
-                onClick={() => setAdminStep("account")}
-              >
-                <ArrowLeft className="size-4" />
-                Back
-              </ButtonBase>
-            )}
             <ButtonBase
               variant="green"
               buttonType="icon-text"
@@ -763,8 +659,8 @@ export default function WizardPage() {
               <p className="text-sm text-destructive">{planError}</p>
             )}
 
-            {/* 4 cards side-by-side */}
-            <div className="grid grid-cols-4 gap-3">
+            {/* 6 cards — 2 rows of 3 */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {PLAN_TIERS.map((plan) => {
                 const isSelected = selectedTier === plan.key;
                 const isThisLoading = isCreatingOrg && isSelected;
@@ -803,7 +699,7 @@ export default function WizardPage() {
                         disabled={isCreatingOrg}
                         onClick={() => {
                           if (plan.isEnterprise) {
-                            window.location.href = "mailto:hello@phasetwo.uk";
+                            window.location.href = "mailto:hello@prompt.accountants";
                             return;
                           }
                           setSelectedTier(plan.key as PlanTier);
@@ -869,7 +765,7 @@ export default function WizardPage() {
         <div className="min-h-[520px]">
           <CsvImportStep
             onComplete={handleImportComplete}
-            onBack={orgCreated ? undefined : () => setAdminStep("plan")}
+            onBack={() => setAdminStep("plan")}
           />
         </div>
       )}
