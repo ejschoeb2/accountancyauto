@@ -264,7 +264,9 @@ export default function WizardPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        // Unauthenticated → redirect to signup
+        // Clear any stale session cookies (e.g. JWT referencing a deleted user)
+        // so the next signup attempt starts fresh
+        await supabase.auth.signOut();
         router.replace("/signup");
         return;
       }
