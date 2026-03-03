@@ -24,7 +24,8 @@ import {
 } from '@/components/ui/table';
 import { getPortalUploads, type PortalUpload } from '@/app/actions/document-uploads';
 import { format } from 'date-fns';
-import { Search, X, SlidersHorizontal, FileUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, SlidersHorizontal, FileUp, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { UploadValidationModal } from './upload-validation-modal';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -95,6 +96,8 @@ export function UploadsTable() {
   const [activeConfidenceFilters, setActiveConfidenceFilters] = useState<Set<string>>(new Set());
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // Phase 30: Needs Review filter
+  const [filterNeedsReview, setFilterNeedsReview] = useState(false);
 
   // Sort
   const [sortBy, setSortBy] = useState('received-desc');
@@ -102,6 +105,9 @@ export function UploadsTable() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  // Phase 30: Selected upload for validation modal
+  const [selectedUpload, setSelectedUpload] = useState<PortalUpload | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -130,7 +136,7 @@ export function UploadsTable() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Client-side filter chips (filing type + confidence) applied on top of server results
+  // Client-side filter chips (filing type + confidence + needs review) applied on top of server results
   const filteredData = useMemo(() => {
     let rows = data;
     if (activeFilingFilters.size > 0) {
@@ -142,8 +148,12 @@ export function UploadsTable() {
         return activeConfidenceFilters.has(c);
       });
     }
+    // Phase 30: filter to only rows that need review
+    if (filterNeedsReview) {
+      rows = rows.filter((r) => r.needs_review === true);
+    }
     return rows;
-  }, [data, activeFilingFilters, activeConfidenceFilters]);
+  }, [data, activeFilingFilters, activeConfidenceFilters, filterNeedsReview]);
 
   // Client-side sort
   const sortedData = useMemo(() => {
@@ -168,7 +178,7 @@ export function UploadsTable() {
     setActiveConfidenceFilters((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
   }
 
-  const activeFilterCount = activeFilingFilters.size + activeConfidenceFilters.size;
+  const activeFilterCount = activeFilingFilters.size + activeConfidenceFilters.size + (filterNeedsReview ? 1 : 0);
   const hasActiveFilters = debouncedSearch !== '' || dateFrom !== '' || dateTo !== '' || activeFilterCount > 0;
 
   function clearAllFilters() {
@@ -178,6 +188,7 @@ export function UploadsTable() {
     setDateTo('');
     setActiveFilingFilters(new Set());
     setActiveConfidenceFilters(new Set());
+    setFilterNeedsReview(false);
     setCurrentPage(1);
   }
 
@@ -295,6 +306,21 @@ export function UploadsTable() {
                 </div>
               </div>
 
+              {/* Phase 30: Needs Review filter */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Validation</span>
+                <div className="flex flex-wrap gap-2">
+                  <ButtonWithText
+                    onClick={() => { setFilterNeedsReview((v) => !v); setCurrentPage(1); }}
+                    isSelected={filterNeedsReview}
+                    variant="muted"
+                  >
+                    <AlertTriangle className="size-3 mr-1" />
+                    Needs Review
+                  </ButtonWithText>
+                </div>
+              </div>
+
               {/* Date Range */}
               <div className="space-y-2">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date Range</span>
@@ -357,18 +383,22 @@ export function UploadsTable() {
               <TableHead>
                 <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Received</span>
               </TableHead>
+              {/* Phase 30: Issues column */}
+              <TableHead>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Issues</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-sm">
+                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
                   Loading uploads...
                 </TableCell>
               </TableRow>
             ) : sortedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-12">
+                <TableCell colSpan={8} className="py-12">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <FileUp className="size-8 opacity-40" />
                     <p className="text-sm">
@@ -417,12 +447,44 @@ export function UploadsTable() {
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                     {format(new Date(upload.received_at), 'd MMM yyyy, HH:mm')}
                   </TableCell>
+                  {/* Phase 30: Issues cell — amber badge opens validation modal */}
+                  <TableCell>
+                    {upload.needs_review ? (
+                      <button
+                        type="button"
+                        className="px-2 py-0.5 rounded-md inline-flex items-center bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedUpload(upload);
+                        }}
+                      >
+                        <AlertTriangle className="size-3 text-amber-600 mr-1" />
+                        <span className="text-xs font-medium text-amber-600">Review</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Phase 30: Validation detail modal */}
+      {selectedUpload && selectedUpload.validation_warnings && selectedUpload.validation_warnings.length > 0 && (
+        <UploadValidationModal
+          open={!!selectedUpload}
+          onOpenChange={(open) => { if (!open) setSelectedUpload(null); }}
+          filename={selectedUpload.original_filename}
+          clientName={selectedUpload.client_name}
+          documentTypeLabel={selectedUpload.document_type_label}
+          filingTypeLabel={selectedUpload.filing_type_id ? (FILING_LABELS[selectedUpload.filing_type_id] ?? selectedUpload.filing_type_name ?? null) : null}
+          receivedAt={selectedUpload.received_at}
+          warnings={selectedUpload.validation_warnings}
+        />
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
