@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, CheckCircle, X, Mail, Ban, Check } from 'lucide-react';
+import { ArrowLeft, Edit2, CheckCircle, X, Mail, Ban, Check, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import { PageLoadingProvider } from '@/components/page-loading';
 import { LoadingScreen } from '@/components/loading-screen';
 import { FilingManagement } from './components/filing-management';
 import { ClientEmailHistoryTable } from './components/client-email-log-table';
+import { ClientAuditLog } from './components/client-audit-log';
 import { DsarExportButton } from './components/dsar-export-button';
 import { SendEmailModal } from '../components/send-email-modal';
 import { toast } from 'sonner';
@@ -83,10 +84,20 @@ export default function ClientPage() {
     setEditing(true);
   };
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setFormData(client!);
     setEditing(false);
-  };
+  }, [client]);
+
+  // Escape key cancels edit mode
+  useEffect(() => {
+    if (!editing) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleCancel();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [editing, handleCancel]);
 
   const handleToggleReminders = async () => {
     try {
@@ -309,45 +320,49 @@ export default function ClientPage() {
           </div>
         ) : (
           <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div>
+            <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
               <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Email</dt>
-              <dd className="text-sm font-medium">
+              <dd className="text-sm font-medium flex items-center gap-2">
                 {client.primary_email || (
                   <span className="text-muted-foreground">Not set</span>
                 )}
+                <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </dd>
             </div>
-            <div>
+            <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
               <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Phone</dt>
-              <dd className="text-sm font-medium">
+              <dd className="text-sm font-medium flex items-center gap-2">
                 {client.phone || (
                   <span className="text-muted-foreground">Not set</span>
                 )}
+                <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </dd>
             </div>
             {client.client_type !== 'Individual' && (
-              <div>
+              <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
                 <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Year-End Date</dt>
-                <dd className="text-sm font-medium">
+                <dd className="text-sm font-medium flex items-center gap-2">
                   {client.year_end_date || (
                     <span className="text-muted-foreground">Not set</span>
                   )}
+                  <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </dd>
               </div>
             )}
             {client.client_type !== 'Individual' && (
-              <div>
+              <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
                 <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Registered</dt>
-                <dd className="text-sm font-medium">
+                <dd className="text-sm font-medium flex items-center gap-2">
                   {client.vat_registered ? 'Yes' : 'No'}
+                  <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </dd>
               </div>
             )}
             {client.client_type !== 'Individual' && client.vat_registered && (
               <>
-                <div>
+                <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
                   <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Stagger Group</dt>
-                  <dd className="text-sm font-medium">
+                  <dd className="text-sm font-medium flex items-center gap-2">
                     {client.vat_stagger_group
                       ? `Stagger ${client.vat_stagger_group} (${
                           ({ 1: 'Mar/Jun/Sep/Dec', 2: 'Jan/Apr/Jul/Oct', 3: 'Feb/May/Aug/Nov' } as Record<number, string>)[client.vat_stagger_group]
@@ -355,14 +370,16 @@ export default function ClientPage() {
                       : (
                       <span className="text-muted-foreground">Not set</span>
                     )}
+                    <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </dd>
                 </div>
-                <div>
+                <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
                   <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Scheme</dt>
-                  <dd className="text-sm font-medium">
+                  <dd className="text-sm font-medium flex items-center gap-2">
                     {client.vat_scheme || (
                       <span className="text-muted-foreground">Not set</span>
                     )}
+                    <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </dd>
                 </div>
               </>
@@ -389,6 +406,23 @@ export default function ClientPage() {
         </div>
         <CardContent>
           <ClientEmailHistoryTable key={refreshKey} clientId={id} />
+        </CardContent>
+      </Card>
+
+      {/* Audit Log */}
+      <Card className="gap-1.5">
+        <div className="px-8">
+          <div className="mb-6">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Audit Log</h2>
+              <p className="text-sm text-muted-foreground">
+                View all reminder emails sent to this client with delivery status tracking.
+              </p>
+            </div>
+          </div>
+        </div>
+        <CardContent>
+          <ClientAuditLog clientId={id} />
         </CardContent>
       </Card>
 

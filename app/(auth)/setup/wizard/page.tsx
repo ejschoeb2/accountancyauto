@@ -21,6 +21,7 @@ import { ConfigStep } from "./components/config-step";
 import { EmailSetupStep, type StepState as EmailSubStep } from "./components/email-setup-step";
 import { StorageSetupStep } from "./components/storage-setup-step";
 import { ClientPortalStep } from "./components/client-portal-step";
+import { UploadChecksStep } from "./components/upload-checks-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import {
@@ -42,7 +43,7 @@ import {
 type UserType = "new-admin" | "invited-member" | null;
 
 // New-admin step names (index matches ADMIN_STEPS position)
-type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "portal" | "storage" | "complete";
+type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "portal" | "upload-checks" | "storage" | "complete";
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
@@ -54,7 +55,10 @@ function getAdminSteps(portalEnabled: boolean) {
     { label: "Email Setup" },
     { label: "Client Portal" },
   ];
-  if (portalEnabled) steps.push({ label: "Storage" });
+  if (portalEnabled) {
+    steps.push({ label: "Upload Checks" });
+    steps.push({ label: "Storage" });
+  }
   steps.push({ label: "Complete" });
   return steps;
 }
@@ -68,8 +72,9 @@ function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
       import: 2,
       email: 3,
       portal: 4,
-      storage: 5,
-      complete: 6,
+      "upload-checks": 5,
+      storage: 6,
+      complete: 7,
     };
     return map[step];
   } else {
@@ -80,6 +85,7 @@ function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
       import: 2,
       email: 3,
       portal: 4,
+      "upload-checks": -1,
       storage: -1,
       complete: 5,
     };
@@ -202,6 +208,8 @@ export default function WizardPage() {
   // ── Client portal ─────────────────────────────────────────────────────────
   // Tracks the user's choice made during the wizard; true = storage step shown
   const [clientPortalEnabled, setClientPortalEnabled] = useState(true);
+  // Tracks whether the user has already visited the portal step (for restoring selection)
+  const [portalSelection, setPortalSelection] = useState<"yes" | "no" | undefined>(undefined);
 
   // ── Storage step ─────────────────────────────────────────────────────────
   const [storageConnected, setStorageConnected] = useState<string | null>(null);
@@ -454,11 +462,16 @@ export default function WizardPage() {
 
   const handlePortalComplete = (enabled: boolean) => {
     setClientPortalEnabled(enabled);
+    setPortalSelection(enabled ? "yes" : "no");
     if (enabled) {
-      setAdminStep("storage");
+      setAdminStep("upload-checks");
     } else {
       setAdminStep("complete");
     }
+  };
+
+  const handleUploadChecksComplete = () => {
+    setAdminStep("storage");
   };
 
   const handleStorageComplete = () => {
@@ -582,7 +595,7 @@ export default function WizardPage() {
             // Firm step is locked once the org is created (slug already registered)
             if (index === 0 && orgCreated) return;
             const stepNames: AdminStep[] = clientPortalEnabled
-              ? ["firm", "plan", "import", "email", "portal", "storage", "complete"]
+              ? ["firm", "plan", "import", "email", "portal", "upload-checks", "storage", "complete"]
               : ["firm", "plan", "import", "email", "portal", "complete"];
             setAdminStep(stepNames[index]);
           }}
@@ -686,7 +699,7 @@ export default function WizardPage() {
       {/* ── Step 3: Plan Selection ── */}
       {adminStep === "plan" && (
         <div className="max-w-4xl mx-auto space-y-4 min-h-[520px]">
-          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+          <div className="rounded-2xl border bg-card shadow-sm p-4 sm:p-8 space-y-6">
             <div className="space-y-1">
               <h1 className="text-2xl font-bold tracking-tight">Choose your plan</h1>
               <p className="text-sm text-muted-foreground">
@@ -697,8 +710,8 @@ export default function WizardPage() {
               <p className="text-sm text-destructive">{planError}</p>
             )}
 
-            {/* 5 cards — single row */}
-            <div className="grid grid-cols-5 gap-2">
+            {/* 5 cards — responsive: 2 cols mobile, 3 cols tablet, 5 cols desktop */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               {PLAN_TIERS.map((plan) => {
                 const isSelected = selectedTier === plan.key;
                 const isThisLoading = isCreatingOrg && isSelected;
@@ -828,6 +841,7 @@ export default function WizardPage() {
         <div className="min-h-[520px]">
           <ClientPortalStep
             onComplete={handlePortalComplete}
+            initialSelection={portalSelection}
             onBack={() => {
               setEmailInitialSubStep("settings");
               setAdminStep("email");
@@ -836,14 +850,24 @@ export default function WizardPage() {
         </div>
       )}
 
-      {/* ── Step 5c: Storage Setup ── */}
+      {/* ── Step 5c: Upload Checks ── */}
+      {adminStep === "upload-checks" && (
+        <div className="min-h-[520px]">
+          <UploadChecksStep
+            onComplete={handleUploadChecksComplete}
+            onBack={() => setAdminStep("portal")}
+          />
+        </div>
+      )}
+
+      {/* ── Step 5d: Storage Setup ── */}
       {adminStep === "storage" && (
         <div className="min-h-[520px]">
           <StorageSetupStep
             storageConnected={storageConnected}
             storageError={storageError}
             onComplete={handleStorageComplete}
-            onBack={() => setAdminStep("portal")}
+            onBack={() => setAdminStep("upload-checks")}
             onBeforeProviderConnect={() => { isNavigatingAway.current = true; }}
           />
         </div>

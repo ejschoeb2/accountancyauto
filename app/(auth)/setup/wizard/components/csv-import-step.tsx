@@ -818,14 +818,23 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
             )}
           </div>
 
-          {onBack && (
-            <div className="flex justify-start">
+          <div className="flex justify-between">
+            {onBack && (
               <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
                 <ArrowLeft className="size-4" />
                 Back
               </ButtonBase>
-            </div>
-          )}
+            )}
+            <ButtonBase
+              variant="green"
+              buttonType="icon-text"
+              onClick={onComplete}
+              className="ml-auto"
+            >
+              Skip Import
+              <ArrowRight className="size-4" />
+            </ButtonBase>
+          </div>
         </div>
       )}
 

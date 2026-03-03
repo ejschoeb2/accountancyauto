@@ -10,9 +10,10 @@ import { TeamCard, type AccountantStats } from "./team-card";
 import { SignOutCard } from "./sign-out-card";
 import { StorageCard } from "./storage-card";
 import { ClientPortalCard } from "./client-portal-card";
+import { UploadChecksCard } from "./upload-checks-card";
 import { BillingStatusCard } from "@/app/(dashboard)/billing/components/billing-status-card";
 import { UsageBars } from "@/app/(dashboard)/billing/components/usage-bars";
-import type { EmailSettings, OrgDomainDnsData } from "@/app/actions/settings";
+import type { EmailSettings, OrgDomainDnsData, UploadCheckMode } from "@/app/actions/settings";
 
 interface SettingsTabsProps {
   sendHour: number;
@@ -39,6 +40,7 @@ interface SettingsTabsProps {
   oneDriveConnected: boolean;
   dropboxConnected: boolean;
   clientPortalEnabled: boolean;
+  uploadCheckMode: UploadCheckMode;
 }
 
 export function SettingsTabs({
@@ -61,6 +63,7 @@ export function SettingsTabs({
   oneDriveConnected,
   dropboxConnected,
   clientPortalEnabled,
+  uploadCheckMode,
 }: SettingsTabsProps) {
   return (
     <div className="space-y-8">
@@ -79,6 +82,9 @@ export function SettingsTabs({
 
         <TabsContent value="general" className="space-y-8 mt-6">
           <ClientPortalCard clientPortalEnabled={clientPortalEnabled} />
+          {clientPortalEnabled && (
+            <UploadChecksCard uploadCheckMode={uploadCheckMode} />
+          )}
           {clientPortalEnabled && (
             <StorageCard
               storageBackend={storageBackend}

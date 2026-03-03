@@ -604,7 +604,12 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                           ) : (
                             <Link2 className="size-4" />
                           )}
-                          {portalStates[filing.filing_type.id]?.generating ? 'Generating...' : 'Generate Upload Link'}
+                          {portalStates[filing.filing_type.id]?.generating ? 'Generating...' : (
+                            <>
+                              <span className="hidden sm:inline">Generate Upload Link</span>
+                              <span className="sm:hidden">Upload</span>
+                            </>
+                          )}
                         </IconButtonWithText>
 
                         {/* Action button */}

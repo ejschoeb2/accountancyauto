@@ -4,7 +4,7 @@ import { resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import { classifyDocument } from '@/lib/documents/classify';
 import { runIntegrityChecks } from '@/lib/documents/integrity';
 import { calculateRetainUntil } from '@/lib/documents/metadata';
-import { runValidation } from '@/lib/documents/validate';
+import { runValidation, type ValidationResult } from '@/lib/documents/validate';
 import crypto from 'crypto';
 import type { FilingTypeId } from '@/lib/types/database';
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // separate queries below.
   const { data: portalToken } = await supabase
     .from('upload_portal_tokens')
-    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at, organisations!inner(storage_backend, google_drive_folder_id, ms_home_account_id), clients!inner(company_name, display_name)')
+    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at, organisations!inner(storage_backend, google_drive_folder_id, ms_home_account_id, upload_check_mode), clients!inner(company_name, display_name)')
     .eq('token_hash', tokenHash)
     .single();
 
@@ -33,12 +33,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let orgStorageBackend: string | null = null;
   let orgGoogleDriveFolderId: string | null = null;
   let orgMsHomeAccountId: string | null = null;
+  let uploadCheckMode: string = 'both';
   let clientDisplayName: string | null = null;
   let clientCompanyName: string | null = null;
 
   // Check if join data is present (PostgREST may return null if FK join cache stale)
   // PostgREST !inner joins return an array — cast through unknown to handle the inferred array type
-  const orgJoin = (portalToken.organisations as unknown) as { storage_backend: string | null; google_drive_folder_id: string | null; ms_home_account_id: string | null } | null;
+  const orgJoin = (portalToken.organisations as unknown) as { storage_backend: string | null; google_drive_folder_id: string | null; ms_home_account_id: string | null; upload_check_mode: string | null } | null;
   const clientJoin = (portalToken.clients as unknown) as { company_name: string | null; display_name: string | null } | null;
 
   if (orgJoin && clientJoin) {
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     orgStorageBackend = orgJoin.storage_backend;
     orgGoogleDriveFolderId = orgJoin.google_drive_folder_id;
     orgMsHomeAccountId = orgJoin.ms_home_account_id;
+    uploadCheckMode = orgJoin.upload_check_mode ?? 'both';
     clientDisplayName = clientJoin.display_name;
     clientCompanyName = clientJoin.company_name;
   } else {
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const [orgResult, clientResult] = await Promise.all([
       supabase
         .from('organisations')
-        .select('storage_backend, google_drive_folder_id, ms_home_account_id')
+        .select('storage_backend, google_drive_folder_id, ms_home_account_id, upload_check_mode')
         .eq('id', portalToken.org_id)
         .single(),
       supabase
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     orgStorageBackend = orgResult.data?.storage_backend ?? null;
     orgGoogleDriveFolderId = orgResult.data?.google_drive_folder_id ?? null;
     orgMsHomeAccountId = orgResult.data?.ms_home_account_id ?? null;
+    uploadCheckMode = orgResult.data?.upload_check_mode ?? 'both';
     clientDisplayName = clientResult.data?.display_name ?? null;
     clientCompanyName = clientResult.data?.company_name ?? null;
   }
@@ -99,10 +102,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: integrity.rejectionReason }, { status });
   }
 
-  const classification = await classifyDocument(file.name, file.type, supabase, fileBuffer);
+  // Derive processing flags from upload_check_mode
+  const shouldOcr = uploadCheckMode !== 'none';
+  const shouldValidate = uploadCheckMode === 'verify' || uploadCheckMode === 'both';
+  const showExtraction = uploadCheckMode === 'extract' || uploadCheckMode === 'both';
+
+  const classification = await classifyDocument(file.name, file.type, supabase, shouldOcr ? fileBuffer : undefined);
 
   // Phase 21: reject corrupt/password-protected PDFs before writing to storage
-  if (classification.isCorruptPdf) {
+  // Only relevant when OCR buffer was passed (mode !== 'none')
+  if (shouldOcr && classification.isCorruptPdf) {
     return NextResponse.json(
       { error: 'This file appears to be protected or damaged. Please upload an unprotected copy.' },
       { status: 400 }
@@ -115,15 +124,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const filingTypeId = portalToken.filing_type_id as FilingTypeId;
   const retainUntil = calculateRetainUntil(filingTypeId, taxPeriodEndDate);
 
-  // Phase 30: per-document-type advisory validation
-  const validation = await runValidation(
-    classification.documentTypeCode,
-    file.type,
-    fileBuffer,
-    taxYear,
-    classification.extractedTaxYear,
-    portalToken.filing_type_id,
-  );
+  // Phase 30: per-document-type advisory validation — only run when mode includes verify
+  const validation = shouldValidate
+    ? await runValidation(
+        classification.documentTypeCode,
+        file.type,
+        fileBuffer,
+        taxYear,
+        classification.extractedTaxYear,
+        portalToken.filing_type_id,
+      )
+    : { warnings: [] } satisfies ValidationResult;
 
   try {
     // Phase 25: route upload through resolveProvider for Google Drive/OneDrive/Dropbox support
@@ -186,10 +197,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       documentTypeCode: classification.documentTypeCode,
       documentTypeLabel: classification.documentTypeCode ?? 'Document',
       confidence: classification.confidence,
-      // Phase 22: extraction fields for portal confirmation card
-      extractedTaxYear: classification.extractedTaxYear,
-      extractedEmployer: classification.extractedEmployer,
-      extractedPayeRef: classification.extractedPayeRef,
+      // Phase 22: extraction fields for portal confirmation card — hidden when mode excludes extract
+      extractedTaxYear: showExtraction ? classification.extractedTaxYear : null,
+      extractedEmployer: showExtraction ? classification.extractedEmployer : null,
+      extractedPayeRef: showExtraction ? classification.extractedPayeRef : null,
       isImageOnly: classification.isImageOnly,
       // Phase 30: advisory validation warnings (empty array = no issues)
       validationWarnings: validation.warnings,

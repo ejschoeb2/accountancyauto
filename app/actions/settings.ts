@@ -583,6 +583,36 @@ export async function getOrgStorageBackend(): Promise<string | null> {
   return data?.storage_backend ?? null;
 }
 
+// --- Upload Check Mode ---
+
+export type UploadCheckMode = 'none' | 'verify' | 'extract' | 'both';
+
+export async function getUploadCheckMode(): Promise<UploadCheckMode> {
+  const admin = createAdminClient();
+  const { orgId } = await getOrgContext();
+  const { data } = await admin
+    .from('organisations')
+    .select('upload_check_mode')
+    .eq('id', orgId)
+    .single();
+  return (data?.upload_check_mode as UploadCheckMode) ?? 'both';
+}
+
+export async function setUploadCheckMode(
+  mode: UploadCheckMode
+): Promise<{ error: string | null }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Only admins can change this setting.' };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('organisations')
+    .update({ upload_check_mode: mode })
+    .eq('id', orgId);
+  if (error) return { error: error.message };
+  revalidatePath('/settings');
+  return { error: null };
+}
+
 // --- Client Portal ---
 
 export async function getClientPortalEnabled(): Promise<boolean> {

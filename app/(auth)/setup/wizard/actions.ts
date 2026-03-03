@@ -400,9 +400,20 @@ export async function setupPostmarkForOrg(
     };
   } catch (err) {
     console.error("setupPostmarkForOrg error:", err);
+    const raw = err instanceof Error ? err.message : "";
+    let friendly = "Failed to configure email. Please try again.";
+    if (raw.includes("createDomain failed")) {
+      friendly = "We couldn't register that domain. Please check it's spelled correctly and try again.";
+    } else if (raw.includes("createServer failed")) {
+      friendly = "Something went wrong setting up your email server. Please try again or contact support.";
+    } else if (raw.includes("getDomain failed")) {
+      friendly = "We couldn't verify your domain right now. Please try again in a few moments.";
+    } else if (raw.includes("POSTMARK_ACCOUNT_TOKEN")) {
+      friendly = "Email service is not configured. Please contact support.";
+    }
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Failed to configure email. Please try again.",
+      error: friendly,
     };
   }
 }

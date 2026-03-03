@@ -6,6 +6,35 @@ Previous issues from QA_AUDIT_LOG.md are already being fixed — focus on findin
 
 ---
 
+## REPORTING STANDARD
+
+After completing any section, the QA agent MUST:
+1. **Save a report** to `QA_REPORTS/section<N>_<slug>_qa_report.md` inside this project directory.
+   - Example: `QA_REPORTS/section4_client_detail_qa_report.md`
+   - The report must follow the standard format: Issues Found table, Sections Verified table, Console Errors table, Additional Observations table.
+   - Severity labels: 🔴 HIGH, 🟡 MEDIUM, 🟠 LOW.
+2. **Do not save reports** to Antigravity's artifact/brain directory — save them in the project folder so they stay with the codebase.
+3. The Final Report block inside each section below already contains the required format — use it as the template.
+
+---
+
+## SECTION COMPLETION STATUS
+
+| Section | Topic | Status | Report |
+|---------|-------|--------|--------|
+| Section 1 | Setup Wizard Deep Dive | ✅ COMPLETE | [section1_wizard_qa_report.md](QA_REPORTS/section1_wizard_qa_report.md) |
+| Section 2 | Dashboard Deep Dive | ⬜ TODO | — |
+| Section 3 | Clients List, Filters & Modals | ⬜ TODO | — |
+| Section 4 | Client Detail Page Deep Dive | ✅ COMPLETE | [section4_client_detail_qa_report.md](QA_REPORTS/section4_client_detail_qa_report.md) |
+| Section 5 | Email Logs / Activity Page | ⬜ TODO | — |
+| Section 6 | Schedules & Templates | ⬜ TODO | — |
+| Section 7 | Settings Page Deep Dive | ⬜ TODO | — |
+| Section 8 | Client Portal Deep Dive | ⬜ TODO | — |
+| Section 9 | Marketing & Public Pages | ⬜ TODO | — |
+| Section 10 | Billing & Admin Pages | ⬜ TODO | — |
+
+---
+
 ## SECTION 1: Setup Wizard Deep Dive
 
 ```
@@ -104,9 +133,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   STEPS VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section1_wizard_qa_report.md
+Use the standard format: Issues Found table | Sections Verified table | Console Errors table | Additional Observations table.
+Mark Section 1 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -189,9 +223,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   COMPONENTS VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section2_dashboard_qa_report.md
+Use the standard format: Issues Found table | Components Verified table | Console Errors table | Additional Observations table.
+Mark Section 2 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -289,9 +328,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   FEATURES VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section3_clients_list_qa_report.md
+Use the standard format: Issues Found table | Features Verified table | Console Errors table | Additional Observations table.
+Mark Section 3 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -395,9 +439,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   SECTIONS VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section4_client_detail_qa_report.md
+Use the standard format: Issues Found table | Sections Verified table | Console Errors table | Additional Observations table.
+Mark Section 4 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -477,9 +526,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   FEATURES VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section5_email_logs_qa_report.md
+Use the standard format: Issues Found table | Features Verified table | Console Errors table | Additional Observations table.
+Mark Section 5 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -554,9 +608,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   PAGES VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section6_schedules_templates_qa_report.md
+Use the standard format: Issues Found table | Pages Verified table | Console Errors table | Additional Observations table.
+Mark Section 6 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -671,9 +730,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   TABS/COMPONENTS VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section7_settings_qa_report.md
+Use the standard format: Issues Found table | Tabs/Components Verified table | Console Errors table | Additional Observations table.
+Mark Section 7 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -761,9 +825,14 @@ new window and visit that portal URL.
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   COMPONENTS VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section8_client_portal_qa_report.md
+Use the standard format: Issues Found table | Components Verified table | Console Errors table | Additional Observations table.
+Mark Section 8 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -851,9 +920,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   PAGES VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section9_marketing_pages_qa_report.md
+Use the standard format: Issues Found table | Pages Verified table | Console Errors table | Additional Observations table.
+Mark Section 9 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -915,9 +989,14 @@ TASK LIST:
 
 --- FINAL REPORT ---
 Produce a summary with:
-  ISSUES FOUND: all [ERROR] entries
+  ISSUES FOUND: all [ERROR] entries with severity (HIGH/MEDIUM/LOW)
   PAGES VERIFIED: all [OK] entries
   CONSOLE ERRORS: any JS/React errors observed
+  ADDITIONAL OBSERVATIONS: anything noteworthy that is not strictly a bug
+
+Save the report to: QA_REPORTS/section10_billing_admin_qa_report.md
+Use the standard format: Issues Found table | Pages Verified table | Console Errors table | Additional Observations table.
+Mark Section 10 as ✅ COMPLETE in QA_TASK_LISTS.md.
 ```
 
 ---
@@ -927,4 +1006,6 @@ Produce a summary with:
 - **Run one section at a time** — each is designed to be a complete, self-contained session.
 - **Recommended order**: Sections 1, 4, 3, 5, 7, 8, 2, 6, 9, 10 (highest value first).
 - **Each section takes ~5-15 minutes** for a browser agent depending on app complexity.
-- **Append results** to QA_AUDIT_LOG.md under a new dated section.
+- **Save reports** to `QA_REPORTS/section<N>_<slug>_qa_report.md` inside this project directory — NOT the Antigravity brain/artifact folder.
+- **Mark the section** as ✅ COMPLETE in the SECTION COMPLETION STATUS table at the top of this file after saving the report.
+- **Append significant findings** to QA_AUDIT_LOG.md under a new dated section for high-level tracking.

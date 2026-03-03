@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowLeft, ArrowRight, Users, HardDrive, Mail, Info } from "lucide-react";
+import { ArrowLeft, ArrowRight, Users, HardDrive, Mail, Info, Loader2 } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
   Select,
@@ -15,10 +15,12 @@ import { setClientPortalEnabled } from "@/app/actions/settings";
 interface ClientPortalStepProps {
   onComplete: (enabled: boolean) => void;
   onBack: () => void;
+  /** Restore previous selection when navigating back then forward */
+  initialSelection?: "yes" | "no";
 }
 
-export function ClientPortalStep({ onComplete, onBack }: ClientPortalStepProps) {
-  const [selection, setSelection] = useState<"yes" | "no" | "">("");
+export function ClientPortalStep({ onComplete, onBack, initialSelection }: ClientPortalStepProps) {
+  const [selection, setSelection] = useState<"yes" | "no" | "">(initialSelection ?? "");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -141,8 +143,11 @@ export function ClientPortalStep({ onComplete, onBack }: ClientPortalStepProps) 
           onClick={handleContinue}
           disabled={!selection || isPending}
         >
-          {isPending ? "Saving…" : selection === "no" ? "Skip Storage" : "Next Step"}
-          <ArrowRight className="size-4" />
+          {isPending ? (
+            <><Loader2 className="size-4 animate-spin" /> Saving…</>
+          ) : (
+            <>{selection === "no" ? "Skip Storage" : "Next Step"} <ArrowRight className="size-4" /></>
+          )}
         </ButtonBase>
       </div>
     </div>

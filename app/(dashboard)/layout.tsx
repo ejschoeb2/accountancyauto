@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Brain } from "lucide-react";
 import { NavLinks } from "@/components/nav-links";
+import { MobileNav } from "@/components/mobile-nav";
 import { HelpLink } from "@/components/help-link";
 import { SettingsLink } from "@/components/settings-link";
 import { createClient } from "@/lib/supabase/server";
@@ -69,7 +70,7 @@ export default async function DashboardLayout({
 
       {/* Header / Navigation */}
       <header className="bg-background">
-        <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto h-20 flex items-center justify-between px-4 md:px-0">
           {/* Branding */}
           <div className="flex items-center gap-3">
             <Brain className="text-violet-600" size={22} />
@@ -82,8 +83,13 @@ export default async function DashboardLayout({
             )}
           </div>
 
-          {/* Navigation Links & Settings */}
-          <div className="flex items-center gap-4">
+          {/* Mobile hamburger */}
+          <div className="md:hidden">
+            <MobileNav isSuperAdmin={isSuperAdmin} orgRole={orgRole} />
+          </div>
+
+          {/* Navigation Links & Settings (desktop) */}
+          <div className="hidden md:flex items-center gap-4">
             <NavLinks isSuperAdmin={isSuperAdmin} orgRole={orgRole} />
             <HelpLink />
             <SettingsLink />

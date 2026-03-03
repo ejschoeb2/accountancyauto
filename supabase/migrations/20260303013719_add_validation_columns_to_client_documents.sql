@@ -24,6 +24,6 @@ COMMENT ON COLUMN client_documents.validation_warnings IS
 -- Bank statement CSV exports from online banking are common; the server-side
 -- ALLOWED_MIME array is also updated in the upload route (Plan 01 change).
 UPDATE document_types
-SET expected_mime_types = expected_mime_types || '["text/csv"]'::jsonb
+SET expected_mime_types = array_append(expected_mime_types, 'text/csv')
 WHERE code = 'BANK_STATEMENT'
-  AND NOT (expected_mime_types @> '["text/csv"]'::jsonb);
+  AND NOT ('text/csv' = ANY(expected_mime_types));

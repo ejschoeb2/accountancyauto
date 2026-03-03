@@ -110,7 +110,8 @@
       "Bash(where supabase:*)",
       "mcp__supabase__get_edge_function",
       "Bash(npx supabase@latest:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(python:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

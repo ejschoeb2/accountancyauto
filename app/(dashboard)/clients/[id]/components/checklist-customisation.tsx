@@ -238,19 +238,27 @@ export function ChecklistCustomisation({ clientId }: ChecklistCustomisationProps
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Standard Documents</p>
                   <div className="space-y-2">
-                    {requirements.map(req => {
+                    {[...requirements].sort((a, b) => {
+                      if (a.is_mandatory === b.is_mandatory) return 0;
+                      return a.is_mandatory ? -1 : 1;
+                    }).map(req => {
                       const enabled = isEnabled(req.document_type_id);
                       return (
                         <div
                           key={req.id}
-                          className="flex items-center justify-between gap-3 py-2 px-3 rounded-md border border-gray-200 bg-white"
+                          className={`flex items-center justify-between gap-3 py-2 px-3 rounded-md border border-gray-200 bg-white ${
+                            req.is_mandatory ? 'border-l-2 border-l-amber-400' : ''
+                          }`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={`text-sm truncate ${enabled ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
                               {req.document_types?.label}
                             </span>
                             {req.is_mandatory && (
-                              <span className="text-xs text-muted-foreground shrink-0">(required)</span>
+                              <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 shrink-0">
+                                <span className="size-1.5 rounded-full bg-amber-500" />
+                                Required
+                              </span>
                             )}
                           </div>
                           <button

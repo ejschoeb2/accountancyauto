@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS: { href: string; label: string }[] = [
+export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/clients", label: "Clients" },
   { href: "/schedules", label: "Reminder Schedules" },
@@ -12,7 +12,7 @@ const NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/email-logs", label: "Activity" },
 ];
 
-const ADMIN_ITEM: { href: string; label: string } = {
+export const ADMIN_ITEM: { href: string; label: string } = {
   href: "/admin",
   label: "Admin",
 };
@@ -28,7 +28,7 @@ export function NavLinks({ isSuperAdmin, orgRole = "member" }: NavLinksProps) {
   const items = isSuperAdmin ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 
   return (
-    <nav className="flex items-center gap-0">
+    <nav className="hidden md:flex items-center gap-0">
       {items.map(({ href, label }) => {
         const isActive = pathname === href || pathname.startsWith(href + "/");
 
