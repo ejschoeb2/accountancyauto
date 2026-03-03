@@ -56,8 +56,8 @@
 
 - [x] **HRDN-01**: Portal upload route handles files exceeding Vercel 4.5 MB request body limit using provider-native chunked upload session APIs; large files not routed through Next.js request body
 - [x] **HRDN-02**: Postmark inbound handler provider upload is size-guarded or async to prevent webhook timeout; always returns 200 to Postmark; `client_documents` insert includes idempotency guard against Postmark retries
-- [ ] **HRDN-03**: DSAR export correctly assembles a single ZIP for clients whose documents span multiple storage backends (some rows `storage_backend = 'supabase'`, others third-party)
-- [ ] **HRDN-04**: End-to-end integration verified for each provider: portal upload → download → DSAR export; per-document `storage_backend` routing confirmed correct; verified with mixed-backend document set
+- [x] **HRDN-03**: DSAR export correctly assembles a single ZIP for clients whose documents span multiple storage backends (some rows `storage_backend = 'supabase'`, others third-party)
+- [x] **HRDN-04**: End-to-end integration verified for each provider: portal upload → download → DSAR export; per-document `storage_backend` routing confirmed correct; verified with mixed-backend document set
 
 ## Future Requirements (v5.x)
 
@@ -114,8 +114,8 @@
 | TOKEN-05 | Phase 28 | Complete |
 | HRDN-01 | Phase 29 | Complete |
 | HRDN-02 | Phase 29 | Complete |
-| HRDN-03 | Phase 29 | Pending |
-| HRDN-04 | Phase 29 | Pending |
+| HRDN-03 | Phase 29 | Complete |
+| HRDN-04 | Phase 29 | Complete |
 
 **Coverage:**
 - v5.0 requirements: 36 total

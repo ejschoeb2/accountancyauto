@@ -444,7 +444,7 @@ Phases execute in numeric order: 18 -> 19
 | 26. Microsoft OneDrive Integration | 3/3 | Complete    | 2026-02-28 | - |
 | 27. Dropbox Integration | 2/3 | Complete    | 2026-02-28 | - |
 | 28. Settings UI & Token Lifecycle | 3/3 | Complete    | 2026-02-28 | - |
-| 29. Hardening & Integration Testing | 2/3 | In Progress|  | - |
+| 29. Hardening & Integration Testing | 3/3 | Complete   | 2026-03-03 | - |
 
 ---
 
@@ -463,7 +463,7 @@ Phases execute in numeric order: 18 -> 19
 - [x] **Phase 26: Microsoft OneDrive Integration** - MSAL OAuth2, OneDriveProvider, M365/personal account support, AADSTS53003 handling (completed 2026-02-28)
 - [x] **Phase 27: Dropbox Integration** - OAuth2 with offline token, DropboxProvider, app folder boundary, temporary link downloads (completed 2026-02-28)
 - [x] **Phase 28: Settings UI & Token Lifecycle** - Unified Storage tab, re-auth banner, disconnect modal, daily health-check cron, privacy policy update (completed 2026-02-28)
-- [ ] **Phase 29: Hardening & Integration Testing** - Large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification per provider
+- [x] **Phase 29: Hardening & Integration Testing** - Large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification per provider (completed 2026-03-03)
 
 ## Phase Details
 
