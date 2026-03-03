@@ -30,7 +30,7 @@ export const ManagingClientsIllustration = ({ isHovered }: { isHovered: boolean 
           animate={{
             opacity: isHovered ? 1 : 0.35,
             x: isHovered ? 0 : -12,
-            backgroundColor: isHovered && i === 1 ? "rgba(139,92,246,0.06)" : "transparent",
+            backgroundColor: isHovered && i === 1 ? "rgba(139,92,246,0.06)" : "rgba(0,0,0,0)",
           }}
           transition={{ delay: i * 0.08, duration: 0.3 }}
         >

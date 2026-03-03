@@ -45,14 +45,14 @@ export const getCurrentOrg = cache(async (slug: string): Promise<OrgRow | null> 
  */
 export async function getOrgId(): Promise<string> {
   const supabase = await createClient();
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (error || !session) {
+  if (error || !user) {
     throw new Error('Not authenticated');
   }
 
-  // Fast path: JWT hook has injected org_id
-  const orgId = session.user.app_metadata?.org_id;
+  // Fast path: org_id from user metadata
+  const orgId = user.app_metadata?.org_id;
   if (orgId) {
     return orgId;
   }
@@ -62,7 +62,7 @@ export async function getOrgId(): Promise<string> {
   const { data: userOrg } = await admin
     .from('user_organisations')
     .select('org_id')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .order('created_at', { ascending: true })
     .limit(1)
     .single();
@@ -83,15 +83,15 @@ export async function getOrgId(): Promise<string> {
  */
 export async function getOrgContext(): Promise<{ orgId: string; orgRole: string }> {
   const supabase = await createClient();
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (error || !session) {
+  if (error || !user) {
     throw new Error('Not authenticated');
   }
 
-  // Fast path: JWT hook claims
-  const orgId = session.user.app_metadata?.org_id;
-  const orgRole = session.user.app_metadata?.org_role;
+  // Fast path: user metadata claims
+  const orgId = user.app_metadata?.org_id;
+  const orgRole = user.app_metadata?.org_role;
   if (orgId) {
     return { orgId, orgRole: orgRole || 'member' };
   }
@@ -101,7 +101,7 @@ export async function getOrgContext(): Promise<{ orgId: string; orgRole: string 
   const { data: userOrg } = await admin
     .from('user_organisations')
     .select('org_id, role')
-    .eq('user_id', session.user.id)
+    .eq('user_id', user.id)
     .order('created_at', { ascending: true })
     .limit(1)
     .single();

@@ -41,7 +41,7 @@ export const AutomatedRemindersIllustration = ({ isHovered }: { isHovered: boole
           className="rounded-full border-2 border-blue-500 flex-shrink-0"
           style={{ width: 10, height: 10 }}
           animate={{
-            backgroundColor: isHovered ? "rgb(59 130 246)" : "transparent",
+            backgroundColor: isHovered ? "rgb(59 130 246)" : "rgba(0,0,0,0)",
             boxShadow:        isHovered ? "0 0 7px 1px rgba(59,130,246,0.45)" : "none",
           }}
           transition={{ duration: 0.2, delay: node.delay }}

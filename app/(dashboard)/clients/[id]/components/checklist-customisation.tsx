@@ -61,9 +61,12 @@ export function ChecklistCustomisation({ clientId }: ChecklistCustomisationProps
 
   // Load org_id from user session
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const id = data.session?.user?.app_metadata?.org_id;
-      if (id) setOrgId(id);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const id = user.app_metadata?.org_id;
+      if (id) { setOrgId(id); return; }
+      supabase.from('user_organisations').select('org_id').eq('user_id', user.id).limit(1).single()
+        .then(({ data }) => { if (data?.org_id) setOrgId(data.org_id); });
     });
   }, []);
 

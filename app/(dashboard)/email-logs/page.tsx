@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { DeliveryLogTable } from './components/delivery-log-table';
-import { InboundEmailTable } from './components/inbound-email-table';
 import { UploadsTable } from './components/uploads-table';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 
-type DirectionMode = 'outbound' | 'inbound' | 'uploads';
+type DirectionMode = 'outbound' | 'uploads';
 type ViewMode = 'sent' | 'queued';
 
 function ActivityContent() {
@@ -22,16 +21,14 @@ function ActivityContent() {
           <div className="space-y-1">
             <h1>Activity</h1>
             <p className="text-muted-foreground mt-1">
-              Outbound reminders, inbound email responses, and client document uploads
+              Outbound reminders and client document uploads
             </p>
           </div>
 
           <div className="flex flex-col gap-3 items-end">
-            {/* Three-way toggle */}
             <ToggleGroup
               options={[
                 { value: 'outbound', label: 'Outbound' },
-                { value: 'inbound', label: 'Inbound' },
                 { value: 'uploads', label: 'Uploads' },
               ]}
               value={directionMode}
@@ -54,7 +51,6 @@ function ActivityContent() {
       </div>
 
       {directionMode === 'outbound' && <DeliveryLogTable viewMode={viewMode} />}
-      {directionMode === 'inbound' && <InboundEmailTable />}
       {directionMode === 'uploads' && <UploadsTable />}
     </div>
   );

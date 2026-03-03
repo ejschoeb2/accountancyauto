@@ -52,8 +52,7 @@ export function ClientPortalCard({ clientPortalEnabled: initial }: ClientPortalC
             When enabled, clients can upload documents directly to Prompt via a secure link. Prompt
             tracks received documents per client and updates statuses automatically. You can include
             a portal link in reminder emails so clients can respond and upload documents directly.
-            Disable this if you prefer to manage all document collection manually or via inbound
-            email only.
+            Disable this if you prefer to manage all document collection manually.
           </p>
         </div>
       </div>
@@ -89,8 +88,7 @@ export function ClientPortalCard({ clientPortalEnabled: initial }: ClientPortalC
       {value === "no" && (
         <p className="text-xs text-muted-foreground mt-3">
           With the client portal disabled, the document storage section is hidden. Accountants can
-          still tick document receipt manually per client, and any documents received via your
-          inbound email address will continue to update client document statuses.
+          still tick document receipt manually per client.
         </p>
       )}
     </Card>

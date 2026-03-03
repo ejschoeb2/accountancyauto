@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowLeft, ArrowRight, Users, HardDrive, Mail } from "lucide-react";
+import { ArrowLeft, ArrowRight, Users, HardDrive, Mail, Info } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -49,48 +48,54 @@ export function ClientPortalStep({ onComplete, onBack }: ClientPortalStepProps) 
           </p>
         </div>
 
-        {/* Feature highlights */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Card className="group py-5">
-            <CardContent className="px-5 py-0 space-y-3">
-              <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
-                <Users className="size-5 text-violet-500" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-sm font-semibold">Client self-service</p>
-                <p className="text-sm text-muted-foreground">
-                  Clients upload documents themselves via a secure link
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="group py-5">
-            <CardContent className="px-5 py-0 space-y-3">
-              <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
-                <Mail className="size-5 text-violet-500" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-sm font-semibold">Email integration</p>
-                <p className="text-sm text-muted-foreground">
-                  Include a portal link in reminder emails so clients can respond directly
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="group py-5">
-            <CardContent className="px-5 py-0 space-y-3">
-              <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
-                <HardDrive className="size-5 text-violet-500" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="text-sm font-semibold">Your storage</p>
-                <p className="text-sm text-muted-foreground">
-                  In the next step, connect Google Drive, OneDrive, or Dropbox so uploaded files
-                  go straight there
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Optional feature alert */}
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10">
+          <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-600">
+            The client portal is completely optional — you can enable or disable it at any time from
+            Settings. Your choice here won&apos;t affect any other features.
+          </p>
+        </div>
+
+        {/* Feature highlights — unified box */}
+        <div className="rounded-xl border divide-y divide-border">
+          <div className="flex items-start gap-4 p-4">
+            <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <Users className="size-5 text-violet-500" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-sm font-semibold">Client self-service</p>
+              <p className="text-sm text-muted-foreground">
+                Clients upload documents themselves via a unique secure link — no account required
+                on their end.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4 p-4">
+            <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <Mail className="size-5 text-violet-500" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-sm font-semibold">Email integration</p>
+              <p className="text-sm text-muted-foreground">
+                Include a portal link in reminder emails so clients can respond and upload directly
+                from their inbox.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4 p-4">
+            <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <HardDrive className="size-5 text-violet-500" />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-sm font-semibold">Your storage, your control</p>
+              <p className="text-sm text-muted-foreground">
+                In the next step you can connect Google Drive, OneDrive, or Dropbox — uploaded
+                files go straight to your own account. Prompt never retains a copy, keeping you
+                fully GDPR compliant.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Selection */}
@@ -111,9 +116,7 @@ export function ClientPortalStep({ onComplete, onBack }: ClientPortalStepProps) 
 
           {selection === "no" && (
             <p className="text-xs text-muted-foreground">
-              You can still track document receipt manually per client, and any documents received
-              via your inbound email address will still update client document statuses. You can
-              enable the portal at any time from Settings.
+              You can still track document receipt manually per client. You can enable the portal at any time from Settings.
             </p>
           )}
           {selection === "yes" && (

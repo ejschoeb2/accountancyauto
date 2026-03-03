@@ -33,10 +33,8 @@ import {
   markMemberSetupComplete,
   getUserSendHour,
   getUserEmailSettings,
-  getInboundCheckerMode,
   getPostmarkSettings,
   type EmailSettings,
-  type InboundCheckerMode,
 } from "@/app/actions/settings";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -195,13 +193,11 @@ export default function WizardPage() {
   // ── Import + Config (steps 3–4 for member, 4–6 for admin) ──────────────────
   const [sendHour, setSendHour] = useState<number | null>(null);
   const [emailSettings, setEmailSettings] = useState<EmailSettings | null>(null);
-  const [inboundMode, setInboundMode] = useState<InboundCheckerMode | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
 
   // ── Postmark settings (loaded alongside config defaults) ─────────────────
   const [orgDomain, setOrgDomain] = useState<string | undefined>(undefined);
-  const [orgInboundAddress, setOrgInboundAddress] = useState<string | undefined>(undefined);
 
   // ── Client portal ─────────────────────────────────────────────────────────
   // Tracks the user's choice made during the wizard; true = storage step shown
@@ -299,14 +295,11 @@ export default function WizardPage() {
     Promise.all([
       getUserSendHour(),
       getUserEmailSettings(),
-      getInboundCheckerMode(),
       getPostmarkSettings(),
-    ]).then(([hour, settings, mode, postmark]) => {
+    ]).then(([hour, settings, postmark]) => {
       setSendHour(hour);
       setEmailSettings(settings);
-      setInboundMode(mode);
       if (postmark.senderDomain) setOrgDomain(postmark.senderDomain);
-      if (postmark.inboundAddress) setOrgInboundAddress(postmark.inboundAddress);
     });
   }
 
@@ -509,16 +502,14 @@ export default function WizardPage() {
           </div>
         )}
 
-        {memberStep === 1 && sendHour !== null && emailSettings !== null && inboundMode !== null && (
+        {memberStep === 1 && sendHour !== null && emailSettings !== null && (
           <div className="min-h-[520px]">
             <ConfigStep
               defaultSendHour={sendHour}
               defaultEmailSettings={emailSettings}
-              defaultInboundMode={inboundMode}
               onComplete={handleConfigComplete}
               onBack={() => setMemberStep(0)}
               orgDomain={orgDomain}
-              orgInboundAddress={orgInboundAddress}
               isMember
               isCompleting={isCompleting}
               completeError={completeError}
@@ -526,7 +517,7 @@ export default function WizardPage() {
           </div>
         )}
 
-        {memberStep === 1 && (sendHour === null || emailSettings === null || inboundMode === null) && (
+        {memberStep === 1 && (sendHour === null || emailSettings === null) && (
           <div className="flex items-center justify-center min-h-[520px]">
             <Loader2 className="size-8 animate-spin text-muted-foreground" />
           </div>
@@ -812,23 +803,21 @@ export default function WizardPage() {
       )}
 
       {/* ── Step 5: Email Setup (includes email identity + send settings sub-steps) ── */}
-      {adminStep === "email" && sendHour !== null && emailSettings !== null && inboundMode !== null && (
+      {adminStep === "email" && sendHour !== null && emailSettings !== null && (
         <div className="min-h-[520px]">
           <EmailSetupStep
             onComplete={handleConfigComplete}
             onBack={() => setAdminStep("import")}
             defaultSendHour={sendHour}
             defaultEmailSettings={emailSettings}
-            defaultInboundMode={inboundMode}
             orgDomain={orgDomain}
-            orgInboundAddress={orgInboundAddress}
             isCompleting={isCompleting}
             completeError={completeError}
             initialState={emailInitialSubStep}
           />
         </div>
       )}
-      {adminStep === "email" && (sendHour === null || emailSettings === null || inboundMode === null) && (
+      {adminStep === "email" && (sendHour === null || emailSettings === null) && (
         <div className="flex items-center justify-center min-h-[520px]">
           <Loader2 className="size-8 animate-spin text-muted-foreground" />
         </div>

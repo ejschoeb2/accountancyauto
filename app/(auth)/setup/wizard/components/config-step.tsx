@@ -15,9 +15,7 @@ import {
 import {
   updateUserSendHour,
   updateUserEmailSettings,
-  updateInboundCheckerMode,
   type EmailSettings,
-  type InboundCheckerMode,
 } from "@/app/actions/settings";
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6am to 9pm
@@ -32,11 +30,9 @@ function formatHour(hour: number): string {
 interface ConfigStepProps {
   defaultSendHour: number;
   defaultEmailSettings: EmailSettings;
-  defaultInboundMode: InboundCheckerMode;
   onComplete: () => void;
   onBack?: () => void;
   orgDomain?: string;
-  orgInboundAddress?: string;
   isMember?: boolean;
   isCompleting?: boolean;
   completeError?: string | null;
@@ -45,17 +41,14 @@ interface ConfigStepProps {
 export function ConfigStep({
   defaultSendHour,
   defaultEmailSettings,
-  defaultInboundMode,
   onComplete,
   onBack,
   orgDomain,
-  orgInboundAddress,
   isMember = false,
   isCompleting = false,
   completeError,
 }: ConfigStepProps) {
   const [hour, setHour] = useState(String(defaultSendHour));
-  const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(defaultInboundMode);
 
   const [senderName, setSenderName] = useState(defaultEmailSettings.senderName);
 
@@ -63,9 +56,10 @@ export function ConfigStep({
   const defaultLocalPart = defaultEmailSettings.senderAddress.split("@")[0] ?? "reminders";
   const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
   // Use org's configured domain if available, otherwise fall back to the stored default
-  const senderDomain = orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "phasetwo.uk";
+  const senderDomain = orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "prompt.accountants";
 
-  const [replyTo, setReplyTo] = useState(orgInboundAddress ?? defaultEmailSettings.replyTo);
+  const defaultReplyToLocalPart = defaultEmailSettings.replyTo.split("@")[0] ?? "hello";
+  const [replyToLocalPart, setReplyToLocalPart] = useState(defaultReplyToLocalPart);
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -87,17 +81,10 @@ export function ConfigStep({
       const emailResult = await updateUserEmailSettings({
         senderName: senderName.trim(),
         senderAddress: currentAddress,
-        replyTo: replyTo.trim(),
+        replyTo: `${replyToLocalPart}@${senderDomain}`,
       });
       if (emailResult.error) {
         setError(emailResult.error);
-        return;
-      }
-
-      // Save inbound checker mode
-      const modeResult = await updateInboundCheckerMode(inboundMode);
-      if (modeResult.error) {
-        setError(modeResult.error);
         return;
       }
 
@@ -117,7 +104,7 @@ export function ConfigStep({
           <p className="text-sm text-muted-foreground mt-1">
             {isMember
               ? `Choose the name and email address clients will see when you send reminders${orgDomain ? ` from @${orgDomain}` : ""}. These can be changed at any time in Settings.`
-              : "Set your send hour, inbound email handling preference, and personal email identity. These can be changed at any time in Settings."}
+              : "Set your send hour and personal email identity. These can be changed at any time in Settings."}
           </p>
         </div>
 
@@ -148,35 +135,6 @@ export function ConfigStep({
           <p className="text-xs text-muted-foreground">
             When your daily reminder emails are sent.
           </p>
-        </div>
-
-        {/* Inbound Checker Mode */}
-        <div className="space-y-3">
-          <p className="text-sm font-medium">Inbound Email Handling</p>
-          <Select
-            value={inboundMode}
-            onValueChange={(v) => {
-              setInboundMode(v as InboundCheckerMode);
-              setError(null);
-            }}
-            disabled={isPending}
-          >
-            <SelectTrigger className="h-9 min-w-[280px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">Make changes automatically</SelectItem>
-              <SelectItem value="recommend">Provide recommendation only</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <p className={inboundMode === "auto" ? "text-foreground font-medium" : ""}>
-              <strong>Automatic:</strong> When a client emails you documents, the system automatically marks their records as received, updates their filing status, and logs the change. No manual action needed.
-            </p>
-            <p className={inboundMode === "recommend" ? "text-foreground font-medium" : ""}>
-              <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
-            </p>
-          </div>
         </div>
 
         {/* Email Identity */}
@@ -227,20 +185,25 @@ export function ConfigStep({
           <label htmlFor="wizard-reply-to" className="text-sm font-medium">
             Reply-To Address
           </label>
-          <Input
-            id="wizard-reply-to"
-            type="email"
-            value={replyTo}
-            onChange={(e) => {
-              setReplyTo(e.target.value);
-              setError(null);
-            }}
-            disabled={isPending}
-            placeholder="replies@yourdomain.co.uk"
-          />
+          <div className="flex items-center gap-0">
+            <Input
+              id="wizard-reply-to"
+              type="text"
+              value={replyToLocalPart}
+              onChange={(e) => {
+                setReplyToLocalPart(e.target.value.replace(/[^a-zA-Z0-9._+-]/g, ""));
+                setError(null);
+              }}
+              placeholder="hello"
+              className="rounded-r-none"
+              disabled={isPending}
+            />
+            <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+              @{senderDomain}
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Where client replies are sent. Set this to your Postmark inbound address so replies
-            are automatically processed.
+            When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
           </p>
         </div>
 

@@ -19,9 +19,7 @@ import {
 import {
   updateUserSendHour,
   updateUserEmailSettings,
-  updateInboundCheckerMode,
   type EmailSettings,
-  type InboundCheckerMode,
 } from "@/app/actions/settings";
 
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6am to 9pm
@@ -83,9 +81,7 @@ interface EmailSetupStepProps {
   onBack?: () => void;
   defaultSendHour: number;
   defaultEmailSettings: EmailSettings;
-  defaultInboundMode: InboundCheckerMode;
   orgDomain?: string;
-  orgInboundAddress?: string;
   isCompleting?: boolean;
   completeError?: string | null;
   initialState?: StepState;
@@ -103,7 +99,6 @@ interface DnsData {
   dkimPendingValue: string;
   returnPathHost: string;
   returnPathCnameValue: string;
-  inboundAddress: string;
 }
 
 interface VerifyState {
@@ -116,9 +111,7 @@ export function EmailSetupStep({
   onBack,
   defaultSendHour,
   defaultEmailSettings,
-  defaultInboundMode,
   orgDomain,
-  orgInboundAddress,
   isCompleting = false,
   completeError,
   initialState,
@@ -137,21 +130,19 @@ export function EmailSetupStep({
   const [senderName, setSenderName] = useState(defaultEmailSettings.senderName);
   const defaultLocalPart = defaultEmailSettings.senderAddress.split("@")[0] ?? "reminders";
   const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
-  const [replyTo, setReplyTo] = useState(orgInboundAddress ?? defaultEmailSettings.replyTo);
+  const defaultReplyToLocalPart = defaultEmailSettings.replyTo.split("@")[0] ?? "hello";
+  const [replyToLocalPart, setReplyToLocalPart] = useState(defaultReplyToLocalPart);
 
   // ── Send settings state ─────────────────────────────────────────────────
   const [sendHour, setSendHour] = useState(String(defaultSendHour));
-  const [trackInbound, setTrackInbound] = useState(defaultInboundMode !== "off");
-  const [inboundMode, setInboundMode] = useState<InboundCheckerMode>(
-    defaultInboundMode === "off" ? "recommend" : defaultInboundMode
-  );
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // The sender domain: use the domain just configured in Postmark if available,
-  // otherwise fall back to the org domain or the stored default.
-  const senderDomain = dnsData
+  // The sender domain: only use the just-configured domain once DNS is verified.
+  // If the user continues without verifying, fall back to the stored org domain or default.
+  const domainVerified = verifyState.dkimVerified === true && verifyState.returnPathVerified === true;
+  const senderDomain = (dnsData && domainVerified)
     ? domain
     : (orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "prompt.accountants");
 
@@ -178,7 +169,6 @@ export function EmailSetupStep({
       dkimPendingValue: result.dkimPendingValue ?? "",
       returnPathHost: result.returnPathHost ?? "",
       returnPathCnameValue: result.returnPathCnameValue ?? "pm.mtasv.net",
-      inboundAddress: result.inboundAddress ?? "",
     });
     setState("dns-records");
   }
@@ -201,10 +191,6 @@ export function EmailSetupStep({
   }
 
   function handleDnsContinue() {
-    // Pre-fill reply-to with the Postmark inbound address from the setup result
-    if (dnsData?.inboundAddress) {
-      setReplyTo(dnsData.inboundAddress);
-    }
     setState("settings");
   }
 
@@ -229,17 +215,10 @@ export function EmailSetupStep({
     const emailResult = await updateUserEmailSettings({
       senderName: senderName.trim(),
       senderAddress: currentAddress,
-      replyTo: replyTo.trim(),
+      replyTo: `${replyToLocalPart}@${senderDomain}`,
     });
     if (emailResult.error) {
       setSaveError(emailResult.error);
-      setIsSaving(false);
-      return;
-    }
-
-    const modeResult = await updateInboundCheckerMode(trackInbound ? inboundMode : "off");
-    if (modeResult.error) {
-      setSaveError(modeResult.error);
       setIsSaving(false);
       return;
     }
@@ -631,64 +610,28 @@ export function EmailSetupStep({
               </p>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-sm font-medium">Track inbound replies</p>
-              <Select
-                value={trackInbound ? "yes" : "no"}
-                onValueChange={(v) => setTrackInbound(v === "yes")}
-                disabled={isSaving || isCompleting}
-              >
-                <SelectTrigger className="h-9 min-w-[280px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="yes">Yes — track client replies</SelectItem>
-                  <SelectItem value="no">No — don&apos;t track replies</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-1.5">
+              <label htmlFor="settings-reply-to" className="text-sm font-medium">
+                Reply-To Address
+              </label>
+              <div className="flex items-center gap-0">
+                <Input
+                  id="settings-reply-to"
+                  type="text"
+                  value={replyToLocalPart}
+                  onChange={(e) => setReplyToLocalPart(e.target.value.replace(/[^a-zA-Z0-9._+-]/g, ""))}
+                  placeholder="hello"
+                  className="rounded-r-none"
+                  disabled={isSaving || isCompleting}
+                />
+                <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+                  @{senderDomain}
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
-                When a client replies to a reminder, Prompt captures the email via Postmark, matches it to the client by email address, and checks whether they mention sending documents. If enabled, this can automatically update their filing status — so you don&apos;t have to manually chase up or mark records as received. Disable this if you prefer to manage client replies entirely outside of Prompt.
+                When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
               </p>
             </div>
-
-            {trackInbound && (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Reply-To Address</label>
-                  <div className="flex items-center h-9 px-3 border rounded-md bg-muted text-muted-foreground text-sm font-mono truncate">
-                    {replyTo || <span className="italic">not configured</span>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Client replies are routed to this Postmark inbound address. It cannot be changed here — update it in Settings if needed.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Inbound Email Handling</p>
-                  <Select
-                    value={inboundMode}
-                    onValueChange={(v) => setInboundMode(v as InboundCheckerMode)}
-                    disabled={isSaving || isCompleting}
-                  >
-                    <SelectTrigger className="h-9 min-w-[280px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="auto">Make changes automatically</SelectItem>
-                      <SelectItem value="recommend">Provide recommendation only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="space-y-2 text-xs text-muted-foreground">
-                    <p className={inboundMode === "auto" ? "text-foreground font-medium" : ""}>
-                      <strong>Automatic:</strong> When a client emails you documents, the system automatically marks their records as received, updates their filing status, and logs the change. No manual action needed.
-                    </p>
-                    <p className={inboundMode === "recommend" ? "text-foreground font-medium" : ""}>
-                      <strong>Recommendation only:</strong> When a client emails you documents, the system logs the inbound email and notifies you, but won&apos;t update any client records. You review each email and decide whether to mark records as received yourself.
-                    </p>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </Card>
 

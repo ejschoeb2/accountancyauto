@@ -104,7 +104,6 @@ export function DomainSetupCard({ initialDnsData }: DomainSetupCardProps) {
       returnPathCnameValue: result.returnPathCnameValue ?? "pm.mtasv.net",
       dkimVerified: false,
       returnPathVerified: false,
-      inboundAddress: result.inboundAddress ?? "",
     });
     setVerifyState({ dkimVerified: null, returnPathVerified: null });
     setState("dns-records");

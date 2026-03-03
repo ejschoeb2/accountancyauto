@@ -276,7 +276,6 @@ export interface SetupPostmarkResult {
   dkimPendingValue?: string;
   returnPathHost?: string;
   returnPathCnameValue?: string;
-  inboundAddress?: string;
 }
 
 /**
@@ -316,7 +315,7 @@ export async function setupPostmarkForOrg(
   const { data: org } = await admin
     .from("organisations")
     .select(
-      "name, slug, postmark_server_id, postmark_domain_id, postmark_server_token, postmark_sender_domain, inbound_address"
+      "name, slug, postmark_server_id, postmark_domain_id, postmark_server_token, postmark_sender_domain"
     )
     .eq("id", orgId)
     .single();
@@ -328,24 +327,20 @@ export async function setupPostmarkForOrg(
   try {
     // ── Step 1: Create Server (if not yet created) ──────────────────────────
     let serverToken: string;
-    let inboundAddress: string;
 
     if (!org.postmark_server_id) {
       const serverResult = await createOrgServer(org.name, org.slug);
       serverToken = serverResult.serverToken;
-      inboundAddress = serverResult.inboundAddress;
 
       await admin
         .from("organisations")
         .update({
           postmark_server_token: serverToken,
           postmark_server_id: serverResult.serverId,
-          inbound_address: inboundAddress,
         })
         .eq("id", orgId);
     } else {
       serverToken = org.postmark_server_token ?? "";
-      inboundAddress = org.inbound_address ?? "";
     }
 
     // ── Step 2: Create Domain (if not yet created) ──────────────────────────
@@ -402,7 +397,6 @@ export async function setupPostmarkForOrg(
       dkimPendingValue,
       returnPathHost,
       returnPathCnameValue,
-      inboundAddress,
     };
   } catch (err) {
     console.error("setupPostmarkForOrg error:", err);

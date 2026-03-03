@@ -23,6 +23,8 @@ const SendAdhocEmailParamsSchema = z.object({
   filingTypeName: z.string().optional(),
   bodyJson: z.record(z.string(), z.any()).optional(),
   rawSubject: z.string().optional(),    // subject with {{placeholders}} unresolved
+  // Portal link injection: placeholder token in pre-rendered HTML to replace with real URL
+  portalLinkPlaceholder: z.string().optional(),
 });
 
 interface SendAdhocEmailParams {
@@ -38,6 +40,8 @@ interface SendAdhocEmailParams {
   filingTypeName?: string;
   bodyJson?: Record<string, any>;
   rawSubject?: string;
+  // Portal link injection into pre-rendered content
+  portalLinkPlaceholder?: string;
 }
 
 interface SendAdhocEmailResult {
@@ -139,10 +143,50 @@ export async function sendAdhocEmail(
       finalHtml = rendered.html;
 
     } else if (validated.customSubject && validated.customText) {
-      // Pre-rendered custom content (no filing context)
+      // Pre-rendered custom content — used for both plain ad-hoc and filing-context sends.
+      // For filing-context sends, the client pre-renders with a portal link placeholder
+      // and passes filingTypeId + portalLinkPlaceholder so we can generate and inject the real URL.
       finalSubject = validated.customSubject;
       finalText = validated.customText;
       finalHtml = validated.customHtml;
+
+      if (validated.filingTypeId && validated.portalLinkPlaceholder) {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('year_end_date, vat_stagger_group')
+          .eq('id', validated.clientId)
+          .single();
+
+        const deadline = calculateDeadline(validated.filingTypeId, {
+          year_end_date: clientData?.year_end_date ?? undefined,
+          vat_stagger_group: clientData?.vat_stagger_group ?? undefined,
+        }) ?? new Date();
+        const taxYear = deadline.getFullYear().toString();
+
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        const { error: tokenError } = await supabase
+          .from('upload_portal_tokens')
+          .insert({
+            org_id: orgId,
+            client_id: validated.clientId,
+            filing_type_id: validated.filingTypeId,
+            tax_year: taxYear,
+            token_hash: tokenHash,
+            expires_at: expiresAt.toISOString(),
+          });
+
+        const portalLink = tokenError
+          ? ''
+          : `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/portal/${rawToken}`;
+
+        finalText = finalText.replace(validated.portalLinkPlaceholder, portalLink);
+        if (finalHtml) {
+          finalHtml = finalHtml.replace(validated.portalLinkPlaceholder, portalLink);
+        }
+      }
 
     } else {
       // Fetch and render a named template (no filing context)

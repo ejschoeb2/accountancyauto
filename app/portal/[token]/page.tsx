@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { createServiceClient } from '@/lib/supabase/service';
 import crypto from 'crypto';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Brain } from 'lucide-react';
 import { PortalChecklist } from './components/portal-checklist';
 
 export const metadata: Metadata = {
@@ -37,8 +37,8 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
 
   if (isExpired || isRevoked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/40 px-4">
-        <div className="max-w-md w-full bg-background rounded-xl shadow-sm border p-8">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="max-w-md w-full bg-card rounded-xl shadow-sm border p-8">
           <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-xl">
             <AlertCircle className="size-5 text-red-500 shrink-0 mt-0.5" />
             <div className="space-y-1">
@@ -107,18 +107,27 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
     .then(() => {});
 
   return (
-    <div className="min-h-screen bg-muted/40">
-      <header className="bg-background border-b px-4 py-5">
-        <div className="max-w-2xl mx-auto">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-            {orgName}
-          </p>
-          <h1 className="text-xl font-semibold">
-            Upload documents for {clientName}
-          </h1>
+    <div className="min-h-screen bg-background">
+      <header className="bg-background">
+        <div className="max-w-screen-xl mx-auto px-4">
+          <div className="flex items-center h-16">
+            <Brain className="text-violet-600" size={24} />
+            <span className="font-bold text-lg text-foreground ml-2">Prompt</span>
+            <span className="w-px h-4 bg-border mx-3" />
+            <span className="font-bold text-lg text-foreground">{orgName}</span>
+          </div>
         </div>
       </header>
       <main className="max-w-2xl mx-auto px-4 py-8">
+        <div className="mb-6">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Document upload</h1>
+            <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10 shrink-0">
+              <span className="text-sm font-medium text-green-600">Secure upload</span>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">Uploading for {clientName}</p>
+        </div>
         <PortalChecklist
           checklist={checklist}
           rawToken={token}

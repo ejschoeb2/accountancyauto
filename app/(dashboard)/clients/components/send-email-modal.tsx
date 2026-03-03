@@ -247,8 +247,58 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
 
     const hasFilingContext = !!(selectedFilingTypeId && templateBodyJson);
     const sendFilingTypeName = filingTypes.find(ft => ft.id === selectedFilingTypeId)?.name;
+    // Unique placeholder token that the server will replace with the real portal link URL
+    const PORTAL_LINK_PLACEHOLDER = '%%%PORTAL_LINK%%%';
 
     for (const client of eligibleClients) {
+      // For filing-context sends, pre-render on the client to avoid Next.js server action
+      // serialization issues (passing bodyJson through the server action boundary causes
+      // React client reference proxy errors in Next.js 16).
+      let perClientParams: Record<string, string | undefined>;
+      if (hasFilingContext) {
+        try {
+          const clientDeadline = calculateDeadline(selectedFilingTypeId, {
+            year_end_date: client.year_end_date ?? undefined,
+            vat_stagger_group: client.vat_stagger_group ?? undefined,
+          }) ?? new Date();
+          const rendered = renderTipTapEmailSimple({
+            bodyJson: templateBodyJson,
+            subject: templateSubject,
+            context: {
+              client_name: client.display_name || client.company_name,
+              filing_type: sendFilingTypeName ?? selectedFilingTypeId,
+              deadline: clientDeadline,
+              accountant_name: 'Prompt',
+              portal_link: PORTAL_LINK_PLACEHOLDER,
+            },
+            clientId: client.id,
+          });
+          perClientParams = {
+            customSubject: rendered.subject,
+            customText: rendered.text,
+            customHtml: rendered.html,
+            filingTypeId: selectedFilingTypeId,
+            portalLinkPlaceholder: PORTAL_LINK_PLACEHOLDER,
+          };
+        } catch (renderError) {
+          setFailures((prev) => [
+            ...prev,
+            {
+              clientName: client.display_name || client.company_name,
+              error: renderError instanceof Error ? renderError.message : 'Failed to render email',
+            },
+          ]);
+          setProgress((prev) => prev + 1);
+          continue;
+        }
+      } else {
+        perClientParams = {
+          customSubject: editedSubject,
+          customText: editedText,
+          customHtml: editedHtml,
+        };
+      }
+
       const result = await sendAdhocEmail({
         clientId: client.id,
         clientName: client.display_name || client.company_name,
@@ -256,18 +306,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         templateId: (selectedTemplateId === "no-template" || !selectedTemplateId)
           ? '00000000-0000-0000-0000-000000000000' // Dummy ID for custom emails
           : selectedTemplateId,
-        ...(hasFilingContext
-          ? {
-              filingTypeId: selectedFilingTypeId,
-              filingTypeName: sendFilingTypeName ?? selectedFilingTypeId,
-              bodyJson: templateBodyJson as Record<string, any>,
-              rawSubject: templateSubject,
-            }
-          : {
-              customSubject: editedSubject,
-              customText: editedText,
-              customHtml: editedHtml,
-            }),
+        ...perClientParams,
       });
 
       if (result.success) {

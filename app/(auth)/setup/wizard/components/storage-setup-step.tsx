@@ -90,23 +90,26 @@ export function StorageSetupStep({
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Document Storage</h2>
           <p className="text-sm text-muted-foreground">
-            When you connect a cloud storage provider, any documents uploaded through Prompt — such
-            as tax returns, filed accounts, or client correspondence — are saved directly to your
-            own account rather than Prompt&apos;s servers. You stay in full control of your files
-            and can access them from Google Drive, OneDrive, or Dropbox like any other folder on
-            your device.
+            Connect your existing cloud storage and uploaded documents go directly into your own
+            account — Google Drive, OneDrive, or Dropbox. Prompt acts as a bridge only:{" "}
+            <strong className="font-medium text-foreground">
+              no client files are retained on Prompt&apos;s servers
+            </strong>
+            , so your practice stays fully GDPR compliant and you remain the data controller at all
+            times.
           </p>
           <p className="text-sm text-muted-foreground mt-2">
             Files are organised automatically into a logical folder structure — for example:{" "}
             <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
               Prompt / Smith Ltd / Corp Tax / 2024 /
             </span>
-            . No manual filing needed. Documents received via the client portal (which you enabled
-            in the previous step) will be routed here automatically.
+            . No manual filing needed. Documents received via the client portal will be routed here
+            automatically.
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            This is optional. If you skip it now, documents will be stored securely in Prompt&apos;s
-            built-in storage and you can connect a provider at any time from Settings.
+            This step is optional. If you skip it, documents will be held in Prompt&apos;s
+            encrypted built-in storage until you connect a provider — you can do that at any time
+            from Settings.
           </p>
         </div>
 
@@ -153,8 +156,8 @@ export function StorageSetupStep({
                 <p className="text-sm font-medium">Supabase Storage</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {isSupabaseActive
-                    ? "Documents are stored in Prompt's built-in secure database. No external account needed."
-                    : "Prompt's built-in storage — used if you disconnect your provider later."}
+                    ? "Documents are stored in Prompt's built-in encrypted database, hosted in the EU and fully GDPR compliant. No external account needed."
+                    : "Prompt's built-in encrypted EU-hosted storage — used if you disconnect your provider later."}
                 </p>
               </div>
               <ButtonBase variant="blue" buttonType="icon-text" disabled>

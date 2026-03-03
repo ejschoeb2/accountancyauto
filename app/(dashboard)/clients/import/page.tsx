@@ -45,7 +45,7 @@ import {
   Pencil,
   X,
 } from "lucide-react";
-import { CSV_COLUMNS } from "@/lib/utils/csv-template";
+import { CSV_COLUMNS, rollYearEndToFuture } from "@/lib/utils/csv-template";
 import { importClientMetadata, type CsvImportResult } from "@/app/actions/csv";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -300,7 +300,7 @@ export default function ClientImportPage() {
           company_name: mappedData.company_name || "",
           primary_email: mappedData.primary_email || null,
           client_type: mappedData.client_type || null,
-          year_end_date: parseDate(mappedData.year_end_date || ""),
+          year_end_date: rollYearEndToFuture(parseDate(mappedData.year_end_date || "")),
           vat_registered: mappedData.vat_registered
             ? ["yes", "true", "1"].includes(
                 mappedData.vat_registered.toLowerCase()

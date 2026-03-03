@@ -49,7 +49,7 @@ import {
   X,
   Download,
 } from "lucide-react";
-import { generateCsvTemplateWithComments, CSV_COLUMNS } from "@/lib/utils/csv-template";
+import { generateCsvTemplateWithComments, CSV_COLUMNS, rollYearEndToFuture } from "@/lib/utils/csv-template";
 import {
   importClientMetadata,
   type CsvImportResult,
@@ -264,8 +264,28 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
           setStepState("mapping");
           setError(null);
         } else {
-          // Parse CSV file
-          const csvContent = await file.text();
+          // Parse CSV file — handle encoding properly.
+          // file.text() always decodes as UTF-8. Excel-exported CSVs can be
+          // UTF-8+BOM (adds \ufeff to the first field) or Windows-1252 (ANSI),
+          // where bytes > 0x7F are misread, producing garbled characters like
+          // â€™ instead of ' or â€" instead of –.
+          const rawBytes = new Uint8Array(await file.arrayBuffer());
+          let csvContent: string;
+          if (rawBytes[0] === 0xEF && rawBytes[1] === 0xBB && rawBytes[2] === 0xBF) {
+            // UTF-8 with BOM — strip the BOM before decoding
+            csvContent = new TextDecoder("utf-8").decode(rawBytes.slice(3));
+          } else if (rawBytes[0] === 0xFF && rawBytes[1] === 0xFE) {
+            // UTF-16 LE BOM
+            csvContent = new TextDecoder("utf-16le").decode(rawBytes.slice(2));
+          } else {
+            // No BOM — try UTF-8; if the decoded text contains replacement
+            // characters (U+FFFD), fall back to Windows-1252 which is the
+            // default encoding for older Excel / UK accounting software.
+            csvContent = new TextDecoder("utf-8").decode(rawBytes);
+            if (csvContent.includes("\uFFFD")) {
+              csvContent = new TextDecoder("windows-1252").decode(rawBytes);
+            }
+          }
 
           Papa.parse<Record<string, string>>(csvContent, {
             header: true,
@@ -360,7 +380,8 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
   // Download template
   const handleDownloadTemplate = useCallback(() => {
     const csvContent = generateCsvTemplateWithComments();
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    // Prepend UTF-8 BOM so Excel opens the file with correct encoding
+    const blob = new Blob(["\ufeff", csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -492,7 +513,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
           company_name: mappedData.company_name || "",
           primary_email: mappedData.primary_email || null,
           client_type: mappedData.client_type || null,
-          year_end_date: parseDate(mappedData.year_end_date || ""),
+          year_end_date: rollYearEndToFuture(parseDate(mappedData.year_end_date || "")),
           vat_registered: mappedData.vat_registered
             ? ["yes", "true", "1"].includes(mappedData.vat_registered.toLowerCase())
             : true, // Default to true if not specified

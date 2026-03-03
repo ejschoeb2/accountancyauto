@@ -20,7 +20,7 @@ export const GettingStartedIllustration = ({ isHovered }: { isHovered: boolean }
               className="relative w-14 h-14 rounded-full flex items-center justify-center border-2"
               style={{ borderColor: step.color }}
               animate={{
-                backgroundColor: isHovered ? step.color : "transparent",
+                backgroundColor: isHovered ? step.color : "rgba(0,0,0,0)",
                 scale: isHovered ? 1 : 0.85,
               }}
               transition={{ type: "spring", stiffness: 260, damping: 18, delay: i * 0.12 }}

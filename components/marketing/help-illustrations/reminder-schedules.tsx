@@ -30,7 +30,7 @@ export const ReminderSchedulesIllustration = ({ isHovered }: { isHovered: boolea
             <motion.div
               className="relative w-16 h-11 rounded-lg border border-border/60 flex items-center justify-center"
               animate={{
-                backgroundColor: isHovered ? `${node.color}10` : "transparent",
+                backgroundColor: isHovered ? `${node.color}10` : "rgba(0,0,0,0)",
                 borderColor: isHovered ? `${node.color}40` : "rgba(0,0,0,0.1)",
               }}
               transition={{ delay: i * 0.14 + 0.1 }}

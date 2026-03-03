@@ -35,7 +35,7 @@ export const UploadPortalIllustration = ({ isHovered }: { isHovered: boolean }) 
             animate={{
               opacity: isHovered ? 1 : 0.3,
               borderColor: isHovered && doc.uploaded ? "rgba(16,185,129,0.3)" : "rgba(0,0,0,0.06)",
-              backgroundColor: isHovered && doc.uploaded ? "rgba(16,185,129,0.04)" : "transparent",
+              backgroundColor: isHovered && doc.uploaded ? "rgba(16,185,129,0.04)" : "rgba(0,0,0,0)",
             }}
             transition={{ delay: i * 0.08, duration: 0.25 }}
           >

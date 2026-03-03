@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { csvRowSchema, type CsvValidationError } from "@/lib/validations/csv";
 import { createClient } from "@/lib/supabase/server";
 import { checkClientLimit } from "@/lib/billing/usage-limits";
+import { rollYearEndToFuture } from "@/lib/utils/csv-template";
 import { z } from "zod";
 
 /**
@@ -185,7 +186,7 @@ export async function importClientMetadata(
         }
 
         if (row.year_end_date !== undefined && row.year_end_date !== "") {
-          metadata.year_end_date = row.year_end_date; // Already YYYY-MM-DD from schema
+          metadata.year_end_date = rollYearEndToFuture(row.year_end_date); // Roll past dates forward
         }
 
         if (row.vat_registered !== undefined) {
@@ -292,7 +293,7 @@ export async function importClientMetadata(
         reminders_paused: false,
         primary_email: row.primary_email || null,
         client_type: row.client_type || null,
-        year_end_date: row.year_end_date && row.year_end_date !== "" ? row.year_end_date : null,
+        year_end_date: row.year_end_date && row.year_end_date !== "" ? rollYearEndToFuture(row.year_end_date) : null,
         vat_registered: row.vat_registered ?? false,
         vat_stagger_group: row.vat_stagger_group ?? null,
         vat_scheme: row.vat_scheme || null,

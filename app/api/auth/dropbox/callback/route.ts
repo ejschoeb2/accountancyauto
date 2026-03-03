@@ -17,7 +17,9 @@
  *    access and refresh tokens; NEVER writes plaintext tokens to the database.
  * 6. Sets storage_backend='dropbox', storage_backend_status='active'.
  * 7. Clears dropbox_oauth_state to prevent replay.
- * 8. Redirects to /settings?tab=storage&connected=dropbox on success.
+ * 8. Redirects to /setup/wizard?storage_connected=dropbox if initiated from
+ *    the setup wizard (detected via "wizard_" prefix in the state param),
+ *    otherwise redirects to /settings?tab=storage&connected=dropbox.
  *
  * All error paths redirect to /settings with an error query param — OAuth
  * callbacks must never expose raw error state to users.
@@ -154,12 +156,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
-  // Wizard lives on the main domain; settings lives on the org subdomain.
-  const fromWizard = request.cookies.get('wizard_oauth_return')?.value === '1';
+  // Origin context is encoded in the state param ("wizard_<uuid>" vs "<uuid>"),
+  // which Dropbox returns unchanged — more reliable than a cookie.
+  const fromWizard = stateParam?.startsWith('wizard_') ?? false;
   const successUrl = fromWizard
     ? `${appUrl}/setup/wizard?storage_connected=dropbox`
     : `${orgBaseUrl}/settings?tab=storage&connected=dropbox`;
-  const successResponse = NextResponse.redirect(successUrl);
-  successResponse.cookies.delete('wizard_oauth_return');
-  return successResponse;
+  return NextResponse.redirect(successUrl);
 }

@@ -336,47 +336,6 @@ export async function markOnboardingComplete(): Promise<{ error?: string }> {
   return {};
 }
 
-// --- Inbound Email Checker Mode ---
-
-export type InboundCheckerMode = "auto" | "recommend" | "off";
-
-export async function getInboundCheckerMode(): Promise<InboundCheckerMode> {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  const { data } = await supabase
-    .from("app_settings")
-    .select("value")
-    .eq("org_id", orgId)
-    .is("user_id", null)
-    .eq("key", "inbound_checker_mode")
-    .maybeSingle();
-
-  const v = data?.value;
-  if (v === "auto" || v === "recommend" || v === "off") return v;
-  return "recommend";
-}
-
-export async function updateInboundCheckerMode(
-  mode: InboundCheckerMode
-): Promise<{ error?: string }> {
-  if (mode !== "auto" && mode !== "recommend" && mode !== "off") {
-    return { error: "Invalid inbound checker mode" };
-  }
-
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  await requireWriteAccess(orgId);
-  const { error } = await supabase
-    .from("app_settings")
-    .upsert(
-      { org_id: orgId, user_id: null, key: "inbound_checker_mode", value: mode },
-      { onConflict: "org_id,user_id,key" }
-    );
-
-  if (error) return { error: error.message };
-  return {};
-}
-
 // --- Member Setup Wizard Completion ---
 
 export async function getMemberSetupComplete(): Promise<boolean> {
@@ -427,7 +386,6 @@ export interface OrgDomainDnsData {
   returnPathCnameValue: string;
   dkimVerified: boolean;
   returnPathVerified: boolean;
-  inboundAddress: string;
 }
 
 export async function getOrgDomainDnsData(): Promise<OrgDomainDnsData | null> {
@@ -435,7 +393,7 @@ export async function getOrgDomainDnsData(): Promise<OrgDomainDnsData | null> {
   const admin = createAdminClient();
   const { data: org } = await admin
     .from('organisations')
-    .select('postmark_domain_id, postmark_sender_domain, inbound_address')
+    .select('postmark_domain_id, postmark_sender_domain')
     .eq('id', orgId)
     .single();
 
@@ -462,7 +420,6 @@ export async function getOrgDomainDnsData(): Promise<OrgDomainDnsData | null> {
       returnPathCnameValue: data.ReturnPathDomainCNAMEValue ?? 'pm.mtasv.net',
       dkimVerified: Boolean(data.DKIMVerified),
       returnPathVerified: Boolean(data.ReturnPathDomainVerified),
-      inboundAddress: org.inbound_address || '',
     };
   } catch {
     return null;
@@ -471,18 +428,17 @@ export async function getOrgDomainDnsData(): Promise<OrgDomainDnsData | null> {
 
 // --- Postmark Settings ---
 
-export async function getPostmarkSettings(): Promise<{ token: string; senderDomain: string; inboundAddress: string }> {
+export async function getPostmarkSettings(): Promise<{ token: string; senderDomain: string }> {
   const orgId = await getOrgId();
   const admin = createAdminClient();
   const { data: org } = await admin
     .from('organisations')
-    .select('postmark_server_token, postmark_sender_domain, inbound_address')
+    .select('postmark_server_token, postmark_sender_domain')
     .eq('id', orgId)
     .single();
   return {
     token: org?.postmark_server_token || '',
     senderDomain: org?.postmark_sender_domain || '',
-    inboundAddress: org?.inbound_address || '',
   };
 }
 

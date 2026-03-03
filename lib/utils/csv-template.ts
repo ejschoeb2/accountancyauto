@@ -1,4 +1,33 @@
 /**
+ * Rolls a year-end date forward (one year at a time) until it is today or in
+ * the future. Applied during CSV import so that clients with historical year
+ * ends don't immediately surface a backlog of overdue deadlines.
+ *
+ * @param dateStr - YYYY-MM-DD string (or null/empty)
+ * @returns A YYYY-MM-DD string >= today, or null if input is invalid/empty
+ */
+export function rollYearEndToFuture(dateStr: string | null | undefined): string | null {
+  if (!dateStr) return null;
+
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return dateStr; // Unrecognised format — leave unchanged
+
+  let year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const day = parseInt(match[3], 10);
+
+  // Compare against UTC midnight today to avoid timezone artefacts
+  const today = new Date();
+  const todayMs = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+
+  while (Date.UTC(year, month - 1, day) < todayMs) {
+    year += 1;
+  }
+
+  return `${year}-${match[2]}-${match[3]}`;
+}
+
+/**
  * CSV column definitions with descriptions for help text
  */
 export const CSV_COLUMNS = [
@@ -100,10 +129,10 @@ export function generateCsvTemplateWithComments(): string {
     "# client_type values:",
     "#   Limited Company | Sole Trader | Partnership | LLP | Individual",
     "#",
-    "# vat_stagger_group — which HMRC VAT stagger group the client is in:",
-    "#   1 = VAT quarters end in March, June, September, December",
-    "#   2 = VAT quarters end in January, April, July, October",
-    "#   3 = VAT quarters end in February, May, August, November",
+    "# vat_stagger_group - which HMRC VAT stagger group the client is in:",
+    "#   1 = VAT quarters end in March / June / September / December",
+    "#   2 = VAT quarters end in January / April / July / October",
+    "#   3 = VAT quarters end in February / May / August / November",
     "#   (Return and payment due 1 month + 7 days after each quarter end)",
     "#",
     "# vat_scheme values:",

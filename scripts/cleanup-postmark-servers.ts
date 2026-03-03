@@ -9,7 +9,7 @@
  *   2. Deletes servers whose names match the TARGET_SERVER_NAMES list
  *   3. Deletes the Postmark domain for servers that have one recorded in the DB
  *   4. Clears postmark_server_id / postmark_server_token / postmark_sender_domain /
- *      postmark_domain_id / inbound_address on the corresponding DB org rows
+ *      postmark_domain_id on the corresponding DB org rows
  *
  * Run with --dry-run first to preview what would be deleted without making changes.
  */
@@ -164,7 +164,6 @@ async function run() {
               postmark_server_token: null,
               postmark_sender_domain: null,
               postmark_domain_id: null,
-              inbound_address: null,
             })
             .eq("id", org.id);
 

@@ -8,7 +8,7 @@
  * Rehydration pattern: reconstruct DropboxAuth from stored tokens, call
  * checkAndRefreshAccessToken(), then persist the refreshed token back to Postgres.
  *
- * Folder structure: app folder root / {clientId} / {filingTypeId} / {taxYear} / {uuid}.{ext}
+ * Folder structure: app folder root / {clientName} / {filingTypeId} / {taxYear} / {uuid}.{ext}
  * Dropbox enforces the /Apps/Prompt/ boundary via the "App folder" access type —
  * do NOT prefix paths with /Apps/Prompt/.
  *
@@ -124,7 +124,7 @@ export class DropboxProvider implements StorageProvider {
 
   /**
    * Uploads a document to Dropbox under the path:
-   *   /{clientId}/{filingTypeId}/{taxYear}/{uuid}.{ext}
+   *   /{clientName}/{filingTypeId}/{taxYear}/{uuid}.{ext}
    *
    * Paths are relative to the app folder root — Dropbox prepends /Apps/Prompt/
    * automatically when the app uses "App folder" access type.
@@ -135,7 +135,8 @@ export class DropboxProvider implements StorageProvider {
 
     const ext = params.originalFilename.split('.').pop()?.toLowerCase() ?? 'bin';
     const uuid = crypto.randomUUID();
-    const path = `/${params.clientId}/${params.filingTypeId}/${params.taxYear}/${uuid}.${ext}`;
+    const clientFolder = params.clientName ?? params.clientId;
+    const path = `/${clientFolder}/${params.filingTypeId}/${params.taxYear}/${uuid}.${ext}`;
 
     await dbx.filesUpload({
       path,

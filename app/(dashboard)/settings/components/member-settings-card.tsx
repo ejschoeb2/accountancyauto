@@ -195,8 +195,7 @@ export function MemberSettingsCard({
               placeholder="replies@yourdomain.co.uk"
             />
             <p className="text-xs text-muted-foreground">
-              Where client replies are sent. Set this to your Postmark inbound address so
-              replies are automatically processed.
+              When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
             </p>
           </div>
 

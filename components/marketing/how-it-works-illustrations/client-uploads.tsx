@@ -27,7 +27,7 @@ export const ClientUploadsIllustration: React.FC<{ isActive: boolean }> = ({ isA
         animate={{
           borderColor:
             phase >= 2 ? "rgba(34,197,94,0.4)" : "rgba(var(--border),0.4)",
-          backgroundColor: phase >= 2 ? "rgba(34,197,94,0.05)" : "transparent",
+          backgroundColor: phase >= 2 ? "rgba(34,197,94,0.05)" : "rgba(0,0,0,0)",
         }}
         transition={{ duration: 0.4 }}
         className="flex-1 rounded-xl border-2 border-dashed border-border/40 flex items-center justify-center"

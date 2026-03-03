@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { SendHourPicker } from "./send-hour-picker";
 import { EmailSettingsCard } from "./email-settings-card";
-import { InboundCheckerCard } from "./inbound-checker-card";
 import { DomainSetupCard } from "./domain-setup-card";
 import { TeamCard, type AccountantStats } from "./team-card";
 import { SignOutCard } from "./sign-out-card";
@@ -13,12 +12,11 @@ import { StorageCard } from "./storage-card";
 import { ClientPortalCard } from "./client-portal-card";
 import { BillingStatusCard } from "@/app/(dashboard)/billing/components/billing-status-card";
 import { UsageBars } from "@/app/(dashboard)/billing/components/usage-bars";
-import type { EmailSettings, InboundCheckerMode, OrgDomainDnsData } from "@/app/actions/settings";
+import type { EmailSettings, OrgDomainDnsData } from "@/app/actions/settings";
 
 interface SettingsTabsProps {
   sendHour: number;
   emailSettings: EmailSettings;
-  inboundCheckerMode: InboundCheckerMode;
   domainDnsData: OrgDomainDnsData | null;
   senderDomain: string;
   accountants: AccountantStats[];
@@ -46,7 +44,6 @@ interface SettingsTabsProps {
 export function SettingsTabs({
   sendHour,
   emailSettings,
-  inboundCheckerMode,
   domainDnsData,
   senderDomain,
   accountants,
@@ -106,7 +103,6 @@ export function SettingsTabs({
             senderDomain={senderDomain}
           />
           <DomainSetupCard initialDnsData={domainDnsData} />
-          <InboundCheckerCard defaultMode={inboundCheckerMode} />
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-8 mt-6">

@@ -31,13 +31,12 @@ function accountHeaders(): HeadersInit {
 export interface CreateOrgServerResult {
   serverId: number;
   serverToken: string;
-  inboundAddress: string;
 }
 
 /**
  * Create a Postmark Server for a new organisation.
  *
- * Configures inbound and delivery/bounce webhook URLs from NEXT_PUBLIC_APP_URL.
+ * Configures delivery/bounce webhook URLs from NEXT_PUBLIC_APP_URL.
  */
 function isPublicUrl(url: string): boolean {
   try {
@@ -68,7 +67,6 @@ export async function createOrgServer(
   };
 
   if (useWebhooks) {
-    body.InboundHookUrl = `${appUrl}/api/postmark/inbound?token=${webhookSecret}`;
     body.BounceHookUrl = `${appUrl}/api/webhooks/postmark`;
     body.DeliveryHookUrl = `${appUrl}/api/webhooks/postmark`;
   }
@@ -101,7 +99,6 @@ export async function createOrgServer(
   return {
     serverId: data.ID as number,
     serverToken: (data.ApiTokens as string[])[0],
-    inboundAddress: data.InboundAddress as string,
   };
 }
 
@@ -125,7 +122,6 @@ async function findServerByName(name: string): Promise<CreateOrgServerResult | n
   return {
     serverId: server.ID as number,
     serverToken: (server.ApiTokens as string[])[0],
-    inboundAddress: server.InboundAddress as string,
   };
 }
 

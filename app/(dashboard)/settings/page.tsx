@@ -3,7 +3,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getSendHour,
   getEmailSettings,
-  getInboundCheckerMode,
   getOrgDomainDnsData,
   getUserSendHour,
   getUserEmailSettings,
@@ -45,7 +44,6 @@ export default async function SettingsPage() {
   const [
     sendHour,
     emailSettings,
-    inboundCheckerMode,
     domainDnsData,
     membershipsResult,
     clientCountsResult,
@@ -53,7 +51,6 @@ export default async function SettingsPage() {
   ] = await Promise.all([
     getSendHour(),
     getEmailSettings(),
-    getInboundCheckerMode(),
     getOrgDomainDnsData(),
     admin
       .from("user_organisations")
@@ -123,7 +120,6 @@ export default async function SettingsPage() {
       <SettingsTabs
         sendHour={sendHour}
         emailSettings={emailSettings}
-        inboundCheckerMode={inboundCheckerMode}
         domainDnsData={domainDnsData}
         senderDomain={domainDnsData?.domain ?? process.env.POSTMARK_SENDER_DOMAIN ?? "prompt.accountants"}
         accountants={accountants}

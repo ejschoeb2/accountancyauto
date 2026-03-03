@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
 
   // Get the current user's ID for owner_id
-  const { data: { session } } = await supabase.auth.getSession();
-  const userId = session?.user?.id;
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
 
   if (!userId) {
     return NextResponse.json(

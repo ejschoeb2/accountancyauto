@@ -68,14 +68,14 @@ export default function PricingPage() {
 
     try {
       const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (!session) {
+      if (!user) {
         window.location.href = `/login?redirect=/pricing`;
         return;
       }
 
-      const orgId = session.user.app_metadata?.org_id;
+      const orgId = user.app_metadata?.org_id;
       if (!orgId) {
         setError("No organisation found. Please complete onboarding first.");
         setLoadingTier(null);

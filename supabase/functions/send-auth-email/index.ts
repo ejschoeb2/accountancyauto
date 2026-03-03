@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
 const POSTMARK_API_URL = "https://api.postmarkapp.com/email";
-const FROM_EMAIL = "Prompt <noreply@prompt.accountants>";
+const FROM_EMAIL = "Prompt <info@prompt.accountants>";
 
 interface EmailData {
   token: string;
