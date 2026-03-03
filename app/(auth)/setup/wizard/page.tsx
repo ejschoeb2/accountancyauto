@@ -277,16 +277,26 @@ export default function WizardPage() {
         setUserType("new-admin");
         setOrgCreated(true);
         if (sc || se) {
-          // Returning from storage OAuth
+          // Returning from storage OAuth (success or failure via callback redirect)
+          sessionStorage.removeItem("wizard_return_step");
           setStorageConnected(sc);
           setStorageError(se);
           setAdminStep("storage");
           const url = await getWizardDashboardUrl();
           setDashboardUrl(url);
         } else {
-          // Returning from Stripe, start at import
-          setAdminStep("import");
-          prefetchConfigDefaults();
+          // Check if we navigated away mid-storage step (e.g. OAuth failed before callback)
+          const savedStep = sessionStorage.getItem("wizard_return_step");
+          if (savedStep === "storage") {
+            sessionStorage.removeItem("wizard_return_step");
+            setAdminStep("storage");
+            const url = await getWizardDashboardUrl();
+            setDashboardUrl(url);
+          } else {
+            // Returning from Stripe, start at import
+            setAdminStep("import");
+            prefetchConfigDefaults();
+          }
         }
       } else {
         // Invited member → 2-step flow, start at import
@@ -870,7 +880,10 @@ export default function WizardPage() {
             storageError={storageError}
             onComplete={handleStorageComplete}
             onBack={() => setAdminStep("upload-checks")}
-            onBeforeProviderConnect={() => { isNavigatingAway.current = true; }}
+            onBeforeProviderConnect={() => {
+              isNavigatingAway.current = true;
+              sessionStorage.setItem("wizard_return_step", "storage");
+            }}
           />
         </div>
       )}
