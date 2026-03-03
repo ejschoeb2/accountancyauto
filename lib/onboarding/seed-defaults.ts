@@ -595,7 +595,43 @@ const TEMPLATES = [
       ],
     },
   },
-] as const;
+];
+
+// ---------------------------------------------------------------------------
+// Portal link section — inserted into templates when portal is enabled
+// ---------------------------------------------------------------------------
+
+/**
+ * Deep-clones a template body and inserts a "upload via your client portal"
+ * section before the sign-off (last 3 nodes: blank + sign-off text + accountant name).
+ */
+function addPortalLinkSection(bodyJson: object): object {
+  const doc: any = JSON.parse(JSON.stringify(bodyJson));
+  const portalNodes = [
+    { type: "paragraph" },
+    {
+      type: "paragraph",
+      content: [
+        {
+          text: "To upload the required documents securely, please use your client portal:",
+          type: "text",
+        },
+      ],
+    },
+    {
+      type: "paragraph",
+      content: [
+        {
+          type: "placeholder",
+          attrs: { id: "portal_link", label: "Portal Link" },
+        },
+      ],
+    },
+  ];
+  // Last 3 nodes are always: blank paragraph + sign-off text + accountant_name placeholder
+  doc.content.splice(doc.content.length - 3, 0, ...portalNodes);
+  return doc;
+}
 
 // ---------------------------------------------------------------------------
 // Default schedule structure (filing_type_id → steps)
@@ -666,15 +702,28 @@ const SCHEDULES: Array<{
 /**
  * Seeds default email templates and reminder schedules for a newly created org.
  * Must be called with an admin (service-role) client to bypass RLS.
+ * Idempotent — skips silently if templates already exist for this org.
  * Failures are non-fatal — logged but do not throw.
  */
 export async function seedOrgDefaults(
   orgId: string,
   ownerId: string,
-  adminClient: SupabaseClient
+  adminClient: SupabaseClient,
+  portalEnabled: boolean = false
 ): Promise<void> {
   try {
-    // 1. Insert all templates
+    // Idempotency guard: skip if templates already exist for this org
+    const { count } = await adminClient
+      .from("email_templates")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", orgId);
+
+    if (count && count > 0) {
+      console.log(`[seedOrgDefaults] Templates already exist for org ${orgId}, skipping.`);
+      return;
+    }
+
+    // 1. Insert all templates (with portal link section if enabled)
     const { data: templates, error: tErr } = await adminClient
       .from("email_templates")
       .insert(
@@ -683,7 +732,7 @@ export async function seedOrgDefaults(
           owner_id: ownerId,
           name: t.name,
           subject: t.subject,
-          body_json: t.body_json,
+          body_json: portalEnabled ? addPortalLinkSection(t.body_json) : t.body_json,
           is_active: true,
         }))
       )

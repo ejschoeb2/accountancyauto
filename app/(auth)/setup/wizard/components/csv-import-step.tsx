@@ -754,6 +754,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
               <h2 className="text-xl font-semibold">Import Client Metadata</h2>
               <p className="text-sm text-muted-foreground">
                 Upload a CSV or Excel file to set metadata for your clients. Rows are matched by company name.
+                You can also skip this step and import clients later from the Clients page.
               </p>
             </div>
 
@@ -818,7 +819,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
             )}
           </div>
 
-          <div className="flex justify-between">
+          <div className="flex justify-end gap-2">
             {onBack && (
               <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
                 <ArrowLeft className="size-4" />
@@ -829,7 +830,6 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
               variant="green"
               buttonType="icon-text"
               onClick={onComplete}
-              className="ml-auto"
             >
               Skip Import
               <ArrowRight className="size-4" />

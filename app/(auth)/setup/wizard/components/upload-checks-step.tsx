@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, Eye, FileSearch, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck, FileSearch } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -47,8 +48,8 @@ export function UploadChecksStep({ onComplete, onBack }: UploadChecksStepProps) 
         </div>
 
         {/* Mode highlights */}
-        <div className="rounded-xl border divide-y divide-border">
-          <div className="flex items-start gap-4 p-4">
+        <Card className="p-6 space-y-5">
+          <div className="flex items-start gap-4">
             <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
               <ShieldCheck className="size-5 text-violet-500" />
             </div>
@@ -60,7 +61,7 @@ export function UploadChecksStep({ onComplete, onBack }: UploadChecksStepProps) 
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-4 p-4">
+          <div className="flex items-start gap-4">
             <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
               <FileSearch className="size-5 text-violet-500" />
             </div>
@@ -72,19 +73,7 @@ export function UploadChecksStep({ onComplete, onBack }: UploadChecksStepProps) 
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-4 p-4">
-            <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-              <Zap className="size-5 text-violet-500" />
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-sm font-semibold">No processing</p>
-              <p className="text-sm text-muted-foreground">
-                Uploads are accepted and categorised by filename keywords only. No OCR or validation
-                runs &mdash; fastest option for high-volume practices.
-              </p>
-            </div>
-          </div>
-        </div>
+        </Card>
 
         {/* Selection */}
         <div className="space-y-2">

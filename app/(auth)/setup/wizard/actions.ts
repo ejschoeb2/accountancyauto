@@ -44,6 +44,37 @@ export async function markOrgSetupComplete(): Promise<{ error?: string }> {
 }
 
 /**
+ * Seeds default email templates and reminder schedules at the end of the
+ * wizard, once the portal choice is known.
+ *
+ * Idempotent — safe to call multiple times (seedOrgDefaults checks for
+ * existing templates before inserting).
+ */
+export async function seedOrgDefaultsForWizard(
+  portalEnabled: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  await seedOrgDefaults(membership.org_id, user.id, admin, portalEnabled);
+  return {};
+}
+
+/**
  * Resolve the dashboard URL for the current user after wizard completion.
  *
  * Uses the admin client to bypass RLS — safe because we verify the user's
@@ -261,8 +292,8 @@ export async function createOrgAndJoinAsAdmin(
     { onConflict: "org_id,key" }
   );
 
-  // 4. Seed default email templates and reminder schedules
-  await seedOrgDefaults(org.id, user.id, admin);
+  // Note: default email templates and schedules are seeded at wizard
+  // completion (seedOrgDefaultsForWizard) so the portal choice is known.
 
   return { orgId: org.id, slug: org.slug };
 }

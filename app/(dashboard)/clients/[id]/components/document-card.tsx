@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -9,14 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import {
   CheckCircle,
   Download,
   Link,
-  Copy,
   Plus,
   Loader2,
   Settings,
@@ -108,6 +106,7 @@ export interface DocumentCardProps {
   portalExpiresAt?: string | null;
   onActionsReady?: (actions: DocumentCardActions) => void;
   onReceivedCountChange?: (received: number, total: number) => void;
+  onRequiredAllReceivedChange?: (allReceived: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -578,43 +577,22 @@ function ChecklistModal({
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Standard Documents
                       </p>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {requirements.map(req => {
                           const enabled = isEnabled(req.document_type_id);
                           return (
-                            <div
-                              key={req.id}
-                              className="flex items-center justify-between gap-3 py-2 px-3 rounded-md border border-gray-200 bg-white"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span
-                                  className={`text-sm truncate ${
-                                    enabled ? 'text-gray-900' : 'text-gray-400 line-through'
-                                  }`}
-                                >
-                                  {req.document_types?.label}
-                                </span>
-                                {req.is_mandatory && (
-                                  <span className="text-xs text-muted-foreground shrink-0">
-                                    (required)
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={enabled}
-                                onClick={() => handleToggle(req)}
-                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                                  enabled ? 'bg-violet-600' : 'bg-gray-200'
-                                }`}
-                              >
-                                <span
-                                  className={`pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform ${
-                                    enabled ? 'translate-x-4' : 'translate-x-0'
-                                  }`}
-                                />
-                              </button>
+                            <div key={req.id} className="flex items-center gap-2">
+                              <CheckButton
+                                checked={enabled}
+                                variant={enabled ? 'success' : 'default'}
+                                onCheckedChange={() => handleToggle(req)}
+                              />
+                              <span className={`text-sm ${enabled ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                                {req.document_types?.label}
+                              </span>
+                              {req.is_mandatory && (
+                                <span className="text-xs text-muted-foreground shrink-0">(required)</span>
+                              )}
                             </div>
                           );
                         })}
@@ -628,18 +606,12 @@ function ChecklistModal({
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Custom Items
                       </p>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {adHocItems.map(item => (
-                          <div
-                            key={item.id}
-                            className="flex items-center gap-2 py-2 px-3 rounded-md border border-violet-200 bg-violet-50"
-                          >
-                            <span className="text-sm text-violet-900 flex-1">
-                              {item.ad_hoc_label}
-                            </span>
-                            <span className="text-xs px-2 py-0.5 rounded bg-violet-100 text-violet-700">
-                              Custom
-                            </span>
+                          <div key={item.id} className="flex items-center gap-2">
+                            <CheckButton checked={true} variant="success" disabled className="pointer-events-none" />
+                            <span className="text-sm text-foreground">{item.ad_hoc_label}</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-600 shrink-0">Custom</span>
                           </div>
                         ))}
                       </div>
@@ -659,34 +631,19 @@ function ChecklistModal({
                     onKeyDown={e => e.key === 'Enter' && handleAddAdHoc()}
                     autoFocus
                   />
-                  <IconButtonWithText
-                    variant="green"
-                    onClick={handleAddAdHoc}
-                    disabled={!adHocLabel.trim()}
-                  >
+                  <IconButtonWithText variant="green" onClick={handleAddAdHoc} disabled={!adHocLabel.trim()}>
                     Add
                   </IconButtonWithText>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowAdHoc(false);
-                      setAdHocLabel('');
-                    }}
-                  >
+                  <IconButtonWithText variant="amber" onClick={() => { setShowAdHoc(false); setAdHocLabel(''); }}>
+                    <X className="size-4" />
                     Cancel
-                  </Button>
+                  </IconButtonWithText>
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAdHoc(true)}
-                  className="flex items-center gap-1.5"
-                >
-                  <Plus className="h-4 w-4" />
+                <IconButtonWithText variant="blue" onClick={() => setShowAdHoc(true)}>
+                  <Plus className="size-4" />
                   Add custom item
-                </Button>
+                </IconButtonWithText>
               )}
             </>
           )}
@@ -723,6 +680,7 @@ export function DocumentCard({
   portalExpiresAt,
   onActionsReady,
   onReceivedCountChange,
+  onRequiredAllReceivedChange,
 }: DocumentCardProps) {
   // Content state
   const [documents, setDocuments] = useState<ClientDocument[]>([]);
@@ -1012,6 +970,53 @@ export function DocumentCard({
     if (data) setCustomisations(data as Customisation[]);
   };
 
+  // Set all items in a group to a specific manually_received value
+  const setGroupManuallyReceived = async (items: EffectiveChecklistItem[], received: boolean) => {
+    if (!orgId) return;
+    const toUpdate = items.filter(item => !findMatchingDocument(item.documentTypeId));
+    if (toUpdate.length === 0) return;
+
+    setEffectiveChecklist(prev =>
+      prev.map(i =>
+        toUpdate.some(u => u.documentTypeId === i.documentTypeId) ? { ...i, manuallyReceived: received } : i
+      )
+    );
+
+    const upserts = toUpdate.map(item => {
+      const existing = customisations.find(c => c.document_type_id === item.documentTypeId);
+      return {
+        org_id: orgId,
+        client_id: clientId,
+        filing_type_id: filingTypeId,
+        document_type_id: item.documentTypeId,
+        is_enabled: existing?.is_enabled ?? true,
+        is_ad_hoc: existing?.is_ad_hoc ?? false,
+        manually_received: received,
+      };
+    });
+
+    const { error } = await supabase
+      .from('client_document_checklist_customisations')
+      .upsert(upserts, { onConflict: 'client_id,filing_type_id,document_type_id' });
+
+    if (error) {
+      toast.error('Failed to update');
+      setEffectiveChecklist(prev =>
+        prev.map(i =>
+          toUpdate.some(u => u.documentTypeId === i.documentTypeId) ? { ...i, manuallyReceived: !received } : i
+        )
+      );
+      return;
+    }
+
+    const { data } = await supabase
+      .from('client_document_checklist_customisations')
+      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
+      .eq('client_id', clientId)
+      .eq('filing_type_id', filingTypeId);
+    if (data) setCustomisations(data as Customisation[]);
+  };
+
   // Expose selectAll/deselectAll to parent
   useEffect(() => {
     onActionsReady?.({ selectAll, deselectAll });
@@ -1027,6 +1032,26 @@ export function DocumentCard({
     }).length;
     onReceivedCountChange?.(received, total);
   }, [effectiveChecklist, documents, loading]);
+
+  // Fire onRequiredAllReceivedChange when mandatory docs all-received state transitions.
+  // Skips the initial load to avoid overwriting the DB value on mount.
+  const prevMandatoryAllReceivedRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const mandatoryItems = effectiveChecklist.filter(item => item.is_mandatory);
+    if (mandatoryItems.length === 0) return;
+    const allReceived = mandatoryItems.every(
+      item => !!documents.find(d => d.document_type_id === item.documentTypeId && (d.classification_confidence === 'high' || d.classification_confidence === 'medium')) || item.manuallyReceived
+    );
+    if (prevMandatoryAllReceivedRef.current === null) {
+      prevMandatoryAllReceivedRef.current = allReceived;
+      return;
+    }
+    if (prevMandatoryAllReceivedRef.current !== allReceived) {
+      prevMandatoryAllReceivedRef.current = allReceived;
+      onRequiredAllReceivedChange?.(allReceived);
+    }
+  }, [effectiveChecklist, documents, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
   // Download handler
@@ -1084,6 +1109,21 @@ export function DocumentCard({
     return !effectiveChecklist.some(item => item.documentTypeId === doc.document_type_id);
   });
 
+  const mandatoryItems = effectiveChecklist.filter(item => item.is_mandatory);
+  const otherItems = effectiveChecklist.filter(item => !item.is_mandatory);
+  const useTwoColumns = mandatoryItems.length > 0 && (otherItems.length > 0 || extraDocuments.length > 0);
+
+  const mandatoryReceivedCount = mandatoryItems.filter(
+    item => !!findMatchingDocument(item.documentTypeId) || item.manuallyReceived
+  ).length;
+  const mandatoryAllReceived = mandatoryItems.length > 0 && mandatoryReceivedCount === mandatoryItems.length;
+
+  const otherTotalCount = otherItems.length + extraDocuments.length;
+  const otherReceivedCount =
+    otherItems.filter(item => !!findMatchingDocument(item.documentTypeId) || item.manuallyReceived).length +
+    extraDocuments.length; // extra docs are always received (they exist as uploaded files)
+  const otherAllReceived = otherTotalCount > 0 && otherReceivedCount === otherTotalCount;
+
   const expiryDisplay = portalExpiresAt
     ? new Date(portalExpiresAt).toLocaleDateString('en-GB', {
         day: 'numeric',
@@ -1114,99 +1154,166 @@ export function DocumentCard({
           </p>
         ) : (
           <>
-            {/* Checklist items using CheckButton styling */}
-            {effectiveChecklist.length > 0 && (
-              <div className="space-y-1.5">
-                {effectiveChecklist.map(item => {
-                  const matchedDoc = findMatchingDocument(item.documentTypeId);
-                  const isChecked = !!matchedDoc || item.manuallyReceived;
-                  const isDisabled = !!matchedDoc; // can't untick if a file was uploaded
-                  return (
-                    <div
-                      key={item.documentTypeId}
-                      className="flex items-center gap-2"
-                    >
-                      <CheckButton
-                        checked={isChecked}
-                        variant={isChecked ? 'success' : 'default'}
-                        disabled={isDisabled}
-                        onCheckedChange={() => handleManualToggle(item)}
-                      />
-                      <span
-                        className={`text-sm whitespace-nowrap ${
-                          isChecked
-                            ? 'line-through text-muted-foreground'
-                            : 'text-foreground'
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                      {matchedDoc && (
-                        <IconButtonWithText
-                          variant="blue"
-                          onClick={() => handleDownload(matchedDoc.id)}
-                          disabled={downloading === matchedDoc.id}
-                        >
-                          <Download className="size-3" />
-                          {downloading === matchedDoc.id ? 'Opening...' : 'Download'}
-                        </IconButtonWithText>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Extra / unmatched documents */}
-            {extraDocuments.length > 0 && (
-              <div className="space-y-1.5">
-                {effectiveChecklist.length > 0 && (
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">
-                    Other Documents
-                  </p>
-                )}
-                {extraDocuments.map(doc => (
-                  <div key={doc.id} className="flex items-center gap-2">
+            {useTwoColumns ? (
+              <div className="grid grid-cols-2 gap-6">
+                {/* Required documents — left column */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
                     <CheckButton
-                      checked={true}
-                      variant="success"
-                      disabled
-                      className="pointer-events-none"
+                      checked={mandatoryAllReceived}
+                      variant={mandatoryAllReceived ? 'success' : 'default'}
+                      onCheckedChange={(checked) => setGroupManuallyReceived(mandatoryItems, checked as boolean)}
                     />
-                    <span className="text-sm text-muted-foreground line-through">
-                      {doc.document_types?.label || doc.original_filename}
-                    </span>
-                    <IconButtonWithText
-                      variant="blue"
-                      onClick={() => handleDownload(doc.id)}
-                      disabled={downloading === doc.id}
+                    <label
+                      className={`text-sm cursor-pointer ${mandatoryAllReceived ? 'line-through text-muted-foreground' : 'text-foreground'}`}
+                      onClick={() => setGroupManuallyReceived(mandatoryItems, !mandatoryAllReceived)}
                     >
-                      <Download className="size-3" />
-                      {downloading === doc.id ? 'Opening...' : 'Download'}
-                    </IconButtonWithText>
+                      {mandatoryReceivedCount} of {mandatoryItems.length} required document{mandatoryItems.length !== 1 ? 's' : ''} received
+                    </label>
                   </div>
-                ))}
+                  <div className="pl-7 space-y-1.5">
+                    {mandatoryItems.map(item => {
+                      const matchedDoc = findMatchingDocument(item.documentTypeId);
+                      const isChecked = !!matchedDoc || item.manuallyReceived;
+                      return (
+                        <div key={item.documentTypeId} className="flex items-center gap-2">
+                          <CheckButton
+                            checked={isChecked}
+                            variant={isChecked ? 'success' : 'default'}
+                            disabled={!!matchedDoc}
+                            onCheckedChange={() => handleManualToggle(item)}
+                          />
+                          <span className={`text-sm whitespace-nowrap ${isChecked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                            {item.label}
+                          </span>
+                          {matchedDoc && (
+                            <IconButtonWithText variant="blue" onClick={() => handleDownload(matchedDoc.id)} disabled={downloading === matchedDoc.id}>
+                              <Download className="size-3" />
+                              {downloading === matchedDoc.id ? 'Opening...' : 'Download'}
+                            </IconButtonWithText>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Optional documents — right column */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckButton
+                      checked={otherAllReceived}
+                      variant={otherAllReceived ? 'success' : 'default'}
+                      onCheckedChange={(checked) => setGroupManuallyReceived(otherItems, checked as boolean)}
+                    />
+                    <label
+                      className={`text-sm cursor-pointer ${otherAllReceived ? 'line-through text-muted-foreground' : 'text-foreground'}`}
+                      onClick={() => setGroupManuallyReceived(otherItems, !otherAllReceived)}
+                    >
+                      {otherReceivedCount} of {otherTotalCount} optional document{otherTotalCount !== 1 ? 's' : ''} received
+                    </label>
+                  </div>
+                  <div className="pl-7 space-y-1.5">
+                    {otherItems.map(item => {
+                      const matchedDoc = findMatchingDocument(item.documentTypeId);
+                      const isChecked = !!matchedDoc || item.manuallyReceived;
+                      return (
+                        <div key={item.documentTypeId} className="flex items-center gap-2">
+                          <CheckButton
+                            checked={isChecked}
+                            variant={isChecked ? 'success' : 'default'}
+                            disabled={!!matchedDoc}
+                            onCheckedChange={() => handleManualToggle(item)}
+                          />
+                          <span className={`text-sm whitespace-nowrap ${isChecked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                            {item.label}
+                          </span>
+                          {matchedDoc && (
+                            <IconButtonWithText variant="blue" onClick={() => handleDownload(matchedDoc.id)} disabled={downloading === matchedDoc.id}>
+                              <Download className="size-3" />
+                              {downloading === matchedDoc.id ? 'Opening...' : 'Download'}
+                            </IconButtonWithText>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {extraDocuments.map(doc => (
+                      <div key={doc.id} className="flex items-center gap-2">
+                        <CheckButton checked={true} variant="success" disabled className="pointer-events-none" />
+                        <span className="text-sm text-muted-foreground line-through">
+                          {doc.document_types?.label || doc.original_filename}
+                        </span>
+                        <IconButtonWithText variant="blue" onClick={() => handleDownload(doc.id)} disabled={downloading === doc.id}>
+                          <Download className="size-3" />
+                          {downloading === doc.id ? 'Opening...' : 'Download'}
+                        </IconButtonWithText>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
+            ) : (
+              <>
+                {/* Single column fallback — only one type of item exists */}
+                {effectiveChecklist.length > 0 && (
+                  <div className="space-y-1.5">
+                    {effectiveChecklist.map(item => {
+                      const matchedDoc = findMatchingDocument(item.documentTypeId);
+                      const isChecked = !!matchedDoc || item.manuallyReceived;
+                      return (
+                        <div key={item.documentTypeId} className="flex items-center gap-2">
+                          <CheckButton
+                            checked={isChecked}
+                            variant={isChecked ? 'success' : 'default'}
+                            disabled={!!matchedDoc}
+                            onCheckedChange={() => handleManualToggle(item)}
+                          />
+                          <span className={`text-sm whitespace-nowrap ${isChecked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                            {item.label}
+                          </span>
+                          {matchedDoc && (
+                            <IconButtonWithText variant="blue" onClick={() => handleDownload(matchedDoc.id)} disabled={downloading === matchedDoc.id}>
+                              <Download className="size-3" />
+                              {downloading === matchedDoc.id ? 'Opening...' : 'Download'}
+                            </IconButtonWithText>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {extraDocuments.length > 0 && (
+                  <div className="space-y-1.5">
+                    {effectiveChecklist.length > 0 && (
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">Other Documents</p>
+                    )}
+                    {extraDocuments.map(doc => (
+                      <div key={doc.id} className="flex items-center gap-2">
+                        <CheckButton checked={true} variant="success" disabled className="pointer-events-none" />
+                        <span className="text-sm text-muted-foreground line-through">
+                          {doc.document_types?.label || doc.original_filename}
+                        </span>
+                        <IconButtonWithText variant="blue" onClick={() => handleDownload(doc.id)} disabled={downloading === doc.id}>
+                          <Download className="size-3" />
+                          {downloading === doc.id ? 'Opening...' : 'Download'}
+                        </IconButtonWithText>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Portal URL display (generated from parent) */}
             {portalUrl && (
-              <div className="pt-2 border-t border-border/50 space-y-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    readOnly
-                    value={portalUrl}
-                    className="flex-1 h-9 px-3 rounded-md border border-input bg-muted font-mono text-xs text-muted-foreground"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleCopyPortalLink}
-                    className="h-9 w-9 flex items-center justify-center rounded-md border border-input bg-background hover:bg-muted transition-colors"
-                    aria-label="Copy portal URL"
-                  >
-                    <Copy className="size-4" />
-                  </button>
-                </div>
+              <div className="mt-5 space-y-2">
+                <input
+                  readOnly
+                  value={portalUrl}
+                  onClick={handleCopyPortalLink}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-muted font-mono text-xs text-muted-foreground cursor-pointer hover:border-foreground/30 transition-colors"
+                  title="Click to copy"
+                />
                 {expiryDisplay && (
                   <p className="text-xs text-muted-foreground">
                     Expires {expiryDisplay}. Generating a new link will revoke this one.

@@ -664,7 +664,7 @@ export default function EditSchedulePage() {
           </div>
         </div>
         <CardContent>
-          <ScheduleStepEditor form={form} fieldArray={stepsFieldArray} templates={emailTemplates} />
+          <ScheduleStepEditor form={form} fieldArray={stepsFieldArray} templates={emailTemplates} scheduleType={scheduleType} />
         </CardContent>
       </Card>
 

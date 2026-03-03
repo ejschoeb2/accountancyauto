@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { Loader2, X, ArrowLeft, Eye, ArrowRight, Send, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, X, ArrowLeft, Eye, ArrowRight, Send, CheckCircle2, XCircle, Link } from "lucide-react";
 
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { ButtonBase } from "@/components/ui/button-base";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { Progress } from "@/components/ui/progress";
@@ -420,7 +421,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                           value={selectedFilingTypeId || 'none'}
                           onValueChange={(v) => setSelectedFilingTypeId(v === 'none' ? '' : v)}
                         >
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-[320px]">
                             <SelectValue placeholder="No filing context" />
                           </SelectTrigger>
                           <SelectContent>
@@ -450,7 +451,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Choose Email Template</label>
                     <Select value={selectedTemplateId || "no-template"} onValueChange={setSelectedTemplateId}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-[320px]">
                         <SelectValue placeholder="No template selected" />
                       </SelectTrigger>
                       <SelectContent>
@@ -477,7 +478,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                       </Card>
                     ) : (
                       <>
-                        {/* Toolbar with Insert Variable button */}
+                        {/* Toolbar with Insert Variable + Insert Portal Link buttons */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <PlaceholderDropdown
                             subjectInputRef={templateSubjectInputRef}
@@ -485,6 +486,18 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                               templateEditorRef.current?.insertPlaceholder(id, label);
                             }}
                           />
+                          <Button
+                            variant="ghost"
+                            type="button"
+                            className="px-4 py-2 h-10 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-500 hover:text-violet-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
+                            title="Insert portal link placeholder"
+                            onClick={() => {
+                              templateEditorRef.current?.insertPlaceholder('portal_link', 'Portal Link');
+                            }}
+                          >
+                            <Link className="h-5 w-5" />
+                            Insert Portal Link
+                          </Button>
                           <div className="w-px h-6 bg-border" />
                           <EditorToolbar editor={editor} />
                         </div>

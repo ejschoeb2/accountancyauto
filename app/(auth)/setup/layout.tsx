@@ -60,7 +60,7 @@ export default async function SetupLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
+    <div className="min-h-screen bg-background flex flex-col items-center pt-16 p-8">
       <div className="w-full">
         {children}
       </div>

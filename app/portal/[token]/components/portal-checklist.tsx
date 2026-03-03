@@ -113,7 +113,9 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
   const [uploadedByItemId, setUploadedByItemId] = useState<Record<string, UploadedFile[]>>({});
   const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null);
 
-  const totalProvided = Object.values(uploadedByItemId).filter(files => files.length > 0).length;
+  const requiredItems = checklist.filter(item => item.is_mandatory);
+  const optionalItems = checklist.filter(item => !item.is_mandatory);
+  const requiredProvided = requiredItems.filter(item => (uploadedByItemId[item.id] ?? []).length > 0).length;
 
   const handleUpload = async (itemId: string, file: File, confirmDuplicate = false) => {
     // ── Phase 29: Large file path — provider-native chunked upload ─────────────
@@ -265,29 +267,41 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
     );
   }
 
+  const renderItem = (item: ChecklistItemType) => {
+    const itemHasDuplicate = pendingDuplicate?.itemId === item.id;
+    return (
+      <ChecklistItem
+        key={item.id}
+        item={item}
+        uploaded={uploadedByItemId[item.id] ?? []}
+        onUpload={(file) => handleUpload(item.id, file)}
+        disabled={pendingDuplicate !== null && !itemHasDuplicate}
+        duplicateWarning={itemHasDuplicate ? pendingDuplicate?.file.name : undefined}
+        onConfirmDuplicate={itemHasDuplicate ? () => handleUpload(item.id, pendingDuplicate!.file, true) : undefined}
+        onDismissDuplicate={itemHasDuplicate ? () => setPendingDuplicate(null) : undefined}
+      />
+    );
+  };
+
   return (
-    <div>
-      <div className="bg-card rounded-xl border shadow-sm p-6">
-        <ProgressBar provided={totalProvided} total={checklist.length} />
-        <div className="space-y-3">
-          {checklist.map((item) => {
-            const itemHasDuplicate = pendingDuplicate?.itemId === item.id;
-            return (
-              <ChecklistItem
-                key={item.id}
-                item={item}
-                uploaded={uploadedByItemId[item.id] ?? []}
-                onUpload={(file) => handleUpload(item.id, file)}
-                disabled={pendingDuplicate !== null && !itemHasDuplicate}
-                duplicateWarning={itemHasDuplicate ? pendingDuplicate?.file.name : undefined}
-                onConfirmDuplicate={itemHasDuplicate ? () => handleUpload(item.id, pendingDuplicate!.file, true) : undefined}
-                onDismissDuplicate={itemHasDuplicate ? () => setPendingDuplicate(null) : undefined}
-              />
-            );
-          })}
+    <div className="space-y-6">
+      {requiredItems.length > 0 && (
+        <div className="bg-white rounded-xl border shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 p-6">
+          <ProgressBar provided={requiredProvided} total={requiredItems.length} />
+          <div className="space-y-3">
+            {requiredItems.map(renderItem)}
+          </div>
         </div>
-      </div>
-      <p className="mt-6 text-xs text-muted-foreground/70 text-center">
+      )}
+      {optionalItems.length > 0 && (
+        <div className="bg-white rounded-xl border shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Optional documents</h2>
+          <div className="space-y-3">
+            {optionalItems.map(renderItem)}
+          </div>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground/70 text-center">
         Powered by Prompt. Your files are securely stored and only accessible to {orgName}.
       </p>
     </div>

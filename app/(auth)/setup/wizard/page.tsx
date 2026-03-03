@@ -29,6 +29,7 @@ import {
   createOrgAndJoinAsAdmin,
   getWizardDashboardUrl,
   markOrgSetupComplete,
+  seedOrgDefaultsForWizard,
 } from "./actions";
 import {
   markMemberSetupComplete,
@@ -480,6 +481,7 @@ export default function WizardPage() {
 
   const handleGoToDashboard = async () => {
     setIsLeavingWizard(true);
+    await seedOrgDefaultsForWizard(clientPortalEnabled);
     await markOrgSetupComplete();
     isNavigatingAway.current = true;
     window.location.href = dashboardUrl;

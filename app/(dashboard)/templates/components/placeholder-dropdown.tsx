@@ -74,7 +74,7 @@ export function PlaceholderDropdown({
           ref={dropdownRef}
           variant="ghost"
           type="button"
-          className="px-4 py-2 h-10 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 hover:text-purple-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
+          className="px-4 py-2 h-10 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 hover:text-sky-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
           title="Insert variable"
         >
           <Plus className="h-5 w-5" />

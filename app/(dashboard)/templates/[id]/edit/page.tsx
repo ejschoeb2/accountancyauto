@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { CheckButton } from '@/components/ui/check-button'
-import { ArrowLeft, CheckCircle, Pencil, Trash2, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Pencil, Trash2, X, Link, AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -233,7 +233,7 @@ export default function EditTemplatePage() {
         <h1 className="text-foreground">Edit Template</h1>
         <div className="flex items-center gap-2">
           <IconButtonWithText
-            variant="muted"
+            variant="amber"
             onClick={handleGoBack}
             title="Go back to templates"
           >
@@ -260,7 +260,7 @@ export default function EditTemplatePage() {
             </IconButtonWithText>
           )}
           <IconButtonWithText
-            variant={hasUnsavedChanges ? "blue" : "ghost"}
+            variant="blue"
             onClick={handleSave}
             disabled={!hasUnsavedChanges || saving}
             title={saving ? 'Saving...' : 'Save template'}
@@ -297,7 +297,7 @@ export default function EditTemplatePage() {
             </Label>
           </div>
 
-          {/* Toolbar with Insert Variable button on left */}
+          {/* Toolbar with Insert Variable + Insert Portal Link buttons */}
           <div className="flex items-center gap-2 flex-wrap">
             <PlaceholderDropdown
               subjectInputRef={subjectInputRef}
@@ -305,8 +305,28 @@ export default function EditTemplatePage() {
                 editorRef.current?.insertPlaceholder(id, label)
               }}
             />
+            <Button
+              variant="ghost"
+              type="button"
+              className="px-4 py-2 h-10 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-500 hover:text-violet-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
+              title="Insert portal link placeholder"
+              onClick={() => {
+                editorRef.current?.insertPlaceholder('portal_link', 'Portal Link')
+              }}
+            >
+              <Link className="h-5 w-5" />
+              Insert Portal Link
+            </Button>
             <div className="w-px h-6 bg-border" />
             <EditorToolbar editor={editor} />
+          </div>
+
+          {/* Portal link info */}
+          <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-xl">
+            <AlertCircle className="size-5 text-amber-500 shrink-0" />
+            <p className="text-sm text-amber-500">
+              The portal link placeholder will only generate a working link when this template is used in a reminder schedule linked to a filing type, or sent via bulk email with a filing context selected.
+            </p>
           </div>
 
           {/* Email Composer */}

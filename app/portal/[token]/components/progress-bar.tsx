@@ -12,10 +12,10 @@ export function ProgressBar({ provided, total }: ProgressBarProps) {
   return (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-foreground">
-          {provided} of {total} items provided
+        <span className="text-lg font-semibold text-foreground">
+          {provided} of {total} required documents provided
         </span>
-        <span className={`text-sm font-medium ${allDone ? 'text-green-600' : 'text-violet-500'}`}>
+        <span className={`text-lg font-semibold ${allDone ? 'text-green-600' : 'text-violet-500'}`}>
           {percentage}%
         </span>
       </div>

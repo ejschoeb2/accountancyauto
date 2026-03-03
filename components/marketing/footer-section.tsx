@@ -64,8 +64,8 @@ export const FooterSection = () => {
 
           {/* Nav links — centered */}
           <nav className="flex flex-wrap items-center justify-center gap-6 text-sm text-white">
-            <a href="#features" className="hover:text-white/70 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-white/70 transition-colors">Pricing</a>
+            <a href="/#features" className="hover:text-white/70 transition-colors">Features</a>
+            <a href="/#pricing" className="hover:text-white/70 transition-colors">Pricing</a>
             <a href="/news" className="hover:text-white/70 transition-colors">News</a>
             <a href="/changelog" className="hover:text-white/70 transition-colors">Changelog</a>
             <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy Policy</a>

@@ -84,7 +84,7 @@ export const SubjectLineEditor = forwardRef<HTMLInputElement, SubjectLineEditorP
                   return (
                     <span
                       key={index}
-                      className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-sm font-medium select-none"
+                      className="inline-flex items-center rounded-md bg-sky-500/10 text-sky-600 px-3 py-1 text-sm font-medium select-none"
                     >
                       {part.content}
                     </span>

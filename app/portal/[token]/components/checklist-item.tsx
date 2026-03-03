@@ -80,16 +80,11 @@ export function ChecklistItem({
   });
 
   return (
-    <div className="bg-background rounded-xl border p-4 transition-all duration-200 hover:border-primary/20 hover:shadow-sm">
+    <div className="bg-white rounded-xl border shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium truncate">{label}</span>
-            {item.is_mandatory && (
-              <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10 shrink-0">
-                <span className="text-sm font-medium text-red-500">Required</span>
-              </div>
-            )}
           </div>
 
           {/* Uploaded files list */}

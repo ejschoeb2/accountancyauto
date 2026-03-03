@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
-import { Trash2, Plus, Pencil, CheckCircle, X } from "lucide-react";
+import { Trash2, Plus, Pencil, CheckCircle, X, Link, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,7 @@ interface ScheduleStepEditorProps {
   form: UseFormReturn<ScheduleInput>;
   fieldArray: UseFieldArrayReturn<ScheduleInput, "steps">;
   templates: Array<{ id: string; name: string }>;
+  scheduleType?: 'filing' | 'custom';
 }
 
 export function ScheduleStepAddButton({ onAdd }: { onAdd: () => void }) {
@@ -80,7 +82,7 @@ function EmailBodyPreview({ content }: { content: TipTapDocument }) {
         return text;
       case 'placeholder':
         return (
-          <span key={index} className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-sm font-medium">
+          <span key={index} className="inline-flex items-center rounded-md bg-sky-500/10 text-sky-600 px-3 py-1 text-sm font-medium">
             {node.attrs.label}
           </span>
         );
@@ -141,7 +143,7 @@ function SubjectPreview({ subject }: { subject: string }) {
     <div className="flex items-center flex-wrap gap-x-0.5">
       {parts.map((part, i) =>
         part.type === 'variable' ? (
-          <span key={i} className="inline-flex items-center rounded-full bg-primary/10 text-primary px-2 py-0.5 text-sm font-medium">
+          <span key={i} className="inline-flex items-center rounded-md bg-sky-500/10 text-sky-600 px-3 py-1 text-sm font-medium">
             {part.content}
           </span>
         ) : (
@@ -159,7 +161,7 @@ interface TemplateData {
   body_json: TipTapDocument;
 }
 
-export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStepEditorProps) {
+export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType }: ScheduleStepEditorProps) {
   const router = useRouter();
   const { fields, remove } = fieldArray;
   const [customDelayDays, setCustomDelayDays] = useState<Record<number, boolean>>({});
@@ -572,7 +574,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
           </DialogHeader>
 
           <div className="space-y-4 mt-4">
-            {/* Toolbar with Insert Variable button */}
+            {/* Toolbar with Insert Variable + Insert Portal Link buttons */}
             <div className="flex items-center gap-2 flex-wrap">
               <PlaceholderDropdown
                 subjectInputRef={subjectInputRef}
@@ -580,6 +582,20 @@ export function ScheduleStepEditor({ form, fieldArray, templates }: ScheduleStep
                   editorRef.current?.insertPlaceholder(id, label);
                 }}
               />
+              {scheduleType !== 'custom' && (
+                <Button
+                  variant="ghost"
+                  type="button"
+                  className="px-4 py-2 h-10 rounded-lg bg-violet-500/10 hover:bg-violet-500/20 text-violet-500 hover:text-violet-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
+                  title="Insert portal link placeholder"
+                  onClick={() => {
+                    editorRef.current?.insertPlaceholder('portal_link', 'Portal Link');
+                  }}
+                >
+                  <Link className="h-5 w-5" />
+                  Insert Portal Link
+                </Button>
+              )}
               <div className="w-px h-6 bg-border" />
               <EditorToolbar editor={editor} />
             </div>

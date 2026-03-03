@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, CheckCircle, X, Mail, Ban, Check, Pencil } from 'lucide-react';
+import { ArrowLeft, Edit2, CheckCircle, X, Mail, Ban, Check, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Input } from '@/components/ui/input';
@@ -17,10 +17,16 @@ import {
 } from '@/components/ui/select';
 import {
   Card,
-  CardHeader,
-  CardTitle,
   CardContent,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { LoadingScreen } from '@/components/loading-screen';
@@ -46,6 +52,8 @@ export default function ClientPage() {
   const [saving, setSaving] = useState(false);
   const [isSendEmailModalOpen, setIsSendEmailModalOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Client>>({});
@@ -144,6 +152,23 @@ export default function ClientPage() {
     }
   };
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete client');
+      }
+      toast.success('Client deleted');
+      router.push('/clients');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete client');
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -162,18 +187,13 @@ export default function ClientPage() {
           <h1 className="text-4xl font-bold tracking-tight">
             {client.display_name || client.company_name}
           </h1>
-          <div className="mt-2 flex items-center gap-2">
-            {client.client_type && (
-              <IconButtonWithText variant="blue">
-                {client.client_type}
-              </IconButtonWithText>
-            )}
-            {client.reminders_paused && (
+          {client.reminders_paused && (
+            <div className="mt-2">
               <Badge variant="outline" className="border-status-warning text-status-warning">
                 Inactive
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Link href="/clients">
@@ -183,55 +203,74 @@ export default function ClientPage() {
             </IconButtonWithText>
           </Link>
           <Separator orientation="vertical" className="h-8" />
-          {!editing ? (
-            <>
-              {client.reminders_paused ? (
-                <IconButtonWithText variant="green" onClick={handleToggleReminders}>
-                  <Check className="size-4" />
-                  Set Active
-                </IconButtonWithText>
-              ) : (
-                <IconButtonWithText variant="destructive" onClick={handleToggleReminders}>
-                  <Ban className="size-4" />
-                  Set Inactive
-                </IconButtonWithText>
-              )}
-              <IconButtonWithText variant="violet" onClick={handleEdit}>
-                <Edit2 className="size-4" />
-                Edit
-              </IconButtonWithText>
-              <IconButtonWithText variant="green" onClick={() => setIsSendEmailModalOpen(true)}>
-                <Mail className="size-4" />
-                Send Email
-              </IconButtonWithText>
-            </>
+          {client.reminders_paused ? (
+            <IconButtonWithText variant="green" onClick={handleToggleReminders}>
+              <Check className="size-4" />
+              Set Active
+            </IconButtonWithText>
           ) : (
-            <>
-              <IconButtonWithText variant="amber" onClick={handleCancel}>
-                <X className="size-4" />
-                Cancel
-              </IconButtonWithText>
-              <IconButtonWithText variant="blue" onClick={handleSave} disabled={saving}>
-                <CheckCircle className="size-4" />
-                {saving ? 'Saving...' : 'Save'}
-              </IconButtonWithText>
-            </>
+            <IconButtonWithText variant="amber" onClick={handleToggleReminders}>
+              <Ban className="size-4" />
+              Set Inactive
+            </IconButtonWithText>
           )}
+          <IconButtonWithText variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+            <Trash2 className="size-4" />
+            Delete
+          </IconButtonWithText>
+          <Separator orientation="vertical" className="h-8" />
+          <IconButtonWithText variant="green" onClick={() => setIsSendEmailModalOpen(true)}>
+            <Mail className="size-4" />
+            Send Email
+          </IconButtonWithText>
         </div>
       </div>
 
       {/* Client metadata */}
       <Card className="gap-1.5">
         <div className="px-8">
-          <div className="mb-6">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-semibold">Client Details</h2>
-            </div>
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Client Details</h2>
+            {!editing ? (
+              <IconButtonWithText variant="violet" onClick={handleEdit}>
+                <Edit2 className="size-4" />
+                Edit
+              </IconButtonWithText>
+            ) : (
+              <div className="flex items-center gap-2">
+                <IconButtonWithText variant="amber" onClick={handleCancel}>
+                  <X className="size-4" />
+                  Cancel
+                </IconButtonWithText>
+                <IconButtonWithText variant="blue" onClick={handleSave} disabled={saving}>
+                  <CheckCircle className="size-4" />
+                  {saving ? 'Saving...' : 'Save'}
+                </IconButtonWithText>
+              </div>
+            )}
           </div>
         </div>
         <CardContent>
         {editing ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="client_type">Company Type</Label>
+              <Select
+                value={formData.client_type || ''}
+                onValueChange={(value) => setFormData({ ...formData, client_type: value as ClientType })}
+              >
+                <SelectTrigger id="client_type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Limited Company">Limited Company</SelectItem>
+                  <SelectItem value="Sole Trader">Sole Trader</SelectItem>
+                  <SelectItem value="Partnership">Partnership</SelectItem>
+                  <SelectItem value="LLP">LLP</SelectItem>
+                  <SelectItem value="Individual">Individual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="primary_email">Email</Label>
               <Input
@@ -320,66 +359,54 @@ export default function ClientPage() {
           </div>
         ) : (
           <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
-              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Email</dt>
-              <dd className="text-sm font-medium flex items-center gap-2">
-                {client.primary_email || (
-                  <span className="text-muted-foreground">Not set</span>
-                )}
-                <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div>
+              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Company Type</dt>
+              <dd className="text-sm font-medium">
+                {client.client_type || <span className="text-muted-foreground">Not set</span>}
               </dd>
             </div>
-            <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
+            <div>
+              <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Email</dt>
+              <dd className="text-sm font-medium">
+                {client.primary_email || <span className="text-muted-foreground">Not set</span>}
+              </dd>
+            </div>
+            <div>
               <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Phone</dt>
-              <dd className="text-sm font-medium flex items-center gap-2">
-                {client.phone || (
-                  <span className="text-muted-foreground">Not set</span>
-                )}
-                <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <dd className="text-sm font-medium">
+                {client.phone || <span className="text-muted-foreground">Not set</span>}
               </dd>
             </div>
             {client.client_type !== 'Individual' && (
-              <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
+              <div>
                 <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Year-End Date</dt>
-                <dd className="text-sm font-medium flex items-center gap-2">
-                  {client.year_end_date || (
-                    <span className="text-muted-foreground">Not set</span>
-                  )}
-                  <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                <dd className="text-sm font-medium">
+                  {client.year_end_date || <span className="text-muted-foreground">Not set</span>}
                 </dd>
               </div>
             )}
             {client.client_type !== 'Individual' && (
-              <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
+              <div>
                 <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Registered</dt>
-                <dd className="text-sm font-medium flex items-center gap-2">
-                  {client.vat_registered ? 'Yes' : 'No'}
-                  <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </dd>
+                <dd className="text-sm font-medium">{client.vat_registered ? 'Yes' : 'No'}</dd>
               </div>
             )}
             {client.client_type !== 'Individual' && client.vat_registered && (
               <>
-                <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
+                <div>
                   <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Stagger Group</dt>
-                  <dd className="text-sm font-medium flex items-center gap-2">
+                  <dd className="text-sm font-medium">
                     {client.vat_stagger_group
                       ? `Stagger ${client.vat_stagger_group} (${
                           ({ 1: 'Mar/Jun/Sep/Dec', 2: 'Jan/Apr/Jul/Oct', 3: 'Feb/May/Aug/Nov' } as Record<number, string>)[client.vat_stagger_group]
                         })`
-                      : (
-                      <span className="text-muted-foreground">Not set</span>
-                    )}
-                    <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      : <span className="text-muted-foreground">Not set</span>}
                   </dd>
                 </div>
-                <div className="group rounded-lg px-3 py-2 -mx-3 -my-2 hover:bg-muted/50 transition-colors cursor-default">
+                <div>
                   <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">VAT Scheme</dt>
-                  <dd className="text-sm font-medium flex items-center gap-2">
-                    {client.vat_scheme || (
-                      <span className="text-muted-foreground">Not set</span>
-                    )}
-                    <Pencil className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <dd className="text-sm font-medium">
+                    {client.vat_scheme || <span className="text-muted-foreground">Not set</span>}
                   </dd>
                 </div>
               </>
@@ -450,6 +477,28 @@ export default function ClientPage() {
         onClose={() => setIsSendEmailModalOpen(false)}
         selectedClients={client ? [client] : []}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Client?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete <strong>{client.display_name || client.company_name}</strong> and all associated data including filings, emails, and documents. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <IconButtonWithText variant="amber" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>
+              <X className="size-4" />
+              Cancel
+            </IconButtonWithText>
+            <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
+              <Trash2 className="size-4" />
+              {deleting ? 'Deleting...' : 'Delete Client'}
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </PageLoadingProvider>
   );

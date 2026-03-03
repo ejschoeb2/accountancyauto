@@ -58,7 +58,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   }
 
   // Fetch checklist and org/client names server-side
-  const [requirementsResult, customisationsResult, clientResult] = await Promise.all([
+  const [requirementsResult, customisationsResult, clientResult, filingTypeResult] = await Promise.all([
     supabase.from('filing_document_requirements')
       .select('id, document_type_id, is_mandatory, document_types(id, code, label, expected_mime_types)')
       .eq('filing_type_id', portalToken.filing_type_id),
@@ -69,6 +69,10 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
     supabase.from('clients')
       .select('company_name, display_name, organisations(name)')
       .eq('id', portalToken.client_id)
+      .single(),
+    supabase.from('filing_types')
+      .select('name')
+      .eq('id', portalToken.filing_type_id)
       .single(),
   ]);
 
@@ -99,6 +103,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
 
   const orgName = (clientResult.data?.organisations as { name?: string } | null)?.name ?? 'Your accountant';
   const clientName = clientResult.data?.display_name || clientResult.data?.company_name || 'Client';
+  const filingTypeName = filingTypeResult.data?.name ?? null;
 
   // Mark token used_at (non-critical, fire-and-forget)
   supabase.from('upload_portal_tokens')
@@ -111,8 +116,10 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       <header className="bg-background">
         <div className="max-w-screen-xl mx-auto px-4">
           <div className="flex items-center h-16">
-            <Brain className="text-violet-600" size={24} />
-            <span className="font-bold text-lg text-foreground ml-2">Prompt</span>
+            <a href="/" className="flex items-center gap-2 shrink-0">
+              <Brain className="text-violet-600" size={24} />
+              <span className="font-bold text-lg text-foreground">Prompt</span>
+            </a>
             <span className="w-px h-4 bg-border mx-3" />
             <span className="font-bold text-lg text-foreground">{orgName}</span>
           </div>
@@ -121,7 +128,9 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       <main className="max-w-2xl mx-auto px-4 py-8">
         <div className="mb-6">
           <div className="flex items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Document upload</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+              {filingTypeName ? `${filingTypeName} document upload` : 'Document upload'}
+            </h1>
             <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10 shrink-0">
               <span className="text-sm font-medium text-green-600">Secure upload</span>
             </div>

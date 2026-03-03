@@ -629,7 +629,7 @@ export function EmailSetupStep({
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
+                When a client replies to a reminder email, their reply is sent to this address. If you leave it as the default, replies go straight to your normal inbox. You can also set a different address here if you&apos;d prefer to keep client responses in a separate inbox.
               </p>
             </div>
           </div>
