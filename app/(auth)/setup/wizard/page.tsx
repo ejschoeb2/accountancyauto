@@ -245,6 +245,17 @@ export default function WizardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Persist wizard step to sessionStorage so browser-back restores position ─
+  useEffect(() => {
+    if (adminStep && adminStep !== "account" && adminStep !== "firm") {
+      sessionStorage.setItem("wizard_admin_step", adminStep);
+    }
+  }, [adminStep]);
+
+  useEffect(() => {
+    sessionStorage.setItem("wizard_portal_enabled", clientPortalEnabled ? "1" : "0");
+  }, [clientPortalEnabled]);
+
   // ── On mount: detect user type and starting step ────────────────────────────
   useEffect(() => {
     (async () => {
@@ -285,13 +296,31 @@ export default function WizardPage() {
           const url = await getWizardDashboardUrl();
           setDashboardUrl(url);
         } else {
-          // Check if we navigated away mid-storage step (e.g. OAuth failed before callback)
-          const savedStep = sessionStorage.getItem("wizard_return_step");
-          if (savedStep === "storage") {
+          // Restore wizard position from sessionStorage (covers browser-back from
+          // OAuth pages and any other mid-wizard navigation)
+          const savedReturnStep = sessionStorage.getItem("wizard_return_step");
+          const savedAdminStep = sessionStorage.getItem("wizard_admin_step");
+          const savedPortal = sessionStorage.getItem("wizard_portal_enabled");
+
+          if (savedReturnStep === "storage" || savedAdminStep === "storage") {
+            // Returning from storage OAuth (failed before callback, or browser-back)
             sessionStorage.removeItem("wizard_return_step");
+            if (savedPortal !== null) setClientPortalEnabled(savedPortal === "1");
             setAdminStep("storage");
             const url = await getWizardDashboardUrl();
             setDashboardUrl(url);
+          } else if (
+            savedAdminStep &&
+            ["import", "email", "portal", "upload-checks", "complete"].includes(savedAdminStep)
+          ) {
+            // Restore to whichever step they were on
+            if (savedPortal !== null) setClientPortalEnabled(savedPortal === "1");
+            setAdminStep(savedAdminStep as AdminStep);
+            prefetchConfigDefaults();
+            if (savedAdminStep === "complete") {
+              const url = await getWizardDashboardUrl();
+              setDashboardUrl(url);
+            }
           } else {
             // Returning from Stripe, start at import
             setAdminStep("import");
@@ -493,6 +522,10 @@ export default function WizardPage() {
     setIsLeavingWizard(true);
     await seedOrgDefaultsForWizard(clientPortalEnabled);
     await markOrgSetupComplete();
+    // Clean up wizard sessionStorage keys
+    sessionStorage.removeItem("wizard_admin_step");
+    sessionStorage.removeItem("wizard_portal_enabled");
+    sessionStorage.removeItem("wizard_return_step");
     isNavigatingAway.current = true;
     window.location.href = dashboardUrl;
   };
