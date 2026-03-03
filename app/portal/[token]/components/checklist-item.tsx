@@ -5,6 +5,14 @@ import { useDropzone } from 'react-dropzone';
 import { AlertTriangle, CheckCircle, Loader2, Upload, XCircle } from 'lucide-react';
 import type { ChecklistItem as ChecklistItemType } from '../page';
 import { ExtractionConfirmationCard } from './upload-confirmation-card';
+import { ValidationWarningCard } from './validation-warning-card';
+
+interface ValidationWarning {
+  code: string;
+  message: string;
+  expected?: string;
+  found?: string;
+}
 
 interface UploadedFile {
   filename: string;
@@ -15,6 +23,8 @@ interface UploadedFile {
   extractedEmployer: string | null;
   extractedPayeRef: string | null;
   showConfirmationCard: boolean;
+  // Phase 30: validation warnings (empty array = no issues)
+  validationWarnings: ValidationWarning[];
 }
 
 interface ChecklistItemProps {
@@ -76,8 +86,8 @@ export function ChecklistItem({
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium truncate">{label}</span>
             {item.is_mandatory && (
-              <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-red-500/10 shrink-0">
-                <span className="text-xs font-medium text-red-500">Required</span>
+              <div className="px-3 py-2 rounded-md inline-flex items-center bg-red-500/10 shrink-0">
+                <span className="text-sm font-medium text-red-500">Required</span>
               </div>
             )}
           </div>
@@ -91,14 +101,16 @@ export function ChecklistItem({
                     <CheckCircle className="size-4 text-green-600 shrink-0" />
                     <span className="text-xs text-muted-foreground truncate">{u.filename}</span>
                   </div>
-                  {u.showConfirmationCard && (
+                  {u.validationWarnings.length > 0 ? (
+                    <ValidationWarningCard warnings={u.validationWarnings} />
+                  ) : u.showConfirmationCard ? (
                     <ExtractionConfirmationCard
                       documentTypeLabel={u.documentTypeLabel ?? 'Document'}
                       extractedTaxYear={u.extractedTaxYear}
                       extractedEmployer={u.extractedEmployer}
                       extractedPayeRef={u.extractedPayeRef}
                     />
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -137,28 +149,26 @@ export function ChecklistItem({
         {/* Upload dropzone */}
         <div className="shrink-0">
           {uploading ? (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-500/10">
-              <Loader2 className="size-4 text-violet-500 animate-spin" />
-              <span className="text-xs text-violet-500 font-medium">Uploading...</span>
+            <div className="h-10 px-4 rounded-md inline-flex items-center gap-2 text-sm font-medium bg-violet-500/10 text-violet-500">
+              <Loader2 className="size-4 animate-spin" />
+              Uploading...
             </div>
           ) : (
             <div
               {...getRootProps()}
-              className={`cursor-pointer px-3 py-2 rounded-lg border-2 border-dashed text-xs font-medium transition-all duration-200 ${
+              className={`h-10 px-4 rounded-md inline-flex items-center gap-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] ${
                 disabled
-                  ? 'border-muted-foreground/20 bg-muted/50 text-muted-foreground/50 cursor-not-allowed'
+                  ? 'opacity-50 cursor-not-allowed bg-muted/50 text-muted-foreground'
                   : isDragActive
-                  ? 'border-violet-400 bg-violet-500/10 text-violet-600'
+                  ? 'cursor-pointer bg-sky-500/20 text-sky-700'
                   : isUploaded
-                  ? 'border-green-300 bg-green-500/10 text-green-700 hover:border-green-400'
-                  : 'border-border bg-muted/50 text-muted-foreground hover:border-violet-400 hover:bg-violet-500/10 hover:text-violet-600'
+                  ? 'cursor-pointer bg-green-500/10 text-green-700 hover:bg-green-500/20'
+                  : 'cursor-pointer bg-sky-500/10 text-sky-600 hover:bg-sky-500/20'
               }`}
             >
               <input {...getInputProps()} />
-              <div className="flex items-center gap-1.5">
-                <Upload className="size-4" />
-                {isDragActive ? 'Drop here' : isUploaded ? 'Replace' : 'Upload'}
-              </div>
+              <Upload className="size-4" />
+              {isDragActive ? 'Drop here' : isUploaded ? 'Replace' : 'Upload'}
             </div>
           )}
         </div>

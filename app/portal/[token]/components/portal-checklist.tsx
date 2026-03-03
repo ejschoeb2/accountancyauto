@@ -5,6 +5,13 @@ import { ChecklistItem } from './checklist-item';
 import { ProgressBar } from './progress-bar';
 import type { ChecklistItem as ChecklistItemType } from '../page';
 
+interface ValidationWarning {
+  code: string;
+  message: string;
+  expected?: string;
+  found?: string;
+}
+
 interface UploadedFile {
   filename: string;
   confidence: string;
@@ -13,7 +20,9 @@ interface UploadedFile {
   extractedTaxYear: string | null;
   extractedEmployer: string | null;
   extractedPayeRef: string | null;
-  showConfirmationCard: boolean; // pre-computed: has OCR data AND not unclassified AND not image-only
+  showConfirmationCard: boolean; // pre-computed: has OCR data AND not unclassified AND not image-only AND no validation warnings
+  // Phase 30: validation warnings (empty array = no issues)
+  validationWarnings: ValidationWarning[];
 }
 
 interface PendingDuplicate {
@@ -174,6 +183,7 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
 
         // Large files skip the OCR confirmation card — no extraction data is available
         // (bytes went directly to the provider; server never processed them)
+        // Phase 30: no buffer = no validation, so validationWarnings is always empty
         setUploadedByItemId(prev => ({
           ...prev,
           [itemId]: [
@@ -186,6 +196,7 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
               extractedEmployer: null,
               extractedPayeRef: null,
               showConfirmationCard: false,
+              validationWarnings: [],
             },
           ],
         }));
@@ -219,11 +230,13 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
     const data = await res.json();
     setPendingDuplicate(null); // clear any pending duplicate
 
+    const validationWarnings: ValidationWarning[] = data.validationWarnings ?? [];
     const hasOcrData =
       data.extractedTaxYear !== null ||
       data.extractedEmployer !== null ||
       data.extractedPayeRef !== null;
-    const showConfirmationCard = hasOcrData && data.confidence !== 'unclassified' && !data.isImageOnly;
+    // Phase 30 (Pitfall 6): amber warning card takes priority over green confirmation card
+    const showConfirmationCard = validationWarnings.length === 0 && hasOcrData && data.confidence !== 'unclassified' && !data.isImageOnly;
 
     setUploadedByItemId(prev => ({
       ...prev,
@@ -237,6 +250,7 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
           extractedEmployer: data.extractedEmployer ?? null,
           extractedPayeRef: data.extractedPayeRef ?? null,
           showConfirmationCard,
+          validationWarnings,
         },
       ],
     }));
@@ -253,23 +267,25 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
 
   return (
     <div>
-      <ProgressBar provided={totalProvided} total={checklist.length} />
-      <div className="space-y-3">
-        {checklist.map((item) => {
-          const itemHasDuplicate = pendingDuplicate?.itemId === item.id;
-          return (
-            <ChecklistItem
-              key={item.id}
-              item={item}
-              uploaded={uploadedByItemId[item.id] ?? []}
-              onUpload={(file) => handleUpload(item.id, file)}
-              disabled={pendingDuplicate !== null && !itemHasDuplicate}
-              duplicateWarning={itemHasDuplicate ? pendingDuplicate?.file.name : undefined}
-              onConfirmDuplicate={itemHasDuplicate ? () => handleUpload(item.id, pendingDuplicate!.file, true) : undefined}
-              onDismissDuplicate={itemHasDuplicate ? () => setPendingDuplicate(null) : undefined}
-            />
-          );
-        })}
+      <div className="bg-card rounded-xl border shadow-sm p-6">
+        <ProgressBar provided={totalProvided} total={checklist.length} />
+        <div className="space-y-3">
+          {checklist.map((item) => {
+            const itemHasDuplicate = pendingDuplicate?.itemId === item.id;
+            return (
+              <ChecklistItem
+                key={item.id}
+                item={item}
+                uploaded={uploadedByItemId[item.id] ?? []}
+                onUpload={(file) => handleUpload(item.id, file)}
+                disabled={pendingDuplicate !== null && !itemHasDuplicate}
+                duplicateWarning={itemHasDuplicate ? pendingDuplicate?.file.name : undefined}
+                onConfirmDuplicate={itemHasDuplicate ? () => handleUpload(item.id, pendingDuplicate!.file, true) : undefined}
+                onDismissDuplicate={itemHasDuplicate ? () => setPendingDuplicate(null) : undefined}
+              />
+            );
+          })}
+        </div>
       </div>
       <p className="mt-6 text-xs text-muted-foreground/70 text-center">
         Powered by Prompt. Your files are securely stored and only accessible to {orgName}.
