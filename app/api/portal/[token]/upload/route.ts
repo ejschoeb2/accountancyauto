@@ -4,6 +4,7 @@ import { resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import { classifyDocument } from '@/lib/documents/classify';
 import { runIntegrityChecks } from '@/lib/documents/integrity';
 import { calculateRetainUntil } from '@/lib/documents/metadata';
+import { runValidation } from '@/lib/documents/validate';
 import crypto from 'crypto';
 import type { FilingTypeId } from '@/lib/types/database';
 
@@ -114,6 +115,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const filingTypeId = portalToken.filing_type_id as FilingTypeId;
   const retainUntil = calculateRetainUntil(filingTypeId, taxPeriodEndDate);
 
+  // Phase 30: per-document-type advisory validation
+  const validation = await runValidation(
+    classification.documentTypeCode,
+    file.type,
+    fileBuffer,
+    taxYear,
+    classification.extractedTaxYear,
+    portalToken.filing_type_id,
+  );
+
   try {
     // Phase 25: route upload through resolveProvider for Google Drive/OneDrive/Dropbox support
     const provider = resolveProvider({
@@ -156,6 +167,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       file_hash: integrity.sha256Hash,
       file_size_bytes: integrity.fileSizeBytes,
       page_count: integrity.pageCount,
+      // Phase 30: advisory validation — set needs_review flag and store structured warnings
+      needs_review: validation.warnings.length > 0,
+      validation_warnings: validation.warnings.length > 0
+        ? validation.warnings  // Supabase JS client handles JSON serialization
+        : null,
     }).select('id').single();
 
     // Mark token used_at (non-critical)
@@ -175,6 +191,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       extractedEmployer: classification.extractedEmployer,
       extractedPayeRef: classification.extractedPayeRef,
       isImageOnly: classification.isImageOnly,
+      // Phase 30: advisory validation warnings (empty array = no issues)
+      validationWarnings: validation.warnings,
     });
   } catch (err) {
     console.error('[Portal Upload] Storage or DB error:', err);
