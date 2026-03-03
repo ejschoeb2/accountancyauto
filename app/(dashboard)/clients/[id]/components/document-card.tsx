@@ -19,6 +19,7 @@ import {
   Loader2,
   Settings,
   AlertTriangle,
+  X,
 } from 'lucide-react';
 import { CheckButton } from '@/components/ui/check-button';
 
