@@ -309,6 +309,7 @@ Recent decisions affecting v3.0:
 - Phase 27 added: Dropbox Integration — OAuth2 offline, DropboxProvider, app folder, temporary link downloads
 - Phase 28 added: Settings UI & Token Lifecycle — unified Storage tab, re-auth banner, health-check cron, privacy policy update
 - Phase 29 added: Hardening & Integration Testing — large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification
+- Phase 30 added: Per-document-type upload validation — tailored checks per document type, CSV MIME fix, large-file path validation
 
 ### Known Risks
 
