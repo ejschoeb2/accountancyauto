@@ -78,11 +78,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // File type validation: accept PDF, JPEG, PNG, and common office formats
+  // Phase 30: added text/csv — bank statement CSV exports are common from online banking
   const ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/tiff',
     'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/csv'];
   if (!ALLOWED_MIME.includes(file.type)) {
-    return NextResponse.json({ error: 'File type not allowed. Supported: PDF, images, Word, Excel.' }, { status: 400 });
+    return NextResponse.json({ error: 'File type not allowed. Supported: PDF, images, Word, Excel, CSV.' }, { status: 400 });
   }
 
   const fileBuffer = Buffer.from(await file.arrayBuffer());
