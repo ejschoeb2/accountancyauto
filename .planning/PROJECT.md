@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A web application for Prompt that connects to their QuickBooks Online account, syncs the client list automatically, and sends scheduled email reminders to clients about upcoming filing obligations — year-end accounts, VAT returns, self-assessment deadlines, corporation tax, and Companies House filings. The accountant creates rich text email templates with placeholder variables, configures reminder schedules with multi-step escalation, and can send ad-hoc emails to selected clients. The system handles everything else: calculating when reminders are due, rendering emails with client data, sending them at the right time, tracking delivery, and providing a dashboard with traffic-light status indicators to monitor the whole process.
+A SaaS web application for UK accounting practices that automates client reminder workflows and document collection. Firms connect QuickBooks Online to sync clients, create rich text email templates with placeholder variables, and configure multi-step reminder schedules with escalating urgency. The system calculates filing deadlines, sends reminders at the right time via Postmark, and tracks delivery with a traffic-light dashboard. Clients upload documents through a branded portal with OCR-powered classification and advisory validation warnings. Firms choose where documents are stored — Supabase Storage (default), Google Drive, Microsoft OneDrive, or Dropbox — with encrypted OAuth tokens and per-document backend routing.
 
 ## Core Value
 
@@ -85,20 +85,24 @@ Accountants spend hours every month manually chasing clients for records and doc
 - ✓ {{documents_required}} and {{portal_link}} template variables resolved at send time — v4.0
 - ✓ Auto Records Received when all mandatory documents uploaded — v4.0
 
+### Validated (v5.0)
+
+- ✓ Provider-agnostic StorageProvider interface with resolveProvider() factory routing by org config — v5.0
+- ✓ Per-org storage_backend enum + encrypted OAuth token columns on organisations — v5.0
+- ✓ Google Drive integration: OAuth2 (drive.file scope), folder hierarchy, server-proxied downloads — v5.0
+- ✓ Microsoft OneDrive integration: MSAL OAuth2, M365 + personal accounts, ICachePlugin encrypted cache — v5.0
+- ✓ Dropbox integration: OAuth2 offline, app folder scope, temporary link downloads — v5.0
+- ✓ Settings Storage tab: connect/disconnect cards, health-check cron, re-auth banner — v5.0
+- ✓ AES-256-GCM token encryption — no plaintext tokens ever stored — v5.0
+- ✓ Portal upload, inbound email, DSAR export all route through resolveProvider() — v5.0
+- ✓ Chunked upload sessions for files > 4.5 MB (Vercel body limit) — v5.0
+- ✓ Postmark inbound idempotency guard — v5.0
+- ✓ Per-document-type advisory validation (bank statements, VAT, P60, P45, SA302) — v5.0
+- ✓ Supabase Storage remains default for orgs without a provider — v5.0
+
 ### Active
 
-- [ ] Abstract storage interface: lib/documents/storage.ts becomes provider-agnostic (upload/getDownloadUrl/delete) routing by org config
-- [ ] Per-org storage backend configuration: storage_backend enum (supabase | google_drive | onedrive | dropbox) + OAuth token columns on organisations
-- [ ] Google Drive integration: OAuth2 (drive.file scope), Drive API v3, folder structure per client/filing/year, file ID as storage_path
-- [ ] Microsoft OneDrive integration: Microsoft Graph API, MSAL OAuth2 (personal + M365), folder structure, item ID as storage_path
-- [ ] Dropbox integration: Dropbox API v2, OAuth2, path-based storage
-- [ ] Settings UI: connect/disconnect each storage provider via OAuth, show connected status
-- [ ] Token refresh utility: auto-renew short-lived access tokens for all three providers
-- [ ] Portal upload updated: route file bytes via provider API (resumable upload URL pattern) when non-Supabase backend configured
-- [ ] Inbound email attachments: re-upload bytes to provider API when non-Supabase backend configured
-- [ ] DSAR export updated: fetch file bytes from provider API before zipping
-- [ ] Signed download URL equivalent: generate provider-specific temporary access links (Google Drive temporary link, OneDrive sharing link with expiry, Dropbox temporary link)
-- [ ] Supabase Storage remains default: orgs that do not connect a provider continue using Supabase Storage unchanged
+(No active requirements — next milestone not yet defined)
 
 ### Validated (v3.0)
 
@@ -135,10 +139,10 @@ Accountants spend hours every month manually chasing clients for records and doc
 - **Client types per org:** Limited Companies, Sole Traders, Partnerships, LLPs — each with different filing obligations
 - **Email requirements:** Each org sends from their own domain via their own Postmark server (credentials stored in organisations table)
 - **Filing deadlines are mostly formulaic:** Corporation Tax = year-end + 9 months 1 day, Companies House = year-end + 9 months (private), VAT = quarter-end + 1 month 7 days, Self Assessment = 31 January following tax year — all overridable per client
-- **Current state:** v2.0 shipped 2026-02-14 — single-tenant, one Vercel + Supabase + Postmark deployment per firm, RLS uses USING(true), no org isolation
-- **Architecture:** Normalized relational tables, TipTap JSON templates, React Email rendering, two-stage cron (queue + send)
-- **Multi-tenancy target:** Single Supabase project, all tables gain org_id FK, RLS scoped via user_organisations, subdomain routing (orgslug.app.domain.com)
-- **Milestones shipped:** v1.0 MVP (2026-02-07), v1.1 Template & Scheduling Redesign (2026-02-08), v2.0 QOL & Platform Hardening (2026-02-14)
+- **Current state:** v5.0 shipped 2026-03-03 — full multi-tenant SaaS with configurable storage backends (Supabase/Google Drive/OneDrive/Dropbox), per-document-type validation, 12,558 LOC TypeScript
+- **Architecture:** Normalized relational tables, TipTap JSON templates, React Email rendering, two-stage cron (queue + send), provider-agnostic StorageProvider interface with per-document backend routing
+- **Storage:** Per-org configurable backend via OAuth2; AES-256-GCM encrypted tokens; chunked uploads for large files; daily health-check cron
+- **Milestones shipped:** v1.0 MVP (2026-02-07), v1.1 Template & Scheduling Redesign (2026-02-08), v2.0 QOL & Platform Hardening (2026-02-14), v3.0 Multi-Tenancy & SaaS (2026-02-23), v4.0 Document Collection (2026-02-28), v5.0 Third-Party Storage Integrations (2026-03-03)
 
 ## Constraints
 
@@ -175,21 +179,17 @@ Accountants spend hours every month manually chasing clients for records and doc
 | Lazy Postmark client | Proxy pattern avoids module-load crash when token missing | Good |
 | Three urgency levels only | normal/high/urgent — 'low' removed for simplicity | Good |
 | Paste always strips formatting | Plain text only, no Ctrl+Shift+V — predictable paste behavior | Good |
+| Provider-agnostic StorageProvider | resolveProvider() factory routes by org config; per-document backend routing | Good |
+| AES-256-GCM token encryption | No plaintext OAuth tokens in DB; lazy key loading | Good |
+| drive.file scope (not full drive) | Avoids Google restricted-scope verification; covers all use cases | Good |
+| MSAL ICachePlugin for OneDrive | Encrypted Postgres persistence between Vercel invocations | Good |
+| Per-document storage_backend | Set at insert time, never derived from org's current setting | Good |
+| Chunked upload sessions | Provider-native APIs bypass Vercel 4.5 MB body limit | Good |
+| Advisory validation (never reject) | Warn clients about potential issues; accountant reviews | Good |
 
-## Current Milestone: v5.0 Third-Party Storage Integrations
+## Current Milestone: None (planning next)
 
-**Goal:** Replace the locked-in Supabase Storage model with a configurable per-org storage backend — allowing accounting firms to store client documents in their own Google Drive, Microsoft OneDrive, or Dropbox, while Prompt retains only metadata and all existing OCR/classification/integrity checks continue to run unchanged.
-
-**Target features:**
-- Provider-agnostic storage interface (upload/getDownloadUrl/delete routing by org config)
-- Google Drive integration (OAuth2, Drive API v3, file ID as storage_path)
-- Microsoft OneDrive integration (Microsoft Graph API, MSAL OAuth2)
-- Dropbox integration (Dropbox API v2, OAuth2)
-- Per-org storage_backend config + OAuth token columns on organisations
-- Settings UI: connect/disconnect each provider, show connected status
-- Token refresh utility for all three providers
-- Portal upload, inbound email, DSAR export all updated for non-Supabase backends
-- Supabase Storage remains default for orgs that do not connect a provider
+v5.0 shipped. Use `/gsd:new-milestone` to define v6.0.
 
 ---
-*Last updated: 2026-02-28 after v5.0 milestone started (Third-Party Storage Integrations — Phase 24+)*
+*Last updated: 2026-03-03 after v5.0 milestone shipped (Third-Party Storage Integrations)*

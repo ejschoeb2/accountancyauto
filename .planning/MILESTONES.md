@@ -1,4 +1,36 @@
-# Project Milestones: Peninsula Accounting Client Reminder System
+# Project Milestones: Prompt Client Reminder System
+
+## v5.0 Third-Party Storage Integrations (Shipped: 2026-03-03)
+
+**Delivered:** Replaced locked-in Supabase Storage with configurable per-org storage backends — Google Drive, Microsoft OneDrive, and Dropbox — with AES-256-GCM encrypted OAuth tokens, provider-agnostic upload/download routing, and per-document-type advisory validation warnings.
+
+**Phases completed:** 24-30 (25 plans total)
+
+**Key accomplishments:**
+
+- Provider-agnostic StorageProvider interface with resolveProvider() factory routing all uploads/downloads by org config
+- Google Drive integration — OAuth2 (drive.file scope), folder hierarchy, server-proxied downloads, withTokenRefresh utility
+- Microsoft OneDrive integration — MSAL OAuth2 with ICachePlugin encrypted cache, M365 business + personal account support
+- Dropbox integration — OAuth2 offline, app folder boundary, temporary link downloads (4-hour TTL)
+- AES-256-GCM token encryption module — no plaintext OAuth tokens ever stored in database
+- Settings Storage tab with connect/disconnect cards, health-check cron, re-auth banner, disconnect confirmation with document count
+- Per-document-type upload validation — advisory warnings for bank statements, VAT workings, P60, P45, SA302 with portal amber card + accountant review UI
+- Chunked upload session APIs for files exceeding Vercel 4.5 MB limit; Postmark inbound idempotency guard
+
+**Stats:**
+
+- 192 files changed (18,230 insertions, 6,984 deletions)
+- 12,558 lines of TypeScript (total codebase)
+- 7 phases, 25 plans
+- 38 feature commits
+- 4 days (2026-02-28 → 2026-03-03)
+
+**Git range:** `aff7bad` → `fb99753`
+
+**What's next:** v6.0 planning — HMRC API integration, advanced analytics, or mobile-first redesign
+
+---
+
 
 ## v1.1 Template & Scheduling Redesign (Shipped: 2026-02-08)
 
