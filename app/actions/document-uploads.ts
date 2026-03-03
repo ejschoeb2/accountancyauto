@@ -2,6 +2,14 @@
 
 import { createClient } from '@/lib/supabase/server';
 
+// Phase 30: Advisory validation warning (mirrors ValidationWarning in lib/documents/validate.ts)
+interface ValidationWarning {
+  code: string;
+  message: string;
+  expected?: string;
+  found?: string;
+}
+
 export interface PortalUpload {
   id: string;
   client_id: string | null;
@@ -13,6 +21,9 @@ export interface PortalUpload {
   received_at: string;
   classification_confidence: string | null;
   extracted_tax_year: string | null;
+  // Phase 30 additions:
+  needs_review: boolean;
+  validation_warnings: ValidationWarning[] | null;
 }
 
 export interface PortalUploadsParams {
@@ -70,9 +81,10 @@ export async function getPortalUploads(params: PortalUploadsParams): Promise<Por
   );
 
   // Build query — portal uploads only
+  // Phase 30: SELECT now includes needs_review and validation_warnings columns
   let query = supabase
     .from('client_documents')
-    .select('id, client_id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, extracted_tax_year', { count: 'exact' })
+    .select('id, client_id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, extracted_tax_year, needs_review, validation_warnings', { count: 'exact' })
     .eq('source', 'portal_upload');
 
   if (matchingClientIds && matchingClientIds.length > 0) {
@@ -109,6 +121,8 @@ export async function getPortalUploads(params: PortalUploadsParams): Promise<Por
     received_at: upload.received_at,
     classification_confidence: upload.classification_confidence,
     extracted_tax_year: upload.extracted_tax_year,
+    needs_review: upload.needs_review ?? false,
+    validation_warnings: upload.validation_warnings ?? null,
   }));
 
   return {

@@ -20,6 +20,7 @@ import {
   Plus,
   Loader2,
   Settings,
+  AlertTriangle,
 } from 'lucide-react';
 import { CheckButton } from '@/components/ui/check-button';
 
@@ -33,6 +34,14 @@ interface DocumentType {
   label: string;
 }
 
+// Phase 30: Advisory validation warning (mirrors ValidationWarning in lib/documents/validate.ts)
+interface ValidationWarning {
+  code: string;
+  message: string;
+  expected?: string;
+  found?: string;
+}
+
 interface ClientDocument {
   id: string;
   filing_type_id: string;
@@ -40,7 +49,7 @@ interface ClientDocument {
   original_filename: string;
   received_at: string | null;
   classification_confidence: 'high' | 'medium' | 'low' | 'unclassified';
-  source: 'portal_upload' | 'inbound_email' | 'manual';
+  source: 'portal_upload' | 'manual';
   created_at: string;
   retention_flagged: boolean;
   document_types: DocumentType | null;
@@ -50,6 +59,9 @@ interface ClientDocument {
   extracted_paye_ref: string | null;
   extraction_source: 'ocr' | 'keyword' | 'rules' | 'manual' | null;
   page_count: number | null;
+  // Phase 30 additions:
+  needs_review: boolean;
+  validation_warnings: ValidationWarning[] | null;
 }
 
 interface ChecklistRequirement {
@@ -215,6 +227,9 @@ function DocumentRow({ doc, clientId, label, showLabel, onDownload, isDownloadin
   const [extractedTaxYear, setExtractedTaxYear] = useState(doc.extracted_tax_year);
   const [extractedEmployer, setExtractedEmployer] = useState(doc.extracted_employer);
   const [extractedPayeRef, setExtractedPayeRef] = useState(doc.extracted_paye_ref);
+  // Phase 30: needs_review state — optimistic local copy
+  const [needsReview, setNeedsReview] = useState(doc.needs_review);
+  const [clearingReview, startClearReviewTransition] = useTransition();
 
   const hasExtractionData = extractedTaxYear !== null || extractedEmployer !== null || extractedPayeRef !== null;
   // Historical: pre-Phase-21 doc with no extraction data and keyword source
@@ -245,6 +260,23 @@ function DocumentRow({ doc, clientId, label, showLabel, onDownload, isDownloadin
     }
   };
 
+  // Phase 30: Clear the needs_review flag on this document
+  const handleClearReview = () => {
+    startClearReviewTransition(async () => {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('client_documents')
+        .update({ needs_review: false, validation_warnings: null })
+        .eq('id', doc.id);
+      if (error) {
+        toast.error('Failed to clear review flag — please try again');
+        return;
+      }
+      setNeedsReview(false);
+      toast.success('Review flag cleared');
+    });
+  };
+
   return (
     <div className="flex items-start gap-3 py-2 px-3 rounded-md bg-green-50 border border-green-100">
       <CheckCircle className="size-4 text-green-600 shrink-0 mt-0.5" />
@@ -256,6 +288,13 @@ function DocumentRow({ doc, clientId, label, showLabel, onDownload, isDownloadin
           <ConfidenceBadge confidence={doc.classification_confidence} />
           {isScannedPdf && <ScannedPdfBadge />}
           {isReviewNeeded && <ReviewNeededBadge />}
+          {/* Phase 30: amber badge for advisory validation warnings */}
+          {needsReview && (
+            <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-amber-500/10">
+              <AlertTriangle className="size-3 text-amber-600 mr-1" />
+              <span className="text-xs font-medium text-amber-600">Needs review</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">
@@ -299,22 +338,42 @@ function DocumentRow({ doc, clientId, label, showLabel, onDownload, isDownloadin
             </div>
           </div>
         )}
+        {/* Phase 30: Show validation warning messages when needs_review is true */}
+        {needsReview && doc.validation_warnings && doc.validation_warnings.length > 0 && (
+          <div className="mt-2 space-y-1">
+            {doc.validation_warnings.map((w: ValidationWarning, i: number) => (
+              <p key={i} className="text-xs text-amber-600/80">{w.message}</p>
+            ))}
+          </div>
+        )}
       </div>
-      <IconButtonWithText
-        variant="blue"
-        onClick={onDownload}
-        disabled={isDownloading}
-      >
-        <Download className="size-3" />
-        {isDownloading ? 'Opening...' : 'Download'}
-      </IconButtonWithText>
+      <div className="flex flex-col gap-1 shrink-0">
+        <IconButtonWithText
+          variant="blue"
+          onClick={onDownload}
+          disabled={isDownloading}
+        >
+          <Download className="size-3" />
+          {isDownloading ? 'Opening...' : 'Download'}
+        </IconButtonWithText>
+        {/* Phase 30: Clear review button */}
+        {needsReview && (
+          <IconButtonWithText
+            variant="amber"
+            onClick={handleClearReview}
+            disabled={clearingReview}
+          >
+            {clearingReview ? <Loader2 className="size-3 animate-spin" /> : <AlertTriangle className="size-3" />}
+            {clearingReview ? 'Clearing...' : 'Clear'}
+          </IconButtonWithText>
+        )}
+      </div>
     </div>
   );
 }
 
 function formatSource(source: ClientDocument['source']): string {
   if (source === 'portal_upload') return 'Portal';
-  if (source === 'inbound_email') return 'Email';
   return 'Manual';
 }
 
@@ -360,9 +419,12 @@ function ChecklistModal({
 
   // Load org_id from user session
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const id = data.session?.user?.app_metadata?.org_id;
-      if (id) setOrgId(id);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const id = user.app_metadata?.org_id;
+      if (id) { setOrgId(id); return; }
+      supabase.from('user_organisations').select('org_id').eq('user_id', user.id).limit(1).single()
+        .then(({ data }) => { if (data?.org_id) setOrgId(data.org_id); });
     });
   }, []);
 
@@ -678,9 +740,12 @@ export function DocumentCard({
 
   // Load org_id from user session
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const id = data.session?.user?.app_metadata?.org_id;
-      if (id) setOrgId(id);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const id = user.app_metadata?.org_id;
+      if (id) { setOrgId(id); return; }
+      supabase.from('user_organisations').select('org_id').eq('user_id', user.id).limit(1).single()
+        .then(({ data }) => { if (data?.org_id) setOrgId(data.org_id); });
     });
   }, []);
 
@@ -1035,9 +1100,13 @@ export function DocumentCard({
     <>
       <div className="space-y-1.5">
         {loading ? (
-          <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" />
-            Loading documents...
+          <div className="space-y-1.5 animate-pulse">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-2 py-1">
+                <div className="size-5 rounded bg-muted" />
+                <div className="h-4 rounded bg-muted" style={{ width: `${100 + i * 30}px` }} />
+              </div>
+            ))}
           </div>
         ) : effectiveChecklist.length === 0 && documents.length === 0 ? (
           <p className="text-sm text-muted-foreground">

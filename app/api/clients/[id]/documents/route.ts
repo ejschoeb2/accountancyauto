@@ -20,10 +20,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   // List documents for this client — RLS ensures org-scoping
   // Phase 22: SELECT now includes Phase 21 OCR extraction columns
+  // Phase 30: SELECT now includes needs_review and validation_warnings columns
   let query = supabase
     .from('client_documents')
     .select(
-      'id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, document_types(code, label), extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, page_count'
+      'id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, document_types(code, label), extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, page_count, needs_review, validation_warnings'
     )
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
