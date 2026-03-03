@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-03-03T01:41:46.304Z"
+last_updated: "2026-03-03T01:48:53.261Z"
 progress:
   total_phases: 31
   completed_phases: 27
   total_plans: 105
-  completed_plans: 99
+  completed_plans: 100
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 30 Plan 01 complete — Per-document-type advisory validation module: lib/documents/validate.ts with runValidation() for BANK_STATEMENT/VAT_RETURN_WORKINGS/P60/P45/SA302, needs_review + validation_warnings columns on client_documents, text/csv MIME fix.
+**Current focus:** Phase 30 Plan 02 complete — Upload route wired to runValidation(), ValidationWarningCard amber component, portal shows amber instead of green when validation warnings exist.
 
 ## Current Position
 
 Phase: 30 (in progress)
-Plan: 01 complete
-Status: Phase 30 Plan 01 complete — Validation module, schema migration, CSV MIME fix
-Last activity: 2026-03-03 — Phase 30-01 lib/documents/validate.ts, migration 20260303013719, upload route CSV fix
+Plan: 02 complete
+Status: Phase 30 Plan 02 complete — Upload route integration, ValidationWarningCard, portal amber/green card priority logic
+Last activity: 2026-03-03 — Phase 30-02 upload route runValidation() integration, validation-warning-card.tsx, portal-checklist + checklist-item updated
 
 Resume file: none
-Next step: Execute Phase 30 Plan 02 (Upload route integration + portal amber card)
+Next step: Execute Phase 30 Plan 03 (Accountant-facing: client page badge + activity page popup)
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -295,6 +295,8 @@ Recent decisions affecting v3.0:
 - [Phase 30]: SheetJS require() inside function body to avoid App Router CJS/ESM issues (Pitfall 1)
 - [Phase 30]: Bank statement PDF check only fires on structured period markers, not arbitrary dates (Pitfall 3)
 - [Phase 30]: VAT period plausibility uses +-1 year from portal tax year, not exact stagger group alignment (Pitfall 4)
+- [Phase 30]: ValidationWarning interface redefined locally in portal client components to avoid importing server-only lib/documents/validate.ts into client bundle
+- [Phase 30]: showConfirmationCard requires validationWarnings.length === 0 — amber warning card takes absolute priority over green confirmation card (never both simultaneously)
 
 ### Roadmap Evolution
 
@@ -349,6 +351,7 @@ Recent decisions affecting v3.0:
 | Phase 29 P02 | 18 | 2 tasks | 2 files |
 | Phase 29 P01 | 4 | 2 tasks | 3 files |
 | Phase 30 P01 | 3 | 1 tasks | 3 files |
+| Phase 30-per-document-type-upload-validation P02 | 4 | 2 tasks | 4 files |
 
 ### Tech Debt
 
@@ -390,9 +393,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-03-03 UTC
-Stopped at: Completed 30-01-PLAN.md — Per-type validation module (runValidation, ValidationWarning, ValidationResult), schema migration (needs_review + validation_warnings on client_documents, text/csv in BANK_STATEMENT MIME types), CSV MIME fix in upload route
+Stopped at: Completed 30-02-PLAN.md — Upload route runValidation() integration, ValidationWarningCard amber component, portal-checklist + checklist-item updated for amber/green card priority logic
 Resume file: none
-Next step: Execute Phase 30 Plan 02 (Upload route integration + portal amber card)
+Next step: Execute Phase 30 Plan 03 (Accountant-facing: client page badge + activity page popup)
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
