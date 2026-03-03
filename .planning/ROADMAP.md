@@ -553,4 +553,25 @@ Plans:
   4. End-to-end integration is verified for each of the three providers: portal upload succeeds and file appears in provider storage; document download serves the correct bytes; DSAR export includes the file; per-document `storage_backend` matches the provider used at upload time; verified with a mixed-backend document set.
 **Plans**: TBD
 
+### Phase 30: Per-document-type upload validation
+
+**Goal:** Tailored advisory validation checks for the top 5 document types (bank statements, VAT return workings, P60, P45, SA302) that warn both clients and accountants about potential issues without rejecting uploads. Includes CSV MIME fix, client portal amber warning card, accountant-facing review badges, and activity page validation detail modal.
+**Requirements**: (derived from CONTEXT.md decisions — no formal requirement IDs)
+**Depends on:** Phase 29
+**Success Criteria** (what must be TRUE):
+  1. Uploading a P60/P45/SA302 with a mismatched tax year shows an amber warning card on the portal with a specific message referencing the expected year.
+  2. Uploading a bank statement PDF whose period markers fall outside the expected tax year shows a period mismatch warning.
+  3. Uploading a bank statement spreadsheet (CSV/XLS/XLSX) with no date columns shows a "no dates found" warning.
+  4. Uploading a VAT return workings document referencing a period more than 1 year from the portal tax year shows a plausibility warning.
+  5. All validation warnings are advisory — documents are never rejected by per-type checks.
+  6. Documents with warnings are flagged with `needs_review = true` in the database; accountants can filter and clear the flag.
+  7. The activity page uploads table shows an Issues column; clicking the amber badge opens a modal with full validation details.
+  8. CSV files are accepted as bank statement uploads (text/csv added to ALLOWED_MIME and BANK_STATEMENT expected_mime_types).
+**Plans:** 3 plans
+
+Plans:
+- [ ] 30-01-PLAN.md — Core validation module (lib/documents/validate.ts), schema migration (needs_review + validation_warnings columns), CSV MIME fix
+- [ ] 30-02-PLAN.md — Upload route integration + portal amber warning card (ValidationWarningCard component)
+- [ ] 30-03-PLAN.md — Accountant-facing: client page review badge, activity page Issues column + validation detail modal
+
 ---
