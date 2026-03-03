@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-03-03T01:48:53.261Z"
+last_updated: "2026-03-03T01:51:38.926Z"
 progress:
   total_phases: 31
-  completed_phases: 27
+  completed_phases: 28
   total_plans: 105
-  completed_plans: 100
+  completed_plans: 101
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 30 Plan 02 complete — Upload route wired to runValidation(), ValidationWarningCard amber component, portal shows amber instead of green when validation warnings exist.
+**Current focus:** Phase 30 Plan 03 complete — Accountant-facing validation warning UI: amber badge + clear action on document card, Issues column in activity uploads table, UploadValidationModal detail popup, Needs Review filter chip.
 
 ## Current Position
 
-Phase: 30 (in progress)
-Plan: 02 complete
-Status: Phase 30 Plan 02 complete — Upload route integration, ValidationWarningCard, portal amber/green card priority logic
-Last activity: 2026-03-03 — Phase 30-02 upload route runValidation() integration, validation-warning-card.tsx, portal-checklist + checklist-item updated
+Phase: 30 (complete — all 3 plans done)
+Plan: 03 complete
+Status: Phase 30 Plan 03 complete — Amber badge on document cards, Issues column in uploads table, UploadValidationModal
+Last activity: 2026-03-03 — Phase 30-03 document-card badge + clear action, uploads-table Issues column, upload-validation-modal.tsx
 
 Resume file: none
-Next step: Execute Phase 30 Plan 03 (Accountant-facing: client page badge + activity page popup)
+Next step: Phase 30 complete — all 3 plans executed
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -297,6 +297,7 @@ Recent decisions affecting v3.0:
 - [Phase 30]: VAT period plausibility uses +-1 year from portal tax year, not exact stagger group alignment (Pitfall 4)
 - [Phase 30]: ValidationWarning interface redefined locally in portal client components to avoid importing server-only lib/documents/validate.ts into client bundle
 - [Phase 30]: showConfirmationCard requires validationWarnings.length === 0 — amber warning card takes absolute priority over green confirmation card (never both simultaneously)
+- [Phase 30]: ValidationWarning type duplicated locally in client files (not imported from server module) to avoid importing server-only module into client bundle
 
 ### Roadmap Evolution
 
@@ -352,6 +353,7 @@ Recent decisions affecting v3.0:
 | Phase 29 P01 | 4 | 2 tasks | 3 files |
 | Phase 30 P01 | 3 | 1 tasks | 3 files |
 | Phase 30-per-document-type-upload-validation P02 | 4 | 2 tasks | 4 files |
+| Phase 30 P03 | 7 | 2 tasks | 5 files |
 
 ### Tech Debt
 
@@ -393,9 +395,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-03-03 UTC
-Stopped at: Completed 30-02-PLAN.md — Upload route runValidation() integration, ValidationWarningCard amber component, portal-checklist + checklist-item updated for amber/green card priority logic
+Stopped at: Completed 30-03-PLAN.md — Accountant-facing validation UI: amber badge on document cards, Issues column in uploads table, UploadValidationModal, Needs Review filter chip
 Resume file: none
-Next step: Execute Phase 30 Plan 03 (Accountant-facing: client page badge + activity page popup)
+Next step: Phase 30 complete — all 3 plans executed
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*

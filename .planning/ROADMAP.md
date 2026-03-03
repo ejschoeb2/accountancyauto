@@ -567,7 +567,7 @@ Plans:
   6. Documents with warnings are flagged with `needs_review = true` in the database; accountants can filter and clear the flag.
   7. The activity page uploads table shows an Issues column; clicking the amber badge opens a modal with full validation details.
   8. CSV files are accepted as bank statement uploads (text/csv added to ALLOWED_MIME and BANK_STATEMENT expected_mime_types).
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 30-01-PLAN.md — Core validation module (lib/documents/validate.ts), schema migration (needs_review + validation_warnings columns), CSV MIME fix
