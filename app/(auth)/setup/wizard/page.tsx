@@ -24,6 +24,7 @@ import { ClientPortalStep } from "./components/client-portal-step";
 import { UploadChecksStep } from "./components/upload-checks-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
+import type { UploadCheckMode } from "@/app/actions/settings";
 import {
   checkSlugAvailable,
   createOrgAndJoinAsAdmin,
@@ -212,6 +213,9 @@ export default function WizardPage() {
   // Tracks whether the user has already visited the portal step (for restoring selection)
   const [portalSelection, setPortalSelection] = useState<"yes" | "no" | undefined>(undefined);
 
+  // ── Upload checks step ─────────────────────────────────────────────────
+  const [uploadCheckSelection, setUploadCheckSelection] = useState<UploadCheckMode | undefined>(undefined);
+
   // ── Storage step ─────────────────────────────────────────────────────────
   const [storageConnected, setStorageConnected] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
@@ -225,14 +229,21 @@ export default function WizardPage() {
 
   // ── Warn before unload / redirect to home on reload ────────────────────────
   useEffect(() => {
-    // Redirect to home if the user reloads mid-wizard (prevents stale slug errors)
+    // Redirect to home if the user reloads mid-wizard — but NOT when returning
+    // from an OAuth flow (storage_connected/storage_error params) or when
+    // sessionStorage can restore the wizard position.
     const navEntries = performance.getEntriesByType("navigation");
     if (
       navEntries.length > 0 &&
       (navEntries[0] as PerformanceNavigationTiming).type === "reload"
     ) {
-      router.replace("/");
-      return;
+      const params = new URLSearchParams(window.location.search);
+      const isOAuthReturn = params.has("storage_connected") || params.has("storage_error");
+      const hasRestorableState = !!sessionStorage.getItem("wizard_admin_step");
+      if (!isOAuthReturn && !hasRestorableState) {
+        router.replace("/");
+        return;
+      }
     }
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -512,7 +523,8 @@ export default function WizardPage() {
     }
   };
 
-  const handleUploadChecksComplete = () => {
+  const handleUploadChecksComplete = (mode: UploadCheckMode) => {
+    setUploadCheckSelection(mode);
     setAdminStep("storage");
   };
 
@@ -891,6 +903,7 @@ export default function WizardPage() {
             initialSelection={portalSelection}
             onBack={() => {
               setEmailInitialSubStep("settings");
+              prefetchConfigDefaults();
               setAdminStep("email");
             }}
           />
@@ -903,6 +916,7 @@ export default function WizardPage() {
           <UploadChecksStep
             onComplete={handleUploadChecksComplete}
             onBack={() => setAdminStep("portal")}
+            initialSelection={uploadCheckSelection}
           />
         </div>
       )}
