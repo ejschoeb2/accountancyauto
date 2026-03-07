@@ -22,6 +22,7 @@ import { EmailSetupStep, type StepState as EmailSubStep } from "./components/ema
 import { StorageSetupStep } from "./components/storage-setup-step";
 import { ClientPortalStep } from "./components/client-portal-step";
 import { UploadChecksStep } from "./components/upload-checks-step";
+import { AccountSetupStep } from "./components/account-setup-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import type { UploadCheckMode } from "@/app/actions/settings";
@@ -275,8 +276,17 @@ export default function WizardPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        // Clear any stale session cookies (e.g. JWT referencing a deleted user)
-        // so the next signup attempt starts fresh
+        // Check whether the user just signed up and needs to verify their email.
+        // /signup stores the pending email in sessionStorage before redirecting here.
+        const pendingEmail = sessionStorage.getItem("wizard_pending_email");
+        if (pendingEmail) {
+          // Show OTP verification as the first wizard step — no redirect needed
+          setAdminStep("account");
+          setUserType("new-admin");
+          setIsCheckingAuth(false);
+          return;
+        }
+        // No pending signup — clear any stale session and send to signup
         await supabase.auth.signOut();
         router.replace("/signup");
         return;
@@ -395,6 +405,11 @@ export default function WizardPage() {
   };
 
   // ── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleAccountComplete = () => {
+    sessionStorage.removeItem("wizard_pending_email");
+    setAdminStep("firm");
+  };
 
   const handleFirmContinue = () => {
     if (!firmName.trim()) {
@@ -663,6 +678,15 @@ export default function WizardPage() {
               : ["firm", "plan", "import", "email", "portal", "complete"];
             setAdminStep(stepNames[index]);
           }}
+        />
+      )}
+
+      {/* ── Step 0: Email verification (pre-wizard, no stepper shown) ── */}
+      {adminStep === "account" && (
+        <AccountSetupStep
+          onComplete={handleAccountComplete}
+          initialEmail={sessionStorage.getItem("wizard_pending_email") ?? undefined}
+          initialSubStep="verify"
         />
       )}
 

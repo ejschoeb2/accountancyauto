@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,13 +9,21 @@ import { startSignup, verifyEmailOtp, resendEmailOtp } from "../actions";
 
 interface AccountSetupStepProps {
   onComplete: () => void;
+  /** Pre-fill and lock the email, skipping straight to OTP entry */
+  initialEmail?: string;
+  /** Start at a specific sub-step (default: "details") */
+  initialSubStep?: SubStep;
 }
 
 type SubStep = "details" | "verify";
 
-export function AccountSetupStep({ onComplete }: AccountSetupStepProps) {
-  const [subStep, setSubStep] = useState<SubStep>("details");
-  const [email, setEmail] = useState("");
+export function AccountSetupStep({
+  onComplete,
+  initialEmail,
+  initialSubStep,
+}: AccountSetupStepProps) {
+  const [subStep, setSubStep] = useState<SubStep>(initialSubStep ?? "details");
+  const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +34,12 @@ export function AccountSetupStep({ onComplete }: AccountSetupStepProps) {
   const [error, setError] = useState<string | null>(null);
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // If we're starting at verify (code was just sent by /signup), start cooldown
+  useEffect(() => {
+    if (initialSubStep === "verify") startResendCooldown();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
