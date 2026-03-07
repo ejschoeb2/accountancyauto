@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, Suspense, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff, CheckCircle, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,16 @@ import { MarketingNav } from "@/components/marketing/nav";
 
 function SignupForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const inviteToken = searchParams?.get("invite") ?? undefined;
   const inviteOrg = searchParams?.get("org") ?? undefined;
+
+  // Non-invite signups now go through the wizard's embedded account step
+  useEffect(() => {
+    if (!inviteToken) {
+      router.replace("/setup/wizard");
+    }
+  }, [inviteToken, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

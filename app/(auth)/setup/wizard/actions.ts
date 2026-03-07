@@ -503,30 +503,83 @@ export async function checkOrgDomainVerification(): Promise<{
   return result;
 }
 
+// ─── In-wizard signup / OTP verification ──────────────────────────────────────
+
 /**
- * Send a setup magic link to the provided email.
+ * Create an unconfirmed account and trigger a 6-digit OTP verification email.
  *
- * The emailRedirectTo goes through the existing /auth/callback route.
- * After code exchange, if the user has no org (new signup), the callback
- * redirects them to /setup/wizard automatically.
+ * IMPORTANT: The Supabase "Confirm signup" email template must use {{ .Token }}
+ * (the 6-digit code) instead of {{ .ConfirmationURL }} for this flow to work.
+ * Update it in the Supabase Dashboard → Authentication → Email Templates.
+ *
+ * Returns { alreadyConfirmed: true } when email confirmation is disabled (dev/test
+ * environments), allowing the wizard to skip straight to the firm step.
  */
-export async function sendSetupMagicLink(
+export async function startSignup(
+  email: string,
+  password: string
+): Promise<{ error?: string; alreadyConfirmed?: boolean }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+
+  if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("already registered") || msg.includes("already exists")) {
+      return { error: "An account with this email already exists. Please sign in." };
+    }
+    if (msg.includes("rate limit") || error.status === 429) {
+      return { error: "Too many attempts. Please wait a few minutes and try again." };
+    }
+    return { error: "Failed to create account. Please try again." };
+  }
+
+  // Email confirmation disabled — user is immediately signed in (dev/test)
+  if (data.session) {
+    return { alreadyConfirmed: true };
+  }
+
+  return {};
+}
+
+/**
+ * Verify the 6-digit OTP code sent to the user's email during signup.
+ * On success the session is established and the user is signed in.
+ */
+export async function verifyEmailOtp(
+  email: string,
+  token: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "signup",
+  });
+
+  if (error) {
+    return { error: "Invalid or expired code. Please check your email and try again." };
+  }
+
+  return {};
+}
+
+/**
+ * Resend the signup OTP verification email.
+ */
+export async function resendEmailOtp(
   email: string
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
 
-  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
-
-  const { error } = await supabase.auth.signInWithOtp({
+  const { error } = await supabase.auth.resend({
+    type: "signup",
     email,
-    options: {
-      emailRedirectTo: callbackUrl,
-    },
   });
 
   if (error) {
-    console.error("Setup magic link error:", error);
-    return { error: "Failed to send login link. Please try again." };
+    return { error: "Failed to resend. Please try again in a moment." };
   }
 
   return {};
