@@ -22,7 +22,6 @@ import { EmailSetupStep, type StepState as EmailSubStep } from "./components/ema
 import { StorageSetupStep } from "./components/storage-setup-step";
 import { ClientPortalStep } from "./components/client-portal-step";
 import { UploadChecksStep } from "./components/upload-checks-step";
-import { AccountSetupStep } from "./components/account-setup-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import type { UploadCheckMode } from "@/app/actions/settings";
@@ -228,25 +227,11 @@ export default function WizardPage() {
   // Set to true before intentional navigations so the beforeunload guard doesn't fire
   const isNavigatingAway = useRef(false);
 
-  // ── Track current adminStep in a ref so closures (beforeunload) see latest value ─
-  const adminStepRef = useRef<AdminStep>(adminStep);
-  useEffect(() => {
-    adminStepRef.current = adminStep;
-    // Flag in sessionStorage so the reload guard knows we're on the account step
-    // (unauthenticated) and shouldn't redirect to root.
-    if (adminStep === "account") {
-      sessionStorage.setItem("wizard_at_account_step", "1");
-    } else {
-      sessionStorage.removeItem("wizard_at_account_step");
-    }
-  }, [adminStep]);
-
   // ── Warn before unload / redirect to home on reload ────────────────────────
   useEffect(() => {
     // Redirect to home if the user reloads mid-wizard — but NOT when returning
-    // from an OAuth flow (storage_connected/storage_error params), when
-    // sessionStorage can restore the wizard position, or when the user is on
-    // the account step (unauthenticated — reloading just re-shows the form).
+    // from an OAuth flow (storage_connected/storage_error params) or when
+    // sessionStorage can restore the wizard position.
     const navEntries = performance.getEntriesByType("navigation");
     if (
       navEntries.length > 0 &&
@@ -255,8 +240,7 @@ export default function WizardPage() {
       const params = new URLSearchParams(window.location.search);
       const isOAuthReturn = params.has("storage_connected") || params.has("storage_error");
       const hasRestorableState = !!sessionStorage.getItem("wizard_admin_step");
-      const isAtAccountStep = !!sessionStorage.getItem("wizard_at_account_step");
-      if (!isOAuthReturn && !hasRestorableState && !isAtAccountStep) {
+      if (!isOAuthReturn && !hasRestorableState) {
         router.replace("/");
         return;
       }
@@ -264,8 +248,6 @@ export default function WizardPage() {
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isNavigatingAway.current) return;
-      // No warning on the account step — user hasn't committed anything yet
-      if (adminStepRef.current === "account") return;
       e.preventDefault();
       e.returnValue = "Refreshing will reset the setup wizard and you'll need to start again.";
     };
@@ -294,11 +276,9 @@ export default function WizardPage() {
 
       if (!user) {
         // Clear any stale session cookies (e.g. JWT referencing a deleted user)
-        // so the signup form starts with a clean slate, then show the account step.
+        // so the next signup attempt starts fresh
         await supabase.auth.signOut();
-        setAdminStep("account");
-        setUserType("new-admin");
-        setIsCheckingAuth(false);
+        router.replace("/signup");
         return;
       }
 
@@ -415,11 +395,6 @@ export default function WizardPage() {
   };
 
   // ── Handlers ────────────────────────────────────────────────────────────────
-
-  const handleAccountComplete = () => {
-    // OTP verified — user is now signed in. Advance to firm details.
-    setAdminStep("firm");
-  };
 
   const handleFirmContinue = () => {
     if (!firmName.trim()) {
@@ -689,11 +664,6 @@ export default function WizardPage() {
             setAdminStep(stepNames[index]);
           }}
         />
-      )}
-
-      {/* ── Step 0: Account Setup (pre-wizard, no stepper) ── */}
-      {adminStep === "account" && (
-        <AccountSetupStep onComplete={handleAccountComplete} />
       )}
 
       {/* ── Step 1: Firm Details ── */}
