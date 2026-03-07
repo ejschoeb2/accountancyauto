@@ -107,13 +107,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // --- Clean up state cookie and redirect to success ---
-  const fromWizard = request.cookies.get('wizard_oauth_return')?.value === '1';
+  // Wizard origin is encoded in the state param prefix ("wizard_") so we don't
+  // rely on a cookie — avoids cross-subdomain cookie issues in production.
+  const fromWizard = stateFromUrl?.startsWith('wizard_') ?? false;
   const successUrl = fromWizard
     ? new URL('/setup/wizard?storage_connected=onedrive', request.url)
     : (() => { const u = new URL('/settings', request.url); u.searchParams.set('tab', 'storage'); u.searchParams.set('connected', 'onedrive'); return u; })();
 
   const response = NextResponse.redirect(successUrl);
   response.cookies.delete('ms_oauth_state');
-  response.cookies.delete('wizard_oauth_return');
   return response;
 }

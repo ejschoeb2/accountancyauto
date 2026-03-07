@@ -151,14 +151,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Clean up state cookie and redirect ───────────────────────────────────
-  const fromWizard = request.cookies.get('wizard_oauth_return')?.value === '1';
+  // Wizard origin is encoded in the state param prefix ("wizard_") so we don't
+  // rely on a cookie — avoids cross-subdomain cookie issues in production.
+  const fromWizard = stateParam?.startsWith('wizard_') ?? false;
   const successUrl = fromWizard
     ? new URL('/setup/wizard?storage_connected=google_drive', request.url)
     : new URL('/settings?tab=storage&connected=google_drive', request.url);
 
   const response = NextResponse.redirect(successUrl);
   response.cookies.delete('google_oauth_state');
-  response.cookies.delete('wizard_oauth_return');
 
   return response;
 }

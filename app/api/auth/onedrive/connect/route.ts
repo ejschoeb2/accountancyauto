@@ -24,8 +24,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     },
   });
 
-  // Generate a 32-byte hex CSRF state token
-  const state = crypto.randomBytes(32).toString('hex');
+  // Generate a 32-byte hex CSRF state token.
+  // Encode wizard origin in the state param prefix ("wizard_") so the callback
+  // can detect it without a cookie — avoids cross-subdomain cookie issues where
+  // the connect route runs on acme.app.X but the OAuth callback URI is app.X.
+  const csrf = crypto.randomBytes(32).toString('hex');
+  const state = fromWizard ? `wizard_${csrf}` : csrf;
 
   // Generate the authorization URL
   const authUrl = await msalClient.getAuthCodeUrl({
@@ -35,7 +39,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     prompt: 'consent', // CRITICAL: ensures refresh token in cache; forces account picker
   });
 
-  // Create redirect response and set CSRF state cookie
+  // Create redirect response and set CSRF state cookie.
+  // Store the full state (including any wizard_ prefix) for equality validation.
   const response = NextResponse.redirect(authUrl);
 
   response.cookies.set('ms_oauth_state', state, {
@@ -45,16 +50,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     maxAge: 600,
     path: '/',
   });
-
-  if (fromWizard) {
-    response.cookies.set('wizard_oauth_return', '1', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 600,
-      path: '/',
-    });
-  }
 
   return response;
 }

@@ -48,7 +48,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Generate CSRF state token ────────────────────────────────────────────
-  const state = crypto.randomBytes(32).toString('hex');
+  // Encode wizard origin in the state param (prefix "wizard_") so the callback
+  // can detect it without a cookie — avoids cross-subdomain cookie issues where
+  // the connect route runs on acme.app.X but the OAuth callback URI is app.X.
+  const csrf = crypto.randomBytes(32).toString('hex');
+  const state = fromWizard ? `wizard_${csrf}` : csrf;
 
   // ── Build authorization URL ──────────────────────────────────────────────
   const oauth2Client = getOAuth2Client();
@@ -60,6 +64,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   });
 
   // ── Redirect with CSRF cookie ────────────────────────────────────────────
+  // Store the full state (including any wizard_ prefix) so the callback can
+  // validate it with a simple equality check.
   const response = NextResponse.redirect(authUrl);
 
   response.cookies.set('google_oauth_state', state, {
@@ -69,16 +75,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     maxAge: 600, // 10 minutes — short TTL prevents replay
     path: '/',
   });
-
-  if (fromWizard) {
-    response.cookies.set('wizard_oauth_return', '1', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 600,
-      path: '/',
-    });
-  }
 
   return response;
 }
