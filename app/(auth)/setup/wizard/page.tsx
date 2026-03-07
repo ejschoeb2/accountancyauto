@@ -52,6 +52,7 @@ type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "portal" | "
 
 function getAdminSteps(portalEnabled: boolean) {
   const steps = [
+    { label: "Verify Email" },
     { label: "Firm Details" },
     { label: "Plan" },
     { label: "Import Clients" },
@@ -69,28 +70,28 @@ function getAdminSteps(portalEnabled: boolean) {
 function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
   if (portalEnabled) {
     const map: Record<AdminStep, number> = {
-      account: -1,
-      firm: 0,
-      plan: 1,
-      import: 2,
-      email: 3,
-      portal: 4,
-      "upload-checks": 5,
-      storage: 6,
-      complete: 7,
+      account: 0,
+      firm: 1,
+      plan: 2,
+      import: 3,
+      email: 4,
+      portal: 5,
+      "upload-checks": 6,
+      storage: 7,
+      complete: 8,
     };
     return map[step];
   } else {
     const map: Record<AdminStep, number> = {
-      account: -1,
-      firm: 0,
-      plan: 1,
-      import: 2,
-      email: 3,
-      portal: 4,
+      account: 0,
+      firm: 1,
+      plan: 2,
+      import: 3,
+      email: 4,
+      portal: 5,
       "upload-checks": -1,
       storage: -1,
-      complete: 5,
+      complete: 6,
     };
     return map[step];
   }
@@ -666,20 +667,20 @@ export default function WizardPage() {
 
   return (
     <div className="space-y-12">
-      {adminStep !== "account" && (
-        <WizardStepper
-          steps={adminSteps}
-          currentStep={currentStepIndex}
-          onStepClick={(index) => {
-            // Firm step is locked once the org is created (slug already registered)
-            if (index === 0 && orgCreated) return;
-            const stepNames: AdminStep[] = clientPortalEnabled
-              ? ["firm", "plan", "import", "email", "portal", "upload-checks", "storage", "complete"]
-              : ["firm", "plan", "import", "email", "portal", "complete"];
-            setAdminStep(stepNames[index]);
-          }}
-        />
-      )}
+      <WizardStepper
+        steps={adminSteps}
+        currentStep={currentStepIndex}
+        onStepClick={(index) => {
+          // Verify Email step (0) is always locked — can't go back after auth
+          if (index === 0) return;
+          // Firm step (1) is locked once the org is created (slug already registered)
+          if (index === 1 && orgCreated) return;
+          const stepNames: AdminStep[] = clientPortalEnabled
+            ? ["account", "firm", "plan", "import", "email", "portal", "upload-checks", "storage", "complete"]
+            : ["account", "firm", "plan", "import", "email", "portal", "complete"];
+          setAdminStep(stepNames[index]);
+        }}
+      />
 
       {/* ── Step 0: Email verification (pre-wizard, no stepper shown) ── */}
       {adminStep === "account" && (

@@ -119,7 +119,7 @@ export function AccountSetupStep({
       <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
         <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
           <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Verify your email address</h1>
             <p className="text-sm text-muted-foreground">
               We sent a 6-digit code to{" "}
               <span className="font-medium text-foreground">{email}</span>.
