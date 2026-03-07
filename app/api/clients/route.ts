@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgId } from "@/lib/auth/org-context";
 import { createClientSchema } from "@/lib/validations/client";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { checkClientLimit } from "@/lib/billing/usage-limits";
+import { rebuildQueueForClient } from "@/lib/reminders/queue-builder";
 
 /**
  * GET /api/clients
@@ -150,6 +152,16 @@ export async function POST(request: NextRequest) {
           console.error("Failed to auto-assign filing types:", assignError.message);
         }
       }
+    }
+  }
+
+  // Reactively build reminder queue for the new client (non-fatal)
+  if (data) {
+    try {
+      const adminClient = createAdminClient();
+      await rebuildQueueForClient(adminClient, data.id, orgId);
+    } catch (rebuildErr) {
+      console.error("[clients route] Non-fatal: failed to build reminder queue for new client:", rebuildErr);
     }
   }
 

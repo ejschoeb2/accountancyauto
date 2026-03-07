@@ -144,6 +144,13 @@ async function processOrgEmails(
   const expiresAt = addMinutes(new Date(), 5);
 
   try {
+    // Clear any expired lock for this org before acquiring (handles crashed/timed-out runs)
+    await adminClient
+      .from('locks')
+      .delete()
+      .eq('id', lockId)
+      .lt('expires_at', new Date().toISOString());
+
     const { error: lockError } = await adminClient
       .from('locks')
       .insert({ id: lockId, org_id: org.id, expires_at: expiresAt.toISOString() });

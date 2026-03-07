@@ -1,10 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getDashboardMetrics, getClientStatusList, type DashboardMetrics, type ClientStatusRow } from '@/lib/dashboard/metrics';
 import { getWorkloadForecast, type MonthlyWorkload } from '@/lib/dashboard/forecast';
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading';
+import { buttonBaseVariants } from '@/components/ui/button-base';
+import { Rocket, Zap } from 'lucide-react';
 import { SummaryCards } from './components/summary-cards';
 import { UpcomingDeadlines } from './components/upcoming-deadlines';
 import { StatusDistribution } from './components/status-distribution';
@@ -56,11 +59,31 @@ function DashboardContent() {
   return (
     <div className="space-y-10 max-w-7xl mx-auto">
       {/* Page header */}
-      <div className="space-y-1">
-        <h1>Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          Monitor client reminder status and email activity
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1>Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Monitor client reminder status and email activity
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/help#go-further"
+            target="_blank"
+            className={buttonBaseVariants({ variant: 'muted', buttonType: 'icon-text' })}
+          >
+            <Zap className="size-4" />
+            Go further
+          </Link>
+          <Link
+            href="/help#getting-started"
+            target="_blank"
+            className={buttonBaseVariants({ variant: 'green', buttonType: 'icon-text' })}
+          >
+            <Rocket className="size-4" />
+            Get started
+          </Link>
+        </div>
       </div>
 
       {/* Summary metrics */}

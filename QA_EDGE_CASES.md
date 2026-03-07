@@ -10,12 +10,12 @@ Edge cases not covered by the UI-focused QA task lists in `QA_TASK_LISTS.md`. Th
 
 | # | Check | Severity | Status |
 |---|---|---|---|
-| S1 | **Unsubscribe endpoint is unauthenticated** — Visit `/api/unsubscribe?client_id=<any-uuid>`. Can you pause reminders for any client without auth? The client_id is embedded in every outgoing email. | HIGH | ⬜ |
-| S2 | **`/api/run-migration` has no auth** — Send a POST to `/api/run-migration`. Does it execute without any authentication? This is a dev escape hatch left in production. | CRITICAL | ⬜ |
-| S3 | **Portal token reuse within expiry window** — Generate a portal link, upload a doc, then try uploading again with the same token. The `used_at` update is fire-and-forget — multiple uploads are allowed. Is this intended? | MEDIUM | ⬜ |
-| S4 | **OAuth CSRF cookie policy** — When connecting Google Drive/OneDrive/Dropbox, check if the `google_oauth_state` cookie is set with `SameSite=Strict`. If not, the OAuth callback is vulnerable to CSRF. | MEDIUM | ⬜ |
-| S5 | **Admin page access without super_admin** — Log in as a regular org member (not admin). Navigate directly to `/admin`. Does the page load? The middleware doesn't enforce this — only a page-level guard does. | HIGH | ⬜ |
-| S6 | **Rebuild queue by non-admin member** — As a non-admin org member, POST to `/api/reminders/rebuild-queue`. Any org member can trigger a full queue rebuild — is that intended? | LOW | ⬜ |
+| S1 | **Unsubscribe endpoint is unauthenticated** — Visit `/api/unsubscribe?client_id=<any-uuid>`. Can you pause reminders for any client without auth? The client_id is embedded in every outgoing email. | HIGH | ✅ By design — UUID in email link acts as bearer token; acceptable for unsubscribe UX |
+| S2 | **`/api/run-migration` has no auth** — Send a POST to `/api/run-migration`. Does it execute without any authentication? This is a dev escape hatch left in production. | CRITICAL | ✅ File deleted |
+| S3 | **Portal token reuse within expiry window** — Generate a portal link, upload a doc, then try uploading again with the same token. The `used_at` update is fire-and-forget — multiple uploads are allowed. Is this intended? | MEDIUM | ✅ By design — portal checklist requires multiple uploads per filing session |
+| S4 | **OAuth CSRF cookie policy** — When connecting Google Drive/OneDrive/Dropbox, check if the `google_oauth_state` cookie is set with `SameSite=Strict`. If not, the OAuth callback is vulnerable to CSRF. | MEDIUM | ✅ `lax` is correct for OAuth — `strict` would break callbacks (cross-origin redirect). Dropbox uses DB state, no cookie. CSRF protection is the random state value itself. |
+| S5 | **Admin page access without super_admin** — Log in as a regular org member (not admin). Navigate directly to `/admin`. Does the page load? The middleware doesn't enforce this — only a page-level guard does. | HIGH | ✅ RSC guard at `admin/page.tsx:17` checks `app_metadata.is_super_admin` server-side before any data fetch — sufficient |
+| S6 | **Rebuild queue by non-admin member** — As a non-admin org member, POST to `/api/reminders/rebuild-queue`. Any org member can trigger a full queue rebuild — is that intended? | LOW | ✅ Fixed — added `role !== 'admin'` check. Only call site is wizard completion (org owner only) |
 
 ---
 
@@ -23,10 +23,10 @@ Edge cases not covered by the UI-focused QA task lists in `QA_TASK_LISTS.md`. Th
 
 | # | Check | Severity | Status |
 |---|---|---|---|
-| R1 | **Double invite acceptance** — Open the same invite link in two browser tabs simultaneously. Click "Accept" in both at the same time. Does the user get added to the org twice? Are duplicate `user_organisations` rows created? | HIGH | ⬜ |
-| R2 | **Double org creation in wizard** — Open the wizard completion step in two tabs. Submit both simultaneously. Do two orgs get created for the same user? | MEDIUM | ⬜ |
-| R3 | **Cron lock contention** — If `/api/cron/send-emails` is triggered twice rapidly (Vercel can fire duplicates), both may pass the lock check before either completes the insert. Could emails be sent twice? | MEDIUM | ⬜ |
-| R4 | **Stripe webhook failure silently drops events** — If the webhook handler throws after marking an event as processed, the event is permanently skipped (returns 200, UNIQUE constraint prevents retry). Test: what happens if the DB update fails mid-webhook? | HIGH | ⬜ |
+| R1 | **Double invite acceptance** — Open the same invite link in two browser tabs simultaneously. Click "Accept" in both at the same time. Does the user get added to the org twice? Are duplicate `user_organisations` rows created? | HIGH | ✅ Not a real race — clicking the link gates on signup/login first, so no account exists to double-accept with |
+| R2 | **Double org creation in wizard** — Open the wizard completion step in two tabs. Submit both simultaneously. Do two orgs get created for the same user? | MEDIUM | ✅ Protected: existing-membership check short-circuits, and slug UNIQUE constraint catches any concurrent insert with a 23505 error |
+| R3 | **Cron lock contention** — If `/api/cron/send-emails` is triggered twice rapidly (Vercel can fire duplicates), both may pass the lock check before either completes the insert. Could emails be sent twice? | MEDIUM | ✅ Concurrent duplicate: safe (INSERT with UNIQUE constraint is atomic). Stale lock bug fixed — now deletes expired locks before acquiring so crashed runs don't permanently block subsequent crons |
+| R4 | **Stripe webhook failure silently drops events** — If the webhook handler throws after marking an event as processed, the event is permanently skipped (returns 200, UNIQUE constraint prevents retry). Test: what happens if the DB update fails mid-webhook? | HIGH | ✅ Fixed — handler failure now deletes the idempotency record and returns 500, allowing Stripe to retry |
 
 ---
 
@@ -34,8 +34,8 @@ Edge cases not covered by the UI-focused QA task lists in `QA_TASK_LISTS.md`. Th
 
 | # | Check | Severity | Status |
 |---|---|---|---|
-| B1 | **API route mutations bypass subscription check** — With a `cancelled`/`unpaid` subscription, use browser DevTools to POST directly to `/api/clients` (create a client) or `/api/schedules`. The middleware allows all `/api/` routes through regardless of subscription status. Only server actions call `requireWriteAccess()`. | HIGH | ⬜ |
-| B2 | **Free plan client limit bypass via API** — On a free plan (25 client limit), try creating client #26 via direct POST to `/api/clients` instead of through the UI. The limit check only runs in server actions, not API route handlers. | HIGH | ⬜ |
+| B1 | **API route mutations bypass subscription check** — With a `cancelled`/`unpaid` subscription, use browser DevTools to POST directly to `/api/clients` (create a client) or `/api/schedules`. The middleware allows all `/api/` routes through regardless of subscription status. Only server actions call `requireWriteAccess()`. | HIGH | ✅ Fixed — `requireWriteAccess` added to all mutation routes: PATCH+DELETE `/clients/[id]`, PUT `/clients/[id]/filings`, PATCH `/clients/bulk`, POST `/clients/bulk-status-update`, POST+PUT+DELETE `/email-templates`, POST `/reminder-queue/update-status` |
+| B2 | **Free plan client limit bypass via API** — On a free plan (25 client limit), try creating client #26 via direct POST to `/api/clients` instead of through the UI. The limit check only runs in server actions, not API route handlers. | HIGH | ✅ `checkClientLimit` was already in `POST /api/clients` at the route level |
 | B3 | **Trial-to-unpaid transition** — Let a trial expire. Does the cron correctly transition `trialing` → `unpaid`? Does the middleware then block access and redirect to `/billing`? | MEDIUM | ⬜ |
 | B4 | **Trial reminder double-send** — If the `trial_reminder_sent` flag write fails after the email sends, the next cron run sends another email. Hard to reproduce but check the flag write is atomic with the send. | LOW | ⬜ |
 

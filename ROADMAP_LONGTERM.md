@@ -373,3 +373,32 @@ Phases 1-5 must be complete (the core scheduling, portal, and document pipeline)
 | 8 | SMS & WhatsApp notifications — opt-in secondary channel per client | Long-term | Phase 6 (risk signals to identify which clients need SMS) |
 
 *Note on CT600/iXBRL: Corporation Tax filing requires iXBRL accounts production — a multi-year undertaking well beyond the scope of this product. A partnership/integration approach with an existing CT filing provider (e.g. BTC Software or TaxCalc) is the practical alternative if demand warrants it.*
+
+---
+
+## Long-Term Concept — Storage Provider Sync (Research Only)
+
+**Concept:** The storage provider API watches the client's folder and automatically updates filing management in Prompt when the client drops a file there directly — without going through the upload portal.
+
+### Feasibility by provider
+
+- **Dropbox**: Webhooks push notifications when any file in the app folder changes. Technically solid.
+- **OneDrive**: Microsoft Graph subscriptions provide delta notifications. Works, but subscriptions expire (max ~1 year for business accounts) and need periodic renewal.
+- **Google Drive**: Blocked by `drive.file` scope — Prompt can only see files it uploaded itself. Files dropped manually into the folder by a client are invisible. Upgrading scope would require all orgs to re-authorise and introduces broader permissions.
+- **Supabase**: No native file event webhook. Not applicable.
+
+### Why this is held
+
+Three concerns make this unsuitable to build now:
+
+1. **GDPR / consent**: The portal flow is explicit — the accountant sends a link, the client actively uploads. Passive folder watching is a materially different pattern. Clients need to be informed that files dropped into their folder will be automatically ingested by a third-party system. This requires disclosure in the engagement letter and likely a DPIA.
+
+2. **Scope creep risk**: With no checklist slot selection, any file dropped into the folder gets ingested and associated with a filing. A client misplacing a personal document would be silently processed and stored.
+
+3. **Accountant control**: Automatic ingestion bypasses the accountant's review step. An unreviewed file landing directly in "documents received" could cause workflow problems.
+
+### Recommended future approach
+
+A **delta-sync-as-notification** model rather than auto-ingestion: when the accountant opens a client page (or on a cron), Prompt calls the storage provider's delta API and surfaces new unrecognised files as a review prompt ("3 new files detected in this client's Dropbox folder"). The accountant assigns them to a filing type manually. This keeps accountant control, avoids the passive surveillance concern, and works within `drive.file` scope constraints for Google Drive.
+
+Revisit after the storage workflow is mature and customer demand for this pattern is confirmed.

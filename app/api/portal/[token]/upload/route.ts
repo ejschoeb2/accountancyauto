@@ -75,6 +75,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // Parse multipart form data
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
+  const explicitDocumentTypeId = formData.get('documentTypeId') as string | null;
+  const explicitDocumentTypeCode = formData.get('documentTypeCode') as string | null;
   const confirmDuplicate = formData.get('confirmDuplicate') === 'true';
 
   if (!file || file.size === 0) {
@@ -124,10 +126,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const filingTypeId = portalToken.filing_type_id as FilingTypeId;
   const retainUntil = calculateRetainUntil(filingTypeId, taxPeriodEndDate);
 
+  // Use the explicit document type code from the checklist item when available,
+  // falling back to the keyword-classified code. This ensures validation fires
+  // correctly even when the client uploads a generically-named file (e.g. "scan.pdf")
+  // to a specific checklist slot (e.g. P60).
+  const effectiveDocumentTypeCode = explicitDocumentTypeCode || classification.documentTypeCode;
+
   // Phase 30: per-document-type advisory validation — only run when mode includes verify
   const validation = shouldValidate
     ? await runValidation(
-        classification.documentTypeCode,
+        effectiveDocumentTypeCode,
         file.type,
         fileBuffer,
         taxYear,
@@ -157,11 +165,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       clientName: clientDisplayName ?? clientCompanyName ?? portalToken.client_id,
     });
 
+    // Use the explicit document type from the checklist item the client clicked,
+    // falling back to classification result if not provided (e.g. ad-hoc items)
+    const effectiveDocumentTypeId = explicitDocumentTypeId || classification.documentTypeId;
+
     const { data: docRow } = await supabase.from('client_documents').insert({
       org_id: portalToken.org_id,
       client_id: portalToken.client_id,
       filing_type_id: portalToken.filing_type_id,
-      document_type_id: classification.documentTypeId,
+      document_type_id: effectiveDocumentTypeId,
       storage_path: storagePath,
       original_filename: file.name,
       tax_period_end_date: taxPeriodEndDate.toISOString().split('T')[0],

@@ -122,13 +122,20 @@ export async function POST(req: Request) {
         console.log(`Unhandled Stripe webhook event type: ${event.type}`);
     }
   } catch (err) {
-    // Log the error but still return 200.
-    // The event is already marked as processed in the idempotency table,
-    // so retrying would just skip it anyway. Logging ensures visibility.
     console.error(
       `Error handling Stripe webhook event ${event.type} (${event.id}):`,
       err
     );
+
+    // Remove idempotency record so Stripe retries this event.
+    // Without this, the event is permanently skipped — Stripe sees 200 and
+    // never retries, silently dropping subscription changes.
+    await supabase
+      .from("processed_webhook_events")
+      .delete()
+      .eq("event_id", event.id);
+
+    return NextResponse.json({ error: "Handler failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

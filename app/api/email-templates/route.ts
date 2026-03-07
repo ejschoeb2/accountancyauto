@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
 import { emailTemplateSchema } from "@/lib/validations/email-template";
+import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import type { EmailTemplate } from "@/lib/types/database";
 
 /**
@@ -57,6 +58,15 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await requireWriteAccess(orgId);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Subscription inactive" },
+      { status: 403 }
+    );
   }
 
   const { data, error } = await supabase

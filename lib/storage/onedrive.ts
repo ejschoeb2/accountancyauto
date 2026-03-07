@@ -91,7 +91,7 @@ export class OneDriveProvider implements StorageProvider {
     try {
       const result = await msalClient.acquireTokenSilent({
         account,
-        scopes: ['Files.ReadWrite', 'offline_access'],
+        scopes: ['Files.ReadWrite.AppFolder', 'offline_access'],
       });
 
       // afterCacheAccess fires automatically if MSAL refreshed the token
@@ -147,9 +147,10 @@ export class OneDriveProvider implements StorageProvider {
       encodeURIComponent(params.originalFilename),
     ].join('/');
 
-    // Path-based PUT: /me/drive/root:/{path}:/content
-    // /me/drive operates on the Drive associated with the authenticated user's account
-    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/Apps/Prompt/${encodedPath}:/content`;
+    // Path-based PUT via approot: /me/drive/special/approot:/{path}:/content
+    // Files.ReadWrite.AppFolder restricts access to the app's own folder — Prompt cannot
+    // see any other files in the user's OneDrive.
+    const url = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodedPath}:/content`;
 
     const response = await fetch(url, {
       method: 'PUT',

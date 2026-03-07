@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Mail,
 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 
 interface SentEmailDetailModalProps {
@@ -130,10 +131,10 @@ export function SentEmailDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="[&>button]:hidden sm:max-w-7xl max-h-[90vh] p-0 gap-0">
-        <div className="flex h-[80vh]">
+      <DialogContent className="[&>button]:hidden sm:max-w-7xl max-h-[94vh] p-0 gap-0">
+        <div className="flex h-[88vh]">
           {/* Left side: Email body */}
-          <div className="flex-1 overflow-y-auto flex flex-col">
+          <div className="flex-1 overflow-y-auto flex flex-col rounded-l-lg" style={{ backgroundColor: '#ffffff' }}>
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -155,7 +156,7 @@ export function SentEmailDetailModal({
               </div>
             ) : preview ? (
               <div className="flex-1 flex items-center justify-center p-8">
-                <div className="w-full max-w-2xl border rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300">
+                <div className="w-full max-w-3xl border rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300">
                   <div className="border-b px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
@@ -173,7 +174,7 @@ export function SentEmailDetailModal({
           </div>
 
           {/* Right side: Metadata sidebar */}
-          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto border-l">
+          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg" style={{ backgroundColor: '#ffffff' }}>
             {/* Header */}
             <h3 className="text-lg font-semibold">Sent Email</h3>
 
@@ -279,6 +280,7 @@ export function SentEmailDetailModal({
                   Next
                   <ChevronRight className="h-4 w-4" />
                 </ButtonBase>
+                <Separator orientation="vertical" className="h-8" />
                 <ButtonBase
                   variant="destructive"
                   buttonType="icon-text"

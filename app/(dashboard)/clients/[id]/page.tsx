@@ -32,7 +32,6 @@ import { PageLoadingProvider } from '@/components/page-loading';
 import { LoadingScreen } from '@/components/loading-screen';
 import { FilingManagement } from './components/filing-management';
 import { ClientEmailHistoryTable } from './components/client-email-log-table';
-import { ClientAuditLog } from './components/client-audit-log';
 import { DsarExportButton } from './components/dsar-export-button';
 import { SendEmailModal } from '../components/send-email-modal';
 import { toast } from 'sonner';
@@ -417,7 +416,7 @@ export default function ClientPage() {
       </Card>
 
       {/* Filing Management */}
-      <FilingManagement clientId={id} onUpdate={triggerRefresh} />
+      <FilingManagement key={refreshKey} clientId={id} onUpdate={triggerRefresh} />
 
       {/* Email Log */}
       <Card className="gap-1.5">
@@ -436,22 +435,6 @@ export default function ClientPage() {
         </CardContent>
       </Card>
 
-      {/* Audit Log */}
-      <Card className="gap-1.5">
-        <div className="px-8">
-          <div className="mb-6">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-semibold">Audit Log</h2>
-              <p className="text-sm text-muted-foreground">
-                View all reminder emails sent to this client with delivery status tracking.
-              </p>
-            </div>
-          </div>
-        </div>
-        <CardContent>
-          <ClientAuditLog clientId={id} />
-        </CardContent>
-      </Card>
 
       {/* Compliance */}
       <Card className="gap-1.5 pb-2">

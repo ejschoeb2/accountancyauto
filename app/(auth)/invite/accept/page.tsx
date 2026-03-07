@@ -3,9 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Brain, Loader2, CheckCircle, AlertCircle, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Brain, Loader2, CheckCircle, AlertCircle, Users, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { validateInviteToken, acceptInvite } from "./actions";
 
@@ -117,164 +115,159 @@ function AcceptInviteContent() {
 
         {/* ── Invalid / Expired token ── */}
         {pageState === "invalid" && (
-          <Card>
-            <CardContent className="pt-6 text-center space-y-4">
-              <div className="mx-auto w-12 h-12 bg-status-danger/10 rounded-full flex items-center justify-center">
-                <AlertCircle className="size-6 text-status-danger" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-xl font-bold tracking-tight">
-                  Invite link invalid
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {errorMessage ??
-                    "This invite link is invalid or has expired. Please ask the person who invited you to send a new invite."}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-4 text-center">
+            <div className="mx-auto w-12 h-12 bg-status-danger/10 rounded-full flex items-center justify-center">
+              <AlertCircle className="size-6 text-status-danger" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-xl font-bold tracking-tight">
+                Invite link invalid
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {errorMessage ??
+                  "This invite link is invalid or has expired. Please ask the person who invited you to send a new invite."}
+              </p>
+            </div>
+          </div>
         )}
 
         {/* ── Unauthenticated — token valid but user not signed in ── */}
         {pageState === "unauthenticated" && orgName && (
-          <Card>
-            <CardContent className="pt-6 space-y-6">
-              <div className="text-center space-y-2">
-                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Users className="size-6 text-primary" />
-                </div>
-                <h1 className="text-xl font-bold tracking-tight">
-                  You&apos;ve been invited to join {orgName}
-                </h1>
-                {roleLabel && (
-                  <p className="text-sm text-muted-foreground">
-                    You&apos;ll be added as a{" "}
-                    <span className="font-medium text-foreground">
-                      {roleLabel}
-                    </span>
-                    .
-                  </p>
-                )}
+          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Users className="size-6 text-primary" />
               </div>
+              <h1 className="text-xl font-bold tracking-tight">
+                You&apos;ve been invited to join {orgName}
+              </h1>
+              {roleLabel && (
+                <p className="text-sm text-muted-foreground">
+                  You&apos;ll be added as a{" "}
+                  <span className="font-medium text-foreground">
+                    {roleLabel}
+                  </span>
+                  .
+                </p>
+              )}
+            </div>
 
-              <div className="space-y-3">
-                <Button asChild className="w-full">
-                  <Link href={`/signup?invite=${encodeURIComponent(token)}&org=${encodeURIComponent(orgName)}`}>
-                    Create an account to join
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href={`/login?invite=${encodeURIComponent(token)}&org=${encodeURIComponent(orgName)}`}>
-                    Sign in to an existing account
-                  </Link>
-                </Button>
-              </div>
+            <div className="space-y-3">
+              <Link
+                href={`/signup?invite=${encodeURIComponent(token)}&org=${encodeURIComponent(orgName)}`}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
+              >
+                Create an account to join
+                <ArrowRight size={15} />
+              </Link>
+              <Link
+                href={`/login?invite=${encodeURIComponent(token)}&org=${encodeURIComponent(orgName)}`}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-input bg-background px-5 py-3 text-sm font-semibold hover:bg-accent active:scale-95 transition-all duration-200"
+              >
+                Sign in to an existing account
+              </Link>
+            </div>
 
-              <p className="text-xs text-muted-foreground text-center">
-                After signing in or creating an account, you&apos;ll be taken straight back here to accept.
-              </p>
-            </CardContent>
-          </Card>
+            <p className="text-xs text-muted-foreground text-center">
+              After signing in or creating an account, you&apos;ll be taken straight back here to accept.
+            </p>
+          </div>
         )}
 
         {/* ── Ready to accept ── */}
         {pageState === "ready" && orgName && (
-          <Card>
-            <CardContent className="pt-6 space-y-6">
-              <div className="text-center space-y-2">
-                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  <Users className="size-6 text-primary" />
-                </div>
-                <h1 className="text-xl font-bold tracking-tight">
-                  You&apos;ve been invited to join {orgName}
-                </h1>
-                {roleLabel && (
-                  <p className="text-sm text-muted-foreground">
-                    You&apos;ll be added as a{" "}
-                    <span className="font-medium text-foreground">
-                      {roleLabel}
-                    </span>
-                    .
-                  </p>
-                )}
+          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Users className="size-6 text-primary" />
               </div>
+              <h1 className="text-xl font-bold tracking-tight">
+                You&apos;ve been invited to join {orgName}
+              </h1>
+              {roleLabel && (
+                <p className="text-sm text-muted-foreground">
+                  You&apos;ll be added as a{" "}
+                  <span className="font-medium text-foreground">
+                    {roleLabel}
+                  </span>
+                  .
+                </p>
+              )}
+            </div>
 
-              <Button
-                className="w-full active:scale-[0.97]"
-                onClick={handleAccept}
-              >
-                Accept &amp; Join {orgName}
-              </Button>
+            <button
+              onClick={handleAccept}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
+            >
+              Accept &amp; Join {orgName}
+              <ArrowRight size={15} />
+            </button>
 
-              <p className="text-xs text-muted-foreground text-center">
-                By accepting, you&apos;ll join the {orgName} workspace on Prompt.
-              </p>
-            </CardContent>
-          </Card>
+            <p className="text-xs text-muted-foreground text-center">
+              By accepting, you&apos;ll join the {orgName} workspace on Prompt.
+            </p>
+          </div>
         )}
 
         {/* ── Accepting (loading state) ── */}
         {pageState === "accepting" && (
-          <Card>
-            <CardContent className="pt-6 text-center space-y-4">
-              <Loader2 className="size-8 animate-spin text-muted-foreground mx-auto" />
-              <p className="text-sm text-muted-foreground">
-                Joining {orgName}...
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl border bg-card shadow-sm p-8 text-center space-y-4">
+            <Loader2 className="size-8 animate-spin text-muted-foreground mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              Joining {orgName}...
+            </p>
+          </div>
         )}
 
         {/* ── Error accepting ── */}
         {pageState === "error" && (
-          <Card>
-            <CardContent className="pt-6 text-center space-y-4">
-              <div className="mx-auto w-12 h-12 bg-status-danger/10 rounded-full flex items-center justify-center">
-                <AlertCircle className="size-6 text-status-danger" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-xl font-bold tracking-tight">
-                  Could not accept invite
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {errorMessage ?? "Something went wrong. Please try again."}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setPageState("ready");
-                  setErrorMessage(null);
-                }}
-              >
-                Try Again
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl border bg-card shadow-sm p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 bg-status-danger/10 rounded-full flex items-center justify-center">
+              <AlertCircle className="size-6 text-status-danger" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-xl font-bold tracking-tight">
+                Could not accept invite
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {errorMessage ?? "Something went wrong. Please try again."}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setPageState("ready");
+                setErrorMessage(null);
+              }}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full border border-input bg-background px-5 py-3 text-sm font-semibold hover:bg-accent active:scale-95 transition-all duration-200"
+            >
+              Try Again
+            </button>
+          </div>
         )}
 
         {/* ── Success (fallback — normally redirected immediately) ── */}
         {pageState === "success" && (
-          <Card>
-            <CardContent className="pt-6 text-center space-y-4">
-              <div className="mx-auto w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center">
-                <CheckCircle className="size-6 text-green-600" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="text-xl font-bold tracking-tight">
-                  Welcome to the team!
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  You&apos;ve successfully joined {orgName}. Sign in to access your
-                  dashboard.
-                </p>
-              </div>
-              <Button asChild className="w-full">
-                <Link href="/login">Go to Dashboard</Link>
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="rounded-2xl border bg-card shadow-sm p-8 text-center space-y-4">
+            <div className="mx-auto w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center">
+              <CheckCircle className="size-6 text-green-600" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-xl font-bold tracking-tight">
+                Welcome to the team!
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                You&apos;ve successfully joined {orgName}. Sign in to access your
+                dashboard.
+              </p>
+            </div>
+            <Link
+              href="/login"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
+            >
+              Go to Dashboard
+              <ArrowRight size={15} />
+            </Link>
+          </div>
         )}
       </div>
     </div>

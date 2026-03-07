@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { bulkUpdateClients, BulkUpdateFields } from "@/app/actions/clients";
+import { getOrgId } from "@/lib/auth/org-context";
+import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 
 // Validation schema for bulk update request
 const bulkUpdateRequestSchema = z.object({
@@ -30,6 +32,16 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { clientIds, updates } = validationResult.data;
+
+    const orgId = await getOrgId();
+    try {
+      await requireWriteAccess(orgId);
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Subscription inactive" },
+        { status: 403 }
+      );
+    }
 
     // Call the bulk update action
     const result = await bulkUpdateClients(clientIds, updates as BulkUpdateFields);

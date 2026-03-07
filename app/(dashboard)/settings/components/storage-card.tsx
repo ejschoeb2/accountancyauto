@@ -3,7 +3,7 @@
 import { useState, useTransition, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, XCircle, HardDrive, AlertTriangle, ExternalLink, FolderOpen } from "lucide-react";
+import { CheckCircle, XCircle, HardDrive, AlertTriangle, ExternalLink, FolderOpen, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
 import { Input } from "@/components/ui/input";
@@ -175,6 +175,16 @@ function StorageCardInner({
               . Only one provider can be active at a time. Documents uploaded before connecting are not migrated.
             </p>
           </div>
+        </div>
+
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10">
+          <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-600">
+            <strong className="font-medium">Prompt cannot access your other files.</strong> When you
+            connect a storage provider, Prompt can only access the folder it creates &mdash; it has
+            no visibility into your other documents, folders, or files. Your cloud storage provider
+            enforces this restriction at the permission level.
+          </p>
         </div>
 
         <div className="divide-y divide-border">

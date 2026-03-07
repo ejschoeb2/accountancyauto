@@ -87,56 +87,15 @@ export function ChecklistItem({
             <span className="text-sm font-medium truncate">{label}</span>
           </div>
 
-          {/* Uploaded files list */}
+          {/* Uploaded files list — filenames only */}
           {uploaded.length > 0 && (
             <div className="mt-2 space-y-1">
               {uploaded.map((u, i) => (
-                <div key={i}>
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle className="size-4 text-green-600 shrink-0" />
-                    <span className="text-xs text-muted-foreground truncate">{u.filename}</span>
-                  </div>
-                  {u.validationWarnings.length > 0 ? (
-                    <ValidationWarningCard warnings={u.validationWarnings} />
-                  ) : u.showConfirmationCard ? (
-                    <ExtractionConfirmationCard
-                      documentTypeLabel={u.documentTypeLabel ?? 'Document'}
-                      extractedTaxYear={u.extractedTaxYear}
-                      extractedEmployer={u.extractedEmployer}
-                      extractedPayeRef={u.extractedPayeRef}
-                    />
-                  ) : null}
+                <div key={i} className="flex items-center gap-1.5">
+                  <CheckCircle className="size-4 text-green-600 shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate">{u.filename}</span>
                 </div>
               ))}
-            </div>
-          )}
-
-          {/* Duplicate warning — Alert Box amber */}
-          {duplicateWarning && (
-            <div className="mt-3 flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
-              <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
-              <div className="space-y-2 flex-1 min-w-0">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-600">Duplicate file detected</p>
-                  <p className="text-xs text-amber-600/80 truncate">{duplicateWarning}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 transition-colors active:scale-[0.97]"
-                    onClick={onConfirmDuplicate}
-                  >
-                    Upload anyway
-                  </button>
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-amber-600/80 hover:text-amber-700 transition-colors"
-                    onClick={onDismissDuplicate}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
             </div>
           )}
         </div>
@@ -169,7 +128,53 @@ export function ChecklistItem({
         </div>
       </div>
 
-      {/* Error — Alert Box red */}
+      {/* Full-width alerts — below the name + button row */}
+
+      {/* Duplicate warning */}
+      {duplicateWarning && (
+        <div className="mt-3 flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+          <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-2 flex-1 min-w-0">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-600">Duplicate file detected</p>
+              <p className="text-xs text-amber-600/80 truncate">{duplicateWarning}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 transition-colors active:scale-[0.97]"
+                onClick={onConfirmDuplicate}
+              >
+                Upload anyway
+              </button>
+              <button
+                type="button"
+                className="text-xs font-medium text-amber-600/80 hover:text-amber-700 transition-colors"
+                onClick={onDismissDuplicate}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Validation warnings / confirmation cards — one per uploaded file */}
+      {uploaded.map((u, i) =>
+        u.validationWarnings.length > 0 ? (
+          <ValidationWarningCard key={i} warnings={u.validationWarnings} />
+        ) : u.showConfirmationCard ? (
+          <ExtractionConfirmationCard
+            key={i}
+            documentTypeLabel={u.documentTypeLabel ?? 'Document'}
+            extractedTaxYear={u.extractedTaxYear}
+            extractedEmployer={u.extractedEmployer}
+            extractedPayeRef={u.extractedPayeRef}
+          />
+        ) : null
+      )}
+
+      {/* Error */}
       {error && (
         <div className="mt-3 flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
           <XCircle className="size-5 text-red-500 shrink-0" />

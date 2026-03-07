@@ -16,6 +16,7 @@ interface UploadFinalizeBody {
   fileSize: number;
   provider: StorageBackend;
   sha256Hash?: string;
+  documentTypeId?: string | null;
 }
 
 /**
@@ -65,7 +66,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { storagePath, filename, mimeType, fileSize, provider, sha256Hash } = body;
+  const { storagePath, filename, mimeType, fileSize, provider, sha256Hash, documentTypeId: explicitDocumentTypeId } = body;
 
   if (!storagePath || !filename || !mimeType || !fileSize || !provider) {
     return NextResponse.json(
@@ -94,7 +95,7 @@ export async function POST(
         org_id: portalToken.org_id,
         client_id: portalToken.client_id,
         filing_type_id: portalToken.filing_type_id,
-        document_type_id: classification.documentTypeId,
+        document_type_id: explicitDocumentTypeId || classification.documentTypeId,
         storage_path: storagePath,
         original_filename: filename,
         tax_period_end_date: taxPeriodEndDate.toISOString().split('T')[0],

@@ -448,6 +448,10 @@ export default function WizardPage() {
         if (data.url) {
           window.location.href = data.url;
           // Don't reset loading — navigating away
+        } else {
+          setPlanError("Checkout session created but no redirect URL was returned. Please try again.");
+          setSelectedTier(null);
+          setIsCreatingOrg(false);
         }
       }
     } catch (err) {

@@ -516,64 +516,50 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                 key={filing.filing_type.id}
                 className={`rounded-xl border bg-card p-6 shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 ${!filing.is_active ? 'opacity-60' : ''}`}
               >
-                {/* Filing type header */}
-                <div className="flex items-start justify-between gap-6">
-                  {/* Left: name + deadline status */}
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-baseline gap-3">
-                      <span className="font-semibold text-base">{filing.filing_type.name}</span>
-                      {filing.is_active && (
-                        <>
-                          {isReceived && isCompleted ? (
-                            <span className="text-sm text-green-600">
-                              Filed — deadline met ({formatDeadline(filing.override_deadline || filing.calculated_deadline)})
-                            </span>
-                          ) : isReceived ? (
-                            <span className="text-sm text-violet-600">
-                              Documents received — awaiting filing ({formatDeadline(filing.override_deadline || filing.calculated_deadline)})
-                            </span>
-                          ) : hasOverride ? (
-                            <span className="text-sm text-muted-foreground">
-                              Due: <span className="text-accent font-medium">{formatDeadline(filing.override_deadline)}</span>{' '}
-                              <Badge variant="outline" className="ml-2 border-accent text-accent">Overridden</Badge>
-                            </span>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              Due: {filing.calculated_deadline ? formatDeadline(filing.calculated_deadline) : <span>Set year-end date to calculate</span>}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                    {filing.is_active && hasOverride && (
-                      <div className="space-y-1">
-                        {filing.override_reason && (
-                          <div className="text-sm text-muted-foreground">Reason: {filing.override_reason}</div>
+                {/* Row 1: Filing name + due date (left) | Received count + checkboxes (right) */}
+                <div className="flex items-center justify-between gap-6">
+                  <div className="flex items-baseline gap-3 min-w-0">
+                    <span className="font-semibold text-lg">{filing.filing_type.name}</span>
+                    {filing.is_active && (
+                      <span className="text-sm text-muted-foreground shrink-0">
+                        {isReceived && isCompleted ? (
+                          <span className="text-green-600">
+                            Filed — deadline met ({formatDeadline(filing.override_deadline || filing.calculated_deadline)})
+                          </span>
+                        ) : isReceived ? (
+                          <span className="text-violet-600">
+                            Documents received — awaiting filing ({formatDeadline(filing.override_deadline || filing.calculated_deadline)})
+                          </span>
+                        ) : hasOverride ? (
+                          <span>
+                            Due: <span className="text-accent font-medium">{formatDeadline(filing.override_deadline)}</span>{' '}
+                            <Badge variant="outline" className="ml-1 border-accent text-accent">Overridden</Badge>
+                          </span>
+                        ) : (
+                          <span>
+                            Due: {filing.calculated_deadline ? formatDeadline(filing.calculated_deadline) : 'Set year-end date to calculate'}
+                          </span>
                         )}
-                        <div className="text-sm text-muted-foreground">
-                          Calculated: {formatDeadline(filing.calculated_deadline) || 'Unable to calculate'}
-                        </div>
-                      </div>
+                      </span>
                     )}
                   </div>
 
-                  {/* Right: checkboxes + action buttons */}
+                  {/* Right: checkboxes */}
                   <div className="flex items-center gap-3 shrink-0">
-                    {/* Active checkbox — always shown */}
-                    <div className="flex items-center gap-2">
-                      <CheckButton
-                        checked={filing.is_active}
-                        onCheckedChange={() => handleToggle(filing.filing_type.id, filing.is_active)}
-                        aria-label={`Toggle ${filing.filing_type.name} active`}
-                        variant={filing.is_active ? "success" : "default"}
-                      />
-                      <label
-                        className="text-sm cursor-pointer whitespace-nowrap text-muted-foreground"
-                        onClick={() => handleToggle(filing.filing_type.id, filing.is_active)}
-                      >
-                        Active
-                      </label>
-                    </div>
+                    {/* Received count */}
+                    {filing.is_active && effectiveCounts[filing.filing_type.id] && effectiveCounts[filing.filing_type.id].total > 0 && (
+                      <div className="flex items-center gap-2">
+                        <CheckButton
+                          checked={effectiveCounts[filing.filing_type.id].received === effectiveCounts[filing.filing_type.id].total}
+                          variant={effectiveCounts[filing.filing_type.id].received === effectiveCounts[filing.filing_type.id].total ? "success" : "default"}
+                          disabled
+                          className="pointer-events-none"
+                        />
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                          {effectiveCounts[filing.filing_type.id].received} of {effectiveCounts[filing.filing_type.id].total} required received
+                        </span>
+                      </div>
+                    )}
 
                     {filing.is_active && (
                       <>
@@ -597,111 +583,142 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                         </div>
 
                         <Separator orientation="vertical" className="h-8" />
+                      </>
+                    )}
 
-                        {/* Generate Upload Link */}
-                        <IconButtonWithText
-                          variant="violet"
-                          onClick={() => handleGeneratePortalLink(filing.filing_type.id)}
-                          disabled={
-                            portalStates[filing.filing_type.id]?.generating ||
-                            (effectiveCounts[filing.filing_type.id] !== undefined &&
-                              effectiveCounts[filing.filing_type.id].total === 0)
-                          }
-                        >
-                          {portalStates[filing.filing_type.id]?.generating ? (
-                            <Loader2 className="size-4 animate-spin" />
-                          ) : (
-                            <Link2 className="size-4" />
-                          )}
-                          {portalStates[filing.filing_type.id]?.generating ? 'Generating...' : (
-                            <>
-                              <span className="hidden sm:inline">Generate Upload Link</span>
-                              <span className="sm:hidden">Upload</span>
-                            </>
-                          )}
-                        </IconButtonWithText>
+                    {/* Active checkbox — always shown */}
+                    <div className="flex items-center gap-2">
+                      <CheckButton
+                        checked={filing.is_active}
+                        onCheckedChange={() => handleToggle(filing.filing_type.id, filing.is_active)}
+                        aria-label={`Toggle ${filing.filing_type.name} active`}
+                        variant={filing.is_active ? "success" : "default"}
+                      />
+                      <label
+                        className="text-sm cursor-pointer whitespace-nowrap text-muted-foreground"
+                        onClick={() => handleToggle(filing.filing_type.id, filing.is_active)}
+                      >
+                        Active
+                      </label>
+                    </div>
+                  </div>
+                </div>
 
-                        {/* Deadline action button */}
-                        {filing.calculated_deadline && (
-                          <>
-                            {isReceived && isCompleted ? (
-                              <IconButtonWithText variant="green" onClick={() => handleOpenRolloverDialog(filing.filing_type.id)}>
-                                <RefreshCw className="h-4 w-4" />
-                                Roll Over
+                {/* Override details (shown below row 1 when overridden) */}
+                {filing.is_active && hasOverride && !isReceived && (
+                  <div className="mt-1 space-y-0.5">
+                    {filing.override_reason && (
+                      <div className="text-sm text-muted-foreground">Reason: {filing.override_reason}</div>
+                    )}
+                    <div className="text-sm text-muted-foreground">
+                      Calculated: {formatDeadline(filing.calculated_deadline) || 'Unable to calculate'}
+                    </div>
+                  </div>
+                )}
+
+                {/* Row 2: Action buttons */}
+                {filing.is_active && (
+                  <div className="flex items-center justify-end gap-3 mt-4">
+                    {/* Generate Upload Link */}
+                    <IconButtonWithText
+                      variant="violet"
+                      onClick={() => handleGeneratePortalLink(filing.filing_type.id)}
+                      disabled={
+                        portalStates[filing.filing_type.id]?.generating ||
+                        (effectiveCounts[filing.filing_type.id] !== undefined &&
+                          effectiveCounts[filing.filing_type.id].total === 0)
+                      }
+                    >
+                      {portalStates[filing.filing_type.id]?.generating ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Link2 className="size-4" />
+                      )}
+                      {portalStates[filing.filing_type.id]?.generating ? 'Generating...' : (
+                        <>
+                          <span className="hidden sm:inline">Generate Upload Link</span>
+                          <span className="sm:hidden">Upload</span>
+                        </>
+                      )}
+                    </IconButtonWithText>
+
+                    {/* Configure checklist */}
+                    <IconButtonWithText
+                      variant="blue"
+                      onClick={() => setChecklistOpenFor(filing.filing_type.id)}
+                    >
+                      <Settings className="size-4" />
+                      Configure
+                    </IconButtonWithText>
+
+                    {/* Deadline action button */}
+                    {filing.calculated_deadline && (
+                      <>
+                        {isReceived && isCompleted ? (
+                          <IconButtonWithText variant="green" onClick={() => handleOpenRolloverDialog(filing.filing_type.id)}>
+                            <RefreshCw className="h-4 w-4" />
+                            Roll Over
+                          </IconButtonWithText>
+                        ) : isReceived && !isCompleted ? (
+                          (() => {
+                            const portal = getFilingPortal(filing.filing_type.name);
+                            return (
+                              <IconButtonWithText
+                                variant="blue"
+                                onClick={() => {
+                                  window.open(portal.url, '_blank', 'noopener,noreferrer');
+                                  toast.success('Opening filing portal in new tab');
+                                }}
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                                {portal.label}
                               </IconButtonWithText>
-                            ) : isReceived && !isCompleted ? (
-                              (() => {
-                                const portal = getFilingPortal(filing.filing_type.name);
-                                return (
-                                  <IconButtonWithText
-                                    variant="blue"
-                                    onClick={() => {
-                                      window.open(portal.url, '_blank', 'noopener,noreferrer');
-                                      toast.success('Opening filing portal in new tab');
-                                    }}
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                    {portal.label}
-                                  </IconButtonWithText>
-                                );
-                              })()
-                            ) : hasOverride ? (
-                              <IconButtonWithText variant="destructive" onClick={() => handleRemoveOverride(filing.filing_type.id)}>
-                                <X className="h-4 w-4" />
-                                Remove Override
-                              </IconButtonWithText>
-                            ) : (
-                              <IconButtonWithText variant="amber" onClick={() => handleOpenOverrideDialog(filing.filing_type.id)}>
-                                <Calendar className="h-4 w-4" />
-                                Override Deadline
-                              </IconButtonWithText>
-                            )}
-                          </>
+                            );
+                          })()
+                        ) : hasOverride ? (
+                          <IconButtonWithText variant="destructive" onClick={() => handleRemoveOverride(filing.filing_type.id)}>
+                            <X className="h-4 w-4" />
+                            Remove Override
+                          </IconButtonWithText>
+                        ) : (
+                          <IconButtonWithText variant="amber" onClick={() => handleOpenOverrideDialog(filing.filing_type.id)}>
+                            <Calendar className="h-4 w-4" />
+                            Override Deadline
+                          </IconButtonWithText>
                         )}
                       </>
                     )}
                   </div>
-                </div>
+                )}
 
-                {/* Inner card: configure button + document checklist */}
+                {/* Document table — full width, breaks out of p-6 padding */}
                 {filing.is_active && (
-                  <Card className="mt-4">
-                    <CardContent>
-                      <div className="flex justify-end mb-4">
-                        <IconButtonWithText
-                          variant="blue"
-                          onClick={() => setChecklistOpenFor(filing.filing_type.id)}
-                        >
-                          <Settings className="size-4" />
-                          Configure
-                        </IconButtonWithText>
-                      </div>
-                      <DocumentCard
-                        clientId={clientId}
-                        filingTypeId={filing.filing_type.id}
-                        filingTypeName={filing.filing_type.name}
-                        docCount={filing.doc_count ?? 0}
-                        lastReceivedAt={filing.last_received_at ?? null}
-                        checklistOpen={checklistOpenFor === filing.filing_type.id}
-                        onChecklistClose={() => setChecklistOpenFor(null)}
-                        portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
-                        portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
-                        onActionsReady={(actions) => {
-                          documentCardActionsRef.current[filing.filing_type.id] = actions;
-                        }}
-                        onReceivedCountChange={(received, total) => {
-                          setEffectiveCounts(prev => {
-                            const existing = prev[filing.filing_type.id];
-                            if (existing?.received === received && existing?.total === total) return prev;
-                            return { ...prev, [filing.filing_type.id]: { received, total } };
-                          });
-                        }}
-                        onRequiredAllReceivedChange={(allReceived) =>
-                          handleRequiredDocsAllReceived(filing.filing_type.id, allReceived)
-                        }
-                      />
-                    </CardContent>
-                  </Card>
+                  <div className="mt-4 -mx-6 -mb-6">
+                    <DocumentCard
+                      clientId={clientId}
+                      filingTypeId={filing.filing_type.id}
+                      filingTypeName={filing.filing_type.name}
+                      docCount={filing.doc_count ?? 0}
+                      lastReceivedAt={filing.last_received_at ?? null}
+                      checklistOpen={checklistOpenFor === filing.filing_type.id}
+                      onChecklistClose={() => setChecklistOpenFor(null)}
+                      portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
+                      portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
+                      onActionsReady={(actions) => {
+                        documentCardActionsRef.current[filing.filing_type.id] = actions;
+                      }}
+                      onReceivedCountChange={(received, total) => {
+                        setEffectiveCounts(prev => {
+                          const existing = prev[filing.filing_type.id];
+                          if (existing?.received === received && existing?.total === total) return prev;
+                          return { ...prev, [filing.filing_type.id]: { received, total } };
+                        });
+                      }}
+                      onRequiredAllReceivedChange={(allReceived) =>
+                        handleRequiredDocsAllReceived(filing.filing_type.id, allReceived)
+                      }
+                    />
+                  </div>
                 )}
               </div>
             );

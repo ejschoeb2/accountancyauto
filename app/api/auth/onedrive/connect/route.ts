@@ -29,7 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // Generate the authorization URL
   const authUrl = await msalClient.getAuthCodeUrl({
-    scopes: ['Files.ReadWrite', 'offline_access'],
+    scopes: ['Files.ReadWrite.AppFolder', 'offline_access'],
     redirectUri: process.env.MS_REDIRECT_URI!,
     state,
     prompt: 'consent', // CRITICAL: ensures refresh token in cache; forces account picker

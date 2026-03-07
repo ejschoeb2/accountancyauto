@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrgId } from "@/lib/auth/org-context";
+import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { emailTemplateSchema } from "@/lib/validations/email-template";
 
 /**
@@ -68,6 +70,16 @@ export async function PUT(
     );
   }
 
+  const orgId = await getOrgId();
+  try {
+    await requireWriteAccess(orgId);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Subscription inactive" },
+      { status: 403 }
+    );
+  }
+
   const { data, error } = await supabase
     .from("email_templates")
     .update({
@@ -111,6 +123,16 @@ export async function DELETE(
 ) {
   const { id } = await context.params;
   const supabase = await createClient();
+
+  const orgId = await getOrgId();
+  try {
+    await requireWriteAccess(orgId);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Subscription inactive" },
+      { status: 403 }
+    );
+  }
 
   const { error } = await supabase
     .from("email_templates")

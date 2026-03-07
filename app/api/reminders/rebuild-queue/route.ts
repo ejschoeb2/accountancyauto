@@ -26,12 +26,16 @@ export async function POST(request: NextRequest) {
     // PostgREST FK workaround: fetch org separately to avoid join cache issues
     const { data: userOrg, error: orgError } = await adminClient
       .from('user_organisations')
-      .select('org_id')
+      .select('org_id, role')
       .eq('user_id', user.id)
       .single();
 
     if (orgError || !userOrg) {
       return NextResponse.json({ error: 'No organisation found for user' }, { status: 403 });
+    }
+
+    if (userOrg.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
     const { data: orgData, error: orgFetchError } = await adminClient

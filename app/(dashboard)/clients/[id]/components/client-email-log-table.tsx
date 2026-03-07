@@ -39,6 +39,9 @@ import {
   Calendar
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { QueuedEmailPreviewModal } from '@/app/(dashboard)/email-logs/components/queued-email-preview-modal';
+import { SentEmailDetailModal } from '@/app/(dashboard)/email-logs/components/sent-email-detail-modal';
 
 interface ClientEmailLogTableProps {
   clientId: string;
@@ -68,6 +71,10 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
   const [editedDates, setEditedDates] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [showOnlyScheduled, setShowOnlyScheduled] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewReminderId, setPreviewReminderId] = useState<string | null>(null);
+  const [sentPreviewOpen, setSentPreviewOpen] = useState(false);
+  const [sentPreviewEntry, setSentPreviewEntry] = useState<AuditEntry | null>(null);
 
   usePageLoading('client-email-log', loading);
 
@@ -334,6 +341,26 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
     }
   };
 
+  const handlePreviewNavigate = (direction: 'prev' | 'next') => {
+    if (!previewReminderId) return;
+    const currentIndex = queuedData.findIndex((r) => r.id === previewReminderId);
+    if (direction === 'prev' && currentIndex > 0) {
+      setPreviewReminderId(queuedData[currentIndex - 1].id);
+    } else if (direction === 'next' && currentIndex < queuedData.length - 1) {
+      setPreviewReminderId(queuedData[currentIndex + 1].id);
+    }
+  };
+
+  const handleSentPreviewNavigate = (direction: 'prev' | 'next') => {
+    if (!sentPreviewEntry) return;
+    const currentIndex = sentData.findIndex((e) => e.id === sentPreviewEntry.id);
+    if (direction === 'prev' && currentIndex > 0) {
+      setSentPreviewEntry(sentData[currentIndex - 1]);
+    } else if (direction === 'next' && currentIndex < sentData.length - 1) {
+      setSentPreviewEntry(sentData[currentIndex + 1]);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Toggle between Sent and Queued + Edit buttons */}
@@ -442,7 +469,14 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
               </TableRow>
             ) : viewMode === 'sent' ? (
               (data as AuditEntry[]).map((entry) => (
-                <TableRow key={entry.id} className="group hover:bg-muted/50 transition-colors">
+                <TableRow
+                  key={entry.id}
+                  className="group hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={() => {
+                    setSentPreviewEntry(entry);
+                    setSentPreviewOpen(true);
+                  }}
+                >
                   <TableCell className="text-muted-foreground transition-colors">
                     {format(new Date(entry.sent_at), 'dd MMM yyyy')}
                   </TableCell>
@@ -471,7 +505,19 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
                 const canEdit = isStatusEditable(reminder.status);
 
                 return (
-                  <TableRow key={reminder.id} className="group hover:bg-muted/50 transition-colors">
+                  <TableRow
+                    key={reminder.id}
+                    className={cn(
+                      "group hover:bg-muted/50 transition-colors",
+                      !isEditMode && "cursor-pointer"
+                    )}
+                    onClick={() => {
+                      if (!isEditMode) {
+                        setPreviewReminderId(reminder.id);
+                        setPreviewOpen(true);
+                      }
+                    }}
+                  >
                     <TableCell className="text-muted-foreground transition-colors">
                       {isEditMode && canEdit ? (
                         <Input
@@ -563,6 +609,22 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
           </div>
         </div>
       )}
+
+      {/* Email Preview Modals */}
+      <QueuedEmailPreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        reminderId={previewReminderId}
+        allReminders={queuedData}
+        onNavigate={handlePreviewNavigate}
+      />
+      <SentEmailDetailModal
+        open={sentPreviewOpen}
+        onOpenChange={setSentPreviewOpen}
+        entry={sentPreviewEntry}
+        allEntries={sentData}
+        onNavigate={handleSentPreviewNavigate}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ShieldCheck, CheckCircle, XCircle } from "lucide-react";
+import { ShieldCheck, CheckCircle, XCircle, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Select,
@@ -53,6 +53,16 @@ export function UploadChecksCard({ uploadCheckMode: initial }: UploadChecksCardP
             employer, and PAYE reference via OCR.
           </p>
         </div>
+      </div>
+
+      <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10 mb-6">
+        <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
+        <p className="text-sm text-blue-600">
+          <strong className="font-medium">Your data stays private.</strong> Upload checks run
+          entirely in memory &mdash; Prompt scans each file briefly to extract metadata or flag
+          mismatches, then discards the content. No document text, images, or sensitive data is
+          stored by Prompt. Only lightweight metadata (e.g. tax year, employer name) is saved.
+        </p>
       </div>
 
       <div className="flex items-center gap-3">

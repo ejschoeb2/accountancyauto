@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgId } from '@/lib/auth/org-context';
 import { calculateDeadline } from '@/lib/deadlines/calculators';
+import { rebuildQueueForClient } from '@/lib/reminders/queue-builder';
+import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { z } from 'zod';
 import type { FilingType, FilingTypeId } from '@/lib/types/database';
 
@@ -245,6 +248,15 @@ export async function PUT(
     const supabase = await createClient();
     const orgId = await getOrgId();
 
+    try {
+      await requireWriteAccess(orgId);
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Subscription inactive" },
+        { status: 403 }
+      );
+    }
+
     // Upsert assignments (insert on conflict update is_active)
     const assignmentsToUpsert = assignments.map((a) => ({
       org_id: orgId,
@@ -265,6 +277,14 @@ export async function PUT(
         { error: 'Failed to update assignments', details: error.message },
         { status: 500 }
       );
+    }
+
+    // Reactively rebuild reminder queue after filing changes (non-fatal)
+    try {
+      const adminClient = createAdminClient();
+      await rebuildQueueForClient(adminClient, clientId);
+    } catch (rebuildErr) {
+      console.error('[filings route] Non-fatal: failed to rebuild reminder queue:', rebuildErr);
     }
 
     return NextResponse.json({ assignments: data || [] });

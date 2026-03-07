@@ -10,6 +10,7 @@ import {
   Loader2,
   ArrowLeft,
   ArrowRight,
+  Info,
 } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import { Input } from "@/components/ui/input";
@@ -147,6 +148,16 @@ export function StorageSetupStep({
             <p className="text-sm text-green-600">Dropbox connected successfully.</p>
           </div>
         )}
+
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10">
+          <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-600">
+            <strong className="font-medium">Prompt cannot access your other files.</strong> When you
+            connect a storage provider, Prompt can only access the folder it creates &mdash; it has
+            no visibility into your other documents, folders, or files. Your cloud storage provider
+            enforces this restriction at the permission level.
+          </p>
+        </div>
 
         <div className="divide-y divide-border">
           {/* Supabase (built-in default) */}

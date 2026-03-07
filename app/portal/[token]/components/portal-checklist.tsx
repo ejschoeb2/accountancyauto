@@ -117,7 +117,7 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
   const optionalItems = checklist.filter(item => !item.is_mandatory);
   const requiredProvided = requiredItems.filter(item => (uploadedByItemId[item.id] ?? []).length > 0).length;
 
-  const handleUpload = async (itemId: string, file: File, confirmDuplicate = false) => {
+  const handleUpload = async (itemId: string, file: File, confirmDuplicate = false, documentTypeId?: string | null, documentTypeCode?: string | null) => {
     // ── Phase 29: Large file path — provider-native chunked upload ─────────────
     // Files over 4 MB cannot be buffered in a Vercel function body (4.5 MB limit).
     // For Google Drive and OneDrive backends, the browser uploads directly to the
@@ -173,6 +173,7 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
             fileSize: file.size,
             provider: session.provider,
             sha256Hash,
+            documentTypeId: documentTypeId ?? null,
           }),
         });
 
@@ -211,6 +212,8 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
     const formData = new FormData();
     formData.append('file', file);
     formData.append('checklistItemId', itemId);
+    if (documentTypeId) formData.append('documentTypeId', documentTypeId);
+    if (documentTypeCode) formData.append('documentTypeCode', documentTypeCode);
     if (confirmDuplicate) formData.append('confirmDuplicate', 'true');
 
     const res = await fetch(`/api/portal/${rawToken}/upload`, {
@@ -274,10 +277,10 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
         key={item.id}
         item={item}
         uploaded={uploadedByItemId[item.id] ?? []}
-        onUpload={(file) => handleUpload(item.id, file)}
+        onUpload={(file) => handleUpload(item.id, file, false, item.document_type_id, item.document_types?.code ?? null)}
         disabled={pendingDuplicate !== null && !itemHasDuplicate}
         duplicateWarning={itemHasDuplicate ? pendingDuplicate?.file.name : undefined}
-        onConfirmDuplicate={itemHasDuplicate ? () => handleUpload(item.id, pendingDuplicate!.file, true) : undefined}
+        onConfirmDuplicate={itemHasDuplicate ? () => handleUpload(item.id, pendingDuplicate!.file, true, item.document_type_id, item.document_types?.code ?? null) : undefined}
         onDismissDuplicate={itemHasDuplicate ? () => setPendingDuplicate(null) : undefined}
       />
     );

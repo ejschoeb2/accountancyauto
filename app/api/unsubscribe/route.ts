@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // Check if client exists
     const { data: client, error: fetchError } = await supabase
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing client_id' }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     // Pause reminders
     const { error } = await supabase

@@ -4,6 +4,8 @@ import { updateClientMetadata } from "@/app/actions/clients";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { handleUnpauseClient, cancelRemindersForReceivedRecords, restoreRemindersForUnreceivedRecords, rebuildQueueForClient } from "@/lib/reminders/queue-builder";
+import { getOrgId } from "@/lib/auth/org-context";
+import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 
 export async function GET(
   request: NextRequest,
@@ -38,6 +40,16 @@ export async function DELETE(
     const { id } = await params;
     const supabase = await createClient();
 
+    const orgId = await getOrgId();
+    try {
+      await requireWriteAccess(orgId);
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Subscription inactive" },
+        { status: 403 }
+      );
+    }
+
     const { error } = await supabase
       .from('clients')
       .delete()
@@ -63,6 +75,16 @@ export async function PATCH(
     const body = await request.json();
 
     const supabase = await createClient();
+
+    const orgId = await getOrgId();
+    try {
+      await requireWriteAccess(orgId);
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Subscription inactive" },
+        { status: 403 }
+      );
+    }
 
     // Fetch current client state before update
     const { data: currentClient, error: fetchError } = await supabase
@@ -102,6 +124,12 @@ export async function PATCH(
       // If unpausing (was paused, now not paused)
       if (wasPaused && !isPaused) {
         await handleUnpauseClient(adminClient, id);
+        // Rebuild queue to generate future entries for the unpaused client
+        try {
+          await rebuildQueueForClient(adminClient, id);
+        } catch (rebuildErr) {
+          console.error('[client route] Non-fatal: failed to rebuild queue after unpause:', rebuildErr);
+        }
       }
     }
 
@@ -128,6 +156,15 @@ export async function PATCH(
       // Restore reminders for filing types that are no longer received
       for (const filingTypeId of removedFilingTypes) {
         await restoreRemindersForUnreceivedRecords(adminClient, id, filingTypeId);
+      }
+    }
+
+    // Rebuild reminder queue when deadline-affecting fields change
+    if ('year_end_date' in body || 'vat_stagger_group' in body) {
+      try {
+        await rebuildQueueForClient(adminClient, id);
+      } catch (rebuildErr) {
+        console.error('[client route] Non-fatal: failed to rebuild queue after field change:', rebuildErr);
       }
     }
 

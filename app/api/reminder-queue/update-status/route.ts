@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getOrgId } from '@/lib/auth/org-context';
+import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +16,16 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
+
+    const orgId = await getOrgId();
+    try {
+      await requireWriteAccess(orgId);
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Subscription inactive" },
+        { status: 403 }
+      );
+    }
 
     // Update each reminder's status and/or send_date
     const updatePromises = updates.map(async ({ id, status, send_date }: { id: string; status?: string; send_date?: string }) => {

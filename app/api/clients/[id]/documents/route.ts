@@ -219,5 +219,67 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ success: true });
   }
 
+  // ── Delete document action ──────────────────────────────────────────────
+  if (action === 'delete') {
+    const { documentId } = body as { documentId: string };
+
+    const serviceSupabase = createServiceClient();
+
+    // Fetch document — verify it belongs to this client
+    const { data: doc } = await serviceSupabase
+      .from('client_documents')
+      .select('id, storage_path, org_id, storage_backend')
+      .eq('id', documentId)
+      .eq('client_id', clientId)
+      .single();
+
+    if (!doc) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    // Delete from storage backend
+    try {
+      const { data: orgData } = await serviceSupabase
+        .from('organisations')
+        .select('id, storage_backend, google_drive_folder_id, ms_home_account_id')
+        .eq('id', doc.org_id)
+        .single();
+
+      if (orgData) {
+        const provider = resolveProvider({
+          id: orgData.id,
+          storage_backend: (doc.storage_backend ?? orgData.storage_backend),
+          google_drive_folder_id: orgData.google_drive_folder_id,
+          ms_home_account_id: orgData.ms_home_account_id,
+        });
+        await provider.delete(doc.storage_path);
+      }
+    } catch (storageErr) {
+      // Log but don't block — the DB row should still be removed
+      console.error('[Delete] Storage deletion failed (continuing with DB delete):', storageErr);
+    }
+
+    // Delete the DB row
+    const { error } = await serviceSupabase
+      .from('client_documents')
+      .delete()
+      .eq('id', documentId)
+      .eq('client_id', clientId);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Audit log
+    await serviceSupabase.from('document_access_log').insert({
+      org_id: doc.org_id,
+      document_id: documentId,
+      user_id: user.id,
+      action: 'delete',
+    });
+
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, FileSearch } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck, FileSearch, Info } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import { Card } from "@/components/ui/card";
 import {
@@ -14,12 +14,13 @@ import {
 import { setUploadCheckMode, type UploadCheckMode } from "@/app/actions/settings";
 
 interface UploadChecksStepProps {
-  onComplete: () => void;
+  onComplete: (mode: UploadCheckMode) => void;
   onBack: () => void;
+  initialSelection?: UploadCheckMode;
 }
 
-export function UploadChecksStep({ onComplete, onBack }: UploadChecksStepProps) {
-  const [selection, setSelection] = useState<UploadCheckMode | "">("");
+export function UploadChecksStep({ onComplete, onBack, initialSelection }: UploadChecksStepProps) {
+  const [selection, setSelection] = useState<UploadCheckMode | "">(initialSelection ?? "");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +33,7 @@ export function UploadChecksStep({ onComplete, onBack }: UploadChecksStepProps) 
         setError(result.error);
         return;
       }
-      onComplete();
+      onComplete(selection);
     });
   }
 
@@ -44,6 +45,16 @@ export function UploadChecksStep({ onComplete, onBack }: UploadChecksStepProps) 
           <p className="text-sm text-muted-foreground">
             Choose what processing Prompt runs when clients upload documents through the portal.
             You can change this at any time from Settings.
+          </p>
+        </div>
+
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10">
+          <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-600">
+            <strong className="font-medium">Your data stays private.</strong> Upload checks run
+            entirely in memory &mdash; Prompt scans each file briefly to extract metadata or flag
+            mismatches, then discards the content. No document text, images, or sensitive data is
+            stored by Prompt. Only lightweight metadata (e.g. tax year, employer name) is saved.
           </p>
         </div>
 

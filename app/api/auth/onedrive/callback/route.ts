@@ -55,7 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     tokenResponse = await msalClient.acquireTokenByCode({
       code: code!,
       redirectUri: process.env.MS_REDIRECT_URI!,
-      scopes: ['Files.ReadWrite', 'offline_access'],
+      scopes: ['Files.ReadWrite.AppFolder', 'offline_access'],
     });
     // afterCacheAccess fires automatically — the encrypted cache is now persisted to ms_token_cache_enc.
   } catch (error: unknown) {
