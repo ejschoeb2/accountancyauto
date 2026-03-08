@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import {
   getPlanByTier,
@@ -59,8 +60,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify user is admin of this org
-    const { data: membership, error: memberError } = await supabase
+    // Verify user is admin of this org.
+    // Uses admin client to bypass RLS — the session cookies reaching this
+    // API route can be stale after org creation + multiple server-action
+    // refreshes, causing the RLS-gated query to return zero rows.
+    // User identity is already verified via getUser() above.
+    const admin = createAdminClient();
+
+    const { data: membership, error: memberError } = await admin
       .from("user_organisations")
       .select("role")
       .eq("user_id", user.id)
@@ -91,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if org already has a Stripe customer
-    const { data: org, error: orgError } = await supabase
+    const { data: org, error: orgError } = await admin
       .from("organisations")
       .select("stripe_customer_id")
       .eq("id", orgId)
