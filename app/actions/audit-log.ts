@@ -165,7 +165,7 @@ export interface QueuedReminder {
   template_name: string | null;
   send_date: string;
   deadline_date: string;
-  status: 'scheduled' | 'rescheduled' | 'pending' | 'sent' | 'cancelled' | 'failed' | 'records_received';
+  status: 'scheduled' | 'rescheduled' | 'sent' | 'cancelled' | 'failed' | 'records_received';
   subject: string | null;
   step_index: number;
   created_at: string;
@@ -316,7 +316,7 @@ export async function previewQueuedEmail(
       return { error: `Reminder not found: ${reminderError?.message || 'Unknown error'}` };
     }
 
-    // If html_body is already populated (pending/sent), return it directly
+    // If html_body is already populated (resolved/sent), return it directly
     if (reminder.html_body) {
       return {
         html: reminder.html_body,

@@ -37,7 +37,6 @@ const FILING_TYPE_LABELS: Record<string, string> = {
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   scheduled: { label: 'Scheduled', bg: 'bg-sky-500/10', text: 'text-sky-500' },
   rescheduled: { label: 'Rescheduled', bg: 'bg-blue-500/10', text: 'text-blue-500' },
-  pending: { label: 'Pending', bg: 'bg-amber-500/10', text: 'text-amber-600' },
   sent: { label: 'Sent', bg: 'bg-blue-500/10', text: 'text-blue-500' },
   cancelled: { label: 'Manually Cancelled', bg: 'bg-status-danger/10', text: 'text-status-danger' },
   failed: { label: 'Failed', bg: 'bg-status-danger/10', text: 'text-status-danger' },

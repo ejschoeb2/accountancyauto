@@ -88,7 +88,7 @@ export interface BankHoliday {
 // Reminder Queue
 // ============================================================================
 
-export type ReminderStatus = 'scheduled' | 'pending' | 'sent' | 'cancelled' | 'failed';
+export type ReminderStatus = 'scheduled' | 'sent' | 'cancelled' | 'failed';
 
 export interface ReminderQueueItem {
   id: string;

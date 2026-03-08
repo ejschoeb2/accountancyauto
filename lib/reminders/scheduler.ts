@@ -32,7 +32,7 @@ interface FilingType {
  * - Acquires per-user per-org distributed lock
  * - Checks if it's the user's configured send_hour (with org-level fallback)
  * - Builds/updates queue for this user's clients using their own schedules and templates
- * - Marks due reminders as pending (scoped to this user's clients)
+ * - Sets queued_at on due reminders (scoped to this user's clients)
  * - Resolves template variables using v1.1 TipTap rendering with user's sender name
  * - Handles deadline rollover for this user's clients
  */
@@ -167,12 +167,11 @@ export async function processRemindersForUser(
       return result;
     }
 
-    // Step 5: Update their status to 'pending' and set queued_at
+    // Step 5: Set queued_at on due reminders (status stays 'scheduled')
     const reminderIds = dueReminders.map((r) => r.id);
     const { error: updateError } = await supabase
       .from('reminder_queue')
       .update({
-        status: 'pending',
         queued_at: new Date().toISOString(),
       })
       .in('id', reminderIds);
@@ -210,7 +209,7 @@ export async function processRemindersForUser(
       }
     }
 
-    // Step 7: Resolve template variables for each pending reminder using v1.1 TipTap rendering
+    // Step 7: Resolve template variables for each due reminder using v1.1 TipTap rendering
     for (const reminder of dueReminders) {
       try {
         const client = reminder.clients as Client;

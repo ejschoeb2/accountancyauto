@@ -550,13 +550,14 @@ export async function rebuildQueueForClient(
   clientId: string,
   orgId?: string
 ): Promise<void> {
-  // Delete all 'scheduled' reminders for this client
-  // Don't touch 'pending', 'sent', 'cancelled'
+  // Delete 'scheduled' reminders for this client that haven't been queued yet
+  // Don't touch entries already queued (queued_at set), 'sent', or 'cancelled'
   const { error: deleteError } = await supabase
     .from('reminder_queue')
     .delete()
     .eq('client_id', clientId)
-    .eq('status', 'scheduled');
+    .eq('status', 'scheduled')
+    .is('queued_at', null);
 
   if (deleteError) {
     throw new Error(`Failed to delete scheduled reminders: ${deleteError.message}`);

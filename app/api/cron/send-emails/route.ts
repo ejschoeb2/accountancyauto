@@ -165,28 +165,28 @@ async function processOrgEmails(
   }
 
   try {
-    // Query pending reminders for this org with resolved subject/body and html_body
-    const { data: pendingReminders, error: queryError } = await adminClient
+    // Query scheduled reminders for this org that have been resolved (have subject/body/html)
+    const { data: dueReminders, error: queryError } = await adminClient
       .from('reminder_queue')
       .select('*, clients!inner(company_name, primary_email, owner_id)')
       .eq('org_id', org.id)
-      .eq('status', 'pending')
+      .eq('status', 'scheduled')
       .not('resolved_subject', 'is', null)
       .not('resolved_body', 'is', null)
       .not('html_body', 'is', null);
 
     if (queryError) {
-      throw new Error(`Failed to query pending reminders: ${queryError.message}`);
+      throw new Error(`Failed to query due reminders: ${queryError.message}`);
     }
 
-    if (!pendingReminders || pendingReminders.length === 0) {
+    if (!dueReminders || dueReminders.length === 0) {
       return result;
     }
 
-    result.processed = pendingReminders.length;
+    result.processed = dueReminders.length;
 
     // Process each reminder sequentially (avoid Postmark rate limits)
-    for (const reminder of pendingReminders) {
+    for (const reminder of dueReminders) {
       const client = reminder.clients as { company_name: string; primary_email: string; owner_id: string };
 
       // Check if client has primary_email
@@ -255,11 +255,8 @@ async function processOrgEmails(
         console.error(`[${org.name}] Failed to send email for reminder ${reminder.id}:`, error);
         result.errors.push(`[${org.name}] Failed to send to ${client.primary_email}: ${errorMessage}`);
 
-        // Keep as pending for retry on next cron run (per user decision - no missed emails)
-        await adminClient
-          .from('reminder_queue')
-          .update({ status: 'pending' })
-          .eq('id', reminder.id);
+        // Keep as scheduled for retry on next cron run (no missed emails)
+        // No status change needed — entry stays 'scheduled' with resolved content
 
         // Insert email_log entry for failed send
         await adminClient
