@@ -282,7 +282,9 @@ export default function WizardPage() {
       // If returning from an external redirect (Stripe checkout, OAuth), the
       // access token may be stale. Refresh so the JWT has the latest
       // app_metadata (including org_id) — required by RLS on user_organisations.
-      if (sessionStorage.getItem("wizard_return_step") || sessionStorage.getItem("wizard_admin_step")) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasReturnParams = urlParams.has("from") || urlParams.has("storage_connected") || urlParams.has("storage_error");
+      if (hasReturnParams || sessionStorage.getItem("wizard_return_step") || sessionStorage.getItem("wizard_admin_step")) {
         await supabase.auth.refreshSession();
       }
 
@@ -299,7 +301,6 @@ export default function WizardPage() {
         setUserType("new-admin");
         setAdminStep("firm");
       } else if (userOrg.role === "admin") {
-        const urlParams = new URLSearchParams(window.location.search);
         const sc = urlParams.get("storage_connected");
         const se = urlParams.get("storage_error");
         const fromStripe = urlParams.get("from") === "stripe";
