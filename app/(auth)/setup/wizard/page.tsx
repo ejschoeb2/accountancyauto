@@ -198,9 +198,8 @@ export default function WizardPage() {
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [orgCreated, setOrgCreated] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
-  // The tier that was actually committed (free chosen, or paid tier sent to Stripe).
-  // Used to detect plan changes when the user navigates back to the plan step.
-  const [committedTier, setCommittedTier] = useState<PlanTier | null>(null);
+  // The org ID, stored so the complete step can create a Stripe checkout session
+  const [orgId, setOrgId] = useState<string | null>(null);
 
   // ── Import: persist rows so returning to the step skips re-upload ──────────
   const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(null);
@@ -259,11 +258,6 @@ export default function WizardPage() {
     sessionStorage.setItem("wizard_portal_enabled", clientPortalEnabled ? "1" : "0");
   }, [clientPortalEnabled]);
 
-  useEffect(() => {
-    if (committedTier) {
-      sessionStorage.setItem("wizard_committed_tier", committedTier);
-    }
-  }, [committedTier]);
 
   // ── On mount: detect user type and starting step ────────────────────────────
   useEffect(() => {
@@ -311,20 +305,29 @@ export default function WizardPage() {
       const savedPortal = sessionStorage.getItem("wizard_portal_enabled");
 
       // Clean URL params without triggering a reload
-      if (sc || se || fromStripe) {
+      const fromStripeComplete = urlParams.get("from") === "stripe-complete";
+      if (sc || se || fromStripe || fromStripeComplete) {
         window.history.replaceState({}, "", window.location.pathname);
       }
 
-      // ── Handle Stripe return (URL param or sessionStorage fallback) ────
-      // This runs BEFORE the user_organisations query so it works even when
-      // the DB query fails due to stale auth state after the external redirect.
+      // ── Handle Stripe return from complete step ────────────────────
+      // After paying, the user returns to /setup/wizard?from=stripe-complete.
+      // The wizard was already completed before the Stripe redirect, so
+      // we clean up and send the user straight to their dashboard.
+      if (fromStripeComplete || savedReturnStep === "stripe-complete") {
+        sessionStorage.removeItem("wizard_admin_step");
+        sessionStorage.removeItem("wizard_portal_enabled");
+        sessionStorage.removeItem("wizard_return_step");
+        sessionStorage.removeItem("wizard_org_id");
+        const url = await getWizardDashboardUrl();
+        isNavigatingAway.current = true;
+        window.location.href = url;
+        return; // Don't setIsCheckingAuth — we're navigating away
+      }
+
+      // ── Handle legacy Stripe return (plan-step flow, pre-refactor) ──
       if (fromStripe || savedReturnStep === "stripe") {
         sessionStorage.removeItem("wizard_return_step");
-        const restoredTier = sessionStorage.getItem("wizard_committed_tier") as PlanTier | null;
-        if (restoredTier) {
-          setSelectedTier(restoredTier);
-          setCommittedTier(restoredTier);
-        }
         setUserType("new-admin");
         setOrgCreated(true);
         setAdminStep("import");
@@ -358,12 +361,9 @@ export default function WizardPage() {
           setUserType("new-admin");
           setOrgCreated(true);
 
-          // Restore committed tier so the plan step knows what was already paid for
-          const restoredTier = sessionStorage.getItem("wizard_committed_tier") as PlanTier | null;
-          if (restoredTier) {
-            setSelectedTier(restoredTier);
-            setCommittedTier(restoredTier);
-          }
+          // Restore orgId from JWT app_metadata for Stripe checkout on complete step
+          const orgIdFromJwt = user.app_metadata?.org_id;
+          if (orgIdFromJwt) setOrgId(orgIdFromJwt);
 
           // Restore wizard position from sessionStorage (covers browser-back
           // from OAuth pages and any other mid-wizard navigation)
@@ -472,6 +472,7 @@ export default function WizardPage() {
 
     try {
       const result = await createOrgAndJoinAsAdmin(firmName, slug, tier);
+      setOrgId(result.orgId);
 
       // Refresh session so JWT has org_id before advancing
       await supabase.auth.refreshSession();
@@ -480,45 +481,10 @@ export default function WizardPage() {
       // the correct limit immediately (without waiting for Stripe webhook).
       await updateOrgPlanTier(tier);
 
-      if (tier === "free") {
-        prefetchConfigDefaults();
-        setIsCreatingOrg(false);
-        setOrgCreated(true);
-        setCommittedTier("free");
-        setAdminStep("import");
-      } else {
-        // Paid plan: redirect to Stripe Checkout, return to /setup/wizard
-        const response = await fetch("/api/stripe/create-checkout-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            planTier: tier,
-            orgId: result.orgId,
-            successUrl: "/setup/wizard?from=stripe",
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          setPlanError(data.error || "Failed to start checkout. Please try again.");
-          setSelectedTier(null);
-          setIsCreatingOrg(false);
-          return;
-        }
-
-        if (data.url) {
-          setCommittedTier(tier);
-          sessionStorage.setItem("wizard_return_step", "stripe");
-          isNavigatingAway.current = true;
-          window.location.href = data.url;
-          // Don't reset loading — navigating away
-        } else {
-          setPlanError("Checkout session created but no redirect URL was returned. Please try again.");
-          setSelectedTier(null);
-          setIsCreatingOrg(false);
-        }
-      }
+      prefetchConfigDefaults();
+      setIsCreatingOrg(false);
+      setOrgCreated(true);
+      setAdminStep("import");
     } catch (err) {
       setPlanError(
         err instanceof Error
@@ -603,6 +569,7 @@ export default function WizardPage() {
 
   const handleGoToDashboard = async () => {
     setIsLeavingWizard(true);
+    setCompleteError(null);
     await seedOrgDefaultsForWizard(clientPortalEnabled);
     await markOrgSetupComplete();
     // Refresh session server-side so the .prompt.accountants cross-subdomain
@@ -611,13 +578,47 @@ export default function WizardPage() {
     // the fallback user_organisations RLS query fails, and the user is sent to
     // the marketing site instead of their dashboard.
     await refreshWizardSession();
-    // Clean up wizard sessionStorage keys
-    sessionStorage.removeItem("wizard_admin_step");
-    sessionStorage.removeItem("wizard_portal_enabled");
-    sessionStorage.removeItem("wizard_return_step");
-    sessionStorage.removeItem("wizard_committed_tier");
-    isNavigatingAway.current = true;
-    window.location.href = dashboardUrl;
+
+    if (selectedTier && selectedTier !== "free") {
+      // Paid plan — redirect to Stripe checkout, then to dashboard
+      try {
+        const response = await fetch("/api/stripe/create-checkout-session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            planTier: selectedTier,
+            orgId,
+            successUrl: "/setup/wizard?from=stripe-complete",
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          setCompleteError(data.error || "Failed to start checkout. Please try again.");
+          setIsLeavingWizard(false);
+          return;
+        }
+        if (data.url) {
+          sessionStorage.removeItem("wizard_admin_step");
+          sessionStorage.removeItem("wizard_portal_enabled");
+          sessionStorage.setItem("wizard_return_step", "stripe-complete");
+          isNavigatingAway.current = true;
+          window.location.href = data.url;
+        } else {
+          setCompleteError("Checkout session created but no redirect URL. Please try again.");
+          setIsLeavingWizard(false);
+        }
+      } catch {
+        setCompleteError("Failed to start checkout. Please try again.");
+        setIsLeavingWizard(false);
+      }
+    } else {
+      // Free plan — go straight to dashboard
+      sessionStorage.removeItem("wizard_admin_step");
+      sessionStorage.removeItem("wizard_portal_enabled");
+      sessionStorage.removeItem("wizard_return_step");
+      isNavigatingAway.current = true;
+      window.location.href = dashboardUrl;
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -930,13 +931,7 @@ export default function WizardPage() {
               buttonType="icon-text"
               onClick={() => {
                 if (!selectedTier) return;
-                if (orgCreated && selectedTier === committedTier) {
-                  // Same plan as already committed — just advance
-                  setAdminStep("import");
-                } else {
-                  // First selection, or plan changed — process via handleSelectPlan
-                  handleSelectPlan(selectedTier);
-                }
+                handleSelectPlan(selectedTier);
               }}
               disabled={!selectedTier || isCreatingOrg}
             >
@@ -1026,64 +1021,88 @@ export default function WizardPage() {
       )}
 
       {/* ── Step 6: Complete ── */}
-      {adminStep === "complete" && (
-        <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
-          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
-            <div className="space-y-1">
-              <h1 className="text-2xl font-bold tracking-tight">
-                Setup complete!
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Your firm is set up and ready to go. Start managing client
-                deadlines and sending reminders from your dashboard.
+      {adminStep === "complete" && (() => {
+        const isPaid = selectedTier && selectedTier !== "free";
+        const planInfo = PLAN_TIERS.find((p) => p.key === selectedTier);
+        return (
+          <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
+            <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
+              <div className="space-y-1">
+                <h1 className="text-2xl font-bold tracking-tight">
+                  Setup complete!
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {isPaid
+                    ? "Your firm is configured. Complete your subscription to get started."
+                    : "Your firm is set up and ready to go. Start managing client deadlines and sending reminders from your dashboard."}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Check className="size-4 text-green-600 shrink-0" />
+                  <span className="text-sm">Firm workspace created</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="size-4 text-green-600 shrink-0" />
+                  <span className="text-sm">
+                    {planInfo ? `${planInfo.name} plan selected` : "Plan selected"}
+                    {planInfo && planInfo.price ? ` — £${planInfo.price}/mo` : ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="size-4 text-green-600 shrink-0" />
+                  <span className="text-sm">Client data imported</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="size-4 text-green-600 shrink-0" />
+                  <span className="text-sm">Email sending configured</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Check className="size-4 text-green-600 shrink-0" />
+                  <span className="text-sm">Reminder settings saved</span>
+                </div>
+              </div>
+
+              {completeError && (
+                <p className="text-sm text-destructive">{completeError}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <ButtonBase
+                variant="amber"
+                buttonType="icon-text"
+                onClick={() => setAdminStep(clientPortalEnabled ? "storage" : "portal")}
+                disabled={isLeavingWizard}
+              >
+                <ArrowLeft className="size-4" />
+                Back
+              </ButtonBase>
+              <ButtonBase
+                variant="green"
+                buttonType="icon-text"
+                onClick={handleGoToDashboard}
+                disabled={isLeavingWizard}
+              >
+                {isLeavingWizard ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : isPaid ? (
+                  <>Subscribe & Go to Dashboard <ArrowRight className="size-4" /></>
+                ) : (
+                  <>Go to Dashboard <ArrowRight className="size-4" /></>
+                )}
+              </ButtonBase>
+            </div>
+
+            {isPaid && !isLeavingWizard && (
+              <p className="text-xs text-muted-foreground text-center">
+                You&apos;ll be redirected to Stripe to complete payment.
               </p>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Check className="size-4 text-green-600 shrink-0" />
-                <span className="text-sm">Firm workspace created</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Check className="size-4 text-green-600 shrink-0" />
-                <span className="text-sm">Plan selected</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Check className="size-4 text-green-600 shrink-0" />
-                <span className="text-sm">Client data imported</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Check className="size-4 text-green-600 shrink-0" />
-                <span className="text-sm">Email sending configured</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Check className="size-4 text-green-600 shrink-0" />
-                <span className="text-sm">Reminder settings saved</span>
-              </div>
-            </div>
+            )}
           </div>
-
-          <div className="flex justify-end gap-2">
-            <ButtonBase
-              variant="amber"
-              buttonType="icon-text"
-              onClick={() => setAdminStep(clientPortalEnabled ? "storage" : "portal")}
-            >
-              <ArrowLeft className="size-4" />
-              Back
-            </ButtonBase>
-            <ButtonBase
-              variant="green"
-              buttonType="icon-text"
-              onClick={handleGoToDashboard}
-              disabled={isLeavingWizard}
-            >
-              {isLeavingWizard ? <Loader2 className="size-4 animate-spin" /> : "Go to Dashboard"}
-              {!isLeavingWizard && <ArrowRight className="size-4" />}
-            </ButtonBase>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
