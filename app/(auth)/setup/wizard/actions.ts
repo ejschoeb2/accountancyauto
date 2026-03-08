@@ -85,6 +85,41 @@ export async function updateOrgPlanTier(
 }
 
 /**
+ * Delete all clients belonging to the current user's organisation.
+ *
+ * Used during the wizard when the user switches to a plan with a lower
+ * client limit after already importing clients. Uses the admin client
+ * because the org may not have an active subscription yet (bypasses
+ * requireWriteAccess billing check).
+ */
+export async function deleteAllWizardClients(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  const { error } = await admin
+    .from("clients")
+    .delete()
+    .eq("org_id", membership.org_id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
+/**
  * Seeds default email templates and reminder schedules at the end of the
  * wizard, once the portal choice is known.
  *
@@ -346,8 +381,8 @@ export async function createOrgAndJoinAsAdmin(
 
   // 3. Mark onboarding complete in app_settings
   await admin.from("app_settings").upsert(
-    { org_id: org.id, key: "onboarding_complete", value: "true" },
-    { onConflict: "org_id,key" }
+    { org_id: org.id, user_id: null, key: "onboarding_complete", value: "true" },
+    { onConflict: "org_id,user_id,key" }
   );
 
   // Note: default email templates and schedules are seeded at wizard

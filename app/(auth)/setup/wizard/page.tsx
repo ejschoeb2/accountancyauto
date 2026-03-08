@@ -10,6 +10,16 @@ import {
   ArrowLeft,
   ArrowRight,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonBase } from "@/components/ui/button-base";
 import { Input } from "@/components/ui/input";
@@ -29,6 +39,7 @@ import type { UploadCheckMode } from "@/app/actions/settings";
 import {
   checkSlugAvailable,
   createOrgAndJoinAsAdmin,
+  deleteAllWizardClients,
   getWizardDashboardUrl,
   markOrgSetupComplete,
   refreshWizardSession,
@@ -114,6 +125,7 @@ const PLAN_TIERS = [
     price: 0 as number | null,
     priceNote: "forever free",
     range: "Up to 10 clients",
+    clientLimit: 10,
     tagline: "Get started at no cost. Upgrade naturally when your practice grows.",
     featured: false,
   },
@@ -123,6 +135,7 @@ const PLAN_TIERS = [
     price: 19 as number | null,
     priceNote: "/mo",
     range: "11 – 40 clients",
+    clientLimit: 40,
     tagline: "For sole traders and bookkeepers managing a small client list.",
     featured: false,
   },
@@ -132,6 +145,7 @@ const PLAN_TIERS = [
     price: 39 as number | null,
     priceNote: "/mo",
     range: "41 – 80 clients",
+    clientLimit: 80,
     tagline: "For independent accountants and small practices.",
     featured: false,
   },
@@ -141,6 +155,7 @@ const PLAN_TIERS = [
     price: 69 as number | null,
     priceNote: "/mo",
     range: "81 – 200 clients",
+    clientLimit: 200,
     tagline: "For growing practices managing a wide range of deadlines.",
     featured: true,
   },
@@ -150,6 +165,7 @@ const PLAN_TIERS = [
     price: 109 as number | null,
     priceNote: "/mo",
     range: "201 – 400 clients",
+    clientLimit: 400,
     tagline: "For established firms with a broad portfolio of clients.",
     featured: false,
   },
@@ -200,6 +216,9 @@ export default function WizardPage() {
   const [planError, setPlanError] = useState<string | null>(null);
   // The org ID, stored so the complete step can create a Stripe checkout session
   const [orgId, setOrgId] = useState<string | null>(null);
+  // Downgrade confirmation dialog state
+  const [showDowngradeAlert, setShowDowngradeAlert] = useState(false);
+  const [pendingDowngradeTier, setPendingDowngradeTier] = useState<PlanTier | null>(null);
 
   // ── Import: persist rows so returning to the step skips re-upload ──────────
   const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(null);
@@ -493,6 +512,49 @@ export default function WizardPage() {
       );
       setSelectedTier(null);
       setIsCreatingOrg(false);
+    }
+  };
+
+  /** Check whether switching plans requires deleting imported clients. */
+  const handlePlanNext = () => {
+    if (!selectedTier) return;
+
+    // If clients have been imported and the new plan has a lower limit,
+    // show a confirmation dialog before proceeding.
+    if (savedImportRows && savedImportRows.length > 0 && orgCreated) {
+      const newLimit = PLAN_TIERS.find((p) => p.key === selectedTier)?.clientLimit ?? Infinity;
+
+      if (newLimit < savedImportRows.length) {
+        setPendingDowngradeTier(selectedTier);
+        setShowDowngradeAlert(true);
+        return;
+      }
+    }
+
+    handleSelectPlan(selectedTier);
+  };
+
+  /** Confirmed downgrade — delete imported clients and proceed. */
+  const handleConfirmDowngrade = async () => {
+    setShowDowngradeAlert(false);
+    if (!pendingDowngradeTier) return;
+
+    setIsCreatingOrg(true);
+    setPlanError(null);
+
+    try {
+      await deleteAllWizardClients();
+      setSavedImportRows(null);
+      await handleSelectPlan(pendingDowngradeTier);
+    } catch (err) {
+      setPlanError(
+        err instanceof Error
+          ? err.message
+          : "Failed to remove imported clients. Please try again."
+      );
+      setIsCreatingOrg(false);
+    } finally {
+      setPendingDowngradeTier(null);
     }
   };
 
@@ -929,10 +991,7 @@ export default function WizardPage() {
             <ButtonBase
               variant="green"
               buttonType="icon-text"
-              onClick={() => {
-                if (!selectedTier) return;
-                handleSelectPlan(selectedTier);
-              }}
+              onClick={handlePlanNext}
               disabled={!selectedTier || isCreatingOrg}
             >
               {isCreatingOrg ? (
@@ -944,6 +1003,29 @@ export default function WizardPage() {
           </div>
         </div>
       )}
+
+      {/* ── Plan downgrade confirmation ── */}
+      <AlertDialog open={showDowngradeAlert} onOpenChange={setShowDowngradeAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The {PLAN_TIERS.find((p) => p.key === pendingDowngradeTier)?.name} plan supports up to{" "}
+              {PLAN_TIERS.find((p) => p.key === pendingDowngradeTier)?.clientLimit} clients, but you&apos;ve
+              imported {savedImportRows?.length ?? 0}. Switching will remove all imported clients so you can
+              re-import within the new limit.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingDowngradeTier(null)}>
+              Keep Current Plan
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDowngrade}>
+              Switch & Remove Clients
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── Step 4: Import Clients ── */}
       {adminStep === "import" && (
