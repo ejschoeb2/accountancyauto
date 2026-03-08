@@ -288,57 +288,64 @@ export default function WizardPage() {
         await supabase.auth.refreshSession();
       }
 
-      // Check whether user has an org
-      const { data: userOrg } = await supabase
-        .from("user_organisations")
-        .select("org_id, role")
-        .eq("user_id", user.id)
-        .limit(1)
-        .maybeSingle();
+      // ── Detect external return params BEFORE the org query ──────────────
+      // URL params and sessionStorage must be read before the user_organisations
+      // query because returning from an external domain (Stripe checkout) can
+      // leave the browser session in a state where the RLS-gated query returns
+      // no rows — causing the wizard to fall back to the "firm" step.
+      const sc = urlParams.get("storage_connected");
+      const se = urlParams.get("storage_error");
+      const fromStripe = urlParams.get("from") === "stripe";
+      const savedReturnStep = sessionStorage.getItem("wizard_return_step");
+      const savedAdminStep = sessionStorage.getItem("wizard_admin_step");
+      const savedPortal = sessionStorage.getItem("wizard_portal_enabled");
 
-      if (!userOrg?.org_id) {
-        // Authenticated but no org → new-admin, start at firm
-        setUserType("new-admin");
-        setAdminStep("firm");
-      } else if (userOrg.role === "admin") {
-        const sc = urlParams.get("storage_connected");
-        const se = urlParams.get("storage_error");
-        const fromStripe = urlParams.get("from") === "stripe";
+      // Clean URL params without triggering a reload
+      if (sc || se || fromStripe) {
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+
+      // ── Handle Stripe return (URL param or sessionStorage fallback) ────
+      // This runs BEFORE the user_organisations query so it works even when
+      // the DB query fails due to stale auth state after the external redirect.
+      if (fromStripe || savedReturnStep === "stripe") {
+        sessionStorage.removeItem("wizard_return_step");
         setUserType("new-admin");
         setOrgCreated(true);
+        setAdminStep("import");
+        prefetchConfigDefaults();
+      }
+      // ── Handle storage OAuth return ────────────────────────────────────
+      else if (sc || se) {
+        sessionStorage.removeItem("wizard_return_step");
+        setUserType("new-admin");
+        setOrgCreated(true);
+        setStorageConnected(sc);
+        setStorageError(se);
+        setAdminStep("storage");
+        const url = await getWizardDashboardUrl();
+        setDashboardUrl(url);
+      }
+      // ── No external return — check org membership normally ─────────────
+      else {
+        const { data: userOrg } = await supabase
+          .from("user_organisations")
+          .select("org_id, role")
+          .eq("user_id", user.id)
+          .limit(1)
+          .maybeSingle();
 
-        // Clean URL params without triggering a reload
-        if (sc || se || fromStripe) {
-          window.history.replaceState({}, "", window.location.pathname);
-        }
+        if (!userOrg?.org_id) {
+          // Authenticated but no org → new-admin, start at firm
+          setUserType("new-admin");
+          setAdminStep("firm");
+        } else if (userOrg.role === "admin") {
+          setUserType("new-admin");
+          setOrgCreated(true);
 
-        if (sc || se) {
-          // Returning from storage OAuth (success or failure via callback redirect)
-          sessionStorage.removeItem("wizard_return_step");
-          setStorageConnected(sc);
-          setStorageError(se);
-          setAdminStep("storage");
-          const url = await getWizardDashboardUrl();
-          setDashboardUrl(url);
-        } else if (fromStripe) {
-          // Returning from Stripe checkout — advance to import
-          sessionStorage.removeItem("wizard_return_step");
-          setAdminStep("import");
-          prefetchConfigDefaults();
-        } else {
-          // Restore wizard position from sessionStorage (covers browser-back from
-          // OAuth pages and any other mid-wizard navigation)
-          const savedReturnStep = sessionStorage.getItem("wizard_return_step");
-          const savedAdminStep = sessionStorage.getItem("wizard_admin_step");
-          const savedPortal = sessionStorage.getItem("wizard_portal_enabled");
-
-          if (savedReturnStep === "stripe") {
-            // Returning from Stripe checkout (sessionStorage fallback) — advance to import
-            sessionStorage.removeItem("wizard_return_step");
-            setAdminStep("import");
-            prefetchConfigDefaults();
-          } else if (savedReturnStep === "storage" || savedAdminStep === "storage") {
-            // Returning from storage OAuth (failed before callback, or browser-back)
+          // Restore wizard position from sessionStorage (covers browser-back
+          // from OAuth pages and any other mid-wizard navigation)
+          if (savedReturnStep === "storage" || savedAdminStep === "storage") {
             sessionStorage.removeItem("wizard_return_step");
             if (savedPortal !== null) setClientPortalEnabled(savedPortal === "1");
             setAdminStep("storage");
@@ -361,12 +368,12 @@ export default function WizardPage() {
             setAdminStep("import");
             prefetchConfigDefaults();
           }
+        } else {
+          // Invited member → 2-step flow, start at import
+          setUserType("invited-member");
+          setMemberStep(0);
+          prefetchConfigDefaults();
         }
-      } else {
-        // Invited member → 2-step flow, start at import
-        setUserType("invited-member");
-        setMemberStep(0);
-        prefetchConfigDefaults();
       }
 
       setIsCheckingAuth(false);
