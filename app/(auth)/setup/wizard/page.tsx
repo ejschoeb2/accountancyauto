@@ -33,6 +33,7 @@ import {
   markOrgSetupComplete,
   refreshWizardSession,
   seedOrgDefaultsForWizard,
+  updateOrgPlanTier,
 } from "./actions";
 import {
   markMemberSetupComplete,
@@ -197,6 +198,9 @@ export default function WizardPage() {
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
   const [orgCreated, setOrgCreated] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  // The tier that was actually committed (free chosen, or paid tier sent to Stripe).
+  // Used to detect plan changes when the user navigates back to the plan step.
+  const [committedTier, setCommittedTier] = useState<PlanTier | null>(null);
 
   // ── Import: persist rows so returning to the step skips re-upload ──────────
   const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(null);
@@ -255,6 +259,12 @@ export default function WizardPage() {
     sessionStorage.setItem("wizard_portal_enabled", clientPortalEnabled ? "1" : "0");
   }, [clientPortalEnabled]);
 
+  useEffect(() => {
+    if (committedTier) {
+      sessionStorage.setItem("wizard_committed_tier", committedTier);
+    }
+  }, [committedTier]);
+
   // ── On mount: detect user type and starting step ────────────────────────────
   useEffect(() => {
     (async () => {
@@ -310,6 +320,11 @@ export default function WizardPage() {
       // the DB query fails due to stale auth state after the external redirect.
       if (fromStripe || savedReturnStep === "stripe") {
         sessionStorage.removeItem("wizard_return_step");
+        const restoredTier = sessionStorage.getItem("wizard_committed_tier") as PlanTier | null;
+        if (restoredTier) {
+          setSelectedTier(restoredTier);
+          setCommittedTier(restoredTier);
+        }
         setUserType("new-admin");
         setOrgCreated(true);
         setAdminStep("import");
@@ -342,6 +357,13 @@ export default function WizardPage() {
         } else if (userOrg.role === "admin") {
           setUserType("new-admin");
           setOrgCreated(true);
+
+          // Restore committed tier so the plan step knows what was already paid for
+          const restoredTier = sessionStorage.getItem("wizard_committed_tier") as PlanTier | null;
+          if (restoredTier) {
+            setSelectedTier(restoredTier);
+            setCommittedTier(restoredTier);
+          }
 
           // Restore wizard position from sessionStorage (covers browser-back
           // from OAuth pages and any other mid-wizard navigation)
@@ -454,10 +476,15 @@ export default function WizardPage() {
       // Refresh session so JWT has org_id before advancing
       await supabase.auth.refreshSession();
 
+      // Update plan tier + client_count_limit so the import step sees
+      // the correct limit immediately (without waiting for Stripe webhook).
+      await updateOrgPlanTier(tier);
+
       if (tier === "free") {
         prefetchConfigDefaults();
         setIsCreatingOrg(false);
         setOrgCreated(true);
+        setCommittedTier("free");
         setAdminStep("import");
       } else {
         // Paid plan: redirect to Stripe Checkout, return to /setup/wizard
@@ -481,6 +508,7 @@ export default function WizardPage() {
         }
 
         if (data.url) {
+          setCommittedTier(tier);
           sessionStorage.setItem("wizard_return_step", "stripe");
           isNavigatingAway.current = true;
           window.location.href = data.url;
@@ -587,6 +615,7 @@ export default function WizardPage() {
     sessionStorage.removeItem("wizard_admin_step");
     sessionStorage.removeItem("wizard_portal_enabled");
     sessionStorage.removeItem("wizard_return_step");
+    sessionStorage.removeItem("wizard_committed_tier");
     isNavigatingAway.current = true;
     window.location.href = dashboardUrl;
   };
@@ -900,13 +929,16 @@ export default function WizardPage() {
               variant="green"
               buttonType="icon-text"
               onClick={() => {
-                if (orgCreated) {
+                if (!selectedTier) return;
+                if (orgCreated && selectedTier === committedTier) {
+                  // Same plan as already committed — just advance
                   setAdminStep("import");
-                } else if (selectedTier) {
+                } else {
+                  // First selection, or plan changed — process via handleSelectPlan
                   handleSelectPlan(selectedTier);
                 }
               }}
-              disabled={!orgCreated && (!selectedTier || isCreatingOrg)}
+              disabled={!selectedTier || isCreatingOrg}
             >
               {isCreatingOrg ? (
                 <><Loader2 className="size-4 animate-spin" /> Processing...</>

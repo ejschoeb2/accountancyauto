@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { seedOrgDefaults } from "@/lib/onboarding/seed-defaults";
-import type { PlanTier } from "@/lib/stripe/plans";
+import { type PlanTier, getPlanByTier } from "@/lib/stripe/plans";
 import {
   createOrgServer,
   createOrgDomain,
@@ -37,6 +37,47 @@ export async function markOrgSetupComplete(): Promise<{ error?: string }> {
   const { error } = await admin
     .from("organisations")
     .update({ setup_complete: true })
+    .eq("id", membership.org_id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
+/**
+ * Update the organisation's plan_tier and client_count_limit to match
+ * the selected tier.
+ *
+ * Called during the wizard plan step so the import step sees the correct
+ * client limit immediately — without waiting for the async Stripe webhook.
+ * Idempotent: safe to call multiple times with the same or different tier.
+ */
+export async function updateOrgPlanTier(
+  planTier: PlanTier
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  const plan = getPlanByTier(planTier);
+  const { error } = await admin
+    .from("organisations")
+    .update({
+      plan_tier: planTier,
+      client_count_limit: plan.clientLimit,
+    })
     .eq("id", membership.org_id);
 
   if (error) return { error: error.message };
