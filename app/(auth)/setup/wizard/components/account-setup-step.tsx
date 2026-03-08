@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Loader2, ArrowRight, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ButtonBase } from "@/components/ui/button-base";
@@ -116,12 +116,13 @@ export function AccountSetupStep({
   // ── Verify sub-step ────────────────────────────────────────────────────────
   if (subStep === "verify") {
     return (
-      <div className="max-w-md mx-auto space-y-4 min-h-[520px]">
+      <div className="flex justify-center min-h-[520px]">
+        <div className="w-full max-w-md space-y-4">
         <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">Verify your email address</h1>
             <p className="text-sm text-muted-foreground">
-              We sent a 6-digit code to{" "}
+              We sent a code to{" "}
               <span className="font-medium text-foreground">{email}</span>.
               Enter it below to verify your account.
             </p>
@@ -150,10 +151,10 @@ export function AccountSetupStep({
                 id="otp"
                 type="text"
                 inputMode="numeric"
-                placeholder="000000"
+                placeholder="00000000"
                 value={otp}
                 onChange={(e) => {
-                  setOtp(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setOtp(e.target.value.replace(/\D/g, "").slice(0, 8));
                   setError(null);
                 }}
                 required
@@ -164,46 +165,38 @@ export function AccountSetupStep({
               />
             </div>
 
-            <ButtonBase
-              variant="green"
-              buttonType="icon-text"
-              onClick={handleVerify as unknown as React.MouseEventHandler}
-              disabled={isLoading || otp.length < 6}
-            >
-              {isLoading ? (
-                <><Loader2 className="size-4 animate-spin" /> Verifying...</>
-              ) : (
-                <>Verify email <ArrowRight className="size-4" /></>
-              )}
-            </ButtonBase>
+            <div className="flex justify-end">
+              <ButtonBase
+                variant="green"
+                buttonType="icon-text"
+                onClick={handleVerify as unknown as React.MouseEventHandler}
+                disabled={isLoading || otp.length < 1}
+              >
+                {isLoading ? (
+                  <><Loader2 className="size-4 animate-spin" /> Verifying...</>
+                ) : (
+                  <>Verify email <ArrowRight className="size-4" /></>
+                )}
+              </ButtonBase>
+            </div>
           </form>
 
-          <div className="flex flex-col items-center gap-2 pt-1">
-            <button
-              type="button"
+          <div className="flex justify-start">
+            <ButtonBase
+              variant="muted"
+              buttonType="icon-text"
               onClick={handleResend}
               disabled={isResending || resendCooldown > 0}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
+              <RefreshCw className="size-4" />
               {isResending
                 ? "Sending..."
                 : resendCooldown > 0
                 ? `Send again in ${resendCooldown}s`
                 : "Send code again"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSubStep("details");
-                setOtp("");
-                setError(null);
-                setResendMessage(null);
-              }}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              ← Use a different email
-            </button>
+            </ButtonBase>
           </div>
+        </div>
         </div>
       </div>
     );
