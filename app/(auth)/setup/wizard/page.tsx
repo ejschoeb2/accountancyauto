@@ -302,8 +302,15 @@ export default function WizardPage() {
         const urlParams = new URLSearchParams(window.location.search);
         const sc = urlParams.get("storage_connected");
         const se = urlParams.get("storage_error");
+        const fromStripe = urlParams.get("from") === "stripe";
         setUserType("new-admin");
         setOrgCreated(true);
+
+        // Clean URL params without triggering a reload
+        if (sc || se || fromStripe) {
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+
         if (sc || se) {
           // Returning from storage OAuth (success or failure via callback redirect)
           sessionStorage.removeItem("wizard_return_step");
@@ -312,6 +319,11 @@ export default function WizardPage() {
           setAdminStep("storage");
           const url = await getWizardDashboardUrl();
           setDashboardUrl(url);
+        } else if (fromStripe) {
+          // Returning from Stripe checkout — advance to import
+          sessionStorage.removeItem("wizard_return_step");
+          setAdminStep("import");
+          prefetchConfigDefaults();
         } else {
           // Restore wizard position from sessionStorage (covers browser-back from
           // OAuth pages and any other mid-wizard navigation)
@@ -320,7 +332,7 @@ export default function WizardPage() {
           const savedPortal = sessionStorage.getItem("wizard_portal_enabled");
 
           if (savedReturnStep === "stripe") {
-            // Returning from Stripe checkout — advance to import
+            // Returning from Stripe checkout (sessionStorage fallback) — advance to import
             sessionStorage.removeItem("wizard_return_step");
             setAdminStep("import");
             prefetchConfigDefaults();
@@ -447,7 +459,7 @@ export default function WizardPage() {
           body: JSON.stringify({
             planTier: tier,
             orgId: result.orgId,
-            successUrl: "/setup/wizard",
+            successUrl: "/setup/wizard?from=stripe",
           }),
         });
 
