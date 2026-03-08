@@ -164,38 +164,35 @@ export function AccountSetupStep({
                 autoFocus
               />
             </div>
-
-            <div className="flex justify-end">
-              <ButtonBase
-                variant="green"
-                buttonType="icon-text"
-                onClick={handleVerify as unknown as React.MouseEventHandler}
-                disabled={isLoading || otp.length < 1}
-              >
-                {isLoading ? (
-                  <><Loader2 className="size-4 animate-spin" /> Verifying...</>
-                ) : (
-                  <>Verify email <ArrowRight className="size-4" /></>
-                )}
-              </ButtonBase>
-            </div>
           </form>
+        </div>
 
-          <div className="flex justify-start">
-            <ButtonBase
-              variant="muted"
-              buttonType="icon-text"
-              onClick={handleResend}
-              disabled={isResending || resendCooldown > 0}
-            >
-              <RefreshCw className="size-4" />
-              {isResending
-                ? "Sending..."
-                : resendCooldown > 0
-                ? `Send again in ${resendCooldown}s`
-                : "Send code again"}
-            </ButtonBase>
-          </div>
+        <div className="flex justify-between gap-2">
+          <ButtonBase
+            variant="blue"
+            buttonType="icon-text"
+            onClick={handleResend}
+            disabled={isResending || resendCooldown > 0}
+          >
+            <RefreshCw className="size-4" />
+            {isResending
+              ? "Sending..."
+              : resendCooldown > 0
+              ? `Send again in ${resendCooldown}s`
+              : "Send code again"}
+          </ButtonBase>
+          <ButtonBase
+            variant="green"
+            buttonType="icon-text"
+            onClick={handleVerify as unknown as React.MouseEventHandler}
+            disabled={isLoading || otp.length < 1}
+          >
+            {isLoading ? (
+              <><Loader2 className="size-4 animate-spin" /> Verifying...</>
+            ) : (
+              <>Verify email <ArrowRight className="size-4" /></>
+            )}
+          </ButtonBase>
         </div>
         </div>
       </div>
@@ -209,7 +206,7 @@ export function AccountSetupStep({
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
           <p className="text-sm text-muted-foreground">
-            Free for up to 25 clients, no card required.
+            Free for up to 10 clients, no card required.
           </p>
         </div>
 

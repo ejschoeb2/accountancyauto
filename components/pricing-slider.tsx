@@ -24,26 +24,26 @@ interface TierInfo {
 }
 
 function getTier(clients: number): TierInfo {
-  if (clients <= 20) return {
-    key: "free", name: "Free", range: "Up to 20 clients",
+  if (clients <= 10) return {
+    key: "free", name: "Free", range: "Up to 10 clients",
     tagline: "Get started at no cost. Upgrade naturally when your practice grows.",
     featured: false, isEnterprise: false,
     price: 0, cta: "Start Free", ctaHref: "/signup",
   };
-  if (clients <= 50) return {
-    key: "solo", name: "Solo", range: "21 – 50 clients",
+  if (clients <= 40) return {
+    key: "solo", name: "Solo", range: "11 – 40 clients",
     tagline: "For sole traders and bookkeepers managing a small client list.",
     featured: false, isEnterprise: false,
     price: 19, cta: "Get Started", ctaHref: "/signup",
   };
-  if (clients <= 100) return {
-    key: "starter", name: "Starter", range: "51 – 100 clients",
+  if (clients <= 80) return {
+    key: "starter", name: "Starter", range: "41 – 80 clients",
     tagline: "For independent accountants and small practices.",
     featured: false, isEnterprise: false,
     price: 39, cta: "Get Started", ctaHref: "/signup",
   };
   if (clients <= 200) return {
-    key: "practice", name: "Practice", range: "101 – 200 clients",
+    key: "practice", name: "Practice", range: "81 – 200 clients",
     tagline: "For growing practices managing a wide range of deadlines.",
     featured: true, isEnterprise: false,
     price: 69, cta: "Get Started", ctaHref: "/signup",

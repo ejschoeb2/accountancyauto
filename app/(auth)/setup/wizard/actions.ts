@@ -75,6 +75,23 @@ export async function seedOrgDefaultsForWizard(
 }
 
 /**
+ * Force a server-side session refresh so the `.prompt.accountants` cross-subdomain
+ * cookie is updated with a JWT that includes org_id in app_metadata.
+ *
+ * Problem: client-side refreshSession() (createBrowserClient) writes cookies
+ * without a domain attribute, so they only apply to the root domain. The
+ * middleware previously wrote `.prompt.accountants` cookies that are sent to
+ * subdomains — but those may be stale (missing org_id) if the org was created
+ * after the last middleware-triggered refresh. Calling refreshSession() here
+ * goes through the server-side createClient(), whose setAll() writes with
+ * domain=".prompt.accountants", updating the cross-subdomain cookie.
+ */
+export async function refreshWizardSession(): Promise<void> {
+  const supabase = await createClient();
+  await supabase.auth.refreshSession();
+}
+
+/**
  * Resolve the dashboard URL for the current user after wizard completion.
  *
  * Uses the admin client to bypass RLS — safe because we verify the user's
@@ -259,7 +276,7 @@ export async function createOrgAndJoinAsAdmin(
       slug,
       plan_tier: "free",
       subscription_status: "active",
-      client_count_limit: 25,
+      client_count_limit: 10,
       postmark_server_token: process.env.POSTMARK_SERVER_TOKEN ?? null,
       postmark_sender_domain: process.env.POSTMARK_SENDER_DOMAIN ?? null,
     })

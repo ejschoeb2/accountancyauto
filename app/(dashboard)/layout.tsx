@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
-import { Brain } from "lucide-react";
+import { Brain, XCircle, AlertTriangle } from "lucide-react";
 import { NavLinks } from "@/components/nav-links";
 import { MobileNav } from "@/components/mobile-nav";
 import { HelpLink } from "@/components/help-link";
 import { SettingsLink } from "@/components/settings-link";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/auth/org-context";
-import { isOrgReadOnly } from "@/lib/billing/read-only-mode";
 import { DocumentNotificationMount } from "@/app/(dashboard)/components/document-notification-mount";
 
 
@@ -27,8 +26,8 @@ export default async function DashboardLayout({
 
   const isSuperAdmin = user?.app_metadata?.is_super_admin === true;
 
-  // Check if org is in read-only mode (lapsed subscription) and fetch org name
-  let readOnly = false;
+  // Fetch org data for banners and name
+  let subscriptionStatus: string | null = null;
   let needsReauth = false;
   let orgName = '';
   let orgRole = 'member';
@@ -36,7 +35,6 @@ export default async function DashboardLayout({
   try {
     const { orgId, orgRole: role } = await getOrgContext();
     orgRole = role;
-    readOnly = await isOrgReadOnly(orgId);
 
     // Gate: members must complete the wizard before accessing the dashboard
     if (role === "member") {
@@ -49,11 +47,19 @@ export default async function DashboardLayout({
 
     const { data: org } = await supabase
       .from('organisations')
-      .select('name, storage_backend_status, storage_backend')
+      .select('name, storage_backend_status, storage_backend, subscription_status, trial_ends_at')
       .eq('id', orgId)
       .single();
     orgName = org?.name || '';
     needsReauth = org?.storage_backend_status === 'reauth_required';
+
+    // Determine if subscription is inactive
+    const status = org?.subscription_status;
+    const trialEnd = org?.trial_ends_at ? new Date(org.trial_ends_at) : null;
+    const trialExpired = status === 'trialing' && trialEnd && trialEnd <= new Date();
+    if (status === 'unpaid' || status === 'cancelled' || status === 'past_due' || trialExpired) {
+      subscriptionStatus = status;
+    }
     providerName =
       org?.storage_backend === 'google_drive' ? 'Google Drive'
       : org?.storage_backend === 'onedrive' ? 'Microsoft OneDrive'
@@ -97,16 +103,32 @@ export default async function DashboardLayout({
         </div>
       </header>
 
-      {/* Read-only mode banner */}
-      {readOnly && (
-        <div className="bg-amber-50 border-b border-amber-200 px-8 py-3">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <p className="text-sm text-amber-800">
-              Your subscription is inactive. Your data is safe but you cannot make changes until your billing is updated.
+      {/* Inactive subscription alert */}
+      {(subscriptionStatus === 'unpaid' || subscriptionStatus === 'cancelled') && (
+        <div className="border-b px-8 py-3 bg-red-500/10">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            <XCircle className="size-5 text-red-500 shrink-0" />
+            <p className="text-sm text-red-500 flex-1">
+              Your subscription is inactive. Your account is in read-only mode.{' '}
+              <a href="/settings?tab=billing" className="font-medium underline hover:text-red-400">
+                Update your plan
+              </a>{' '}
+              to restore full access.
             </p>
-            <a href="/billing" className="text-sm font-medium text-amber-900 hover:text-amber-700 underline">
-              Update billing
-            </a>
+          </div>
+        </div>
+      )}
+      {subscriptionStatus === 'past_due' && (
+        <div className="border-b px-8 py-3 bg-amber-500/10">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            <AlertTriangle className="size-5 text-amber-600 shrink-0" />
+            <p className="text-sm text-amber-600 flex-1">
+              Your payment is overdue.{' '}
+              <a href="/settings?tab=billing" className="font-medium underline hover:text-amber-500">
+                Update your billing details
+              </a>{' '}
+              to avoid losing access.
+            </p>
           </div>
         </div>
       )}

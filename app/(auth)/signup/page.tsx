@@ -85,7 +85,7 @@ function SignupForm() {
             <p className="text-sm text-muted-foreground">
               {inviteOrg
                 ? "You'll be taken straight to the invite after signing up."
-                : "Free for up to 25 clients, no card required"}
+                : "Free for up to 10 clients, no card required"}
             </p>
           </div>
 

@@ -332,7 +332,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_STARTER=price_...
 ```
 
-**What it is:** The Stripe Price ID for the **Starter** plan (£39/mo, up to 100 clients).
+**What it is:** The Stripe Price ID for the **Starter** plan (£39/mo, up to 80 clients).
 
 **Previously named:** `STRIPE_PRICE_SOLE_TRADER` — renamed when the tier was renamed from Sole Trader → Starter. Update your `.env.local` and Vercel environment accordingly.
 

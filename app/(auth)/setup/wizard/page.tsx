@@ -31,6 +31,7 @@ import {
   createOrgAndJoinAsAdmin,
   getWizardDashboardUrl,
   markOrgSetupComplete,
+  refreshWizardSession,
   seedOrgDefaultsForWizard,
 } from "./actions";
 import {
@@ -111,7 +112,7 @@ const PLAN_TIERS = [
     name: "Free",
     price: 0 as number | null,
     priceNote: "forever free",
-    range: "Up to 20 clients",
+    range: "Up to 10 clients",
     tagline: "Get started at no cost. Upgrade naturally when your practice grows.",
     featured: false,
   },
@@ -120,7 +121,7 @@ const PLAN_TIERS = [
     name: "Solo",
     price: 19 as number | null,
     priceNote: "/mo",
-    range: "21 – 50 clients",
+    range: "11 – 40 clients",
     tagline: "For sole traders and bookkeepers managing a small client list.",
     featured: false,
   },
@@ -129,7 +130,7 @@ const PLAN_TIERS = [
     name: "Starter",
     price: 39 as number | null,
     priceNote: "/mo",
-    range: "51 – 100 clients",
+    range: "41 – 80 clients",
     tagline: "For independent accountants and small practices.",
     featured: false,
   },
@@ -138,7 +139,7 @@ const PLAN_TIERS = [
     name: "Practice",
     price: 69 as number | null,
     priceNote: "/mo",
-    range: "101 – 200 clients",
+    range: "81 – 200 clients",
     tagline: "For growing practices managing a wide range of deadlines.",
     featured: true,
   },
@@ -229,29 +230,14 @@ export default function WizardPage() {
   // Set to true before intentional navigations so the beforeunload guard doesn't fire
   const isNavigatingAway = useRef(false);
 
-  // ── Warn before unload / redirect to home on reload ────────────────────────
+  // ── Guard against accidental unload (only when no restorable state) ────────
   useEffect(() => {
-    // Redirect to home if the user reloads mid-wizard — but NOT when returning
-    // from an OAuth flow (storage_connected/storage_error params) or when
-    // sessionStorage can restore the wizard position.
-    const navEntries = performance.getEntriesByType("navigation");
-    if (
-      navEntries.length > 0 &&
-      (navEntries[0] as PerformanceNavigationTiming).type === "reload"
-    ) {
-      const params = new URLSearchParams(window.location.search);
-      const isOAuthReturn = params.has("storage_connected") || params.has("storage_error");
-      const hasRestorableState = !!sessionStorage.getItem("wizard_admin_step");
-      if (!isOAuthReturn && !hasRestorableState) {
-        router.replace("/");
-        return;
-      }
-    }
-
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isNavigatingAway.current) return;
+      // If wizard progress is saved, reload is safe — skip the warning
+      if (sessionStorage.getItem("wizard_admin_step")) return;
       e.preventDefault();
-      e.returnValue = "Refreshing will reset the setup wizard and you'll need to start again.";
+      e.returnValue = "You haven't completed setup yet. Are you sure you want to leave?";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -293,6 +279,13 @@ export default function WizardPage() {
         return;
       }
 
+      // If returning from an external redirect (Stripe checkout, OAuth), the
+      // access token may be stale. Refresh so the JWT has the latest
+      // app_metadata (including org_id) — required by RLS on user_organisations.
+      if (sessionStorage.getItem("wizard_return_step") || sessionStorage.getItem("wizard_admin_step")) {
+        await supabase.auth.refreshSession();
+      }
+
       // Check whether user has an org
       const { data: userOrg } = await supabase
         .from("user_organisations")
@@ -326,7 +319,12 @@ export default function WizardPage() {
           const savedAdminStep = sessionStorage.getItem("wizard_admin_step");
           const savedPortal = sessionStorage.getItem("wizard_portal_enabled");
 
-          if (savedReturnStep === "storage" || savedAdminStep === "storage") {
+          if (savedReturnStep === "stripe") {
+            // Returning from Stripe checkout — advance to import
+            sessionStorage.removeItem("wizard_return_step");
+            setAdminStep("import");
+            prefetchConfigDefaults();
+          } else if (savedReturnStep === "storage" || savedAdminStep === "storage") {
             // Returning from storage OAuth (failed before callback, or browser-back)
             sessionStorage.removeItem("wizard_return_step");
             if (savedPortal !== null) setClientPortalEnabled(savedPortal === "1");
@@ -346,7 +344,7 @@ export default function WizardPage() {
               setDashboardUrl(url);
             }
           } else {
-            // Returning from Stripe, start at import
+            // Fallback: start at import
             setAdminStep("import");
             prefetchConfigDefaults();
           }
@@ -463,6 +461,8 @@ export default function WizardPage() {
         }
 
         if (data.url) {
+          sessionStorage.setItem("wizard_return_step", "stripe");
+          isNavigatingAway.current = true;
           window.location.href = data.url;
           // Don't reset loading — navigating away
         } else {
@@ -557,6 +557,12 @@ export default function WizardPage() {
     setIsLeavingWizard(true);
     await seedOrgDefaultsForWizard(clientPortalEnabled);
     await markOrgSetupComplete();
+    // Refresh session server-side so the .prompt.accountants cross-subdomain
+    // cookie gets an updated JWT with org_id in app_metadata. Without this,
+    // the stale cookie (set before org creation) reaches the subdomain middleware,
+    // the fallback user_organisations RLS query fails, and the user is sent to
+    // the marketing site instead of their dashboard.
+    await refreshWizardSession();
     // Clean up wizard sessionStorage keys
     sessionStorage.removeItem("wizard_admin_step");
     sessionStorage.removeItem("wizard_portal_enabled");

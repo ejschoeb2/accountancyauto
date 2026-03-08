@@ -68,17 +68,27 @@ export function AlertFeed() {
                   href={`/clients/${a.client_id}`}
                   className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
                 >
+                  {/* Left: Client name */}
                   <div className="flex items-center gap-2 min-w-0 flex-1">
                     <span className="font-medium text-sm truncate">
                       {getClientName(a)}
                     </span>
-                    <span className="text-sm text-muted-foreground truncate">
-                      {a.document_types?.label ?? a.original_filename}
+                  </div>
+
+                  {/* Right: Document type badge + divider + time */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {(a.document_types?.label ?? a.original_filename) && (
+                      <div className="px-3 py-2 rounded-md inline-flex items-center bg-sky-500/10">
+                        <span className="text-sm font-medium text-sky-500">
+                          {a.document_types?.label ?? a.original_filename}
+                        </span>
+                      </div>
+                    )}
+                    <div className="h-4 border-r border-gray-300 dark:border-gray-700" />
+                    <span className="text-sm text-muted-foreground">
+                      {formatTime(a.created_at)}
                     </span>
                   </div>
-                  <span className="text-sm text-muted-foreground shrink-0 ml-2">
-                    {formatTime(a.created_at)}
-                  </span>
                 </Link>
               ))}
             </div>

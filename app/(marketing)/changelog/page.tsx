@@ -81,7 +81,7 @@ const ENTRIES: ChangelogEntry[] = [
     changes: [
       "Self Assessment and VAT reminders for UK accountants — the core pipeline that started it all.",
       "Customisable email templates with smart placeholders: client name, deadline date, filing type, and more.",
-      "Free tier: up to 25 clients at no cost, no time limit, no credit card required.",
+      "Free tier: up to 10 clients at no cost, no time limit, no credit card required.",
     ],
   },
 ];

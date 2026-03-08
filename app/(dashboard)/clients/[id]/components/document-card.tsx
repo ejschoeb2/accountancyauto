@@ -999,10 +999,14 @@ export function DocumentCard({
       return renderDocCells(matchedDoc, item.label, isChecked, rowKey, true);
     }
 
-    // No document yet — checkbox + label, then Upload in the Actions column
+    // No document yet — clicking the row toggles manually received
     return (
-      <TableRow key={rowKey} className="hover:bg-muted/30">
-        <TableCell className="w-10">
+      <TableRow
+        key={rowKey}
+        className="hover:bg-muted/30 cursor-pointer"
+        onClick={() => handleManualToggle(item)}
+      >
+        <TableCell className="w-10" onClick={e => e.stopPropagation()}>
           <CheckButton
             checked={isChecked}
             variant={isChecked ? 'success' : 'default'}
@@ -1015,7 +1019,7 @@ export function DocumentCard({
           </span>
         </TableCell>
         <TableCell colSpan={4} />{/* Filename, Date, Source, Verdict — empty */}
-        <TableCell>
+        <TableCell onClick={e => e.stopPropagation()}>
           <IconButton
             variant="sky"
             title="Upload file for this slot"

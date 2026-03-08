@@ -34,9 +34,9 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     name: "Free",
     priceId: "",
     monthlyPrice: 0,
-    clientLimit: 20,
+    clientLimit: 10,
     features: [
-      "Up to 20 clients",
+      "Up to 10 clients",
       "Email reminders",
       "Filing tracking",
     ],
@@ -46,9 +46,9 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     name: "Solo",
     priceId: process.env.STRIPE_PRICE_SOLO ?? "",
     monthlyPrice: 1900, // £19/mo
-    clientLimit: 50,
+    clientLimit: 40,
     features: [
-      "Up to 50 clients",
+      "Up to 40 clients",
       "Email reminders",
       "Filing tracking",
       "Cloud storage integration",
@@ -59,9 +59,9 @@ export const PLAN_TIERS: Record<PlanTier, PlanConfig> = {
     name: "Starter",
     priceId: process.env.STRIPE_PRICE_STARTER ?? "",
     monthlyPrice: 3900, // £39/mo
-    clientLimit: 100,
+    clientLimit: 80,
     features: [
-      "Up to 100 clients",
+      "Up to 80 clients",
       "Email reminders",
       "Custom templates",
       "Filing tracking",

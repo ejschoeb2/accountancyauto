@@ -11,7 +11,7 @@ const FAQS = [
   },
   {
     q: "How does the free plan work?",
-    a: "The free plan supports up to 25 clients with no time limit and no credit card required. You get access to all core features — deadline tracking, automated reminders, and the client upload portal. When your client count grows beyond 25, you simply upgrade to a paid plan.",
+    a: "The free plan supports up to 10 clients with no time limit and no credit card required. You get access to all core features — deadline tracking, automated reminders, and the client upload portal. When your client count grows beyond 10, you simply upgrade to a paid plan.",
   },
   {
     q: "Do my clients need to create an account?",
@@ -35,7 +35,7 @@ const FAQS = [
   },
   {
     q: "Is Prompt suitable for sole practitioners as well as full practices?",
-    a: "Absolutely. The free tier covers up to 25 clients — perfect for a sole practitioner or small bookkeeper. The Starter and Practice plans scale with you as your client list grows.",
+    a: "Absolutely. The free tier covers up to 10 clients — perfect for a sole practitioner or small bookkeeper. The Solo, Starter, and Practice plans scale with you as your client list grows.",
   },
 ];
 

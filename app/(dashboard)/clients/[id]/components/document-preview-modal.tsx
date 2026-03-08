@@ -240,8 +240,14 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: Docu
         const contentType = res.headers.get('content-type') ?? '';
         if (contentType.includes('application/json')) {
           // Supabase / OneDrive / Dropbox — signed/temp URL
+          // Re-fetch as blob to avoid CORS issues with <object> embeds
           const { signedUrl } = (await res.json()) as { signedUrl: string };
-          setPreviewUrl(signedUrl);
+          const blobRes = await fetch(signedUrl);
+          if (!blobRes.ok) throw new Error('Failed to load');
+          const blob = await blobRes.blob();
+          const url = URL.createObjectURL(blob);
+          blobUrlRef.current = url;
+          setPreviewUrl(url);
         } else {
           // Google Drive — proxied bytes; build a blob URL
           const blob = await res.blob();

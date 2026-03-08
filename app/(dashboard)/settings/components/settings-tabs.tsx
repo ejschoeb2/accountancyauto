@@ -1,6 +1,7 @@
 "use client";
 
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Sparkles } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { SendHourPicker } from "./send-hour-picker";
@@ -12,6 +13,7 @@ import { StorageCard } from "./storage-card";
 import { ClientPortalCard } from "./client-portal-card";
 import { UploadChecksCard } from "./upload-checks-card";
 import { BillingStatusCard } from "@/app/(dashboard)/billing/components/billing-status-card";
+import { UpgradePlanSection } from "@/app/(dashboard)/billing/components/upgrade-plan-section";
 import { UsageBars } from "@/app/(dashboard)/billing/components/usage-bars";
 import type { EmailSettings, OrgDomainDnsData, UploadCheckMode } from "@/app/actions/settings";
 
@@ -65,9 +67,12 @@ export function SettingsTabs({
   clientPortalEnabled,
   uploadCheckMode,
 }: SettingsTabsProps) {
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") === "billing" ? "billing" : "general";
+
   return (
     <div className="space-y-8">
-      <Tabs defaultValue="general">
+      <Tabs defaultValue={defaultTab}>
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-1">
             <h1>Settings</h1>
@@ -136,6 +141,22 @@ export function SettingsTabs({
               </div>
             </div>
           </Card>
+          {!hasSubscription && (
+            <Card className="p-6 space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
+                  <Sparkles className="size-6 text-violet-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">Upgrade your plan</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Choose a plan to unlock more clients and features.
+                  </p>
+                </div>
+              </div>
+              <UpgradePlanSection orgId={orgId} />
+            </Card>
+          )}
         </TabsContent>
 
       </Tabs>

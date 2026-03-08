@@ -25,7 +25,9 @@ import {
 import { getPortalUploads, type PortalUpload } from '@/app/actions/document-uploads';
 import { format } from 'date-fns';
 import { Search, X, SlidersHorizontal, FileUp, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
-import { UploadValidationModal } from './upload-validation-modal';
+import { createClient } from '@/lib/supabase/client';
+import { DocumentPreviewModal, type ClientDocument } from '@/app/(dashboard)/clients/[id]/components/document-preview-modal';
+import { toast } from 'sonner';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -37,41 +39,22 @@ const FILING_TYPE_OPTIONS = [
   { value: 'self_assessment', label: 'Self Assessment' },
 ];
 
-const CONFIDENCE_OPTIONS = [
-  { value: 'high', label: 'High' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'low', label: 'Low' },
-  { value: 'unclassified', label: 'Unclassified' },
-];
-
-function ConfidenceBadge({ confidence }: { confidence: string | null }) {
-  if (!confidence || confidence === 'unclassified') {
-    return (
-      <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-status-neutral/10">
-        <span className="text-xs font-medium text-status-neutral">Unclassified</span>
-      </div>
-    );
-  }
-  if (confidence === 'high') {
-    return (
-      <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-green-500/10">
-        <span className="text-xs font-medium text-green-600">High</span>
-      </div>
-    );
-  }
-  if (confidence === 'medium') {
-    return (
-      <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-amber-500/10">
-        <span className="text-xs font-medium text-amber-600">Medium</span>
-      </div>
-    );
-  }
-  return (
-    <div className="px-2 py-0.5 rounded-md inline-flex items-center bg-status-danger/10">
-      <span className="text-xs font-medium text-status-danger">Low</span>
-    </div>
-  );
+function getVerdict(upload: PortalUpload): { label: string; bg: string; text: string } {
+  if (upload.needs_review) return { label: 'Review needed', bg: 'bg-amber-500/10', text: 'text-amber-600' };
+  const c = upload.classification_confidence;
+  if (c === 'low' || c === 'unclassified' || !c)
+    return { label: 'Low confidence', bg: 'bg-red-500/10', text: 'text-red-600' };
+  if (c === 'medium')
+    return { label: 'Likely match', bg: 'bg-amber-500/10', text: 'text-amber-600' };
+  return { label: 'Verified', bg: 'bg-green-500/10', text: 'text-green-600' };
 }
+
+const VERDICT_OPTIONS = [
+  { value: 'review', label: 'Review needed' },
+  { value: 'low', label: 'Low confidence' },
+  { value: 'medium', label: 'Likely match' },
+  { value: 'high', label: 'Verified' },
+];
 
 const FILING_LABELS: Record<string, string> = {
   corporation_tax_payment: 'Corp Tax',
@@ -93,7 +76,7 @@ export function UploadsTable() {
   // Filters
   const [showFilters, setShowFilters] = useState(false);
   const [activeFilingFilters, setActiveFilingFilters] = useState<Set<string>>(new Set());
-  const [activeConfidenceFilters, setActiveConfidenceFilters] = useState<Set<string>>(new Set());
+  const [activeVerdictFilters, setActiveVerdictFilters] = useState<Set<string>>(new Set());
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   // Phase 30: Needs Review filter
@@ -106,8 +89,25 @@ export function UploadsTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
-  // Phase 30: Selected upload for validation modal
-  const [selectedUpload, setSelectedUpload] = useState<PortalUpload | null>(null);
+  // Document preview modal state
+  const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
+  const [previewClientId, setPreviewClientId] = useState<string>('');
+
+  const handleRowClick = useCallback(async (upload: PortalUpload) => {
+    if (!upload.client_id) return;
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('client_documents')
+      .select('id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, page_count, needs_review, validation_warnings, document_types(id, code, label)')
+      .eq('id', upload.id)
+      .single();
+    if (error || !data) {
+      toast.error('Failed to load document details');
+      return;
+    }
+    setPreviewDoc(data as unknown as ClientDocument);
+    setPreviewClientId(upload.client_id);
+  }, []);
 
   // Debounce search
   useEffect(() => {
@@ -142,10 +142,14 @@ export function UploadsTable() {
     if (activeFilingFilters.size > 0) {
       rows = rows.filter((r) => r.filing_type_id && activeFilingFilters.has(r.filing_type_id));
     }
-    if (activeConfidenceFilters.size > 0) {
+    if (activeVerdictFilters.size > 0) {
       rows = rows.filter((r) => {
-        const c = r.classification_confidence ?? 'unclassified';
-        return activeConfidenceFilters.has(c);
+        const v = getVerdict(r);
+        if (activeVerdictFilters.has('review') && v.label === 'Review needed') return true;
+        if (activeVerdictFilters.has('low') && v.label === 'Low confidence') return true;
+        if (activeVerdictFilters.has('medium') && v.label === 'Likely match') return true;
+        if (activeVerdictFilters.has('high') && v.label === 'Verified') return true;
+        return false;
       });
     }
     // Phase 30: filter to only rows that need review
@@ -153,7 +157,7 @@ export function UploadsTable() {
       rows = rows.filter((r) => r.needs_review === true);
     }
     return rows;
-  }, [data, activeFilingFilters, activeConfidenceFilters, filterNeedsReview]);
+  }, [data, activeFilingFilters, activeVerdictFilters, filterNeedsReview]);
 
   // Client-side sort
   const sortedData = useMemo(() => {
@@ -174,11 +178,11 @@ export function UploadsTable() {
   function toggleFilingFilter(v: string) {
     setActiveFilingFilters((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
   }
-  function toggleConfidenceFilter(v: string) {
-    setActiveConfidenceFilters((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
+  function toggleVerdictFilter(v: string) {
+    setActiveVerdictFilters((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
   }
 
-  const activeFilterCount = activeFilingFilters.size + activeConfidenceFilters.size + (filterNeedsReview ? 1 : 0);
+  const activeFilterCount = activeFilingFilters.size + activeVerdictFilters.size + (filterNeedsReview ? 1 : 0);
   const hasActiveFilters = debouncedSearch !== '' || dateFrom !== '' || dateTo !== '' || activeFilterCount > 0;
 
   function clearAllFilters() {
@@ -187,7 +191,7 @@ export function UploadsTable() {
     setDateFrom('');
     setDateTo('');
     setActiveFilingFilters(new Set());
-    setActiveConfidenceFilters(new Set());
+    setActiveVerdictFilters(new Set());
     setFilterNeedsReview(false);
     setCurrentPage(1);
   }
@@ -289,15 +293,15 @@ export function UploadsTable() {
                 </div>
               </div>
 
-              {/* Confidence */}
+              {/* Verdict */}
               <div className="space-y-2">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Confidence</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Verdict</span>
                 <div className="flex flex-wrap gap-2">
-                  {CONFIDENCE_OPTIONS.map((opt) => (
+                  {VERDICT_OPTIONS.map((opt) => (
                     <ButtonWithText
                       key={opt.value}
-                      onClick={() => toggleConfidenceFilter(opt.value)}
-                      isSelected={activeConfidenceFilters.has(opt.value)}
+                      onClick={() => toggleVerdictFilter(opt.value)}
+                      isSelected={activeVerdictFilters.has(opt.value)}
                       variant="muted"
                     >
                       {opt.label}
@@ -375,30 +379,23 @@ export function UploadsTable() {
                 <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Document Type</span>
               </TableHead>
               <TableHead>
-                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Confidence</span>
-              </TableHead>
-              <TableHead>
-                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tax Year</span>
-              </TableHead>
-              <TableHead>
                 <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Received</span>
               </TableHead>
-              {/* Phase 30: Issues column */}
               <TableHead>
-                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Issues</span>
+                <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Verdict</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
+                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground text-sm">
                   Loading uploads...
                 </TableCell>
               </TableRow>
             ) : sortedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="py-12">
+                <TableCell colSpan={6} className="py-12">
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <FileUp className="size-8 opacity-40" />
                     <p className="text-sm">
@@ -412,7 +409,7 @@ export function UploadsTable() {
                 <TableRow
                   key={upload.id}
                   className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => upload.client_id && (window.location.href = `/clients/${upload.client_id}`)}
+                  onClick={() => handleRowClick(upload)}
                 >
                   <TableCell className="font-medium">
                     {upload.client_id ? (
@@ -438,32 +435,18 @@ export function UploadsTable() {
                   <TableCell className="text-sm text-muted-foreground">
                     {upload.document_type_label ?? '—'}
                   </TableCell>
-                  <TableCell>
-                    <ConfidenceBadge confidence={upload.classification_confidence} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {upload.extracted_tax_year ?? '—'}
-                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                     {format(new Date(upload.received_at), 'd MMM yyyy, HH:mm')}
                   </TableCell>
-                  {/* Phase 30: Issues cell — amber badge opens validation modal */}
                   <TableCell>
-                    {upload.needs_review ? (
-                      <button
-                        type="button"
-                        className="px-2 py-0.5 rounded-md inline-flex items-center bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedUpload(upload);
-                        }}
-                      >
-                        <AlertTriangle className="size-3 text-amber-600 mr-1" />
-                        <span className="text-xs font-medium text-amber-600">Review</span>
-                      </button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    {(() => {
+                      const verdict = getVerdict(upload);
+                      return (
+                        <div className={`px-3 py-2 rounded-md inline-flex items-center ${verdict.bg}`}>
+                          <span className={`text-sm font-medium ${verdict.text}`}>{verdict.label}</span>
+                        </div>
+                      );
+                    })()}
                   </TableCell>
                 </TableRow>
               ))
@@ -472,19 +455,17 @@ export function UploadsTable() {
         </Table>
       </div>
 
-      {/* Phase 30: Validation detail modal */}
-      {selectedUpload && selectedUpload.validation_warnings && selectedUpload.validation_warnings.length > 0 && (
-        <UploadValidationModal
-          open={!!selectedUpload}
-          onOpenChange={(open) => { if (!open) setSelectedUpload(null); }}
-          filename={selectedUpload.original_filename}
-          clientName={selectedUpload.client_name}
-          documentTypeLabel={selectedUpload.document_type_label}
-          filingTypeLabel={selectedUpload.filing_type_id ? (FILING_LABELS[selectedUpload.filing_type_id] ?? selectedUpload.filing_type_name ?? null) : null}
-          receivedAt={selectedUpload.received_at}
-          warnings={selectedUpload.validation_warnings}
-        />
-      )}
+      {/* Document preview modal */}
+      <DocumentPreviewModal
+        doc={previewDoc}
+        clientId={previewClientId}
+        onClose={() => setPreviewDoc(null)}
+        onDeleted={(docId) => {
+          setPreviewDoc(null);
+          setData((prev) => prev.filter((u) => u.id !== docId));
+          setTotalCount((prev) => prev - 1);
+        }}
+      />
 
       {/* Pagination */}
       {totalPages > 1 && (

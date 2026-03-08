@@ -199,11 +199,11 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
     price: string;
     limitLabel: string;
   } | null {
-    if (currentLimit <= 20)
-      return { tier: "solo", name: "Solo", price: "£19", limitLabel: "50 clients" };
-    if (currentLimit <= 50)
-      return { tier: "starter", name: "Starter", price: "£39", limitLabel: "100 clients" };
-    if (currentLimit <= 100)
+    if (currentLimit <= 10)
+      return { tier: "solo", name: "Solo", price: "£19", limitLabel: "40 clients" };
+    if (currentLimit <= 40)
+      return { tier: "starter", name: "Starter", price: "£39", limitLabel: "80 clients" };
+    if (currentLimit <= 80)
       return { tier: "practice", name: "Practice", price: "£69", limitLabel: "200 clients" };
     if (currentLimit <= 200)
       return { tier: "firm", name: "Firm", price: "£109", limitLabel: "400 clients" };
@@ -211,9 +211,9 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   }
 
   function getCurrentTierName(currentLimit: number): string {
-    if (currentLimit <= 20) return "Free";
-    if (currentLimit <= 50) return "Solo";
-    if (currentLimit <= 100) return "Starter";
+    if (currentLimit <= 10) return "Free";
+    if (currentLimit <= 40) return "Solo";
+    if (currentLimit <= 80) return "Starter";
     if (currentLimit <= 200) return "Practice";
     if (currentLimit <= 400) return "Firm";
     return "Enterprise";

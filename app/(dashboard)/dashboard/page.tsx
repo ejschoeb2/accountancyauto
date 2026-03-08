@@ -70,7 +70,7 @@ function DashboardContent() {
           <Link
             href="/help#go-further"
             target="_blank"
-            className={buttonBaseVariants({ variant: 'muted', buttonType: 'icon-text' })}
+            className={buttonBaseVariants({ variant: 'blue', buttonType: 'icon-text' })}
           >
             <Zap className="size-4" />
             Go further

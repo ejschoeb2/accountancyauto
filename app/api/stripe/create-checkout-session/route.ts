@@ -117,10 +117,10 @@ export async function POST(request: NextRequest) {
       line_items: lineItems,
       success_url: successUrl
         ? `${process.env.NEXT_PUBLIC_APP_URL}${successUrl}`
-        : `${process.env.NEXT_PUBLIC_APP_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+        : `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=billing`,
       cancel_url: successUrl
         ? `${process.env.NEXT_PUBLIC_APP_URL}${successUrl}`
-        : `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+        : `${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=billing`,
       metadata: {
         org_id: orgId,
         plan_tier: planTier,

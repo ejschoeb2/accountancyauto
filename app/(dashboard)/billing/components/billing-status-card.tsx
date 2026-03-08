@@ -4,7 +4,6 @@ import { useState } from "react";
 import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
-import Link from "next/link";
 
 type SubscriptionStatus =
   | "trialing"
@@ -159,14 +158,7 @@ export function BillingStatusCard({
                     </>
                   )}
                 </ButtonBase>
-              ) : (
-                <Link href="/pricing">
-                  <ButtonBase variant="violet" buttonType="icon-text">
-                    <ExternalLink className="size-4" />
-                    Upgrade plan
-                  </ButtonBase>
-                </Link>
-              )}
+              ) : null}
             </div>
           </div>
 

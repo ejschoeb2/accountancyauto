@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Loader2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, Sparkles, ArrowRight } from "lucide-react";
+import { ButtonBase } from "@/components/ui/button-base";
 import {
   PLAN_TIERS,
   PAID_PLAN_TIERS,
@@ -57,74 +56,66 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
         <p className="text-sm text-destructive">{error}</p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {PAID_PLAN_TIERS.map((tier) => {
           const plan = PLAN_TIERS[tier];
           const isPopular = tier === "practice" || tier === "firm";
           const isLoading = loadingTier === tier;
 
           return (
-            <Card
-              key={tier}
-              className={isPopular ? "ring-2 ring-primary relative" : "relative"}
-            >
+            <div key={tier} className="flex flex-col relative">
               {isPopular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1 bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-full">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                  <span className="inline-flex items-center gap-1 bg-violet-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
                     <Sparkles className="size-3" />
                     Popular
                   </span>
                 </div>
               )}
-              <CardContent className="pt-6 flex flex-col h-full space-y-4">
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-lg">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold">
-                      {formatPrice(plan.monthlyPrice)}
-                    </span>
-                    <span className="text-muted-foreground text-sm">/mo</span>
-                  </div>
+              <div
+                className={[
+                  "flex flex-col flex-1 p-4 rounded-xl border-2 transition-all duration-200",
+                  isPopular ? "border-violet-500" : "border-border/60 hover:border-border",
+                ].join(" ")}
+              >
+                <p className="text-sm font-bold text-foreground mb-3">{plan.name}</p>
+
+                <div className="mb-1">
+                  <span className="text-2xl font-bold text-foreground tabular-nums">
+                    {formatPrice(plan.monthlyPrice)}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-1">/mo</span>
                 </div>
 
-                <div className="space-y-1.5 flex-1">
-                  <p className="text-sm text-muted-foreground">
-                    {plan.clientLimit === null
-                      ? "Unlimited clients"
-                      : `Up to ${plan.clientLimit} clients`}
-                  </p>
-                  <ul className="space-y-1 pt-2">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-2 text-sm">
-                        <Check className="size-3.5 text-green-600 shrink-0" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <p className="text-xs font-semibold text-foreground/60 mb-4">
+                  {plan.clientLimit === null ? "Unlimited clients" : `Up to ${plan.clientLimit} clients`}
+                </p>
 
-                <Button
-                  className="w-full active:scale-[0.97]"
-                  variant={isPopular ? "default" : "outline"}
+                <ButtonBase
+                  variant="violet"
+                  buttonType="icon-text"
                   onClick={() => handleUpgrade(tier)}
                   disabled={loadingTier !== null}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="size-4 mr-2 animate-spin" />
+                      <Loader2 className="size-4 animate-spin" />
                       Redirecting...
                     </>
                   ) : (
-                    "Get Started"
+                    <>
+                      Get Started
+                      <ArrowRight className="size-4" />
+                    </>
                   )}
-                </Button>
-              </CardContent>
-            </Card>
+                </ButtonBase>
+              </div>
+            </div>
           );
         })}
       </div>
 
-      <p className="text-xs text-muted-foreground">All prices exclude VAT.</p>
+      <p className="text-xs text-muted-foreground mt-1">All prices exclude VAT.</p>
     </div>
   );
 }

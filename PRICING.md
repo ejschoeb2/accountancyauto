@@ -14,11 +14,11 @@
 
 ## Tiers
 
-### Lite — £20/month
+### Free — £0/month
 
 | Limit | Value |
 |-------|-------|
-| Clients | Up to 15 |
+| Clients | Up to 10 |
 
 **Included features:**
 - Full reminder engine (Corp Tax, CT600, Companies House, VAT, Self Assessment)
@@ -32,116 +32,100 @@
 - AI agent interface
 - HMRC API integration
 
-**Who this is for:** A sole trader accountant just starting out, testing the product, or managing a very small book. The 15-client ceiling acts as a low-friction entry point and a natural conversion funnel to Sole Trader as the practice grows.
+**Who this is for:** Anyone evaluating the product. The 10-client ceiling is enough to try it out but not enough to run a real practice on — creating a natural upgrade path.
 
 ---
 
-### Sole Trader — £39/month
+### Solo — £19/month
 
 | Limit | Value |
 |-------|-------|
-| Clients | Up to 40 |
+| Clients | 11 – 40 |
 
 **Included features:**
-- Everything in Lite
-- Overage: £15 per additional 50 clients beyond 40
+- Everything in Free
+- Cloud storage integration
 
 **Excluded:**
-- Document storage
+- Custom templates
 - AI agent interface
 - HMRC API integration
 
-**Who this is for:** An established sole trader managing a full book. The 40-client ceiling reflects the realistic shape of a mature one-person practice.
+**Who this is for:** A sole trader accountant managing a small client list. The 40-client ceiling reflects a typical one-person practice book.
 
 ---
 
-### Practice — £89/month
+### Starter — £39/month
 
 | Limit | Value |
 |-------|-------|
-| Clients | Up to 150 |
+| Clients | 41 – 80 |
 
 **Included features:**
-- Everything in Sole Trader
-- Document storage (Supabase Storage, EU-region, signed URL access)
-- Attachment extraction from inbound client emails
-- Per-client document history with download
-- AI agent interface (when built — Phase 5)
-- Overage: £15 per additional 50 clients beyond 150
+- Everything in Solo
+- Custom templates
 
 **Excluded:**
+- AI agent interface
 - HMRC API integration
-- Priority support
 
-**Who this is for:** A small firm with multiple accountants each managing their own client book. Document storage is the key upgrade unlock — it directly replaces the inbox-hunting workflow with a central document record per client.
+**Who this is for:** An independent accountant or small practice that has outgrown the solo tier.
 
 ---
 
-### Firm — £159/month
+### Practice — £69/month
+
+| Limit | Value |
+|-------|-------|
+| Clients | 81 – 200 |
+
+**Included features:**
+- Everything in Starter
+- Priority support
+- Overage: metered billing above 200 clients (£0.60/client)
+
+**Who this is for:** A growing practice managing a wide range of deadlines across multiple accountants.
+
+---
+
+### Firm — £109/month
+
+| Limit | Value |
+|-------|-------|
+| Clients | 201 – 400 |
+
+**Included features:**
+- Everything in Practice
+- Priority support
+
+**Who this is for:** An established firm with a broad portfolio of clients.
+
+---
+
+### Enterprise — Custom pricing
 
 | Limit | Value |
 |-------|-------|
 | Clients | Unlimited |
 
 **Included features:**
-- Everything in Practice
-- HMRC API integration (when built — Phase 4)
-  - MTD VAT return submission
-  - MTD Income Tax Self Assessment (as it becomes mandatory)
-  - OAuth 2.0 client authorisation (no credential storage)
-- Priority support
-- Overage: N/A (unlimited)
+- Everything in Firm
+- Dedicated account manager
+- Custom integrations
 
-**Who this is for:** An established mid-size firm with multiple staff and a large client base. The HMRC API integration is the primary upgrade driver — submitting VAT returns directly from the dashboard rather than through the portal is the feature most likely to justify the price difference to a firm of this size, particularly as MTD mandation extends to Income Tax.
+**Who this is for:** Large firms requiring bespoke solutions.
 
 ---
 
-## Overage Pricing
-
-| Tier | Included clients | Overage rate |
-|------|-----------------|--------------|
-| Lite | 15 | Not available — upgrade to Sole Trader |
-| Sole Trader | 40 | £15 per additional 50 clients |
-| Practice | 150 | £15 per additional 50 clients |
-| Firm | Unlimited | N/A |
-
-Lite does not support overage — a firm exceeding 15 clients should move to Sole Trader.
-
----
-
-## Free Plan
-
-A permanent free tier (up to 25 clients) is available with no card required. Users can upgrade to a paid plan at any time via Stripe Checkout. Firms on paid plans that lapse into `unpaid` / `past_due` are moved to a read-only state (data retained for 30 days, then deleted in line with the privacy policy).
-
----
-
-## Feature Availability by Tier
-
-| Feature | Lite | Sole Trader | Practice | Firm |
-|---------|------|------------|----------|------|
-| Reminder engine | Yes | Yes | Yes | Yes |
-| Dashboard | Yes | Yes | Yes | Yes |
-| Email delivery | Yes | Yes | Yes | Yes |
-| Inbound email logging | Yes | Yes | Yes | Yes |
-| Reply templates | Yes | Yes | Yes | Yes |
-| Unlimited users | Yes | Yes | Yes | Yes |
-| Document storage | No | No | Yes | Yes |
-| AI agent interface | No | No | Yes | Yes |
-| HMRC API integration | No | No | No | Yes |
-| Priority support | No | No | No | Yes |
-
-*AI agent and HMRC API integration are listed for completeness. Both are future phases — see ROADMAP.md.*
-
----
-
-## Database Schema (organisations table additions)
+## Database Schema (organisations table)
 
 ```sql
-plan_tier             text         -- 'lite' | 'sole_trader' | 'practice' | 'firm'
-client_count_limit    integer      -- 15 / 40 / 150 / null (unlimited)
+plan_tier             text         -- 'free' | 'solo' | 'starter' | 'practice' | 'firm' | 'enterprise'
+client_count_limit    integer      -- 10 / 40 / 80 / 200 / 400 / null (unlimited)
 stripe_customer_id    text
 stripe_subscription_id text
-subscription_status   text         -- 'active' | 'trialling' | 'past_due' | 'cancelled'
+stripe_price_id       text
+subscription_status   text         -- 'active' | 'trialing' | 'past_due' | 'cancelled' | 'unpaid'
 trial_ends_at         timestamptz
 ```
 
@@ -149,24 +133,32 @@ Limit enforcement lives in application-layer server actions, not at the database
 
 ---
 
-## Rationale for Tier Pricing
+## Free Plan
 
-**Why £20 for Lite?**
-Low enough to remove price as a barrier for a sole trader evaluating the product. At this price point it is also clearly not the plan to stay on indefinitely — the natural ceiling of 15 clients creates organic upgrade pressure without any artificial friction.
+A permanent free tier (up to 10 clients) is available with no card required. Users can upgrade to a paid plan at any time via Stripe Checkout. Firms on paid plans that lapse into `unpaid` / `past_due` are moved to a read-only state.
 
-**Why £39 for Sole Trader?**
-The Lite tier anchors the bottom of the ladder. The 40-client ceiling reflects a mature one-person practice book.
+---
 
-**Why £89 for Practice?**
-Document storage has real infrastructure costs (Supabase Storage, EU region). The modest increase covers this and positions Practice as a meaningfully different product from the lower tiers, not just a higher client limit.
+## Feature Availability by Tier
 
-**Why £159 for Firm?**
-HMRC API integration, when live, is a substantial capability that larger firms will pay a premium for — particularly as MTD for Income Tax becomes mandatory from April 2026/2027. This price remains well below established practice management tools (Karbon, Iris, Digita) which typically charge per-user rates that reach £200-500+/month for a firm of this size.
+| Feature | Free | Solo | Starter | Practice | Firm | Enterprise |
+|---------|------|------|---------|----------|------|------------|
+| Reminder engine | Yes | Yes | Yes | Yes | Yes | Yes |
+| Dashboard | Yes | Yes | Yes | Yes | Yes | Yes |
+| Email delivery | Yes | Yes | Yes | Yes | Yes | Yes |
+| Inbound email logging | Yes | Yes | Yes | Yes | Yes | Yes |
+| Reply templates | Yes | Yes | Yes | Yes | Yes | Yes |
+| Unlimited users | Yes | Yes | Yes | Yes | Yes | Yes |
+| Cloud storage | No | Yes | Yes | Yes | Yes | Yes |
+| Custom templates | No | No | Yes | Yes | Yes | Yes |
+| Priority support | No | No | No | Yes | Yes | Yes |
+| Dedicated account manager | No | No | No | No | No | Yes |
+| Custom integrations | No | No | No | No | No | Yes |
 
 ---
 
 ## Notes for Review
 
-- **Validate client count thresholds with the accountant.** The 15/40/150/unlimited bands are estimates based on general UK practice size data. If the accountant's experience suggests different natural breakpoints, adjust before committing these to the database schema and Stripe products.
-- **Revisit pricing after first 10 paying customers.** Early pricing should be treated as a hypothesis. If conversion from trial is low, the issue is more likely messaging than price. If churn is high at a specific tier, investigate whether the client ceiling is the trigger.
-- **Annual billing option.** Not modelled here but worth adding: two months free for annual upfront (effective ~17% discount). Improves cash flow and reduces churn. Simple to configure in Stripe.
+- **Validate client count thresholds with the accountant.** The 10/40/80/200/400 bands are estimates based on general UK practice size data.
+- **Revisit pricing after first 10 paying customers.** Early pricing should be treated as a hypothesis.
+- **Annual billing option.** Not modelled here but worth adding: two months free for annual upfront (~17% discount).

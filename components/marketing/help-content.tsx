@@ -13,6 +13,7 @@ const SECTIONS = [
   { id: "reminders",       label: "Reminders & schedules" },
   { id: "templates",       label: "Email templates" },
   { id: "portal",          label: "Client portal" },
+  { id: "verdicts",        label: "Document verdicts" },
   { id: "storage",         label: "Storage integration" },
   { id: "team",            label: "Team & settings" },
   { id: "go-further",      label: "Go further" },
@@ -260,6 +261,55 @@ function ClientPortal() {
   );
 }
 
+function DocumentVerdicts() {
+  return (
+    <>
+      <SectionHeading>Document verdicts</SectionHeading>
+      <Body>
+        When a document is uploaded — either through the client portal or manually — Prompt automatically analyses it and assigns a verdict. The verdict tells you at a glance how confident the system is that the document has been correctly identified and is valid for the filing it was uploaded against. Verdicts appear as colour-coded badges in both the Activity uploads table and the filing management section on each client's page.
+      </Body>
+
+      <SubHeading>Verdict levels</SubHeading>
+      <Body>
+        There are four possible verdicts, listed from most to least confident:
+      </Body>
+      <Body>
+        <strong>Verified</strong> (green) — the document was classified with high confidence. The document type was identified reliably, all validation checks passed, and no manual review is needed. This is the ideal outcome for every upload.
+      </Body>
+      <Body>
+        <strong>Likely match</strong> (amber) — the document was classified with medium confidence. The type appears correct but the system's certainty is moderate. You should glance at the extracted details to confirm the classification before treating it as final.
+      </Body>
+      <Body>
+        <strong>Low confidence</strong> (red) — the document could not be reliably classified. This happens when the file content doesn't clearly match any expected document type, or the uploaded file is in a format the system struggles with (e.g. a scanned image with poor text quality). Open the document to verify its type and check whether it belongs to the filing it was uploaded against.
+      </Body>
+      <Body>
+        <strong>Review needed</strong> (amber) — the document has been flagged by Prompt's validation checks. This is different from low confidence — the document may have been classified correctly, but something about it triggered a warning. Common reasons include a tax year mismatch (the document appears to be for a different period than the filing), a PAYE reference that doesn't match the client's records, or a document type that seems unusual for the filing. Open the document to see the specific warnings and decide whether to accept or replace it.
+      </Body>
+
+      <SubHeading>How verdicts are determined</SubHeading>
+      <Body>
+        The verdict is derived from a combination of signals. When a document is uploaded, Prompt extracts text content (using direct text extraction for digital PDFs, or OCR for scanned documents and images), then runs a classification pipeline that matches the content against known document type patterns. The classification confidence (high, medium, or low) is set by how strongly the content matches.
+      </Body>
+      <Body>
+        Separately, a set of validation rules compares extracted data (tax year, employer name, PAYE reference) against the client's records and the filing's expected period. If any rule triggers a warning, the document is flagged for review regardless of classification confidence.
+      </Body>
+      <Body>
+        The verdict displayed is determined by checking these conditions in priority order: review flags take precedence, then low or unclassified confidence, then medium confidence, and finally high confidence results in a Verified verdict.
+      </Body>
+
+      <SubHeading>Filtering by verdict</SubHeading>
+      <Body>
+        On the Activity page's uploads tab, you can filter the table by verdict using the filter panel. This is useful for quickly finding all documents that need attention — filter by "Review needed" or "Low confidence" to see only the uploads that require manual review, rather than scrolling through a list of verified documents.
+      </Body>
+
+      <SubHeading>Clearing a review flag</SubHeading>
+      <Body>
+        When you open a document flagged as "Review needed", the preview panel shows the specific validation warnings. After reviewing, click <strong>Clear review</strong> to remove the flag. This updates the verdict immediately — if the underlying classification confidence is high, the verdict will change to Verified. Clearing a review flag is a manual confirmation that you've checked the document and are satisfied it's correct.
+      </Body>
+    </>
+  );
+}
+
 function StorageIntegration() {
   return (
     <>
@@ -389,6 +439,7 @@ const SECTION_CONTENT: Record<SectionId, React.ComponentType> = {
   "reminders":       RemindersAndSchedules,
   "templates":       EmailTemplates,
   "portal":          ClientPortal,
+  "verdicts":        DocumentVerdicts,
   "storage":         StorageIntegration,
   "team":            TeamAndSettings,
   "go-further":      GoFurther,

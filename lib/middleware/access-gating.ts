@@ -5,15 +5,16 @@ import { type OrgInfo } from './subdomain';
  * Enforce subscription status for org access.
  *
  * Allows through:
- * - /billing, /auth, /login, /api routes (always accessible)
+ * - /auth, /login, /api routes (always accessible)
  * - Active subscriptions
  * - Valid trials (trial_ends_at in future)
+ * - Inactive subscriptions: /dashboard and /settings only
  *
- * Redirects to /billing for:
+ * Redirects to /settings?tab=billing for:
  * - Cancelled, past_due, unpaid subscriptions
  * - Expired trials
  *
- * Returns null to allow through, or redirect Response to /billing.
+ * Returns null to allow through, or redirect Response to /settings?tab=billing.
  */
 export function enforceSubscription(
   request: NextRequest,
@@ -21,9 +22,8 @@ export function enforceSubscription(
 ): NextResponse | null {
   const { pathname } = request.nextUrl;
 
-  // Always allow through: billing, auth, login, API routes, setup wizard
+  // Always allow through: auth, login, API routes, setup wizard
   if (
-    pathname.startsWith('/billing') ||
     pathname.startsWith('/auth') ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/api/') ||
@@ -46,6 +46,11 @@ export function enforceSubscription(
     }
   }
 
-  // Subscription issue: redirect to billing
-  return NextResponse.redirect(new URL('/billing', request.url), 307);
+  // Inactive subscription: allow dashboard and settings through
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/settings')) {
+    return null;
+  }
+
+  // Everything else: redirect to billing tab in settings
+  return NextResponse.redirect(new URL('/settings?tab=billing', request.url), 307);
 }
