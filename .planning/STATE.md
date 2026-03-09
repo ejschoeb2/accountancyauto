@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-03-09T22:51:03Z"
+last_updated: "2026-03-09T22:58:13Z"
 progress:
   total_phases: 31
-  completed_phases: 29
+  completed_phases: 30
   total_plans: 105
-  completed_plans: 103
+  completed_plans: 104
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 31 Plan 01 complete — Server-side wizard state persistence via setup_draft JSONB column
+**Current focus:** Phase 31 complete — Server-side wizard state persistence with staging table for large CSV imports
 
 ## Current Position
 
-Phase: 31 (in progress — 1/2 plans done)
-Plan: 01 complete
-Status: Phase 31 Plan 01 complete — setup_draft JSONB column, getSetupDraft/saveSetupDraft server actions, DB-backed wizard hydration
-Last activity: 2026-03-09 — Phase 31-01 migration + server actions + wizard page refactor
+Phase: 31 (complete — all 2 plans done)
+Plan: 02 complete
+Status: Phase 31 complete — setup_draft JSONB + setup_draft_clients staging table, DB-backed wizard hydration, import rows in dedicated table
+Last activity: 2026-03-09 — Phase 31-02 staging table migration + server actions + wizard page wiring
 
 Resume file: none
-Next step: Phase 31 Plan 02
+Next step: Phase 31 complete — all 2 plans executed
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -396,9 +396,9 @@ Recent decisions affecting v3.0:
 ## Session Continuity
 
 Last session: 2026-03-09 UTC
-Stopped at: Completed 31-01-PLAN.md — Server-side wizard state persistence: setup_draft JSONB column, getSetupDraft/saveSetupDraft, DB-backed wizard hydration
+Stopped at: Completed 31-02-PLAN.md — Draft clients staging table: setup_draft_clients table, saveDraftClients/getDraftClients/clearDraftClients, import rows decoupled from JSONB
 Resume file: none
-Next step: Phase 31 Plan 02
+Next step: Phase 31 complete — all 2 plans executed
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
