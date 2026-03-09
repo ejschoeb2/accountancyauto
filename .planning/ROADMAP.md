@@ -574,4 +574,15 @@ Plans:
 - [ ] 30-02-PLAN.md — Upload route integration + portal amber warning card (ValidationWarningCard component)
 - [ ] 30-03-PLAN.md — Accountant-facing: client page review badge, activity page Issues column + validation detail modal
 
+### Phase 31: Server-Side Wizard State Persistence
+
+**Goal:** Persist all setup wizard progress to the database so the wizard survives page refreshes, tab closes, OAuth/Stripe redirects, and device switches
+**Requirements**: TBD
+**Depends on:** Phase 30
+**Plans:** 2 plans
+
+Plans:
+- [ ] 31-01-PLAN.md — Core draft persistence: setup_draft JSONB column, getSetupDraft/saveSetupDraft server actions, wizard mount/transition refactor, sessionStorage removal
+- [ ] 31-02-PLAN.md — CSV import staging table: setup_draft_clients table, bulk insert/read/delete actions, wizard wired to staging table for import rows
+
 ---
