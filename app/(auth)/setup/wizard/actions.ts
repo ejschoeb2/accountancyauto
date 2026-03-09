@@ -10,6 +10,91 @@ import {
   checkDomainVerification,
 } from "@/lib/postmark/management";
 
+// ─── Setup draft persistence ─────────────────────────────────────────────────
+
+export interface SetupDraft {
+  step: string;           // AdminStep value
+  firmName?: string;
+  firmSlug?: string;
+  selectedTier?: string;  // PlanTier value
+  importRows?: unknown[]; // EditableRow[] stored as JSON
+  emailSubStep?: string;  // EmailSubStep value
+  portalEnabled?: boolean;
+  uploadCheckMode?: string;
+  sendHour?: number;
+  updatedAt: string;      // ISO timestamp
+}
+
+/**
+ * Read the current setup draft from the organisation row.
+ *
+ * Returns null if no draft exists or the user has no organisation yet.
+ * Follows the same auth pattern as markOrgSetupComplete.
+ */
+export async function getSetupDraft(): Promise<SetupDraft | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return null;
+
+  const { data } = await admin
+    .from("organisations")
+    .select("setup_draft")
+    .eq("id", membership.org_id)
+    .single();
+
+  return (data?.setup_draft as SetupDraft) ?? null;
+}
+
+/**
+ * Save (overwrite) the setup draft on the organisation row.
+ *
+ * Always stamps `updatedAt` before persisting.
+ * Follows the same auth pattern as markOrgSetupComplete.
+ */
+export async function saveSetupDraft(
+  draft: SetupDraft
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  draft.updatedAt = new Date().toISOString();
+
+  const { error } = await admin
+    .from("organisations")
+    .update({ setup_draft: draft })
+    .eq("id", membership.org_id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 /**
  * Mark the current user's organisation as having completed the setup wizard.
  *
@@ -36,7 +121,7 @@ export async function markOrgSetupComplete(): Promise<{ error?: string }> {
 
   const { error } = await admin
     .from("organisations")
-    .update({ setup_complete: true })
+    .update({ setup_complete: true, setup_draft: null })
     .eq("id", membership.org_id);
 
   if (error) return { error: error.message };
