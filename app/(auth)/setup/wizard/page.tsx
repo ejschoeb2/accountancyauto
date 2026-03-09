@@ -516,7 +516,7 @@ export default function WizardPage() {
   };
 
   /** Check whether switching plans requires deleting imported clients. */
-  const handlePlanNext = () => {
+  const handlePlanNext = async () => {
     if (!selectedTier) return;
 
     // If clients have been imported and the new plan has a lower limit,
@@ -529,6 +529,27 @@ export default function WizardPage() {
         setShowDowngradeAlert(true);
         return;
       }
+    }
+
+    // If the org is already created, just update the plan tier and advance
+    // without re-running the full create flow (which would re-mount the
+    // import step and lose in-progress client data).
+    if (orgCreated) {
+      setIsCreatingOrg(true);
+      setPlanError(null);
+      try {
+        await updateOrgPlanTier(selectedTier);
+        setIsCreatingOrg(false);
+        setAdminStep("import");
+      } catch (err) {
+        setPlanError(
+          err instanceof Error
+            ? err.message
+            : "Failed to update plan. Please try again."
+        );
+        setIsCreatingOrg(false);
+      }
+      return;
     }
 
     handleSelectPlan(selectedTier);
