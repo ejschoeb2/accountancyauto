@@ -37,7 +37,8 @@ export interface AuditLogResult {
 
 export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResult> {
   const supabase = await createClient();
-  const { clientSearch, dateFrom, dateTo, clientId, offset, limit } = params;
+  const { clientSearch: rawClientSearch, dateFrom, dateTo, clientId, offset, limit } = params;
+  const clientSearch = rawClientSearch?.slice(0, 200);
 
   // Fetch filing types lookup (small reference table)
   const { data: filingTypes } = await supabase
@@ -188,7 +189,8 @@ export interface QueuedRemindersResult {
 
 export async function getQueuedReminders(params: QueuedRemindersParams): Promise<QueuedRemindersResult> {
   const supabase = await createClient();
-  const { clientSearch, dateFrom, dateTo, clientId, statusFilter, offset, limit } = params;
+  const { clientSearch: rawClientSearch, dateFrom, dateTo, clientId, statusFilter, offset, limit } = params;
+  const clientSearch = rawClientSearch?.slice(0, 200);
 
   // If client search is provided, find matching client IDs first
   let matchingClientIds: string[] | undefined;
