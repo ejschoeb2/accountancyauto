@@ -129,8 +129,11 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
   const reviewTopRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (stepState === "edit-data") {
+      // Double rAF ensures the browser has completed layout after the table renders
       requestAnimationFrame(() => {
-        reviewTopRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+        requestAnimationFrame(() => {
+          reviewTopRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+        });
       });
     }
   }, [stepState]);
