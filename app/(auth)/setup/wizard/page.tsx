@@ -40,11 +40,14 @@ import {
   checkSlugAvailable,
   createOrgAndJoinAsAdmin,
   deleteAllWizardClients,
+  getSetupDraft,
   getWizardDashboardUrl,
   markOrgSetupComplete,
   refreshWizardSession,
+  saveSetupDraft,
   seedOrgDefaultsForWizard,
   updateOrgPlanTier,
+  type SetupDraft,
 } from "./actions";
 import {
   markMemberSetupComplete,
@@ -221,16 +224,7 @@ export default function WizardPage() {
   const [pendingDowngradeTier, setPendingDowngradeTier] = useState<PlanTier | null>(null);
 
   // ── Import: persist rows so returning to the step skips re-upload ──────────
-  // Initialise from sessionStorage so data survives OAuth/Stripe redirects
-  const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      const stored = sessionStorage.getItem("wizard_import_rows");
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(null);
 
   // ── Import + Config (steps 3–4 for member, 4–6 for admin) ──────────────────
   const [sendHour, setSendHour] = useState<number | null>(null);
@@ -261,43 +255,60 @@ export default function WizardPage() {
   // Set to true before intentional navigations so the beforeunload guard doesn't fire
   const isNavigatingAway = useRef(false);
 
-  // ── Guard against accidental unload (only when no restorable state) ────────
+  // ── Guard against accidental unload (only for pre-org steps) ────────────────
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isNavigatingAway.current) return;
-      // If wizard progress is saved, reload is safe — skip the warning
-      if (sessionStorage.getItem("wizard_admin_step")) return;
+      // If org is created, wizard state is persisted to DB — reload is safe
+      if (orgCreated) return;
       e.preventDefault();
       e.returnValue = "You haven't completed setup yet. Are you sure you want to leave?";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [orgCreated]);
 
-  // ── Persist wizard step to sessionStorage so browser-back restores position ─
-  useEffect(() => {
-    if (adminStep && adminStep !== "account" && adminStep !== "firm") {
-      sessionStorage.setItem("wizard_admin_step", adminStep);
+  // ── Helper: hydrate component state from a DB draft ─────────────────────────
+  function hydrateFromDraft(draft: SetupDraft | null, overrideStep?: AdminStep) {
+    if (!draft) return;
+    setAdminStep(overrideStep ?? (draft.step as AdminStep));
+    if (draft.firmName) setFirmName(draft.firmName);
+    if (draft.firmSlug) setSlug(draft.firmSlug);
+    if (draft.selectedTier) setSelectedTier(draft.selectedTier as PlanTier);
+    if (draft.importRows) setSavedImportRows(draft.importRows as EditableRow[]);
+    if (draft.portalEnabled !== undefined) setClientPortalEnabled(draft.portalEnabled);
+    if (draft.uploadCheckMode) setUploadCheckSelection(draft.uploadCheckMode as UploadCheckMode);
+    if (draft.sendHour !== undefined) setSendHour(draft.sendHour);
+    if (draft.emailSubStep) setEmailInitialSubStep(draft.emailSubStep as EmailSubStep);
+    setOrgCreated(true);
+  }
+
+  // ── Helper: collect current component state into a draft object ─────────────
+  function collectCurrentState(): SetupDraft {
+    return {
+      step: adminStep,
+      firmName,
+      firmSlug: slug,
+      selectedTier: selectedTier ?? undefined,
+      importRows: savedImportRows ?? undefined,
+      portalEnabled: clientPortalEnabled,
+      uploadCheckMode: uploadCheckSelection,
+      emailSubStep: emailInitialSubStep,
+      sendHour: sendHour ?? undefined,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  // ── Wrapper: save draft to DB then advance step ────────────────────────────
+  function advanceToStep(nextStep: AdminStep) {
+    if (orgCreated && nextStep !== "complete") {
+      const draft = collectCurrentState();
+      draft.step = nextStep;
+      saveSetupDraft(draft).catch((e) => console.warn("Draft save failed:", e));
     }
-  }, [adminStep]);
-
-  // ── Persist imported client rows to sessionStorage so they survive OAuth redirects ─
-  useEffect(() => {
-    try {
-      if (savedImportRows && savedImportRows.length > 0) {
-        sessionStorage.setItem("wizard_import_rows", JSON.stringify(savedImportRows));
-      } else {
-        sessionStorage.removeItem("wizard_import_rows");
-      }
-    } catch {
-      // sessionStorage full or unavailable — non-blocking
-    }
-  }, [savedImportRows]);
-
-  useEffect(() => {
-    sessionStorage.setItem("wizard_portal_enabled", clientPortalEnabled ? "1" : "0");
-  }, [clientPortalEnabled]);
+    setAdminStep(nextStep);
+  }
 
 
   // ── On mount: detect user type and starting step ────────────────────────────
@@ -329,24 +340,17 @@ export default function WizardPage() {
       // app_metadata (including org_id) — required by RLS on user_organisations.
       const urlParams = new URLSearchParams(window.location.search);
       const hasReturnParams = urlParams.has("from") || urlParams.has("storage_connected") || urlParams.has("storage_error");
-      if (hasReturnParams || sessionStorage.getItem("wizard_return_step") || sessionStorage.getItem("wizard_admin_step")) {
+      if (hasReturnParams) {
         await supabase.auth.refreshSession();
       }
 
-      // ── Detect external return params BEFORE the org query ──────────────
-      // URL params and sessionStorage must be read before the user_organisations
-      // query because returning from an external domain (Stripe checkout) can
-      // leave the browser session in a state where the RLS-gated query returns
-      // no rows — causing the wizard to fall back to the "firm" step.
+      // ── Detect external return params ──────────────────────────────────
       const sc = urlParams.get("storage_connected");
       const se = urlParams.get("storage_error");
       const fromStripe = urlParams.get("from") === "stripe";
-      const savedReturnStep = sessionStorage.getItem("wizard_return_step");
-      const savedAdminStep = sessionStorage.getItem("wizard_admin_step");
-      const savedPortal = sessionStorage.getItem("wizard_portal_enabled");
+      const fromStripeComplete = urlParams.get("from") === "stripe-complete";
 
       // Clean URL params without triggering a reload
-      const fromStripeComplete = urlParams.get("from") === "stripe-complete";
       if (sc || se || fromStripe || fromStripeComplete) {
         window.history.replaceState({}, "", window.location.pathname);
       }
@@ -354,89 +358,76 @@ export default function WizardPage() {
       // ── Handle Stripe return from complete step ────────────────────
       // After paying, the user returns to /setup/wizard?from=stripe-complete.
       // The wizard was already completed before the Stripe redirect, so
-      // we clean up and send the user straight to their dashboard.
-      if (fromStripeComplete || savedReturnStep === "stripe-complete") {
-        sessionStorage.removeItem("wizard_admin_step");
-        sessionStorage.removeItem("wizard_portal_enabled");
-        sessionStorage.removeItem("wizard_return_step");
-        sessionStorage.removeItem("wizard_org_id");
-        sessionStorage.removeItem("wizard_import_rows");
+      // we send the user straight to their dashboard.
+      if (fromStripeComplete) {
         const url = await getWizardDashboardUrl();
         isNavigatingAway.current = true;
         window.location.href = url;
         return; // Don't setIsCheckingAuth — we're navigating away
       }
 
-      // ── Handle legacy Stripe return (plan-step flow, pre-refactor) ──
-      if (fromStripe || savedReturnStep === "stripe") {
-        sessionStorage.removeItem("wizard_return_step");
+      // ── Handle legacy Stripe return (plan-step flow) ───────────────
+      if (fromStripe) {
+        const draft = await getSetupDraft();
         setUserType("new-admin");
-        setOrgCreated(true);
-        setAdminStep("import");
+        hydrateFromDraft(draft, "import");
         prefetchConfigDefaults();
       }
       // ── Handle storage OAuth return ────────────────────────────────────
       else if (sc || se) {
-        sessionStorage.removeItem("wizard_return_step");
+        const draft = await getSetupDraft();
         setUserType("new-admin");
-        setOrgCreated(true);
+        hydrateFromDraft(draft, "storage");
         setStorageConnected(sc);
         setStorageError(se);
-        setAdminStep("storage");
         const url = await getWizardDashboardUrl();
         setDashboardUrl(url);
       }
-      // ── No external return — check org membership normally ─────────────
+      // ── No external return — check for DB draft or org membership ──────
       else {
-        const { data: userOrg } = await supabase
-          .from("user_organisations")
-          .select("org_id, role")
-          .eq("user_id", user.id)
-          .limit(1)
-          .maybeSingle();
-
-        if (!userOrg?.org_id) {
-          // Authenticated but no org → new-admin, start at firm
+        const draft = await getSetupDraft();
+        if (draft) {
           setUserType("new-admin");
-          setAdminStep("firm");
-        } else if (userOrg.role === "admin") {
-          setUserType("new-admin");
-          setOrgCreated(true);
-
-          // Restore orgId from JWT app_metadata for Stripe checkout on complete step
+          hydrateFromDraft(draft);
           const orgIdFromJwt = user.app_metadata?.org_id;
           if (orgIdFromJwt) setOrgId(orgIdFromJwt);
-
-          // Restore wizard position from sessionStorage (covers browser-back
-          // from OAuth pages and any other mid-wizard navigation)
-          if (savedReturnStep === "storage" || savedAdminStep === "storage") {
-            sessionStorage.removeItem("wizard_return_step");
-            if (savedPortal !== null) setClientPortalEnabled(savedPortal === "1");
-            setAdminStep("storage");
-            const url = await getWizardDashboardUrl();
-            setDashboardUrl(url);
-          } else if (
-            savedAdminStep &&
-            ["import", "email", "portal", "upload-checks", "complete"].includes(savedAdminStep)
-          ) {
-            // Restore to whichever step they were on
-            if (savedPortal !== null) setClientPortalEnabled(savedPortal === "1");
-            setAdminStep(savedAdminStep as AdminStep);
-            prefetchConfigDefaults();
-            if (savedAdminStep === "complete") {
-              const url = await getWizardDashboardUrl();
-              setDashboardUrl(url);
-            }
-          } else {
-            // Fallback: start at import
-            setAdminStep("import");
+          if (["import", "email", "portal", "upload-checks", "storage", "complete"].includes(draft.step)) {
             prefetchConfigDefaults();
           }
+          if (draft.step === "complete") {
+            const url = await getWizardDashboardUrl();
+            setDashboardUrl(url);
+          }
         } else {
-          // Invited member → 2-step flow, start at import
-          setUserType("invited-member");
-          setMemberStep(0);
-          prefetchConfigDefaults();
+          // No draft — fall back to org membership check
+          const { data: userOrg } = await supabase
+            .from("user_organisations")
+            .select("org_id, role")
+            .eq("user_id", user.id)
+            .limit(1)
+            .maybeSingle();
+
+          if (!userOrg?.org_id) {
+            // Authenticated but no org → new-admin, start at firm
+            setUserType("new-admin");
+            setAdminStep("firm");
+          } else if (userOrg.role === "admin") {
+            setUserType("new-admin");
+            setOrgCreated(true);
+
+            // Restore orgId from JWT app_metadata for Stripe checkout on complete step
+            const orgIdFromJwt = user.app_metadata?.org_id;
+            if (orgIdFromJwt) setOrgId(orgIdFromJwt);
+
+            // No draft but org exists — start at import (they completed firm+plan)
+            setAdminStep("import");
+            prefetchConfigDefaults();
+          } else {
+            // Invited member → 2-step flow, start at import
+            setUserType("invited-member");
+            setMemberStep(0);
+            prefetchConfigDefaults();
+          }
         }
       }
 
@@ -526,6 +517,14 @@ export default function WizardPage() {
       prefetchConfigDefaults();
       setIsCreatingOrg(false);
       setOrgCreated(true);
+      // Save draft immediately — orgCreated state not yet committed, so call saveSetupDraft directly
+      saveSetupDraft({
+        step: "import",
+        firmName,
+        firmSlug: slug,
+        selectedTier: tier,
+        updatedAt: new Date().toISOString(),
+      }).catch((e) => console.warn("Draft save failed:", e));
       setAdminStep("import");
     } catch (err) {
       setPlanError(
@@ -563,7 +562,7 @@ export default function WizardPage() {
       try {
         await updateOrgPlanTier(selectedTier);
         setIsCreatingOrg(false);
-        setAdminStep("import");
+        advanceToStep("import");
       } catch (err) {
         setPlanError(
           err instanceof Error
@@ -604,7 +603,7 @@ export default function WizardPage() {
 
   const handleImportComplete = () => {
     if (userType === "new-admin") {
-      setAdminStep("email");
+      advanceToStep("email");
     } else {
       setMemberStep(1);
     }
@@ -654,7 +653,7 @@ export default function WizardPage() {
 
     // Advance to the portal step (admin) or complete step (member)
     if (userType === "new-admin") {
-      setAdminStep("portal");
+      advanceToStep("portal");
     } else {
       setMemberStep(2);
     }
@@ -664,18 +663,20 @@ export default function WizardPage() {
     setClientPortalEnabled(enabled);
     setPortalSelection(enabled ? "yes" : "no");
     if (enabled) {
-      setAdminStep("upload-checks");
+      advanceToStep("upload-checks");
     } else {
+      // Portal disabled — skip to complete (don't save draft for "complete" step)
       setAdminStep("complete");
     }
   };
 
   const handleUploadChecksComplete = (mode: UploadCheckMode) => {
     setUploadCheckSelection(mode);
-    setAdminStep("storage");
+    advanceToStep("storage");
   };
 
   const handleStorageComplete = () => {
+    // Don't save draft for "complete" step (Pitfall 4: race with markOrgSetupComplete)
     setAdminStep("complete");
   };
 
@@ -710,10 +711,6 @@ export default function WizardPage() {
           return;
         }
         if (data.url) {
-          sessionStorage.removeItem("wizard_admin_step");
-          sessionStorage.removeItem("wizard_portal_enabled");
-          sessionStorage.removeItem("wizard_import_rows");
-          sessionStorage.setItem("wizard_return_step", "stripe-complete");
           isNavigatingAway.current = true;
           window.location.href = data.url;
         } else {
@@ -726,10 +723,6 @@ export default function WizardPage() {
       }
     } else {
       // Free plan — go straight to dashboard
-      sessionStorage.removeItem("wizard_admin_step");
-      sessionStorage.removeItem("wizard_portal_enabled");
-      sessionStorage.removeItem("wizard_return_step");
-      sessionStorage.removeItem("wizard_import_rows");
       isNavigatingAway.current = true;
       window.location.href = dashboardUrl;
     }
@@ -848,7 +841,7 @@ export default function WizardPage() {
           const stepNames: AdminStep[] = clientPortalEnabled
             ? ["account", "firm", "plan", "import", "email", "portal", "upload-checks", "storage", "complete"]
             : ["account", "firm", "plan", "import", "email", "portal", "complete"];
-          setAdminStep(stepNames[index]);
+          advanceToStep(stepNames[index]);
         }}
       />
 
@@ -1084,9 +1077,16 @@ export default function WizardPage() {
         <div className="min-h-[520px]">
           <CsvImportStep
             onComplete={handleImportComplete}
-            onBack={() => setAdminStep("plan")}
+            onBack={() => advanceToStep("plan")}
             initialRows={savedImportRows ?? undefined}
-            onRowsChange={setSavedImportRows}
+            onRowsChange={(rows) => {
+              setSavedImportRows(rows);
+              if (orgCreated && rows) {
+                const draft = collectCurrentState();
+                draft.importRows = rows;
+                saveSetupDraft(draft).catch((e) => console.warn("Draft save failed:", e));
+              }
+            }}
             planClientLimit={selectedTier ? PLAN_TIERS.find((p) => p.key === selectedTier)?.clientLimit ?? null : null}
           />
         </div>
@@ -1097,7 +1097,7 @@ export default function WizardPage() {
         <div className="min-h-[520px]">
           <EmailSetupStep
             onComplete={handleConfigComplete}
-            onBack={() => setAdminStep("import")}
+            onBack={() => advanceToStep("import")}
             defaultSendHour={sendHour}
             defaultEmailSettings={emailSettings}
             orgDomain={orgDomain}
@@ -1122,7 +1122,7 @@ export default function WizardPage() {
             onBack={() => {
               setEmailInitialSubStep("settings");
               prefetchConfigDefaults();
-              setAdminStep("email");
+              advanceToStep("email");
             }}
           />
         </div>
@@ -1133,7 +1133,7 @@ export default function WizardPage() {
         <div className="min-h-[520px]">
           <UploadChecksStep
             onComplete={handleUploadChecksComplete}
-            onBack={() => setAdminStep("portal")}
+            onBack={() => advanceToStep("portal")}
             initialSelection={uploadCheckSelection}
           />
         </div>
@@ -1146,10 +1146,13 @@ export default function WizardPage() {
             storageConnected={storageConnected}
             storageError={storageError}
             onComplete={handleStorageComplete}
-            onBack={() => setAdminStep("upload-checks")}
+            onBack={() => advanceToStep("upload-checks")}
             onBeforeProviderConnect={() => {
               isNavigatingAway.current = true;
-              sessionStorage.setItem("wizard_return_step", "storage");
+              // Save draft before leaving for OAuth — state will be restored on return
+              const draft = collectCurrentState();
+              draft.step = "storage";
+              saveSetupDraft(draft).catch((e) => console.warn("Draft save failed:", e));
             }}
           />
         </div>
@@ -1208,7 +1211,7 @@ export default function WizardPage() {
               <ButtonBase
                 variant="amber"
                 buttonType="icon-text"
-                onClick={() => setAdminStep(clientPortalEnabled ? "storage" : "portal")}
+                onClick={() => advanceToStep(clientPortalEnabled ? "storage" : "portal")}
                 disabled={isLeavingWizard}
               >
                 <ArrowLeft className="size-4" />
