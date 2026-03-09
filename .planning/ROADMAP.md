@@ -579,7 +579,7 @@ Plans:
 **Goal:** Persist all setup wizard progress to the database so the wizard survives page refreshes, tab closes, OAuth/Stripe redirects, and device switches
 **Requirements**: TBD
 **Depends on:** Phase 30
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 31-01-PLAN.md — Core draft persistence: setup_draft JSONB column, getSetupDraft/saveSetupDraft server actions, wizard mount/transition refactor, sessionStorage removal

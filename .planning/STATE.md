@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: unknown
-last_updated: "2026-03-03T02:20:16.228Z"
+last_updated: "2026-03-09T22:51:03Z"
 progress:
   total_phases: 31
   completed_phases: 29
   total_plans: 105
-  completed_plans: 102
+  completed_plans: 103
 ---
 
 # Project State
@@ -19,17 +19,17 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Automate the hours accountants spend manually chasing clients for records and documents, while keeping the accountant in full control of messaging and timing.
 
-**Current focus:** Phase 30 Plan 03 complete — Accountant-facing validation warning UI: amber badge + clear action on document card, Issues column in activity uploads table, UploadValidationModal detail popup, Needs Review filter chip.
+**Current focus:** Phase 31 Plan 01 complete — Server-side wizard state persistence via setup_draft JSONB column
 
 ## Current Position
 
-Phase: 30 (complete — all 3 plans done)
-Plan: 03 complete
-Status: Phase 30 Plan 03 complete — Amber badge on document cards, Issues column in uploads table, UploadValidationModal
-Last activity: 2026-03-03 — Phase 30-03 document-card badge + clear action, uploads-table Issues column, upload-validation-modal.tsx
+Phase: 31 (in progress — 1/2 plans done)
+Plan: 01 complete
+Status: Phase 31 Plan 01 complete — setup_draft JSONB column, getSetupDraft/saveSetupDraft server actions, DB-backed wizard hydration
+Last activity: 2026-03-09 — Phase 31-01 migration + server actions + wizard page refactor
 
 Resume file: none
-Next step: Phase 30 complete — all 3 plans executed
+Next step: Phase 31 Plan 02
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
 
@@ -316,6 +316,7 @@ Recent decisions affecting v3.0:
 - Phase 28 added: Settings UI & Token Lifecycle — unified Storage tab, re-auth banner, health-check cron, privacy policy update
 - Phase 29 added: Hardening & Integration Testing — large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification
 - Phase 30 added: Per-document-type upload validation — tailored checks per document type, CSV MIME fix, large-file path validation
+- Phase 31 added: Server-Side Wizard State Persistence — persist wizard progress to DB setup_draft column; survives refresh, tab close, OAuth/Stripe redirects
 
 ### Known Risks
 
@@ -394,10 +395,10 @@ Recent decisions affecting v3.0:
 
 ## Session Continuity
 
-Last session: 2026-03-03 UTC
-Stopped at: Completed 30-03-PLAN.md — Accountant-facing validation UI: amber badge on document cards, Issues column in uploads table, UploadValidationModal, Needs Review filter chip
+Last session: 2026-03-09 UTC
+Stopped at: Completed 31-01-PLAN.md — Server-side wizard state persistence: setup_draft JSONB column, getSetupDraft/saveSetupDraft, DB-backed wizard hydration
 Resume file: none
-Next step: Phase 30 complete — all 3 plans executed
+Next step: Phase 31 Plan 02
 
 ---
 *v5.0 roadmap created 2026-02-28 — Phases 24-29 (Storage Abstraction Layer through Hardening & Integration Testing); 36 requirements mapped with 100% coverage*
