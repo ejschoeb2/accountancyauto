@@ -9,6 +9,7 @@ import {
   createOrgDomain,
   checkDomainVerification,
 } from "@/lib/postmark/management";
+
 // ─── Setup draft persistence ─────────────────────────────────────────────────
 
 export interface SetupDraft {
@@ -16,7 +17,7 @@ export interface SetupDraft {
   firmName?: string;
   firmSlug?: string;
   selectedTier?: string;  // PlanTier value
-  importRows?: unknown[]; // EditableRow[] stored as JSON
+  importRows?: unknown[]; // EditableRow[] serialized as JSON-safe array
   emailSubStep?: string;  // EmailSubStep value
   portalEnabled?: boolean;
   uploadCheckMode?: string;
