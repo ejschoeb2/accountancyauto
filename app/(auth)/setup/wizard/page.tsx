@@ -367,11 +367,15 @@ export default function WizardPage() {
         return; // Don't setIsCheckingAuth — we're navigating away
       }
 
-      // ── Handle legacy Stripe return (plan-step flow) ───────────────
+      // ── Handle Stripe return (plan-step flow) ──────────────────────
       if (fromStripe) {
         const draft = await getSetupDraft();
         setUserType("new-admin");
         hydrateFromDraft(draft, "import");
+        const draftClients = await getDraftClients();
+        if (draftClients && draftClients.length > 0) {
+          setSavedImportRows(draftClients);
+        }
         prefetchConfigDefaults();
       }
       // ── Handle storage OAuth return ────────────────────────────────────
@@ -379,6 +383,10 @@ export default function WizardPage() {
         const draft = await getSetupDraft();
         setUserType("new-admin");
         hydrateFromDraft(draft, "storage");
+        const draftClients = await getDraftClients();
+        if (draftClients && draftClients.length > 0) {
+          setSavedImportRows(draftClients);
+        }
         setStorageConnected(sc);
         setStorageError(se);
         const url = await getWizardDashboardUrl();
@@ -386,10 +394,17 @@ export default function WizardPage() {
       }
       // ── No external return — check for DB draft or org membership ──────
       else {
+        // Always refresh session when returning to wizard (may have stale JWT)
+        await supabase.auth.refreshSession();
+
         const draft = await getSetupDraft();
         if (draft) {
           setUserType("new-admin");
           hydrateFromDraft(draft);
+          const draftClients = await getDraftClients();
+          if (draftClients && draftClients.length > 0) {
+            setSavedImportRows(draftClients);
+          }
           const orgIdFromJwt = user.app_metadata?.org_id;
           if (orgIdFromJwt) setOrgId(orgIdFromJwt);
           if (["import", "email", "portal", "upload-checks", "storage", "complete"].includes(draft.step)) {
@@ -589,6 +604,9 @@ export default function WizardPage() {
     try {
       await deleteAllWizardClients();
       setSavedImportRows(null);
+      if (orgCreated) {
+        clearDraftClients().catch((e) => console.warn("Clear draft clients failed:", e));
+      }
       await handleSelectPlan(pendingDowngradeTier);
     } catch (err) {
       setPlanError(
