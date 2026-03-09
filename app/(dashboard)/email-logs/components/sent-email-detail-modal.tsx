@@ -81,16 +81,22 @@ export function SentEmailDetailModal({
     setNoBody(false);
     setError(null);
 
-    previewSentEmail(entry.id).then((result) => {
-      if ('noBody' in result) {
-        setNoBody(true);
-      } else if ('error' in result) {
-        setError(result.error);
-      } else {
-        setPreview(result);
-      }
-      setLoading(false);
-    });
+    previewSentEmail(entry.id)
+      .then((result) => {
+        if ('noBody' in result) {
+          setNoBody(true);
+        } else if ('error' in result) {
+          setError(result.error);
+        } else {
+          setPreview(result);
+        }
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load email preview');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [open, entry]);
 
   // Keyboard navigation

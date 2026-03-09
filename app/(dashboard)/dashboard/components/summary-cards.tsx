@@ -30,7 +30,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
         </CardContent>
       </Card>
 
-      <Link href="/email-logs?delivery_status=bounced,failed">
+      <Link href="/activity?delivery_status=bounced,failed">
         <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
           <CardContent className="px-5 py-0">
             <div className="flex items-start justify-between">

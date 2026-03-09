@@ -226,7 +226,7 @@ const RESERVED_SLUGS = [
   "settings",
   "templates",
   "schedules",
-  "email-logs",
+  "activity",
   "rollover",
 ];
 

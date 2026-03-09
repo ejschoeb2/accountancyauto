@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${figtree.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${figtree.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased">
         {children}
         <Toaster />

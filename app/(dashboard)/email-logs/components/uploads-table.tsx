@@ -436,7 +436,7 @@ export function UploadsTable() {
                     {upload.document_type_label ?? '—'}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                    {format(new Date(upload.received_at), 'd MMM yyyy, HH:mm')}
+                    {upload.received_at ? format(new Date(upload.received_at), 'd MMM yyyy, HH:mm') : '—'}
                   </TableCell>
                   <TableCell>
                     {(() => {

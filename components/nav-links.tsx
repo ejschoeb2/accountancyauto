@@ -9,7 +9,7 @@ export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/clients", label: "Clients" },
   { href: "/schedules", label: "Reminder Schedules" },
   { href: "/templates", label: "Email Templates" },
-  { href: "/email-logs", label: "Activity" },
+  { href: "/activity", label: "Activity" },
 ];
 
 export const ADMIN_ITEM: { href: string; label: string } = {

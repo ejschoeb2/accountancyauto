@@ -62,14 +62,20 @@ export function QueuedEmailPreviewModal({
     setPreview(null);
     setError(null);
 
-    previewQueuedEmail(reminderId).then((result) => {
-      if ('error' in result) {
-        setError(result.error);
-      } else {
-        setPreview(result);
-      }
-      setLoading(false);
-    });
+    previewQueuedEmail(reminderId)
+      .then((result) => {
+        if ('error' in result) {
+          setError(result.error);
+        } else {
+          setPreview(result);
+        }
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load email preview');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [open, reminderId]);
 
   // Keyboard navigation
