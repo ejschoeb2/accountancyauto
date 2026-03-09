@@ -18,7 +18,7 @@ import {
   updateGoogleDriveFolderId,
   type StorageInfo,
 } from "@/app/actions/settings";
-import { getStorageInfoForWizardForWizard } from "../actions";
+import { getStorageInfoForWizard } from "../actions";
 
 interface StorageSetupStepProps {
   storageConnected?: string | null;
@@ -44,7 +44,7 @@ export function StorageSetupStep({
 
   useEffect(() => {
     setIsLoading(true);
-    getStorageInfoForWizardForWizard().then((data) => {
+    getStorageInfoForWizard().then((data) => {
       setInfo(data);
       setIsLoading(false);
     });
