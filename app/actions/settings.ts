@@ -112,7 +112,11 @@ export async function updateUserSendHour(
   if (!user) return { error: "Not authenticated" };
 
   if (!skipBillingCheck) await requireWriteAccess(orgId);
-  const { error } = await supabase
+
+  // During wizard setup the JWT may not have org_id yet, so RLS on
+  // app_settings would block the upsert. Use admin client to bypass.
+  const db = skipBillingCheck ? createAdminClient() : supabase;
+  const { error } = await db
     .from("app_settings")
     .upsert(
       { org_id: orgId, user_id: user.id, key: "reminder_send_hour", value: String(hour) },
@@ -290,6 +294,9 @@ export async function updateUserEmailSettings(
 
   if (!skipBillingCheck) await requireWriteAccess(orgId);
 
+  // During wizard setup the JWT may not have org_id yet, so RLS on
+  // app_settings would block the upsert. Use admin client to bypass.
+  const db = skipBillingCheck ? createAdminClient() : supabase;
   const entries: { org_id: string; user_id: string; key: string; value: string }[] = [
     { org_id: orgId, user_id: user.id, key: EMAIL_KEYS.senderName, value: settings.senderName.trim() },
     { org_id: orgId, user_id: user.id, key: EMAIL_KEYS.senderAddress, value: settings.senderAddress.trim() },
@@ -297,7 +304,7 @@ export async function updateUserEmailSettings(
   ];
 
   for (const entry of entries) {
-    const { error } = await supabase
+    const { error } = await db
       .from("app_settings")
       .upsert(entry, { onConflict: "org_id,user_id,key" });
 
