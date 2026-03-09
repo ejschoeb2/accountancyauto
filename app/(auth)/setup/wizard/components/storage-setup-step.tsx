@@ -18,7 +18,7 @@ import {
   updateGoogleDriveFolderId,
   type StorageInfo,
 } from "@/app/actions/settings";
-import { getStorageInfoForWizard } from "../actions";
+import { getStorageInfoForWizardForWizard } from "../actions";
 
 interface StorageSetupStepProps {
   storageConnected?: string | null;
@@ -44,7 +44,7 @@ export function StorageSetupStep({
 
   useEffect(() => {
     setIsLoading(true);
-    getStorageInfoForWizard().then((data) => {
+    getStorageInfoForWizardForWizard().then((data) => {
       setInfo(data);
       setIsLoading(false);
     });
@@ -60,7 +60,7 @@ export function StorageSetupStep({
       } else {
         setFolderInput("");
         setFolderSaved(true);
-        const updated = await getStorageInfo();
+        const updated = await getStorageInfoForWizard();
         setInfo(updated);
       }
     });
