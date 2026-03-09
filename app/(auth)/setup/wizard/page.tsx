@@ -378,6 +378,9 @@ export default function WizardPage() {
           setAdminStep("import");
           setOrgCreated(true);
         }
+        // Restore orgId from JWT (needed for Stripe checkout on complete step)
+        const orgIdFromJwt = user.app_metadata?.org_id;
+        if (orgIdFromJwt) setOrgId(orgIdFromJwt);
         const draftClients = await getDraftClients();
         if (draftClients && draftClients.length > 0) {
           setSavedImportRows(draftClients);
@@ -395,6 +398,9 @@ export default function WizardPage() {
           setAdminStep("storage");
           setOrgCreated(true);
         }
+        // Restore orgId from JWT (needed for Stripe checkout on complete step)
+        const orgIdFromJwt = user.app_metadata?.org_id;
+        if (orgIdFromJwt) setOrgId(orgIdFromJwt);
         const draftClients = await getDraftClients();
         if (draftClients && draftClients.length > 0) {
           setSavedImportRows(draftClients);

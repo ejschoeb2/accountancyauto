@@ -470,9 +470,8 @@ Under `app/(auth)/`:
 
 | Page | Path | Purpose |
 |------|------|---------|
-| Onboarding | `/onboarding` | Post-signup org setup wizard |
-| Invite | `/auth/invite` | Accept org membership invitation |
-| Setup | `/auth/setup` | Post-invite member setup (CSV import + personal config) |
+| Setup Wizard | `/setup/wizard` | Post-signup org creation and configuration wizard (see **Setup Wizard** section below) |
+| Invite Accept | `/invite/accept` | Accept org membership invitation |
 
 ### Public Pages
 
@@ -481,6 +480,218 @@ Under `app/(auth)/`:
 | Landing | `/` | Marketing landing page (hero, features, pricing, CTA) |
 | Pricing | `/pricing` | Public pricing page |
 | Portal | `/portal/[token]` | Client-facing document upload portal (no auth required) |
+
+---
+
+## Setup Wizard
+
+The setup wizard (`app/(auth)/setup/wizard/`) is a multi-step onboarding flow that creates an organisation, configures email sending, imports clients, and optionally connects cloud storage. It supports two user flows (new admin vs invited member) and persists all state server-side to survive OAuth redirects and page refreshes.
+
+### File Layout
+
+```
+app/(auth)/setup/wizard/
+├── page.tsx              — Main orchestrator (step state machine, mount logic, render)
+├── actions.ts            — Server actions (draft persistence, org creation, Postmark, OTP)
+└── components/
+    ├── account-setup-step.tsx     — Email/password signup + OTP verification
+    ├── csv-import-step.tsx        — CSV upload, parse, edit, bulk import
+    ├── email-setup-step.tsx       — Postmark domain provisioning + DNS verification + sender config
+    ├── config-step.tsx            — Simplified email config for invited members
+    ├── client-portal-step.tsx     — Enable/disable client upload portal
+    ├── upload-checks-step.tsx     — Document verification mode selection
+    └── storage-setup-step.tsx     — Google Drive / OneDrive / Dropbox OAuth connection
+```
+
+### Step Flow
+
+The wizard uses a string-based step state (`AdminStep` type) rather than numeric indices. The progress bar maps step names to display positions dynamically based on whether the client portal is enabled.
+
+**New admin flow (9 possible steps):**
+
+```
+account → firm → plan → import → email → portal → [upload-checks → storage] → complete
+                                                    └─ skipped if portal = no ─┘
+```
+
+| Step | AdminStep value | What happens |
+|------|----------------|--------------|
+| Verify Email | `account` | Signup form + 6-digit OTP verification via Supabase Auth |
+| Firm Details | `firm` | Firm name + URL slug (validated for uniqueness against `organisations.slug`) |
+| Plan | `plan` | Select pricing tier — triggers `createOrgAndJoinAsAdmin()` which creates the org, joins the user as admin, refreshes the JWT, and saves the first draft |
+| Import Clients | `import` | CSV upload → parse → edit grid → bulk insert via admin client. Large imports (500+ rows) are staged in `setup_draft_clients` table |
+| Email Setup | `email` | Multi-sub-step: domain input → Postmark server/domain provisioning → DNS record display → DNS verification polling → sender identity + send hour config |
+| Client Portal | `portal` | Yes/no choice — determines whether upload-checks and storage steps appear |
+| Upload Checks | `upload-checks` | Document verification mode (verify, extract, both, none). Only shown if portal enabled |
+| Storage | `storage` | Connect Google Drive, OneDrive, or Dropbox via OAuth. Only shown if portal enabled |
+| Complete | `complete` | Summary checklist → "Go to Dashboard" (free) or "Subscribe & Go to Dashboard" (paid → Stripe checkout) |
+
+**Invited member flow (3 steps):**
+
+```
+import → configuration → complete
+```
+
+Members skip org creation, firm details, plan selection, portal, and storage. They import their own clients and configure their email identity.
+
+### Server-Side Draft Persistence
+
+All wizard state is persisted to the database so it survives OAuth redirects (Google Drive, OneDrive, Dropbox), Stripe checkout redirects, and page refreshes. No sessionStorage is used for step state.
+
+#### Database Schema
+
+**`organisations.setup_draft`** — JSONB column storing the current wizard state:
+
+```typescript
+interface SetupDraft {
+  step: string;           // Current step name ("firm", "import", "email", "storage", etc.)
+  firmName?: string;
+  firmSlug?: string;
+  selectedTier?: string;  // Plan tier key
+  emailSubStep?: string;  // Email component sub-state ("input", "dns-records", "settings")
+  portalEnabled?: boolean;
+  uploadCheckMode?: string;
+  sendHour?: number;
+  updatedAt: string;      // ISO timestamp
+}
+```
+
+**`setup_draft_clients`** — Separate staging table for CSV import rows. Large imports (500+ rows) would bloat the JSONB column and exceed browser payload limits. Rows are stored as `{ org_id, row_index, data: JSONB }` and cleaned up on wizard completion.
+
+#### When Drafts Are Saved
+
+| Trigger | Method | Blocking? |
+|---------|--------|-----------|
+| Org created (plan step) | `await saveSetupDraft(...)` | Yes — awaited |
+| Step transition (forward/back) | `advanceToStep()` → `saveSetupDraft().catch()` | No — fire-and-forget (safe because user stays on page) |
+| Before OAuth redirect (storage) | `await saveSetupDraft(...)` | Yes — must complete before `window.location.href` navigates away |
+| CSV import data changes | `saveDraftClients(rows)` | No — fire-and-forget |
+
+**Critical:** Saves before external navigation (OAuth, Stripe) **must be awaited**. Fire-and-forget saves are cancelled by the browser when `window.location.href` changes.
+
+#### When Drafts Are Cleared
+
+`markOrgSetupComplete()` sets `setup_draft: null` and `setup_complete: true` on the org row. This is called when the user clicks "Go to Dashboard" on the complete step. `setup_draft_clients` rows are also deleted (belt-and-suspenders; the table has `ON DELETE CASCADE` via org_id FK).
+
+### Mount / Hydration Logic
+
+On page mount, the wizard runs a detection sequence to determine which step to show:
+
+```
+1. Check auth — no user? → show OTP step or redirect to /signup
+2. Refresh session if returning from external redirect
+3. Detect URL params:
+   a. ?from=stripe-complete  → redirect straight to dashboard (wizard already done)
+   b. ?from=stripe           → hydrate from DB draft, force step to "import"
+   c. ?storage_connected=*   → hydrate from DB draft, force step to "storage"
+   d. ?storage_error=*       → hydrate from DB draft, force step to "storage"
+4. No URL params:
+   a. DB draft exists         → hydrate all state from draft (step, firm, tier, etc.)
+   b. No draft, has org       → start at "import" (org already created)
+   c. No draft, no org        → start at "firm"
+```
+
+`hydrateFromDraft()` restores all React state from the draft: step, firm name, slug, selected tier, portal choice, upload check mode, send hour, email sub-step, and sets `orgCreated = true`.
+
+**Null-draft fallbacks:** If `getSetupDraft()` returns null on an OAuth or Stripe return (e.g. the save was cancelled), the wizard forces the expected step (`"storage"` or `"import"`) and sets `orgCreated = true` so the user isn't sent back to the firm step.
+
+### Progress Bar Mapping
+
+The progress bar (stepper) is dynamically built based on `clientPortalEnabled`:
+
+- **Portal enabled:** 9 steps — includes "Upload Checks" and "Storage"
+- **Portal disabled:** 7 steps — "Upload Checks" and "Storage" are hidden (map to index `-1`)
+
+`adminStepToIndex(step, portalEnabled)` converts the string step name to a numeric stepper position. The stepper rebuilds on every render when `portalEnabled` changes.
+
+### Email Setup Sub-Steps
+
+The email step (`email-setup-step.tsx`) has its own internal state machine with 5 sub-states:
+
+```
+input → setting-up → dns-records → verifying → settings
+```
+
+| Sub-state | What happens |
+|-----------|--------------|
+| `input` | User enters their email domain |
+| `setting-up` | Loading — Postmark server + domain provisioning via `setupPostmarkForOrg()` |
+| `dns-records` | Display DKIM TXT record + Return-Path CNAME with provider-specific instructions. "Verify DNS" button polls `checkOrgDomainVerification()` |
+| `verifying` | Loading — DNS propagation check |
+| `settings` | Sender name, sender address (local-part@domain), reply-to, send hour. Saves via `updateUserEmailSettings()` and `updateUserSendHour()` with `skipBillingCheck: true` |
+
+The email sub-step is persisted in `SetupDraft.emailSubStep` and restored via the `initialState` prop when returning to the email step.
+
+**RLS bypass:** During wizard setup, the user's JWT may not yet contain `org_id` in `app_metadata` (the Custom Access Token Hook runs on sign-in, not on org creation). The `app_settings` RLS policies use `auth_org_id()` which reads from the JWT — so writes would fail. When `skipBillingCheck: true`, the settings actions use `createAdminClient()` (service role) to bypass RLS.
+
+### External Redirect Flows
+
+Four external services require the user to leave the wizard and return:
+
+#### Stripe Checkout (paid plans)
+
+```
+Complete step → markOrgSetupComplete() (nulls draft) → Stripe checkout
+  → Success: /setup/wizard?from=stripe-complete → redirect to dashboard
+  → Cancel:  /setup/wizard?from=stripe-complete → redirect to dashboard
+```
+
+Stripe only fires **after** the wizard is fully complete. No draft restoration needed — `setup_complete` is already `true`.
+
+#### Google Drive / OneDrive / Dropbox OAuth
+
+All three follow the same pattern:
+
+```
+Storage step → await saveSetupDraft({ step: "storage" })
+  → /api/auth/{provider}/connect?from=wizard
+  → Provider OAuth consent screen
+  → /api/auth/{provider}/callback
+  → Callback validates CSRF state (DB-based, wizard_ prefix)
+  → Exchanges code for tokens, encrypts, stores in organisations
+  → Redirects to /setup/wizard?storage_connected={provider} (on org subdomain)
+```
+
+On return:
+1. Middleware preserves `storage_connected` / `storage_error` params via `buildWizardRedirect()` when redirecting incomplete-setup users
+2. Wizard detects the URL param, refreshes session, calls `getSetupDraft()`
+3. Hydrates from draft with step forced to `"storage"`
+4. Shows success/error banner based on the param value
+
+The callback routes use a `wizard_` prefix on the OAuth state param to distinguish wizard returns from settings-page returns. A safety net corrects `fromWizard` using the DB state if the URL param was mangled.
+
+### Server Actions Reference
+
+All wizard server actions live in `app/(auth)/setup/wizard/actions.ts` and use `createAdminClient()` (service role) for DB writes because the user has no `org_id` in their JWT during setup.
+
+| Action | Purpose |
+|--------|---------|
+| `getSetupDraft()` | Read draft from `organisations.setup_draft` |
+| `saveSetupDraft(draft)` | Overwrite draft with timestamp |
+| `saveDraftClients(rows)` | Replace all staging rows (DELETE + INSERT) |
+| `getDraftClients()` | Read staging rows (returns `null` if none, not `[]`) |
+| `clearDraftClients()` | Delete all staging rows for org |
+| `createOrgAndJoinAsAdmin(name, slug, tier)` | Create org + membership + onboarding_complete setting. Idempotent — returns existing org if user already has one |
+| `updateOrgPlanTier(tier)` | Set `plan_tier` + `client_count_limit` so import step sees correct limit without waiting for Stripe webhook |
+| `deleteAllWizardClients()` | Bulk delete all clients (used when switching to lower-limit plan) |
+| `setupPostmarkForOrg(domain)` | Provision Postmark server + domain. Idempotent — skips if IDs already set |
+| `checkOrgDomainVerification()` | Poll DNS verification, mark org as verified if both DKIM + Return-Path pass |
+| `seedOrgDefaultsForWizard(portalEnabled)` | Seed default email templates + reminder schedules. Idempotent |
+| `markOrgSetupComplete()` | Set `setup_complete: true`, null out `setup_draft`, delete staging rows |
+| `refreshWizardSession()` | Force server-side session refresh so cross-subdomain cookie gets updated JWT |
+| `getWizardDashboardUrl()` | Resolve org subdomain dashboard URL |
+| `checkSlugAvailable(slug)` | Validate slug format + uniqueness + reserved word check |
+| `startSignup(email, password)` | Create unconfirmed account, trigger OTP email |
+| `verifyEmailOtp(email, token)` | Verify 6-digit signup OTP, establish session |
+| `resendEmailOtp(email)` | Resend signup OTP |
+
+### Middleware Integration
+
+The wizard page is a public route (`/setup` prefix in `PUBLIC_ROUTES`), so middleware doesn't block access. However, middleware interacts with the wizard in two ways:
+
+1. **Redirect-to-wizard:** Authenticated users whose org has `setup_complete = false` are redirected to `/setup/wizard` from any non-public route. The `buildWizardRedirect()` helper preserves `storage_connected`, `storage_error`, and `from` query params so OAuth callback state isn't lost during these redirects.
+
+2. **Post-completion:** Once `markOrgSetupComplete()` sets `setup_complete = true`, middleware stops redirecting to the wizard and allows normal dashboard access.
 
 ---
 

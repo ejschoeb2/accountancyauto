@@ -360,6 +360,43 @@ export async function seedOrgDefaultsForWizard(
 }
 
 /**
+ * Wizard-safe version of getStorageInfo that uses admin client (bypasses RLS/JWT).
+ * During wizard setup the JWT may not have org_id, so getOrgContext() fails.
+ */
+export async function getStorageInfoForWizard(): Promise<{
+  storageBackend: string | null;
+  googleDriveFolderId: string | null;
+  storageBackendStatus: string | null;
+  dropboxConnected: boolean;
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { storageBackend: null, googleDriveFolderId: null, storageBackendStatus: null, dropboxConnected: false };
+
+  const admin = createAdminClient();
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { storageBackend: null, googleDriveFolderId: null, storageBackendStatus: null, dropboxConnected: false };
+
+  const { data } = await admin
+    .from("organisations")
+    .select("storage_backend, storage_backend_status, google_drive_folder_id, dropbox_refresh_token_enc")
+    .eq("id", membership.org_id)
+    .single();
+
+  return {
+    storageBackend: data?.storage_backend ?? null,
+    googleDriveFolderId: data?.google_drive_folder_id ?? null,
+    storageBackendStatus: data?.storage_backend_status ?? null,
+    dropboxConnected: !!data?.dropbox_refresh_token_enc,
+  };
+}
+
+/**
  * Force a server-side session refresh so the `.prompt.accountants` cross-subdomain
  * cookie is updated with a JWT that includes org_id in app_metadata.
  */

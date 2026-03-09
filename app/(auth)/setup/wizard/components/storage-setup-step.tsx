@@ -15,10 +15,10 @@ import {
 import { ButtonBase } from "@/components/ui/button-base";
 import { Input } from "@/components/ui/input";
 import {
-  getStorageInfo,
   updateGoogleDriveFolderId,
   type StorageInfo,
 } from "@/app/actions/settings";
+import { getStorageInfoForWizard } from "../actions";
 
 interface StorageSetupStepProps {
   storageConnected?: string | null;
@@ -44,7 +44,7 @@ export function StorageSetupStep({
 
   useEffect(() => {
     setIsLoading(true);
-    getStorageInfo().then((data) => {
+    getStorageInfoForWizard().then((data) => {
       setInfo(data);
       setIsLoading(false);
     });
