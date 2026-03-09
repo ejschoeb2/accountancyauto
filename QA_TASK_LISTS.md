@@ -6,6 +6,23 @@ Previous issues from QA_AUDIT_LOG.md are already being fixed — focus on findin
 
 ---
 
+## SUPABASE MCP SERVER — CONNECTED ✅
+
+The Supabase MCP server is now connected to this project (project ref: `zmsirxtgmdbbdxgxlato`).
+
+This means the QA agent and Antigravity have **direct backend access** during QA sessions:
+- Query the database to verify data integrity (e.g. confirm a client record exists, check email log rows).
+- Cross-reference UI values against the actual database state to catch data-display mismatches.
+- Inspect backend tables when a UI feature behaves unexpectedly — check if the issue is a frontend rendering bug or a missing/malformed database record.
+- If an API call fails in the browser, query the relevant Supabase table directly to determine whether the data exists.
+
+**When to use the MCP during QA:**
+- Any time a page shows blank/undefined values that should be populated — check the DB.
+- Any time a network request returns a 4xx/5xx — query the backend to understand why.
+- Any time a feature appears broken — verify whether the underlying data is present before logging as a frontend bug.
+
+---
+
 ## REPORTING STANDARD
 
 After completing any section, the QA agent MUST:
@@ -24,9 +41,9 @@ After completing any section, the QA agent MUST:
 |---------|-------|--------|--------|
 | Section 1 | Setup Wizard Deep Dive | ✅ COMPLETE | [section1_wizard_qa_report.md](QA_REPORTS/section1_wizard_qa_report.md) |
 | Section 2 | Dashboard Deep Dive | ⬜ TODO | — |
-| Section 3 | Clients List, Filters & Modals | ⬜ TODO | — |
+| Section 3 | Clients List, Filters & Modals | ✅ COMPLETE | [section3_clients_list_qa_report.md](QA_REPORTS/section3_clients_list_qa_report.md) |
 | Section 4 | Client Detail Page Deep Dive | ✅ COMPLETE | [section4_client_detail_qa_report.md](QA_REPORTS/section4_client_detail_qa_report.md) |
-| Section 5 | Email Logs / Activity Page | ⬜ TODO | — |
+| Section 5 | Email Logs / Activity Page | ✅ COMPLETE | [section5_email_logs_qa_report.md](QA_REPORTS/section5_email_logs_qa_report.md) |
 | Section 6 | Schedules & Templates | ⬜ TODO | — |
 | Section 7 | Settings Page Deep Dive | ⬜ TODO | — |
 | Section 8 | Client Portal Deep Dive | ⬜ TODO | — |

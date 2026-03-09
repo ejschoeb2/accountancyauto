@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
+import { UsageBars } from "./usage-bars";
 
 type SubscriptionStatus =
   | "trialing"
@@ -19,6 +20,8 @@ interface BillingStatusCardProps {
   monthlyPrice: number;
   orgId: string;
   hasSubscription: boolean;
+  clientCount: number;
+  clientLimit: number | null;
 }
 
 const STATUS_CONFIG: Record<
@@ -88,6 +91,8 @@ export function BillingStatusCard({
   monthlyPrice,
   orgId,
   hasSubscription,
+  clientCount,
+  clientLimit,
 }: BillingStatusCardProps) {
   const statusConfig = STATUS_CONFIG[subscriptionStatus];
   const isTrialing = subscriptionStatus === "trialing" && trialEndsAt;
@@ -212,6 +217,13 @@ export function BillingStatusCard({
                 <p className="text-xs text-muted-foreground">Excluding VAT</p>
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Client Usage
+            </p>
+            <UsageBars clientCount={clientCount} clientLimit={clientLimit} />
           </div>
         </div>
       </div>

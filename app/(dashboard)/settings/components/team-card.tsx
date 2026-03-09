@@ -319,7 +319,7 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
 
             {/* Invite form */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium">Invite a team member</h3>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Invite a team member</p>
               <div className="flex flex-wrap gap-2">
                 <Input
                   type="email"
@@ -390,7 +390,7 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
 
             {/* Member list */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">Members</h3>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Members</p>
 
               {loading ? (
                 <div className="flex items-center gap-2 py-4 text-muted-foreground">

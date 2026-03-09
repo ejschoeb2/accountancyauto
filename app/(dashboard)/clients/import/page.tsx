@@ -499,11 +499,20 @@ export default function ClientImportPage() {
       formData.append("createIfMissing", "true");
 
       const importResult = await importClientMetadata(formData);
+      if (!importResult.success && importResult.error) {
+        setError(importResult.error);
+        setStepState("edit-data");
+        return;
+      }
       setResult(importResult);
       setStepState("results");
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const isGenericNextError = msg.includes("Server Components") || msg.includes("digest");
       setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
+        isGenericNextError
+          ? "Import failed. Please try again or contact support if the problem persists."
+          : msg || "An unexpected error occurred"
       );
       setStepState("edit-data");
     }

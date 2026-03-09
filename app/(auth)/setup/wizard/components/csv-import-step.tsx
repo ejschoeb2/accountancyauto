@@ -9,8 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
@@ -35,12 +33,8 @@ import { CheckButton } from "@/components/ui/check-button";
 import {
   FileText,
   AlertCircle,
-  Loader2,
   CheckCircle,
-  ChevronDown,
-  ChevronRight,
   AlertTriangle,
-  XCircle,
   ArrowLeft,
   ArrowRight,
   Sparkles,
@@ -50,10 +44,6 @@ import {
   Download,
 } from "lucide-react";
 import { generateCsvTemplateWithComments, CSV_COLUMNS, rollYearEndToFuture } from "@/lib/utils/csv-template";
-import {
-  importClientMetadata,
-  type CsvImportResult,
-} from "@/app/actions/csv";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import Papa from "papaparse";
@@ -67,9 +57,11 @@ interface CsvImportStepProps {
   initialRows?: EditableRow[];
   /** Called whenever the edit table rows change, so parent can persist them */
   onRowsChange?: (rows: EditableRow[]) => void;
+  /** Called when user clicks "Start Over" to clear parent state */
+  onStartOver?: () => void;
 }
 
-type StepState = "upload" | "mapping" | "edit-data" | "importing" | "results";
+type StepState = "upload" | "mapping" | "edit-data";
 
 interface ColumnMapping {
   [systemField: string]: string | null; // systemField -> CSV column name
@@ -98,7 +90,7 @@ export interface EditableRow {
  * using Card-based layout instead of a Dialog wrapper.
  * The existing CsvImportDialog on the /clients page is NOT modified.
  */
-export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }: CsvImportStepProps) {
+export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, onStartOver }: CsvImportStepProps) {
   const [stepState, setStepState] = useState<StepState>(
     initialRows && initialRows.length > 0 ? "edit-data" : "upload"
   );
@@ -106,10 +98,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
   const [parsedData, setParsedData] = useState<ParsedCsvData | null>(null);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({});
   const [editableRows, setEditableRows] = useState<EditableRow[]>(initialRows ?? []);
-  const [result, setResult] = useState<CsvImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showUnmatched, setShowUnmatched] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -675,54 +664,6 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
   }, [selectedRowIds, bulkClientType, bulkYearEnd, bulkVatRegistered, bulkVatStagger, bulkVatScheme, bulkConfirmStep, bulkHasChanges, handleCloseBulkEdit]);
 
   // Import with edited data
-  const handleImportEditedData = useCallback(async () => {
-    setStepState("importing");
-    setError(null);
-    setSelectedRowIds(new Set());
-
-    try {
-      // Transform editableRows back to CSV format
-      const headers = CSV_COLUMNS.map((col) => col.name).join(",");
-      const csvRows = editableRows.map((row) =>
-        CSV_COLUMNS.map((col) => {
-          let value = "";
-
-          // Convert row data to string format for CSV
-          if (col.name === "vat_registered") {
-            value = row.vat_registered === true ? "Yes" : row.vat_registered === false ? "No" : "";
-          } else if (col.name === "vat_stagger_group") {
-            value = row.vat_stagger_group ? String(row.vat_stagger_group) : "";
-          } else {
-            value = (row[col.name as keyof EditableRow] as string) || "";
-          }
-
-          // Escape quotes and wrap in quotes if contains comma/quote/newline
-          if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-            return `"${value.replace(/"/g, '""')}"`;
-          }
-          return value;
-        }).join(",")
-      );
-      const csvContent = [headers, ...csvRows].join("\n");
-
-      // Create a new File object with transformed CSV
-      const transformedFile = new File([csvContent], "import.csv", {
-        type: "text/csv",
-      });
-
-      const formData = new FormData();
-      formData.append("file", transformedFile);
-      formData.append("createIfMissing", "true");
-
-      const importResult = await importClientMetadata(formData);
-      setResult(importResult);
-      setStepState("results");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
-      setStepState("edit-data");
-    }
-  }, [editableRows, selectedFile]);
-
   // Go back to upload
   const handleBackToUpload = useCallback(() => {
     setStepState("upload");
@@ -751,7 +692,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
           <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
             {/* Header */}
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold">Import Client Metadata</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Import Client Metadata</h2>
               <p className="text-sm text-muted-foreground">
                 Upload a CSV or Excel file to set metadata for your clients. Rows are matched by company name.
                 You can also skip this step and import clients later from the Clients page.
@@ -842,7 +783,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
         <div className="max-w-2xl mx-auto space-y-4">
           <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold">Map CSV Columns</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Map CSV Columns</h2>
               <p className="text-sm text-muted-foreground">
                 Match your CSV columns to the system fields. Mapping is optional — you can enter values manually later.
               </p>
@@ -967,27 +908,45 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
         <>
           <div ref={reviewTopRef} className="flex items-start justify-between gap-4">
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold">Review &amp; Edit Import Data</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Review &amp; Edit Import Data</h2>
               <p className="text-sm text-muted-foreground">
                 Review and complete your data before importing. Company names will be matched to existing clients.
               </p>
             </div>
-            <ButtonBase
-              variant="violet"
-              buttonType="icon-text"
-              isSelected={isSelectionModeActive}
-              onClick={() => {
-                if (isSelectionModeActive) {
-                  setIsSelectionModeActive(false);
-                  setSelectedRowIds(new Set());
-                } else {
-                  setIsSelectionModeActive(true);
-                }
-              }}
-            >
-              <Pencil className="size-4" />
-              Select rows to edit
-            </ButtonBase>
+            <div className="flex items-center gap-2">
+              <ButtonBase
+                variant="violet"
+                buttonType="icon-text"
+                isSelected={isSelectionModeActive}
+                onClick={() => {
+                  if (isSelectionModeActive) {
+                    setIsSelectionModeActive(false);
+                    setSelectedRowIds(new Set());
+                  } else {
+                    setIsSelectionModeActive(true);
+                  }
+                }}
+              >
+                <Pencil className="size-4" />
+                Select rows to edit
+              </ButtonBase>
+              <ButtonBase
+                variant="destructive"
+                buttonType="icon-text"
+                onClick={() => {
+                  onStartOver?.();
+                  setStepState("upload");
+                  setSelectedFile(null);
+                  setParsedData(null);
+                  setColumnMapping({});
+                  setEditableRows([]);
+                  setError(null);
+                }}
+              >
+                <Trash2 className="size-4" />
+                Start Over
+              </ButtonBase>
+            </div>
           </div>
 
           {(() => {
@@ -1010,13 +969,13 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
                 )}
 
                 {overLimitCount > 0 && (
-                  <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-xl">
-                    <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
+                    <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-red-500">
+                      <p className="text-sm font-medium text-destructive">
                         Plan limit reached — {overLimitCount} row{overLimitCount !== 1 ? "s" : ""} will not be imported
                       </p>
-                      <p className="text-sm text-red-500/80">
+                      <p className="text-sm text-destructive/80">
                         Your plan allows {clientLimit} clients ({currentClientCount} already imported, {importableCount} slot{importableCount !== 1 ? "s" : ""} remaining).
                         The last {overLimitCount} {overLimitCount === 1 ? "row" : "rows"} in the table are highlighted in red and will be skipped.
                         Delete rows or upgrade your plan to import all clients.
@@ -1530,13 +1489,13 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
                   <ButtonBase
                     variant="green"
                     buttonType="icon-text"
-                    onClick={handleImportEditedData}
+                    onClick={onComplete}
                     disabled={incompleteRows.length > 0}
                   >
                     <Sparkles className="size-4" />
                     {overLimitCount > 0
-                      ? `Import ${importableCount} of ${editableRows.length} Clients`
-                      : `Import ${editableRows.length} ${editableRows.length === 1 ? "Client" : "Clients"}`}
+                      ? `Confirm ${importableCount} of ${editableRows.length} Clients`
+                      : `Confirm ${editableRows.length} ${editableRows.length === 1 ? "Client" : "Clients"}`}
                   </ButtonBase>
                 </div>
               </div>
@@ -1545,170 +1504,6 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange }:
         </>
       )}
 
-      {stepState === "importing" && (
-        <div className="py-12 flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="size-8 animate-spin text-primary" />
-          <div className="text-center space-y-2">
-            <p className="font-medium text-lg">Importing...</p>
-            <p className="text-sm text-muted-foreground">
-              Processing your CSV file and updating client records
-            </p>
-          </div>
-        </div>
-      )}
-
-      {stepState === "results" && result && (
-        <div className="max-w-2xl mx-auto space-y-4">
-          <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
-            <div className="space-y-1">
-              <h2 className="text-xl font-semibold">Import Complete</h2>
-              <p className="text-sm text-muted-foreground">
-                Your CSV file has been processed. Here&apos;s a summary of the results.
-              </p>
-            </div>
-
-          <div className="space-y-6">
-            {/* Success message if no issues */}
-            {result.summary.unmatchedRows === 0 &&
-              result.summary.validationErrors === 0 &&
-              !result.limitInfo &&
-              (result.summary.createdClients > 0 || result.summary.updatedClients > 0) && (
-                <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
-                  <CheckCircle className="size-5 text-green-600 shrink-0" />
-                  <p className="text-sm text-green-600">
-                    All rows imported successfully!
-                  </p>
-                </div>
-              )}
-
-            {/* Summary cards */}
-            <div className="grid grid-cols-3 gap-4">
-              <Card className="px-4 py-4 gap-1">
-                <p className="text-sm text-muted-foreground">
-                  Total rows processed
-                </p>
-                <p className="text-2xl font-semibold">
-                  {result.summary.totalRows}
-                </p>
-              </Card>
-              {result.summary.createdClients > 0 && (
-                <Card className="px-4 py-4 gap-1">
-                  <p className="text-sm text-muted-foreground">Clients created</p>
-                  <p className="text-2xl font-semibold">
-                    {result.summary.createdClients}
-                  </p>
-                </Card>
-              )}
-              {result.summary.updatedClients > 0 && (
-                <Card className="px-4 py-4 gap-1">
-                  <p className="text-sm text-muted-foreground">Clients updated</p>
-                  <p className="text-2xl font-semibold">
-                    {result.summary.updatedClients}
-                  </p>
-                </Card>
-              )}
-            </div>
-
-            {/* Unmatched rows */}
-            {result.summary.unmatchedRows > 0 && (
-              <div className="space-y-2">
-                <button
-                  className="flex items-center gap-2 w-full text-left"
-                  onClick={() => setShowUnmatched(!showUnmatched)}
-                >
-                  {showUnmatched ? (
-                    <ChevronDown className="size-4" />
-                  ) : (
-                    <ChevronRight className="size-4" />
-                  )}
-                  <span className="text-sm text-muted-foreground">
-                    Unmatched rows ({result.summary.unmatchedRows})
-                  </span>
-                  <Badge variant="outline" className="ml-auto text-status-warning">
-                    <AlertTriangle className="size-4 mr-1" />
-                    Skipped
-                  </Badge>
-                </button>
-                {showUnmatched && (
-                  <div className="pl-6 space-y-1 max-h-32 overflow-y-auto">
-                    {result.details.unmatchedCompanies.map((name, index) => (
-                      <p key={index} className="text-sm text-muted-foreground">
-                        • {name}
-                      </p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Validation errors */}
-            {result.summary.validationErrors > 0 && (
-              <div className="space-y-2">
-                <button
-                  className="flex items-center gap-2 w-full text-left"
-                  onClick={() => setShowErrors(!showErrors)}
-                >
-                  {showErrors ? (
-                    <ChevronDown className="size-4" />
-                  ) : (
-                    <ChevronRight className="size-4" />
-                  )}
-                  <span className="text-sm text-muted-foreground">
-                    Validation errors ({result.summary.validationErrors})
-                  </span>
-                  <Badge variant="outline" className="ml-auto text-destructive">
-                    <XCircle className="size-4 mr-1" />
-                    Failed
-                  </Badge>
-                </button>
-                {showErrors && (
-                  <div className="pl-6 space-y-2 max-h-40 overflow-y-auto">
-                    {result.details.validationErrors.map((err, index) => (
-                      <div key={index}>
-                        <p className="text-sm font-medium">Row {err.row}:</p>
-                        <ul className="text-sm text-muted-foreground">
-                          {err.errors.map((e, i) => (
-                            <li key={i}>• {e}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Plan limit warning */}
-            {result.limitInfo && (
-              <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
-                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-600">Plan limit reached</p>
-                  <p className="text-sm text-amber-600/80">
-                    {result.limitInfo.importedClients} of {result.limitInfo.totalNewClients} new clients were imported.{" "}
-                    {result.limitInfo.skippedClients} {result.limitInfo.skippedClients === 1 ? "client was" : "clients were"} skipped because your plan allows up to {result.limitInfo.limit} clients.
-                    Upgrade your plan to import all clients.
-                  </p>
-                </div>
-              </div>
-            )}
-
-          </div>
-
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <ButtonBase variant="amber" buttonType="icon-text" onClick={() => setStepState("edit-data")}>
-              <ArrowLeft className="size-4" />
-              Back to Edit
-            </ButtonBase>
-            <ButtonBase variant="green" buttonType="icon-text" onClick={onComplete}>
-              Next Step
-              <ArrowRight className="size-4" />
-            </ButtonBase>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

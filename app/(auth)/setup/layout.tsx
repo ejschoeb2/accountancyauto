@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMemberSetupComplete } from "@/app/actions/settings";
@@ -53,7 +54,10 @@ export default async function SetupLayout({
       // Fallback if slug resolution fails — just redirect to dashboard
       redirect("/dashboard");
     }
-  } catch {
+  } catch (err) {
+    // Re-throw Next.js redirect errors — they MUST propagate or the
+    // framework produces a "Server Components render" error.
+    if (isRedirectError(err)) throw err;
     // getMemberSetupComplete may throw if no org context yet (new member
     // who accepted invite but has not yet completed setup). Silently let
     // the wizard proceed.

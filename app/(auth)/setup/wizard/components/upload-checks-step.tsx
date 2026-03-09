@@ -41,7 +41,7 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection }: Uploa
     <div className="max-w-3xl mx-auto space-y-4 min-h-[520px]">
       <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Upload Checks</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Upload Checks</h2>
           <p className="text-sm text-muted-foreground">
             Choose what processing Prompt runs when clients upload documents through the portal.
             You can change this at any time from Settings.
@@ -54,7 +54,7 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection }: Uploa
             <strong className="font-medium">Your data stays private.</strong> Upload checks run
             entirely in memory &mdash; Prompt scans each file briefly to extract metadata or flag
             mismatches, then discards the content. No document text, images, or sensitive data is
-            stored by Prompt. Only lightweight metadata (e.g. tax year, employer name) is saved.
+            stored by Prompt. Only lightweight metadata (e.g. tax year, PAYE reference) is saved.
           </p>
         </div>
 
@@ -79,8 +79,9 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection }: Uploa
             <div className="space-y-0.5">
               <p className="text-sm font-semibold">Extract metadata</p>
               <p className="text-sm text-muted-foreground">
-                Reads tax year, employer name, and PAYE reference from uploaded documents using OCR
-                and shows a confirmation card to the client after upload.
+                Uses text recognition (OCR) to read key details — such as tax year and PAYE
+                reference — from uploaded documents and shows a confirmation card to the client
+                after upload.
               </p>
             </div>
           </div>

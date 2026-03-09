@@ -111,7 +111,10 @@
       "mcp__supabase__get_edge_function",
       "Bash(npx supabase@latest:*)",
       "Bash(rm:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Skill(gsd:plan-phase)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

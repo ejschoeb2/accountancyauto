@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import { ClientPortalCard } from "./client-portal-card";
 import { UploadChecksCard } from "./upload-checks-card";
 import { BillingStatusCard } from "@/app/(dashboard)/billing/components/billing-status-card";
 import { UpgradePlanSection } from "@/app/(dashboard)/billing/components/upgrade-plan-section";
-import { UsageBars } from "@/app/(dashboard)/billing/components/usage-bars";
 import type { EmailSettings, OrgDomainDnsData, UploadCheckMode } from "@/app/actions/settings";
 
 interface SettingsTabsProps {
@@ -99,7 +98,6 @@ export function SettingsTabs({
               dropboxConnected={dropboxConnected}
             />
           )}
-          <SendHourPicker defaultHour={sendHour} />
           <TeamCard
             accountants={accountants}
             totalClients={totalClients}
@@ -109,11 +107,12 @@ export function SettingsTabs({
         </TabsContent>
 
         <TabsContent value="email" className="space-y-8 mt-6">
+          <DomainSetupCard initialDnsData={domainDnsData} />
           <EmailSettingsCard
             defaultSettings={emailSettings}
             senderDomain={senderDomain}
           />
-          <DomainSetupCard initialDnsData={domainDnsData} />
+          <SendHourPicker defaultHour={sendHour} />
         </TabsContent>
 
         <TabsContent value="billing" className="space-y-8 mt-6">
@@ -124,23 +123,9 @@ export function SettingsTabs({
             monthlyPrice={monthlyPrice}
             orgId={orgId}
             hasSubscription={hasSubscription}
+            clientCount={totalClients}
+            clientLimit={clientLimit}
           />
-          <Card className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex items-center justify-center size-12 rounded-lg bg-blue-500/10 shrink-0">
-                <BarChart3 className="size-6 text-blue-500" />
-              </div>
-              <div className="flex-1 space-y-4">
-                <div>
-                  <h2 className="text-lg font-semibold">Client Usage</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Current client count against your plan limit
-                  </p>
-                </div>
-                <UsageBars clientCount={totalClients} clientLimit={clientLimit} />
-              </div>
-            </div>
-          </Card>
           {!hasSubscription && (
             <Card className="p-6 space-y-6">
               <div className="flex items-start gap-4">

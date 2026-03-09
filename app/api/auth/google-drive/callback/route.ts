@@ -10,7 +10,8 @@
  * 3. Token exchange — exchanges `code` for access/refresh tokens via OAuth2Client.getToken().
  *    Redirects to /settings?tab=storage&error=no_refresh_token if refresh_token absent
  *    (should not happen with prompt=consent, but must be guarded).
- * 4. Prompt/ root folder creation — creates a "Prompt" folder in the user's Drive root.
+ * 4. Prompt/ root folder — reuses the existing folder ID if one is already stored
+ *    (reconnect case), otherwise creates a new "Prompt" folder in the user's Drive root.
  * 5. Persists encrypted tokens to organisations — uses encryptToken() for both access and
  *    refresh tokens; NEVER writes plaintext tokens to the database.
  * 6. Cleans up — deletes the CSRF state cookie and redirects to
@@ -107,25 +108,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL(`${errorBase}token_exchange_failed`, request.url));
   }
 
-  // ── Create Prompt/ root folder ────────────────────────────────────────────
-  const driveClient = drive({ version: 'v3', auth: oauth2Client });
-
-  let rootFolderId: string;
-  try {
-    const folderRes = await driveClient.files.create({
-      requestBody: {
-        name: 'Prompt',
-        mimeType: 'application/vnd.google-apps.folder',
-        // no parents = creates in root of user's Drive
-      },
-      fields: 'id',
-    });
-    rootFolderId = folderRes.data.id!;
-  } catch {
-    return NextResponse.redirect(new URL(`${errorBase}folder_creation_failed`, request.url));
-  }
-
-  // ── Persist encrypted tokens to organisations ─────────────────────────────
+  // ── Resolve org context ──────────────────────────────────────────────────
   let orgId: string;
   try {
     const ctx = await getOrgContext();
@@ -134,7 +117,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL(`${errorBase}no_org_context`, request.url));
   }
 
+  // ── Reuse existing folder or create Prompt/ root folder ─────────────────
   const admin = createAdminClient();
+  const driveClient = drive({ version: 'v3', auth: oauth2Client });
+
+  let rootFolderId: string;
+
+  // Check if the org already has a Google Drive folder from a previous connection.
+  // Reuse it to avoid orphaning documents stored in the old folder.
+  const { data: existingOrg } = await admin
+    .from('organisations')
+    .select('google_drive_folder_id')
+    .eq('id', orgId)
+    .single();
+
+  if (existingOrg?.google_drive_folder_id) {
+    rootFolderId = existingOrg.google_drive_folder_id;
+  } else {
+    try {
+      const folderRes = await driveClient.files.create({
+        requestBody: {
+          name: 'Prompt',
+          mimeType: 'application/vnd.google-apps.folder',
+          // no parents = creates in root of user's Drive
+        },
+        fields: 'id',
+      });
+      rootFolderId = folderRes.data.id!;
+    } catch {
+      return NextResponse.redirect(new URL(`${errorBase}folder_creation_failed`, request.url));
+    }
+  }
+
+  // ── Persist encrypted tokens to organisations ─────────────────────────────
   try {
     await admin.from('organisations').update({
       storage_backend: 'google_drive',

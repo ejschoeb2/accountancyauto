@@ -35,6 +35,8 @@ export interface CsvImportResult {
   success: boolean;
   summary: CsvImportSummary;
   details: CsvImportDetails;
+  /** Present for user-facing errors that should be displayed instead of thrown */
+  error?: string;
   /** Present when import was limited by plan capacity */
   limitInfo?: {
     totalNewClients: number;
@@ -237,7 +239,9 @@ export async function importClientMetadata(
     // 8. Create new clients for unmatched rows (wizard mode)
     if (createIfMissing && unmatchedRows.length > 0) {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      if (!user) {
+        return { ...result, success: false, error: "Your session has expired. Please sign in again." };
+      }
 
       // Get org_id from user_organisations
       const { data: membership } = await supabase
@@ -248,7 +252,11 @@ export async function importClientMetadata(
         .maybeSingle();
 
       if (!membership?.org_id) {
-        throw new Error("No organisation found. Please complete firm setup first.");
+        return {
+          ...result,
+          success: false,
+          error: "Organisation not found. Please complete the firm setup steps before importing clients.",
+        };
       }
 
       // Check client limit before creating new clients

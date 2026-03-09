@@ -89,28 +89,22 @@ export function StorageSetupStep({
     <div className="max-w-2xl mx-auto space-y-4 min-h-[520px]">
       <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Document Storage</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Document Storage</h2>
           <p className="text-sm text-muted-foreground">
-            Connect your existing cloud storage and uploaded documents go directly into your own
-            account — Google Drive, OneDrive, or Dropbox. Prompt acts as a bridge only:{" "}
+            Connect Google Drive, OneDrive, or Dropbox and uploaded documents go straight into your
+            own account. Prompt acts as a bridge only —{" "}
             <strong className="font-medium text-foreground">
-              no client files are retained on Prompt&apos;s servers
+              no client files are stored on Prompt&apos;s servers
             </strong>
-            , so your practice stays fully GDPR compliant and you remain the data controller at all
-            times.
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Files are organised automatically into a logical folder structure — for example:{" "}
+            . Files are organised automatically (e.g.{" "}
             <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
               Prompt / Smith Ltd / Corp Tax / 2024 /
             </span>
-            . No manual filing needed. Documents received via the client portal will be routed here
-            automatically.
+            ) with no manual filing needed.
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            This step is optional. If you skip it, documents will be held in Prompt&apos;s
-            encrypted built-in storage until you connect a provider — you can do that at any time
-            from Settings.
+            This step is optional — if you skip it, documents are held in Prompt&apos;s encrypted
+            built-in storage until you connect a provider in Settings.
           </p>
         </div>
 

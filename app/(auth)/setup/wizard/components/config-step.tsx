@@ -98,7 +98,7 @@ export function ConfigStep({
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-2xl font-bold tracking-tight">
             {isMember ? "Set up your email identity" : "Configure Your Settings"}
           </h2>
           <p className="text-sm text-muted-foreground mt-1">

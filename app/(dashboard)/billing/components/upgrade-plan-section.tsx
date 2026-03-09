@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
   PLAN_TIERS,
@@ -59,24 +59,12 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {PAID_PLAN_TIERS.map((tier) => {
           const plan = PLAN_TIERS[tier];
-          const isPopular = tier === "practice" || tier === "firm";
           const isLoading = loadingTier === tier;
 
           return (
             <div key={tier} className="flex flex-col relative">
-              {isPopular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <span className="inline-flex items-center gap-1 bg-violet-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                    <Sparkles className="size-3" />
-                    Popular
-                  </span>
-                </div>
-              )}
               <div
-                className={[
-                  "flex flex-col flex-1 p-4 rounded-xl border-2 transition-all duration-200",
-                  isPopular ? "border-violet-500" : "border-border/60 hover:border-border",
-                ].join(" ")}
+                className="flex flex-col flex-1 p-4 rounded-xl border-2 transition-all duration-200 border-border/60 hover:border-border"
               >
                 <p className="text-sm font-bold text-foreground mb-3">{plan.name}</p>
 

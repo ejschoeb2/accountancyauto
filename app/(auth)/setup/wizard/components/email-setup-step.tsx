@@ -541,7 +541,7 @@ export function EmailSetupStep({
         <Card className="p-6">
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold">Email identity &amp; reminder settings</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Email identity &amp; reminder settings</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Configure how reminders appear to clients and how replies are handled. These can be changed at any time in Settings.
               </p>

@@ -43,7 +43,7 @@ export function ClientPortalStep({ onComplete, onBack, initialSelection }: Clien
     <div className="max-w-3xl mx-auto space-y-4 min-h-[520px]">
       <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Client Portal</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Client Portal</h2>
           <p className="text-sm text-muted-foreground">
             The client portal lets your clients upload documents directly to Prompt — such as tax
             returns, bank statements, or any files you request. Prompt tracks received documents per

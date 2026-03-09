@@ -13,10 +13,10 @@ interface UsageBarItemProps {
 }
 
 function getBarColor(percent: number | null): string {
-  if (percent === null) return "bg-primary";
+  if (percent === null) return "bg-violet-500";
   if (percent >= 100) return "bg-destructive";
   if (percent >= 80) return "bg-amber-500";
-  return "bg-primary";
+  return "bg-violet-500";
 }
 
 function UsageBarItem({

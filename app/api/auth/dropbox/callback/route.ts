@@ -160,7 +160,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // which Dropbox returns unchanged — more reliable than a cookie.
   const fromWizard = stateParam?.startsWith('wizard_') ?? false;
   const successUrl = fromWizard
-    ? `${appUrl}/setup/wizard?storage_connected=dropbox`
+    ? `${orgBaseUrl}/setup/wizard?storage_connected=dropbox`
     : `${orgBaseUrl}/settings?tab=storage&connected=dropbox`;
   return NextResponse.redirect(successUrl);
 }
