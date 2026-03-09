@@ -4,23 +4,23 @@
  * Initiates the Google Drive OAuth2 authorization flow.
  *
  * 1. Verifies the user is authenticated via Supabase session.
- * 2. Generates a 32-byte hex CSRF state token.
- * 3. Builds an OAuth2 authorization URL with drive.file scope, access_type=offline,
- *    and prompt=consent (CRITICAL: ensures refresh_token is always returned, not just
- *    on the first authorization).
- * 4. Stores the state token in an HttpOnly cookie (maxAge=600, 10 minutes).
- * 5. Redirects to Google's OAuth consent screen.
+ * 2. Gets the org ID via getOrgContext().
+ * 3. Generates a 32-byte hex CSRF state token.
+ * 4. Stores the state token in organisations.google_oauth_state (DB-based CSRF).
+ *    DB storage avoids cross-subdomain cookie loss — the connect route runs on
+ *    the org subdomain but the callback URL is on the main app domain.
+ * 5. Builds an OAuth2 authorization URL with drive.file scope, access_type=offline,
+ *    and prompt=consent (CRITICAL: ensures refresh_token is always returned).
+ * 6. Redirects to Google's OAuth consent screen.
  *
- * OAuth2Client is constructed lazily (not at module level) — mirrors D-11-05-01 (Stripe
- * lazy init) and D-25-01-02 (token-refresh lazy init) to prevent Next.js build failures
- * when GOOGLE_* env vars are absent at build time or in CI.
- *
- * Note: D-25-01-01 established that @googleapis/drive exports `auth` (AuthPlus instance)
- * not `google`. OAuth2 client is constructed as `new auth.OAuth2(...)`.
+ * OAuth2Client is constructed lazily (not at module level) — prevents Next.js build
+ * failures when GOOGLE_* env vars are absent at build time or in CI.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getOrgContext } from '@/lib/auth/org-context';
 import { auth } from '@googleapis/drive';
 import crypto from 'crypto';
 
@@ -38,43 +38,48 @@ function getOAuth2Client() {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const fromWizard = request.nextUrl.searchParams.get('from') === 'wizard';
+  const errorUrl = fromWizard
+    ? new URL('/setup/wizard?storage_error=connect_failed', request.url)
+    : new URL('/settings?tab=storage&error=connect_failed', request.url);
 
-  // ── Auth check ─────────────────────────────────────────────────────────────
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  try {
+    // ── Auth check ─────────────────────────────────────────────────────────────
+    const supabase = await createClient();
+    const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (error || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (error || !user) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+
+    // ── Get org context ────────────────────────────────────────────────────
+    const { orgId } = await getOrgContext();
+
+    // ── Generate CSRF state token — encode origin context in the value ────
+    // Format: "wizard_<hex>" when coming from the setup wizard, else "<hex>".
+    // Google returns state unchanged in the callback, so this is more reliable
+    // than a cookie (avoids cross-subdomain cookie delivery issues).
+    const csrf = crypto.randomBytes(32).toString('hex');
+    const state = fromWizard ? `wizard_${csrf}` : csrf;
+
+    // ── Store CSRF state in DB (organisations.google_oauth_state) ────────
+    const admin = createAdminClient();
+    await admin.from('organisations')
+      .update({ google_oauth_state: state })
+      .eq('id', orgId);
+
+    // ── Build authorization URL ──────────────────────────────────────────
+    const oauth2Client = getOAuth2Client();
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: ['https://www.googleapis.com/auth/drive.file'],
+      state,
+      prompt: 'consent', // CRITICAL: ensures refresh_token is always returned (not just first auth)
+    });
+
+    // ── Redirect to Google consent screen ────────────────────────────────
+    return NextResponse.redirect(authUrl);
+  } catch (err) {
+    console.error('[google-drive/connect] Error initiating OAuth flow:', err);
+    return NextResponse.redirect(errorUrl);
   }
-
-  // ── Generate CSRF state token ────────────────────────────────────────────
-  // Encode wizard origin in the state param (prefix "wizard_") so the callback
-  // can detect it without a cookie — avoids cross-subdomain cookie issues where
-  // the connect route runs on acme.app.X but the OAuth callback URI is app.X.
-  const csrf = crypto.randomBytes(32).toString('hex');
-  const state = fromWizard ? `wizard_${csrf}` : csrf;
-
-  // ── Build authorization URL ──────────────────────────────────────────────
-  const oauth2Client = getOAuth2Client();
-  const authUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/drive.file'],
-    state,
-    prompt: 'consent', // CRITICAL: ensures refresh_token is always returned (not just first auth)
-  });
-
-  // ── Redirect with CSRF cookie ────────────────────────────────────────────
-  // Store the full state (including any wizard_ prefix) so the callback can
-  // validate it with a simple equality check.
-  const response = NextResponse.redirect(authUrl);
-
-  response.cookies.set('google_oauth_state', state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 600, // 10 minutes — short TTL prevents replay
-    path: '/',
-  });
-
-  return response;
 }

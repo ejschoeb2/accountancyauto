@@ -575,12 +575,18 @@ export default function WizardPage() {
     setIsCompleting(true);
     setCompleteError(null);
 
-    const result = await markMemberSetupComplete();
+    // Only mark member setup complete for invited members — admins still have
+    // portal/storage/complete steps remaining. Marking it prematurely causes
+    // the setup layout to redirect admins away from the wizard on the next
+    // server action (the layout re-executes and sees member_setup_complete=true).
+    if (userType === "invited-member") {
+      const result = await markMemberSetupComplete();
 
-    if (result.error) {
-      setCompleteError(result.error);
-      setIsCompleting(false);
-      return;
+      if (result.error) {
+        setCompleteError(result.error);
+        setIsCompleting(false);
+        return;
+      }
     }
 
     // Build reminder queue in the background so queued emails appear immediately
@@ -1035,6 +1041,7 @@ export default function WizardPage() {
             onBack={() => setAdminStep("plan")}
             initialRows={savedImportRows ?? undefined}
             onRowsChange={setSavedImportRows}
+            planClientLimit={selectedTier ? PLAN_TIERS.find((p) => p.key === selectedTier)?.clientLimit ?? null : null}
           />
         </div>
       )}

@@ -59,6 +59,8 @@ interface CsvImportStepProps {
   onRowsChange?: (rows: EditableRow[]) => void;
   /** Called when user clicks "Start Over" to clear parent state */
   onStartOver?: () => void;
+  /** Plan client limit passed from parent (avoids unreliable DB fetch) */
+  planClientLimit?: number | null;
 }
 
 type StepState = "upload" | "mapping" | "edit-data";
@@ -90,7 +92,7 @@ export interface EditableRow {
  * using Card-based layout instead of a Dialog wrapper.
  * The existing CsvImportDialog on the /clients page is NOT modified.
  */
-export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, onStartOver }: CsvImportStepProps) {
+export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, onStartOver, planClientLimit }: CsvImportStepProps) {
   const [stepState, setStepState] = useState<StepState>(
     initialRows && initialRows.length > 0 ? "edit-data" : "upload"
   );
@@ -114,7 +116,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
   const [bulkConfirmStep, setBulkConfirmStep] = useState(false);
 
   // ── Client limit state (for pre-import warning) ────────────────────────
-  const [clientLimit, setClientLimit] = useState<number | null>(null);
+  const [clientLimit, setClientLimit] = useState<number | null>(planClientLimit ?? null);
   const [currentClientCount, setCurrentClientCount] = useState(0);
 
   // ── Notify parent whenever rows change so it can persist them ───────────
@@ -155,7 +157,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
           .select("id", { count: "exact", head: true })
           .eq("org_id", orgId);
 
-        setClientLimit(org?.client_count_limit ?? null);
+        setClientLimit(org?.client_count_limit ?? planClientLimit ?? null);
         setCurrentClientCount(count ?? 0);
       } catch {
         // Non-blocking — if we can't fetch, just don't show limit warning
@@ -1482,10 +1484,12 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                 </Dialog>
 
                 <div className="flex justify-end gap-2">
-                  <ButtonBase variant="amber" buttonType="icon-text" onClick={handleBackToMapping}>
-                    <ArrowLeft className="size-4" />
-                    Back
-                  </ButtonBase>
+                  {onBack && (
+                    <ButtonBase variant="amber" buttonType="icon-text" onClick={onBack}>
+                      <ArrowLeft className="size-4" />
+                      Back
+                    </ButtonBase>
+                  )}
                   <ButtonBase
                     variant="green"
                     buttonType="icon-text"
