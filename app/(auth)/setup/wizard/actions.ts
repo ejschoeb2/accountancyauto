@@ -9,20 +9,20 @@ import {
   createOrgDomain,
   checkDomainVerification,
 } from "@/lib/postmark/management";
+import type { EditableRow } from "./components/csv-import-step";
 
 // ─── Setup draft persistence ─────────────────────────────────────────────────
 
 export interface SetupDraft {
-  step: string;           // AdminStep value
+  step: string;
   firmName?: string;
   firmSlug?: string;
-  selectedTier?: string;  // PlanTier value
-  importRows?: unknown[]; // EditableRow[] serialized as JSON-safe array
-  emailSubStep?: string;  // EmailSubStep value
+  selectedTier?: string;
+  emailSubStep?: string;
   portalEnabled?: boolean;
   uploadCheckMode?: string;
   sendHour?: number;
-  updatedAt: string;      // ISO timestamp
+  updatedAt: string;
 }
 
 /**
@@ -95,6 +95,123 @@ export async function saveSetupDraft(
   return {};
 }
 
+// ─── Draft clients staging table (large CSV imports) ─────────────────────────
+
+/**
+ * Save CSV import rows to the setup_draft_clients staging table.
+ *
+ * Replaces all existing rows for this org (DELETE + INSERT).
+ * Uses admin client; all access via service_role, no authenticated RLS needed.
+ */
+export async function saveDraftClients(
+  rows: EditableRow[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  // Clear existing rows
+  await admin
+    .from("setup_draft_clients")
+    .delete()
+    .eq("org_id", membership.org_id);
+
+  // Bulk insert new rows
+  if (rows.length > 0) {
+    const { error } = await admin.from("setup_draft_clients").insert(
+      rows.map((row, i) => ({
+        org_id: membership.org_id,
+        row_index: i,
+        data: row,
+      }))
+    );
+
+    if (error) return { error: error.message };
+  }
+
+  return {};
+}
+
+/**
+ * Retrieve CSV import rows from the setup_draft_clients staging table.
+ *
+ * Returns null (not empty array) when no rows exist. Null means
+ * "no draft import data", distinguishing from "imported zero rows".
+ */
+export async function getDraftClients(): Promise<EditableRow[] | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return null;
+
+  const { data } = await admin
+    .from("setup_draft_clients")
+    .select("row_index, data")
+    .eq("org_id", membership.org_id)
+    .order("row_index");
+
+  if (!data || data.length === 0) return null;
+
+  return data.map((r) => r.data as EditableRow);
+}
+
+/**
+ * Delete all staging rows for the current org.
+ *
+ * Called when the user clears their import data.
+ */
+export async function clearDraftClients(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  const { error } = await admin
+    .from("setup_draft_clients")
+    .delete()
+    .eq("org_id", membership.org_id);
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 /**
  * Mark the current user's organisation as having completed the setup wizard.
  *
@@ -140,7 +257,7 @@ export async function markOrgSetupComplete(): Promise<{ error?: string }> {
  * the selected tier.
  *
  * Called during the wizard plan step so the import step sees the correct
- * client limit immediately — without waiting for the async Stripe webhook.
+ * client limit immediately, without waiting for the async Stripe webhook.
  * Idempotent: safe to call multiple times with the same or different tier.
  */
 export async function updateOrgPlanTier(
@@ -215,7 +332,7 @@ export async function deleteAllWizardClients(): Promise<{ error?: string }> {
  * Seeds default email templates and reminder schedules at the end of the
  * wizard, once the portal choice is known.
  *
- * Idempotent — safe to call multiple times (seedOrgDefaults checks for
+ * Idempotent: safe to call multiple times (seedOrgDefaults checks for
  * existing templates before inserting).
  */
 export async function seedOrgDefaultsForWizard(
@@ -245,14 +362,6 @@ export async function seedOrgDefaultsForWizard(
 /**
  * Force a server-side session refresh so the `.prompt.accountants` cross-subdomain
  * cookie is updated with a JWT that includes org_id in app_metadata.
- *
- * Problem: client-side refreshSession() (createBrowserClient) writes cookies
- * without a domain attribute, so they only apply to the root domain. The
- * middleware previously wrote `.prompt.accountants` cookies that are sent to
- * subdomains — but those may be stale (missing org_id) if the org was created
- * after the last middleware-triggered refresh. Calling refreshSession() here
- * goes through the server-side createClient(), whose setAll() writes with
- * domain=".prompt.accountants", updating the cross-subdomain cookie.
  */
 export async function refreshWizardSession(): Promise<void> {
   const supabase = await createClient();
@@ -262,7 +371,7 @@ export async function refreshWizardSession(): Promise<void> {
 /**
  * Resolve the dashboard URL for the current user after wizard completion.
  *
- * Uses the admin client to bypass RLS — safe because we verify the user's
+ * Uses the admin client to bypass RLS. Safe because we verify the user's
  * identity via supabase.auth.getUser() first, then only expose their own org.
  */
 export async function getWizardDashboardUrl(): Promise<string> {
@@ -297,7 +406,8 @@ export async function getWizardDashboardUrl(): Promise<string> {
     return `/dashboard?org=${org.slug}`;
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://prompt.accountants";
   const baseDomain = appUrl.replace(/^https?:\/\/(www\.)?/, "");
   return `https://${org.slug}.app.${baseDomain}/dashboard`;
 }
@@ -330,8 +440,6 @@ const RESERVED_SLUGS = [
 export async function checkSlugAvailable(
   slug: string
 ): Promise<{ available: boolean; reason?: string }> {
-  // Validate format: lowercase letters, numbers, and hyphens only.
-  // Must be at least 3 characters (or 1 character if single alphanumeric).
   const multiCharPattern = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
   const singleCharPattern = /^[a-z0-9]$/;
 
@@ -343,8 +451,7 @@ export async function checkSlugAvailable(
     if (!singleCharPattern.test(slug)) {
       return {
         available: false,
-        reason:
-          "Slug must contain only lowercase letters and numbers.",
+        reason: "Slug must contain only lowercase letters and numbers.",
       };
     }
   } else if (slug.length === 2) {
@@ -362,7 +469,6 @@ export async function checkSlugAvailable(
     }
   }
 
-  // Check reserved slugs
   if (RESERVED_SLUGS.includes(slug)) {
     return {
       available: false,
@@ -370,7 +476,6 @@ export async function checkSlugAvailable(
     };
   }
 
-  // Check existing slugs in the database
   const admin = createAdminClient();
   const { data } = await admin
     .from("organisations")
@@ -392,16 +497,14 @@ export async function checkSlugAvailable(
  * Create an organisation and join it as an admin.
  *
  * Uses the admin (service-role) client for all DB writes because the user
- * has no org_id in their JWT yet — RLS would block any INSERT that requires
- * org_id = auth_org_id(). After this action succeeds, the client must call
- * supabase.auth.refreshSession() to get a new JWT with org_id in app_metadata.
+ * has no org_id in their JWT yet. After this action succeeds, the client must
+ * call supabase.auth.refreshSession() to get a new JWT with org_id.
  */
 export async function createOrgAndJoinAsAdmin(
   firmName: string,
   slug: string,
   planTier: PlanTier
 ): Promise<{ orgId: string; slug: string }> {
-  // Verify the user is authenticated
   const supabase = await createClient();
   const {
     data: { user },
@@ -413,7 +516,6 @@ export async function createOrgAndJoinAsAdmin(
 
   const admin = createAdminClient();
 
-  // Prevent double-create: check if user already has a user_organisations row
   const { data: existingMembership } = await admin
     .from("user_organisations")
     .select("org_id")
@@ -421,7 +523,6 @@ export async function createOrgAndJoinAsAdmin(
     .maybeSingle();
 
   if (existingMembership?.org_id) {
-    // User already has an org — resolve and return existing
     const { data: existingOrg } = await admin
       .from("organisations")
       .select("id, slug")
@@ -434,9 +535,6 @@ export async function createOrgAndJoinAsAdmin(
     throw new Error("You already belong to an organisation.");
   }
 
-  // 1. Insert the organisation row (always starts on free — Stripe webhook upgrades paid plans).
-  // Seed platform Postmark defaults so reminders send immediately even if the admin skips
-  // the Email Setup wizard step. The Email Setup step upgrades these to a custom domain.
   const { data: org, error: orgError } = await admin
     .from("organisations")
     .insert({
@@ -460,25 +558,27 @@ export async function createOrgAndJoinAsAdmin(
     throw new Error(`Failed to create organisation: ${orgError.message}`);
   }
 
-  // 2. Insert user_organisations row (admin role)
-  const { error: memberError } = await admin.from("user_organisations").insert({
-    user_id: user.id,
-    org_id: org.id,
-    role: "admin",
-  });
+  const { error: memberError } = await admin
+    .from("user_organisations")
+    .insert({
+      user_id: user.id,
+      org_id: org.id,
+      role: "admin",
+    });
 
   if (memberError) {
     throw new Error(`Failed to join organisation: ${memberError.message}`);
   }
 
-  // 3. Mark onboarding complete in app_settings
   await admin.from("app_settings").upsert(
-    { org_id: org.id, user_id: null, key: "onboarding_complete", value: "true" },
+    {
+      org_id: org.id,
+      user_id: null,
+      key: "onboarding_complete",
+      value: "true",
+    },
     { onConflict: "org_id,user_id,key" }
   );
-
-  // Note: default email templates and schedules are seeded at wizard
-  // completion (seedOrgDefaultsForWizard) so the portal choice is known.
 
   return { orgId: org.id, slug: org.slug };
 }
@@ -514,7 +614,6 @@ export async function setupPostmarkForOrg(
 
   const admin = createAdminClient();
 
-  // Get the org for this user
   const { data: membership } = await admin
     .from("user_organisations")
     .select("org_id")
@@ -527,7 +626,6 @@ export async function setupPostmarkForOrg(
 
   const orgId = membership.org_id;
 
-  // Fetch current org state to check idempotency
   const { data: org } = await admin
     .from("organisations")
     .select(
@@ -541,7 +639,6 @@ export async function setupPostmarkForOrg(
   }
 
   try {
-    // ── Step 1: Create Server (if not yet created) ──────────────────────────
     let serverToken: string;
 
     if (!org.postmark_server_id) {
@@ -559,7 +656,6 @@ export async function setupPostmarkForOrg(
       serverToken = org.postmark_server_token ?? "";
     }
 
-    // ── Step 2: Create Domain (if not yet created) ──────────────────────────
     let dkimPendingHost: string;
     let dkimPendingValue: string;
     let returnPathHost: string;
@@ -580,25 +676,32 @@ export async function setupPostmarkForOrg(
         })
         .eq("id", orgId);
     } else {
-      // Domain already created — re-fetch DNS details from Postmark
-      const verifyResult = await checkDomainVerification(org.postmark_domain_id);
-      // We don't have the original pending values stored, so we re-fetch the domain details
+      await checkDomainVerification(org.postmark_domain_id);
       const res = await fetch(
         `https://api.postmarkapp.com/domains/${org.postmark_domain_id}`,
         {
           headers: {
             Accept: "application/json",
-            "X-Postmark-Account-Token": process.env.POSTMARK_ACCOUNT_TOKEN ?? "",
+            "X-Postmark-Account-Token":
+              process.env.POSTMARK_ACCOUNT_TOKEN ?? "",
           },
         }
       );
       const domainData = await res.json();
-      dkimPendingHost = domainData.DKIMPendingHost || domainData.DKIMTextHost || "";
-      dkimPendingValue = domainData.DKIMPendingTextValue || domainData.DKIMPendingValue || domainData.DKIMTextValue || "";
+      dkimPendingHost =
+        domainData.DKIMPendingHost || domainData.DKIMTextHost || "";
+      dkimPendingValue =
+        domainData.DKIMPendingTextValue ||
+        domainData.DKIMPendingValue ||
+        domainData.DKIMTextValue ||
+        "";
       returnPathHost = `pm-bounces.${org.postmark_sender_domain ?? domain}`;
-      returnPathCnameValue = domainData.ReturnPathDomainCNAMEValue ?? "pm.mtasv.net";
+      returnPathCnameValue =
+        domainData.ReturnPathDomainCNAMEValue ?? "pm.mtasv.net";
 
-      // Update verification status if both verified
+      const verifyResult = await checkDomainVerification(
+        org.postmark_domain_id
+      );
       if (verifyResult.dkimVerified && verifyResult.returnPathVerified) {
         await admin
           .from("organisations")
@@ -619,11 +722,14 @@ export async function setupPostmarkForOrg(
     const raw = err instanceof Error ? err.message : "";
     let friendly = "Failed to configure email. Please try again.";
     if (raw.includes("createDomain failed")) {
-      friendly = "We couldn't register that domain. Please check it's spelled correctly and try again.";
+      friendly =
+        "We couldn't register that domain. Please check it's spelled correctly and try again.";
     } else if (raw.includes("createServer failed")) {
-      friendly = "Something went wrong setting up your email server. Please try again or contact support.";
+      friendly =
+        "Something went wrong setting up your email server. Please try again or contact support.";
     } else if (raw.includes("getDomain failed")) {
-      friendly = "We couldn't verify your domain right now. Please try again in a few moments.";
+      friendly =
+        "We couldn't verify your domain right now. Please try again in a few moments.";
     } else if (raw.includes("POSTMARK_ACCOUNT_TOKEN")) {
       friendly = "Email service is not configured. Please contact support.";
     }
@@ -692,13 +798,6 @@ export async function checkOrgDomainVerification(): Promise<{
 
 /**
  * Create an unconfirmed account and trigger a 6-digit OTP verification email.
- *
- * IMPORTANT: The Supabase "Confirm signup" email template must use {{ .Token }}
- * (the 6-digit code) instead of {{ .ConfirmationURL }} for this flow to work.
- * Update it in the Supabase Dashboard → Authentication → Email Templates.
- *
- * Returns { alreadyConfirmed: true } when email confirmation is disabled (dev/test
- * environments), allowing the wizard to skip straight to the firm step.
  */
 export async function startSignup(
   email: string,
@@ -711,15 +810,18 @@ export async function startSignup(
   if (error) {
     const msg = error.message.toLowerCase();
     if (msg.includes("already registered") || msg.includes("already exists")) {
-      return { error: "An account with this email already exists. Please sign in." };
+      return {
+        error: "An account with this email already exists. Please sign in.",
+      };
     }
     if (msg.includes("rate limit") || error.status === 429) {
-      return { error: "Too many attempts. Please wait a few minutes and try again." };
+      return {
+        error: "Too many attempts. Please wait a few minutes and try again.",
+      };
     }
     return { error: "Failed to create account. Please try again." };
   }
 
-  // Email confirmation disabled — user is immediately signed in (dev/test)
   if (data.session) {
     return { alreadyConfirmed: true };
   }
@@ -744,7 +846,9 @@ export async function verifyEmailOtp(
   });
 
   if (error) {
-    return { error: "Invalid or expired code. Please check your email and try again." };
+    return {
+      error: "Invalid or expired code. Please check your email and try again.",
+    };
   }
 
   return {};

@@ -38,12 +38,15 @@ import type { PlanTier } from "@/lib/stripe/plans";
 import type { UploadCheckMode } from "@/app/actions/settings";
 import {
   checkSlugAvailable,
+  clearDraftClients,
   createOrgAndJoinAsAdmin,
   deleteAllWizardClients,
+  getDraftClients,
   getSetupDraft,
   getWizardDashboardUrl,
   markOrgSetupComplete,
   refreshWizardSession,
+  saveDraftClients,
   saveSetupDraft,
   seedOrgDefaultsForWizard,
   updateOrgPlanTier,
@@ -276,7 +279,6 @@ export default function WizardPage() {
     if (draft.firmName) setFirmName(draft.firmName);
     if (draft.firmSlug) setSlug(draft.firmSlug);
     if (draft.selectedTier) setSelectedTier(draft.selectedTier as PlanTier);
-    if (draft.importRows) setSavedImportRows(draft.importRows as EditableRow[]);
     if (draft.portalEnabled !== undefined) setClientPortalEnabled(draft.portalEnabled);
     if (draft.uploadCheckMode) setUploadCheckSelection(draft.uploadCheckMode as UploadCheckMode);
     if (draft.sendHour !== undefined) setSendHour(draft.sendHour);
@@ -291,7 +293,6 @@ export default function WizardPage() {
       firmName,
       firmSlug: slug,
       selectedTier: selectedTier ?? undefined,
-      importRows: savedImportRows ?? undefined,
       portalEnabled: clientPortalEnabled,
       uploadCheckMode: uploadCheckSelection,
       emailSubStep: emailInitialSubStep,
@@ -1082,9 +1083,7 @@ export default function WizardPage() {
             onRowsChange={(rows) => {
               setSavedImportRows(rows);
               if (orgCreated && rows) {
-                const draft = collectCurrentState();
-                draft.importRows = rows;
-                saveSetupDraft(draft).catch((e) => console.warn("Draft save failed:", e));
+                saveDraftClients(rows).catch((e) => console.warn("Draft clients save failed:", e));
               }
             }}
             planClientLimit={selectedTier ? PLAN_TIERS.find((p) => p.key === selectedTier)?.clientLimit ?? null : null}
