@@ -371,7 +371,13 @@ export default function WizardPage() {
       if (fromStripe) {
         const draft = await getSetupDraft();
         setUserType("new-admin");
-        hydrateFromDraft(draft, "import");
+        if (draft) {
+          hydrateFromDraft(draft, "import");
+        } else {
+          // Draft missing — force import step
+          setAdminStep("import");
+          setOrgCreated(true);
+        }
         const draftClients = await getDraftClients();
         if (draftClients && draftClients.length > 0) {
           setSavedImportRows(draftClients);
@@ -382,7 +388,13 @@ export default function WizardPage() {
       else if (sc || se) {
         const draft = await getSetupDraft();
         setUserType("new-admin");
-        hydrateFromDraft(draft, "storage");
+        if (draft) {
+          hydrateFromDraft(draft, "storage");
+        } else {
+          // Draft missing (save may have been cancelled) — force storage step
+          setAdminStep("storage");
+          setOrgCreated(true);
+        }
         const draftClients = await getDraftClients();
         if (draftClients && draftClients.length > 0) {
           setSavedImportRows(draftClients);
@@ -534,13 +546,13 @@ export default function WizardPage() {
       setIsCreatingOrg(false);
       setOrgCreated(true);
       // Save draft immediately — orgCreated state not yet committed, so call saveSetupDraft directly
-      saveSetupDraft({
+      await saveSetupDraft({
         step: "import",
         firmName,
         firmSlug: slug,
         selectedTier: tier,
         updatedAt: new Date().toISOString(),
-      }).catch((e) => console.warn("Draft save failed:", e));
+      });
       setAdminStep("import");
     } catch (err) {
       setPlanError(
@@ -1164,12 +1176,13 @@ export default function WizardPage() {
             storageError={storageError}
             onComplete={handleStorageComplete}
             onBack={() => advanceToStep("upload-checks")}
-            onBeforeProviderConnect={() => {
+            onBeforeProviderConnect={async () => {
               isNavigatingAway.current = true;
-              // Save draft before leaving for OAuth — state will be restored on return
+              // Save draft before leaving for OAuth — must await to ensure
+              // the save completes before the browser navigates away
               const draft = collectCurrentState();
               draft.step = "storage";
-              saveSetupDraft(draft).catch((e) => console.warn("Draft save failed:", e));
+              await saveSetupDraft(draft);
             }}
           />
         </div>

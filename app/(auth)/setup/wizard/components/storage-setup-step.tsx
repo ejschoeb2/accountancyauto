@@ -25,7 +25,7 @@ interface StorageSetupStepProps {
   storageError?: string | null;
   onComplete: () => void;
   onBack: () => void;
-  onBeforeProviderConnect: () => void;
+  onBeforeProviderConnect: () => Promise<void>;
 }
 
 export function StorageSetupStep({
@@ -66,8 +66,8 @@ export function StorageSetupStep({
     });
   }
 
-  function connectProvider(url: string) {
-    onBeforeProviderConnect();
+  async function connectProvider(url: string) {
+    await onBeforeProviderConnect();
     window.location.href = url;
   }
 
