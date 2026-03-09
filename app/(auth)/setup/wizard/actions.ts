@@ -9,7 +9,6 @@ import {
   createOrgDomain,
   checkDomainVerification,
 } from "@/lib/postmark/management";
-
 // ─── Setup draft persistence ─────────────────────────────────────────────────
 
 export interface SetupDraft {
@@ -125,6 +124,13 @@ export async function markOrgSetupComplete(): Promise<{ error?: string }> {
     .eq("id", membership.org_id);
 
   if (error) return { error: error.message };
+
+  // Belt-and-suspenders cleanup of staging rows (ON DELETE CASCADE also covers this)
+  await admin
+    .from("setup_draft_clients")
+    .delete()
+    .eq("org_id", membership.org_id);
+
   return {};
 }
 
