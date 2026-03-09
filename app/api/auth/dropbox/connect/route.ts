@@ -48,9 +48,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // ── Store CSRF state in DB (organisations.dropbox_oauth_state) ────────
     const admin = createAdminClient();
-    await admin.from('organisations')
+    const { error: stateError } = await admin.from('organisations')
       .update({ dropbox_oauth_state: state })
       .eq('id', orgId);
+
+    if (stateError) {
+      console.error('[dropbox/connect] Failed to store CSRF state:', stateError);
+      return NextResponse.redirect(errorUrl);
+    }
 
     // ── Build Dropbox authorization URL ──────────────────────────────────
     // token_access_type=offline is CRITICAL — without it Dropbox will not

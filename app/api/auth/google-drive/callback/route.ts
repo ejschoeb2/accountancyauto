@@ -55,7 +55,9 @@ function getOAuth2Client() {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const stateParam = request.nextUrl.searchParams.get('state');
-  const fromWizard = stateParam?.startsWith('wizard_') ?? false;
+  // Determine origin from URL state param; after CSRF validation the DB state
+  // is used as an authoritative fallback (see below).
+  let fromWizard = stateParam?.startsWith('wizard_') ?? false;
 
   function errorUrl(code: string, orgSlug?: string | null): string {
     const path = fromWizard
@@ -69,6 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
+    console.warn('[google-drive/callback] no auth session — redirecting to login');
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -76,6 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const code = request.nextUrl.searchParams.get('code');
 
   if (!code) {
+    console.warn('[google-drive/callback] missing code param, fromWizard=%s', fromWizard);
     return NextResponse.redirect(errorUrl('missing_code'));
   }
 
@@ -85,6 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const ctx = await getOrgContext();
     orgId = ctx.orgId;
   } catch {
+    console.warn('[google-drive/callback] no org context, fromWizard=%s', fromWizard);
     return NextResponse.redirect(errorUrl('no_org_context'));
   }
 
@@ -97,7 +102,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // ── CSRF state validation (DB-based) ────────────────────────────────────
   if (!stateParam || !org?.google_oauth_state || stateParam !== org.google_oauth_state) {
+    console.warn('[google-drive/callback] CSRF mismatch — stateParam=%s, dbState=%s, fromWizard=%s',
+      stateParam ? 'present' : 'null',
+      org?.google_oauth_state ? 'present' : 'null',
+      fromWizard);
     return NextResponse.redirect(errorUrl('invalid_state', org?.slug));
+  }
+
+  // After CSRF validation passes, the DB state is authoritative. Use it as a
+  // fallback in case the URL state param was somehow decoded differently.
+  if (!fromWizard && org.google_oauth_state.startsWith('wizard_')) {
+    console.warn('[google-drive/callback] fromWizard corrected via DB state');
+    fromWizard = true;
   }
 
   // ── Token exchange ────────────────────────────────────────────────────────
@@ -170,5 +186,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const successPath = fromWizard
     ? '/setup/wizard?storage_connected=google_drive'
     : '/settings?tab=storage&connected=google_drive';
-  return NextResponse.redirect(buildRedirectUrl(successPath, org?.slug, request.url));
+  const redirectTarget = buildRedirectUrl(successPath, org?.slug, request.url);
+  console.log('[google-drive/callback] success — fromWizard=%s, slug=%s, redirect=%s',
+    fromWizard, org?.slug ?? 'null', redirectTarget);
+  return NextResponse.redirect(redirectTarget);
 }

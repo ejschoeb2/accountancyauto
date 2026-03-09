@@ -121,7 +121,10 @@ export function StorageSetupStep({
         {storageError && storageError !== "conditional_access_blocked" && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10">
             <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-500">Connection failed. Please try again.</p>
+            <div className="space-y-1">
+              <p className="text-sm text-red-500">Connection failed. Please try again.</p>
+              <p className="text-xs text-red-400 font-mono">Error: {storageError}</p>
+            </div>
           </div>
         )}
         {storageConnected === "google_drive" && (

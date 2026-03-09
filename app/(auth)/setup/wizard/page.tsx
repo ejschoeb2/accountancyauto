@@ -221,7 +221,16 @@ export default function WizardPage() {
   const [pendingDowngradeTier, setPendingDowngradeTier] = useState<PlanTier | null>(null);
 
   // ── Import: persist rows so returning to the step skips re-upload ──────────
-  const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(null);
+  // Initialise from sessionStorage so data survives OAuth/Stripe redirects
+  const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = sessionStorage.getItem("wizard_import_rows");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // ── Import + Config (steps 3–4 for member, 4–6 for admin) ──────────────────
   const [sendHour, setSendHour] = useState<number | null>(null);
@@ -272,6 +281,19 @@ export default function WizardPage() {
       sessionStorage.setItem("wizard_admin_step", adminStep);
     }
   }, [adminStep]);
+
+  // ── Persist imported client rows to sessionStorage so they survive OAuth redirects ─
+  useEffect(() => {
+    try {
+      if (savedImportRows && savedImportRows.length > 0) {
+        sessionStorage.setItem("wizard_import_rows", JSON.stringify(savedImportRows));
+      } else {
+        sessionStorage.removeItem("wizard_import_rows");
+      }
+    } catch {
+      // sessionStorage full or unavailable — non-blocking
+    }
+  }, [savedImportRows]);
 
   useEffect(() => {
     sessionStorage.setItem("wizard_portal_enabled", clientPortalEnabled ? "1" : "0");
@@ -338,6 +360,7 @@ export default function WizardPage() {
         sessionStorage.removeItem("wizard_portal_enabled");
         sessionStorage.removeItem("wizard_return_step");
         sessionStorage.removeItem("wizard_org_id");
+        sessionStorage.removeItem("wizard_import_rows");
         const url = await getWizardDashboardUrl();
         isNavigatingAway.current = true;
         window.location.href = url;
@@ -689,6 +712,7 @@ export default function WizardPage() {
         if (data.url) {
           sessionStorage.removeItem("wizard_admin_step");
           sessionStorage.removeItem("wizard_portal_enabled");
+          sessionStorage.removeItem("wizard_import_rows");
           sessionStorage.setItem("wizard_return_step", "stripe-complete");
           isNavigatingAway.current = true;
           window.location.href = data.url;
@@ -705,6 +729,7 @@ export default function WizardPage() {
       sessionStorage.removeItem("wizard_admin_step");
       sessionStorage.removeItem("wizard_portal_enabled");
       sessionStorage.removeItem("wizard_return_step");
+      sessionStorage.removeItem("wizard_import_rows");
       isNavigatingAway.current = true;
       window.location.href = dashboardUrl;
     }

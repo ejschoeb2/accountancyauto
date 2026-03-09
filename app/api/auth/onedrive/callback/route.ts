@@ -46,7 +46,7 @@ function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requ
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const stateFromUrl = request.nextUrl.searchParams.get('state');
-  const fromWizard = stateFromUrl?.startsWith('wizard_') ?? false;
+  let fromWizard = stateFromUrl?.startsWith('wizard_') ?? false;
 
   function errorUrl(code: string, orgSlug?: string | null): string {
     const path = fromWizard
@@ -89,6 +89,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // ── CSRF state validation (DB-based) ────────────────────────────────────
   if (!stateFromUrl || !org?.ms_oauth_state || stateFromUrl !== org.ms_oauth_state) {
     return NextResponse.redirect(errorUrl('invalid_state', org?.slug));
+  }
+
+  // DB state is authoritative after CSRF passes — correct fromWizard if needed
+  if (!fromWizard && org.ms_oauth_state.startsWith('wizard_')) {
+    fromWizard = true;
   }
 
   // ── Token exchange with MSAL (including PostgresMsalCachePlugin) ───────
