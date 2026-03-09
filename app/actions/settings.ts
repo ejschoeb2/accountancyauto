@@ -96,7 +96,10 @@ export async function getUserSendHour(): Promise<number> {
   return orgRow ? parseInt(orgRow.value, 10) : 9;
 }
 
-export async function updateUserSendHour(hour: number): Promise<{ error?: string }> {
+export async function updateUserSendHour(
+  hour: number,
+  { skipBillingCheck = false }: { skipBillingCheck?: boolean } = {}
+): Promise<{ error?: string }> {
   if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
     return { error: "Hour must be an integer between 0 and 23" };
   }
@@ -108,7 +111,7 @@ export async function updateUserSendHour(hour: number): Promise<{ error?: string
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  await requireWriteAccess(orgId);
+  if (!skipBillingCheck) await requireWriteAccess(orgId);
   const { error } = await supabase
     .from("app_settings")
     .upsert(
@@ -263,7 +266,8 @@ export async function getUserEmailSettings(): Promise<EmailSettings> {
 }
 
 export async function updateUserEmailSettings(
-  settings: EmailSettings
+  settings: EmailSettings,
+  { skipBillingCheck = false }: { skipBillingCheck?: boolean } = {}
 ): Promise<{ error?: string }> {
   // Basic email validation
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -284,7 +288,7 @@ export async function updateUserEmailSettings(
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
-  await requireWriteAccess(orgId);
+  if (!skipBillingCheck) await requireWriteAccess(orgId);
 
   const entries: { org_id: string; user_id: string; key: string; value: string }[] = [
     { org_id: orgId, user_id: user.id, key: EMAIL_KEYS.senderName, value: settings.senderName.trim() },

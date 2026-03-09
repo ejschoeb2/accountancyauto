@@ -33,6 +33,21 @@ function isAdminRoute(pathname: string): boolean {
 }
 
 /**
+ * Build a /setup/wizard redirect URL, preserving storage-related query params
+ * from the original request so OAuth callback state isn't lost when the
+ * middleware bounces users back to the wizard mid-setup.
+ */
+function buildWizardRedirect(request: NextRequest): URL {
+  const setupUrl = new URL("/setup/wizard", request.url);
+  const PRESERVE_PARAMS = ["storage_connected", "storage_error", "from"];
+  for (const key of PRESERVE_PARAMS) {
+    const value = request.nextUrl.searchParams.get(key);
+    if (value) setupUrl.searchParams.set(key, value);
+  }
+  return setupUrl;
+}
+
+/**
  * Derives the marketing site URL from the current request's host.
  * Strips {slug}.app. or app. prefix to get the apex/marketing domain.
  * e.g. acme.app.phasetwo.uk → https://phasetwo.uk
@@ -172,8 +187,7 @@ export async function updateSession(request: NextRequest) {
         if (org?.slug) {
           // If setup wasn't completed, send the user back to finish the wizard
           if (!org.setup_complete) {
-            const setupUrl = new URL("/setup/wizard", request.url);
-            const setupRedirect = NextResponse.redirect(setupUrl, 307);
+            const setupRedirect = NextResponse.redirect(buildWizardRedirect(request), 307);
             copyCookies(supabaseResponse, setupRedirect);
             return setupRedirect;
           }
@@ -198,8 +212,7 @@ export async function updateSession(request: NextRequest) {
       }
 
       // Fallback: no org found — redirect to setup wizard so user can create an org
-      const setupUrl = new URL("/setup/wizard", request.url);
-      const setupRedirect = NextResponse.redirect(setupUrl, 307);
+      const setupRedirect = NextResponse.redirect(buildWizardRedirect(request), 307);
       copyCookies(supabaseResponse, setupRedirect);
       return setupRedirect;
     } else {
@@ -236,8 +249,7 @@ export async function updateSession(request: NextRequest) {
 
   // Step 7.5: Org setup not yet complete — send authenticated user back to wizard
   if (!org.setup_complete) {
-    const setupUrl = new URL("/setup/wizard", request.url);
-    const setupRedirect = NextResponse.redirect(setupUrl, 307);
+    const setupRedirect = NextResponse.redirect(buildWizardRedirect(request), 307);
     copyCookies(supabaseResponse, setupRedirect);
     return setupRedirect;
   }

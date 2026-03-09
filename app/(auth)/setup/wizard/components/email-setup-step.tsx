@@ -203,28 +203,33 @@ export function EmailSetupStep({
     setSaveError(null);
     setIsSaving(true);
 
-    const currentAddress = `${senderLocalPart}@${senderDomain}`;
+    try {
+      const currentAddress = `${senderLocalPart}@${senderDomain}`;
 
-    const hourResult = await updateUserSendHour(parseInt(sendHour, 10));
-    if (hourResult.error) {
-      setSaveError(hourResult.error);
+      const hourResult = await updateUserSendHour(parseInt(sendHour, 10), { skipBillingCheck: true });
+      if (hourResult.error) {
+        setSaveError(hourResult.error);
+        setIsSaving(false);
+        return;
+      }
+
+      const emailResult = await updateUserEmailSettings({
+        senderName: senderName.trim(),
+        senderAddress: currentAddress,
+        replyTo: `${replyToLocalPart}@${senderDomain}`,
+      }, { skipBillingCheck: true });
+      if (emailResult.error) {
+        setSaveError(emailResult.error);
+        setIsSaving(false);
+        return;
+      }
+
       setIsSaving(false);
-      return;
-    }
-
-    const emailResult = await updateUserEmailSettings({
-      senderName: senderName.trim(),
-      senderAddress: currentAddress,
-      replyTo: `${replyToLocalPart}@${senderDomain}`,
-    });
-    if (emailResult.error) {
-      setSaveError(emailResult.error);
+      onComplete();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save settings");
       setIsSaving(false);
-      return;
     }
-
-    setIsSaving(false);
-    onComplete();
   }
 
   // ── "input" state ──────────────────────────────────────────────────────────

@@ -9,19 +9,19 @@ This document explains every variable in `.env.local`, where it is used in the c
 
 ## Architecture Overview
 
-The application connects to three external services. Each has its own set of variables:
+The application connects to four external services. Each has its own set of variables:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Prompt                      │
-│                     (Next.js on Vercel)                      │
-└──────────────┬────────────────┬────────────────┬────────────┘
-               │                │                │
-       ┌───────▼──────┐  ┌──────▼──────┐  ┌─────▼──────┐
-       │   Supabase   │  │  Postmark   │  │  Vercel    │
-       │  (Database + │  │  (Email     │  │  (Hosting) │
-       │    Auth)     │  │  Delivery)  │  │            │
-       └──────────────┘  └─────────────┘  └────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                           Prompt                                    │
+│                      (Next.js on Vercel)                            │
+└──────┬────────────────┬────────────────┬────────────────┬───────────┘
+       │                │                │                │
+┌──────▼──────┐  ┌──────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
+│  Supabase   │  │  Postmark   │  │   Stripe   │  │  Vercel    │
+│ (Database + │  │  (Email     │  │  (Billing  │  │  (Hosting) │
+│   Auth)     │  │  Delivery)  │  │   & Subs)  │  │            │
+└─────────────┘  └─────────────┘  └────────────┘  └────────────┘
 ```
 
 **Per-client (tenant) variables** are the ones that would need to change when the system is deployed for a different accounting firm. These are marked with `[TENANT]` below.
@@ -109,12 +109,32 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ---
 
+### `SEND_EMAIL_HOOK_SECRET` `[TENANT]`
+
+```
+SEND_EMAIL_HOOK_SECRET=v1,whsec_...
+```
+
+**What it is:** A webhook signing secret used by Supabase's Custom Auth Email Hook. When Supabase Auth triggers the `send-auth-email` edge function (for magic links, password resets, etc.), it signs the request payload with this secret. The edge function verifies the signature before processing, preventing unauthorized callers from triggering auth emails.
+
+**Format:** Supabase webhook secret format — `v1,whsec_<base64-encoded-key>`.
+
+**Used in:** `supabase/functions/send-auth-email/index.ts` — verifies the webhook signature on incoming requests from Supabase Auth.
+
+**How to get it:** Generated automatically when configuring a Custom Auth Email Hook in the Supabase Dashboard. Copy it from Dashboard → Authentication → Hooks → Send Email Hook → Webhook Secret.
+
+**Required:** Yes — if missing or incorrect, the auth email edge function will reject all requests, breaking magic link login and password reset flows.
+
+**Multi-tenant note:** Unique per Supabase project. Each tenant's auth hook has its own signing secret.
+
+---
+
 ## App Variables
 
 ### `NEXT_PUBLIC_APP_URL` `[TENANT]`
 
 ```
-NEXT_PUBLIC_APP_URL=https://accountancyauto.vercel.app
+NEXT_PUBLIC_APP_URL=https://prompt.accountants
 # Local: http://localhost:3000
 ```
 
@@ -170,10 +190,10 @@ POSTMARK_SERVER_TOKEN=3c43839b-...
 ### `POSTMARK_SENDER_DOMAIN` `[TENANT]`
 
 ```
-POSTMARK_SENDER_DOMAIN=phasetwo.uk
+POSTMARK_SENDER_DOMAIN=prompt.accountants
 ```
 
-**What it is:** The domain used for outbound sender email addresses (e.g. `reminders@phasetwo.uk`). This must match a domain that has an active **Sender Signature** verified in the Postmark server above.
+**What it is:** The domain used for outbound sender email addresses (e.g. `reminders@prompt.accountants`). This must match a domain that has an active **Sender Signature** verified in the Postmark server above.
 
 **Used in:** `app/(dashboard)/settings/page.tsx` — passed to the Email Settings card to lock the `@domain` portion of the sender address, preventing users from setting an unverified domain.
 
@@ -277,19 +297,22 @@ When deploying for a new accounting firm, the following variables would change. 
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ Yes | Separate database per tenant |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ Yes | Tied to Supabase project |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ Yes | Tied to Supabase project |
+| `SEND_EMAIL_HOOK_SECRET` | ✅ Yes | Tied to Supabase project auth hook |
 | `NEXT_PUBLIC_APP_URL` | ✅ Yes | Each tenant has their own deployment URL |
 | `POSTMARK_SERVER_TOKEN` | ✅ Yes | Each tenant sends from their own domain |
 | `POSTMARK_SENDER_DOMAIN` | ✅ Yes | Each tenant's verified sending domain |
 | `POSTMARK_WEBHOOK_SECRET` | ✅ Yes | Isolate inbound data per tenant |
 | `ACCOUNTANT_EMAIL` | ✅ Yes | Each tenant has a different accountant |
 | `CRON_SECRET` | ✅ Yes | Secure cron endpoints per deployment |
+| `ENCRYPTION_KEY` | ✅ Yes | Isolate token encryption per tenant |
+| `STRIPE_SECRET_KEY` | ✅ Yes | Each tenant has own Stripe account |
 | `NEXT_PUBLIC_IS_DEMO` | ❌ No | Always `false` in production |
 
 ---
 
 ## Stripe Variables
 
-Stripe handles subscription billing for paid plans (Starter, Practice).
+Stripe handles subscription billing for paid plans (Solo, Starter, Practice, Firm).
 
 ### `STRIPE_SECRET_KEY`
 
@@ -300,17 +323,7 @@ STRIPE_SECRET_KEY=sk_live_...
 
 **What it is:** The Stripe secret API key used server-side to create checkout sessions, handle webhooks, and manage subscriptions.
 
-**Used in:** `lib/stripe/client.ts` — lazy-initialised Stripe SDK instance.
-
----
-
-### `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-
-```
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
-```
-
-**What it is:** The Stripe publishable key for client-side use.
+**Used in:** `lib/stripe/client.ts` — lazy-initialised Stripe SDK instance (uses Proxy-based lazy init to avoid build failures when the key isn't set).
 
 ---
 
@@ -326,6 +339,20 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 
 ---
 
+### `STRIPE_PRICE_SOLO`
+
+```
+STRIPE_PRICE_SOLO=price_...
+```
+
+**What it is:** The Stripe Price ID for the **Solo** plan (£19/mo, up to 40 clients).
+
+**Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.solo.priceId`.
+
+**Source:** Stripe Dashboard → Products.
+
+---
+
 ### `STRIPE_PRICE_STARTER`
 
 ```
@@ -334,9 +361,9 @@ STRIPE_PRICE_STARTER=price_...
 
 **What it is:** The Stripe Price ID for the **Starter** plan (£39/mo, up to 80 clients).
 
-**Previously named:** `STRIPE_PRICE_SOLE_TRADER` — renamed when the tier was renamed from Sole Trader → Starter. Update your `.env.local` and Vercel environment accordingly.
-
 **Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.starter.priceId`.
+
+**Source:** Stripe Dashboard → Products.
 
 ---
 
@@ -346,9 +373,25 @@ STRIPE_PRICE_STARTER=price_...
 STRIPE_PRICE_PRACTICE=price_...
 ```
 
-**What it is:** The Stripe Price ID for the **Practice** plan (£89/mo base, unlimited clients with metered overage above 300). The base price covers the flat monthly charge; overage is billed separately via `STRIPE_PRICE_PRACTICE_OVERAGE`.
+**What it is:** The Stripe Price ID for the **Practice** plan (£89/mo, up to 300 clients). Overage above 300 clients is billed separately via `STRIPE_PRICE_PRACTICE_OVERAGE`.
 
 **Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.practice.priceId`.
+
+**Source:** Stripe Dashboard → Products.
+
+---
+
+### `STRIPE_PRICE_FIRM`
+
+```
+STRIPE_PRICE_FIRM=price_...
+```
+
+**What it is:** The Stripe Price ID for the **Firm** plan (£109/mo, up to 400 clients).
+
+**Used in:** `lib/stripe/plans.ts` — `PLAN_TIERS.firm.priceId`.
+
+**Source:** Stripe Dashboard → Products.
 
 ---
 
@@ -358,28 +401,41 @@ STRIPE_PRICE_PRACTICE=price_...
 STRIPE_PRICE_PRACTICE_OVERAGE=price_...
 ```
 
-**What it is:** Stripe metered Price ID for Practice overage billing (£0.60/client above 300). Only used when a Practice tier subscription is created — added as a second line item alongside the base Practice price to enable usage-based billing for high-volume practices.
+**What it is:** Stripe metered Price ID for Practice overage billing (£0.60/client above 300). Added as a second line item alongside the base Practice price to enable usage-based billing for high-volume practices.
 
-**Used in:** `lib/stripe/plans.ts` / `app/api/stripe/create-checkout-session/route.ts` — wired in Plan 03 (metered billing). Not yet active.
+**Used in:** `lib/stripe/plans.ts`, `lib/stripe/metered-billing.ts`.
 
 **How to get it:** Stripe Dashboard → Products → Create a new usage-based Price attached to the Practice product. Set billing scheme to "Per unit" with a unit amount of 60 (pence), and aggregation as "Sum of usage during period".
 
-**Source:** Stripe Dashboard > Products.
+**Required:** Optional — only needed if Practice tier overage billing is active.
+
+**Source:** Stripe Dashboard → Products.
+
+---
+
+### `STRIPE_METER_EVENT_NAME`
+
+```
+STRIPE_METER_EVENT_NAME=practice_overage
+```
+
+**What it is:** The Stripe Meter event name used to report Practice tier client overage usage to Stripe's metered billing system.
+
+**Used in:** `lib/stripe/metered-billing.ts` — sends usage events to Stripe when Practice tier clients exceed the included threshold.
+
+**Required:** Optional — only needed if Practice tier metered billing is active. Not yet configured.
 
 ---
 
 ### `STRIPE_TAX_ENABLED`
 
 ```
-STRIPE_TAX_ENABLED=false
-# Set to "true" to enable Stripe Tax automatic VAT collection
+STRIPE_TAX_ENABLED=true
 ```
 
-**What it is:** Feature flag to enable Stripe Tax for automatic VAT calculation at checkout.
+**What it is:** Feature flag to enable Stripe Tax for automatic VAT calculation at checkout. Set to `"true"` in production.
 
 **Used in:** `app/api/stripe/create-checkout-session/route.ts`.
-
----
 
 ---
 
@@ -408,13 +464,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 **Required:** Yes (at runtime) — `lib/crypto/tokens.ts` throws at call time if absent or wrong length. Absence does not crash the build (lazy validation), but any token encrypt/decrypt operation will fail at runtime with a clear error message.
 
-**First used:** Phase 25 (Google Drive OAuth token storage). Phase 24 creates the module but has no callers yet.
-
 ---
 
 ## Google Drive Integration Variables
 
-These variables are required for the Google Drive storage backend introduced in Phase 25. They are only needed at runtime when an accountant connects Google Drive from the Settings page; the application builds and runs (with Supabase storage only) without them.
+These variables are required for the Google Drive storage backend. They are only needed at runtime when an accountant connects Google Drive from the Settings page; the application builds and runs (with Supabase storage only) without them.
 
 ### `GOOGLE_CLIENT_ID`
 
@@ -463,7 +517,7 @@ GOOGLE_CLIENT_SECRET=<24-character-alphanumeric-string>
 
 ```
 GOOGLE_REDIRECT_URI=https://{app-domain}/api/auth/google-drive/callback
-# Example: https://app.getprompt.app/api/auth/google-drive/callback
+# Example: https://prompt.accountants/api/auth/google-drive/callback
 # Local dev: http://localhost:3000/api/auth/google-drive/callback
 ```
 
@@ -487,7 +541,7 @@ GOOGLE_REDIRECT_URI=https://{app-domain}/api/auth/google-drive/callback
 
 ## Microsoft OneDrive Integration Variables
 
-These variables are required for the Microsoft OneDrive storage backend introduced in Phase 26. They are only needed at runtime when an accountant connects OneDrive from the Settings page; the application builds and runs (with Supabase or Google Drive storage only) without them.
+These variables are required for the Microsoft OneDrive storage backend. They are only needed at runtime when an accountant connects OneDrive from the Settings page; the application builds and runs (with Supabase or Google Drive storage only) without them.
 
 The OneDrive integration supports both M365 business accounts and personal Microsoft accounts via the `/common` authority endpoint. A single Azure app registration with appropriate permissions covers both account types.
 
@@ -542,7 +596,7 @@ MS_CLIENT_SECRET=<alphanumeric-string-40-plus-characters>
 
 ```
 MS_REDIRECT_URI=https://{app-domain}/api/auth/onedrive/callback
-# Example: https://app.getprompt.app/api/auth/onedrive/callback
+# Example: https://prompt.accountants/api/auth/onedrive/callback
 # Local dev: http://localhost:3000/api/auth/onedrive/callback
 ```
 
@@ -564,7 +618,7 @@ MS_REDIRECT_URI=https://{app-domain}/api/auth/onedrive/callback
 
 ## Dropbox Integration Variables
 
-These variables are required for the Dropbox storage backend introduced in Phase 27. They are only needed at runtime when an accountant connects Dropbox from the Settings page; the application builds and runs (with Supabase storage only) without them.
+These variables are required for the Dropbox storage backend. They are only needed at runtime when an accountant connects Dropbox from the Settings page; the application builds and runs (with Supabase storage only) without them.
 
 ### `DROPBOX_APP_KEY`
 
@@ -615,7 +669,7 @@ DROPBOX_APP_SECRET=<alphanumeric-app-secret>
 
 ```
 DROPBOX_REDIRECT_URI=https://{app-domain}/api/auth/dropbox/callback
-# Example: https://app.getprompt.app/api/auth/dropbox/callback
+# Example: https://prompt.accountants/api/auth/dropbox/callback
 # Local dev: http://localhost:3000/api/auth/dropbox/callback
 ```
 
