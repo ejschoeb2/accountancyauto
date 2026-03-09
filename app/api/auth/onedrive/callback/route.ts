@@ -7,14 +7,13 @@
  * 1. Auth check — redirect to /login if not authenticated.
  * 2. CSRF validation — compare `state` URL param against
  *    organisations.ms_oauth_state (DB-based CSRF, set in connect route).
- *    DB storage avoids cross-subdomain cookie loss where the connect route
- *    runs on acme.app.X but the OAuth callback URI is app.X.
  * 3. Token exchange with MSAL (including PostgresMsalCachePlugin for persistence).
  * 4. Persists homeAccountId and updates storage_backend on the org.
- * 5. Clears ms_oauth_state to prevent replay and redirects to the org's subdomain.
+ * 5. Clears ms_oauth_state to prevent replay and redirects to org subdomain.
  *
- * All error paths redirect with an error query param — OAuth callbacks must never
- * expose raw error state to users.
+ * IMPORTANT: Error redirects use request.url as the base (NOT NEXT_PUBLIC_APP_URL)
+ * to stay on the callback's origin domain. Using NEXT_PUBLIC_APP_URL can redirect
+ * to the marketing site when env is set to the apex domain.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -26,8 +25,6 @@ import { PostgresMsalCachePlugin } from '@/lib/storage/msal-cache-plugin';
 
 /**
  * Build the org's subdomain base URL from its slug.
- * e.g. slug="acme", NEXT_PUBLIC_APP_URL="https://prompt.accountants"
- *      → "https://acme.app.prompt.accountants"
  */
 function buildOrgBaseUrl(slug: string): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
@@ -35,10 +32,28 @@ function buildOrgBaseUrl(slug: string): string {
   return `https://${slug}.app.${hostname}`;
 }
 
+/**
+ * Build redirect URL — org subdomain when slug available, else callback origin.
+ * NEVER uses NEXT_PUBLIC_APP_URL directly (may be the marketing domain).
+ */
+function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requestUrl: string): string {
+  if (orgSlug) {
+    return `${buildOrgBaseUrl(orgSlug)}${path}`;
+  }
+  const origin = new URL(requestUrl).origin;
+  return `${origin}${path}`;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
-  // Early-error fallback uses main domain (org not yet resolved)
-  const earlyErrorBase = `${appUrl}/settings?tab=storage&error=`;
+  const stateFromUrl = request.nextUrl.searchParams.get('state');
+  const fromWizard = stateFromUrl?.startsWith('wizard_') ?? false;
+
+  function errorUrl(code: string, orgSlug?: string | null): string {
+    const path = fromWizard
+      ? `/setup/wizard?storage_error=${code}`
+      : `/settings?tab=storage&error=${code}`;
+    return buildRedirectUrl(path, orgSlug, request.url);
+  }
 
   // ── Auth check ─────────────────────────────────────────────────────────────
   const supabase = await createClient();
@@ -48,13 +63,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // ── Extract code and state from URL ────────────────────────────────────
-  const searchParams = request.nextUrl.searchParams;
-  const code = searchParams.get('code');
-  const stateFromUrl = searchParams.get('state');
+  // ── Extract code from URL ──────────────────────────────────────────────
+  const code = request.nextUrl.searchParams.get('code');
 
   if (!code) {
-    return NextResponse.redirect(`${earlyErrorBase}missing_code`);
+    return NextResponse.redirect(errorUrl('missing_code'));
   }
 
   // ── Get org context ──────────────────────────────────────────────────────
@@ -63,23 +76,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const ctx = await getOrgContext();
     orgId = ctx.orgId;
   } catch {
-    return NextResponse.redirect(`${earlyErrorBase}no_org_context`);
+    return NextResponse.redirect(errorUrl('no_org_context'));
   }
 
-  // ── Fetch org state + slug (slug needed for subdomain redirect) ──────────
+  // ── Fetch org state + slug ───────────────────────────────────────────────
   const admin = createAdminClient();
   const { data: org } = await admin.from('organisations')
     .select('ms_oauth_state, slug')
     .eq('id', orgId)
     .single();
 
-  // Org subdomain base URL — used for all post-resolution redirects
-  const orgBaseUrl = org?.slug ? buildOrgBaseUrl(org.slug) : appUrl;
-  const errorBase = `${orgBaseUrl}/settings?tab=storage&error=`;
-
   // ── CSRF state validation (DB-based) ────────────────────────────────────
   if (!stateFromUrl || !org?.ms_oauth_state || stateFromUrl !== org.ms_oauth_state) {
-    return NextResponse.redirect(`${errorBase}invalid_state`);
+    return NextResponse.redirect(errorUrl('invalid_state', org?.slug));
   }
 
   // ── Token exchange with MSAL (including PostgresMsalCachePlugin) ───────
@@ -105,11 +114,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const message = error instanceof Error ? error.message : String(error);
 
     if (message.includes('AADSTS53003')) {
-      return NextResponse.redirect(`${errorBase}conditional_access_blocked`);
+      return NextResponse.redirect(errorUrl('conditional_access_blocked', org?.slug));
     }
 
     console.error('[onedrive/callback] token exchange failed:', error);
-    return NextResponse.redirect(`${errorBase}auth_failed`);
+    return NextResponse.redirect(errorUrl('auth_failed', org?.slug));
   }
 
   // ── Persist homeAccountId and update org storage backend ───────────────
@@ -129,15 +138,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   } catch (error) {
     console.error('[onedrive/callback] DB persist error:', error);
-    return NextResponse.redirect(`${errorBase}db_error`);
+    return NextResponse.redirect(errorUrl('db_error', org?.slug));
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
-  // Origin context is encoded in the state param ("wizard_<hex>" vs "<hex>"),
-  // which Microsoft returns unchanged — more reliable than a cookie.
-  const fromWizard = stateFromUrl?.startsWith('wizard_') ?? false;
-  const successUrl = fromWizard
-    ? `${orgBaseUrl}/setup/wizard?storage_connected=onedrive`
-    : `${orgBaseUrl}/settings?tab=storage&connected=onedrive`;
-  return NextResponse.redirect(successUrl);
+  const successPath = fromWizard
+    ? '/setup/wizard?storage_connected=onedrive'
+    : '/settings?tab=storage&connected=onedrive';
+  return NextResponse.redirect(buildRedirectUrl(successPath, org?.slug, request.url));
 }

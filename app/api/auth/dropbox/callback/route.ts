@@ -7,7 +7,6 @@
  * 1. Auth check — redirects to /login if not authenticated.
  * 2. CSRF state validation — compares `state` URL param against
  *    organisations.dropbox_oauth_state (DB-based CSRF, set in connect route).
- *    Redirects to /settings?tab=storage&error=invalid_state on mismatch.
  * 3. Token exchange — exchanges `code` for access/refresh tokens via
  *    direct POST to Dropbox token endpoint.
  * 4. DRPBX-01: Mandatory refresh_token presence check — rejects immediately
@@ -17,12 +16,15 @@
  *    access and refresh tokens; NEVER writes plaintext tokens to the database.
  * 6. Sets storage_backend='dropbox', storage_backend_status='active'.
  * 7. Clears dropbox_oauth_state to prevent replay.
- * 8. Redirects to /setup/wizard?storage_connected=dropbox if initiated from
- *    the setup wizard (detected via "wizard_" prefix in the state param),
- *    otherwise redirects to /settings?tab=storage&connected=dropbox.
+ * 8. Redirects to org subdomain — /setup/wizard?storage_connected=dropbox if
+ *    from wizard, otherwise /settings?tab=storage&connected=dropbox.
  *
- * All error paths redirect to /settings with an error query param — OAuth
- * callbacks must never expose raw error state to users.
+ * All error paths redirect with an error query param — OAuth callbacks must
+ * never expose raw error state to users.
+ *
+ * IMPORTANT: Error redirects use request.url as the base (NOT NEXT_PUBLIC_APP_URL)
+ * to stay on the callback's origin domain. Using NEXT_PUBLIC_APP_URL can redirect
+ * to the marketing site when env is set to the apex domain.
  *
  * Token exchange uses direct fetch() to the Dropbox API rather than the
  * DropboxAuth SDK — avoids constructor issues with node-fetch v3 (ESM-only).
@@ -45,10 +47,35 @@ function buildOrgBaseUrl(slug: string): string {
   return `https://${slug}.app.${hostname}`;
 }
 
+/**
+ * Build error/success redirect URL.
+ * Uses the org's subdomain when slug is available, otherwise falls back to
+ * request.url origin (the callback domain) — NEVER NEXT_PUBLIC_APP_URL which
+ * may point to the marketing site.
+ */
+function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requestUrl: string): string {
+  if (orgSlug) {
+    return `${buildOrgBaseUrl(orgSlug)}${path}`;
+  }
+  // Fallback: stay on the callback's own origin
+  const origin = new URL(requestUrl).origin;
+  return `${origin}${path}`;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
-  // Early-error fallback uses main domain (org not yet resolved)
-  const earlyErrorBase = `${appUrl}/settings?tab=storage&error=`;
+  // Detect wizard origin from state param prefix — safe for redirect routing
+  // even before CSRF validation (worst case: wrong redirect target, not a
+  // security issue since no tokens are granted on error paths).
+  const stateParam = request.nextUrl.searchParams.get('state');
+  const fromWizard = stateParam?.startsWith('wizard_') ?? false;
+
+  /** Build an error redirect URL, routing to wizard or settings as appropriate. */
+  function errorUrl(code: string, orgSlug?: string | null): string {
+    const path = fromWizard
+      ? `/setup/wizard?storage_error=${code}`
+      : `/settings?tab=storage&error=${code}`;
+    return buildRedirectUrl(path, orgSlug, request.url);
+  }
 
   // ── Auth check ─────────────────────────────────────────────────────────────
   const supabase = await createClient();
@@ -59,12 +86,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Extract URL params ───────────────────────────────────────────────────
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get('code');
-  const stateParam = searchParams.get('state');
+  const code = request.nextUrl.searchParams.get('code');
 
   if (!code) {
-    return NextResponse.redirect(`${earlyErrorBase}missing_code`);
+    return NextResponse.redirect(errorUrl('missing_code'));
   }
 
   // ── Get org context ──────────────────────────────────────────────────────
@@ -73,7 +98,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const ctx = await getOrgContext();
     orgId = ctx.orgId;
   } catch {
-    return NextResponse.redirect(`${earlyErrorBase}no_org_context`);
+    return NextResponse.redirect(errorUrl('no_org_context'));
   }
 
   // ── Fetch org state + slug (slug needed for subdomain redirect) ──────────
@@ -83,13 +108,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     .eq('id', orgId)
     .single();
 
-  // Org subdomain base URL — used for all post-resolution redirects
-  const orgBaseUrl = org?.slug ? buildOrgBaseUrl(org.slug) : appUrl;
-  const errorBase = `${orgBaseUrl}/settings?tab=storage&error=`;
-
   // ── CSRF state validation (DB-based) ────────────────────────────────────
   if (!stateParam || !org?.dropbox_oauth_state || stateParam !== org.dropbox_oauth_state) {
-    return NextResponse.redirect(`${errorBase}invalid_state`);
+    return NextResponse.redirect(errorUrl('invalid_state', org?.slug));
   }
 
   // ── Token exchange + persist ─────────────────────────────────────────────
@@ -121,18 +142,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     };
 
     // ── DRPBX-01: Mandatory refresh_token presence check ─────────────────
-    // If refresh_token is absent, token_access_type=offline was not honoured.
-    // Reject immediately — do NOT store the short-lived access token.
     if (!result.refresh_token) {
-      return NextResponse.redirect(
-        `${errorBase}dropbox_no_refresh_token`,
-      );
+      return NextResponse.redirect(errorUrl('dropbox_no_refresh_token', org?.slug));
     }
 
     if (!result.access_token) {
-      return NextResponse.redirect(
-        `${errorBase}dropbox_no_access_token`,
-      );
+      return NextResponse.redirect(errorUrl('dropbox_no_access_token', org?.slug));
     }
 
     const accessToken = result.access_token;
@@ -150,17 +165,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       dropbox_oauth_state: null, // Clear CSRF token to prevent replay
     }).eq('id', orgId);
   } catch (err) {
-    // Avoid leaking error details — redirect with generic error code
     console.error('[dropbox/callback] token exchange failed:', err);
-    return NextResponse.redirect(`${errorBase}dropbox_exchange_failed`);
+    return NextResponse.redirect(errorUrl('dropbox_exchange_failed', org?.slug));
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
-  // Origin context is encoded in the state param ("wizard_<uuid>" vs "<uuid>"),
-  // which Dropbox returns unchanged — more reliable than a cookie.
-  const fromWizard = stateParam?.startsWith('wizard_') ?? false;
-  const successUrl = fromWizard
-    ? `${orgBaseUrl}/setup/wizard?storage_connected=dropbox`
-    : `${orgBaseUrl}/settings?tab=storage&connected=dropbox`;
-  return NextResponse.redirect(successUrl);
+  const successPath = fromWizard
+    ? '/setup/wizard?storage_connected=dropbox'
+    : '/settings?tab=storage&connected=dropbox';
+  return NextResponse.redirect(buildRedirectUrl(successPath, org?.slug, request.url));
 }
