@@ -60,9 +60,15 @@ export function useDocumentNotifications(orgId: string | undefined) {
             (docTypeResult.data as { label?: string } | null)?.label ??
             newDoc.original_filename;
 
+          const sourceLabel =
+            newDoc.source === 'portal_upload'
+              ? 'Via upload portal'
+              : newDoc.source === 'manual'
+                ? 'Uploaded by accountant'
+                : 'Via email';
+
           toast.success(`${clientName} uploaded ${docTypeLabel}`, {
-            description:
-              newDoc.source === 'portal_upload' ? 'Via upload portal' : 'Via email',
+            description: sourceLabel,
           });
         }
       )

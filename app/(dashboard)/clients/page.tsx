@@ -4,12 +4,13 @@ import { getClientStatusList, getClientFilingStatuses } from "@/lib/dashboard/me
 import { ClientTable } from "./components/client-table";
 
 interface ClientsPageProps {
-  searchParams: Promise<{ filter?: string }>;
+  searchParams: Promise<{ filter?: string; sort?: string }>;
 }
 
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const params = await searchParams;
   const filterParam = params.filter;
+  const sortParam = params.sort;
 
   const [clients, supabase] = await Promise.all([
     getClients(),
@@ -37,6 +38,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
       statusMap={statusMap}
       filingStatusMap={filingStatusesData.filingStatuses}
       initialFilter={filterParam}
+      initialSort={sortParam}
     />
   );
 }

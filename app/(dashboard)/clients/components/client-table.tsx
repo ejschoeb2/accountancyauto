@@ -102,6 +102,7 @@ interface ClientTableProps {
   statusMap: Record<string, ClientStatusInfo>;
   filingStatusMap: Record<string, FilingTypeStatus[]>;
   initialFilter?: string;
+  initialSort?: string;
 }
 
 // Client type options
@@ -141,13 +142,16 @@ const SORT_LABELS: Record<string, string> = {
   "type-asc": "Type (A-Z)",
 };
 
-export function ClientTable({ initialData, statusMap, filingStatusMap, initialFilter }: ClientTableProps) {
+export function ClientTable({ initialData, statusMap, filingStatusMap, initialFilter, initialSort }: ClientTableProps) {
   const router = useRouter();
   const [data, setData] = useState<Client[]>(initialData);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [sortBy, setSortBy] = useState<string>("most-urgent");
+  const validSorts = Object.keys(SORT_LABELS);
+  const [sortBy, setSortBy] = useState<string>(
+    initialSort && validSorts.includes(initialSort) ? initialSort : "most-urgent"
+  );
   type ViewMode = 'data' | 'status';
   const [viewMode, setViewMode] = useState<ViewMode>('data');
 
@@ -1055,7 +1059,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
               <div className="space-y-2 flex-1">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
                 <div className="flex flex-wrap gap-2">
-                  {(["red", "orange", "amber", "blue", "green", "grey"] as const).map((status) => {
+                  {(["red", "orange", "amber", "blue", "violet", "green", "grey"] as const).map((status) => {
                     return (
                       <ButtonWithText
                         key={status}

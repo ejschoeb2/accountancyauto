@@ -39,9 +39,17 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
       <CardContent className="px-5 py-0">
         <div className="flex items-start justify-between mb-6">
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Upcoming Deadlines
-          </p>
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Upcoming Deadlines
+            </p>
+            <Link
+              href="/clients?sort=deadline-asc"
+              className="text-xs text-violet-600 hover:underline mt-1 inline-block"
+            >
+              View all
+            </Link>
+          </div>
           <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
             <CalendarClock className="size-6 text-violet-500" />
           </div>

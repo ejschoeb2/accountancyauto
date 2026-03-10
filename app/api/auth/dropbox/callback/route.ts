@@ -37,27 +37,15 @@ import { getOrgContext } from '@/lib/auth/org-context';
 import { encryptToken } from '@/lib/crypto/tokens';
 
 /**
- * Build the org's subdomain base URL from its slug.
- * e.g. slug="acme", NEXT_PUBLIC_APP_URL="https://prompt.accountants"
- *      → "https://acme.app.prompt.accountants"
- */
-function buildOrgBaseUrl(slug: string): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
-  const hostname = appUrl.replace(/^https?:\/\//, '').split('/')[0];
-  return `https://${slug}.app.${hostname}`;
-}
-
-/**
- * Build error/success redirect URL.
- * Uses the org's subdomain when slug is available, otherwise falls back to
- * request.url origin (the callback domain) — NEVER NEXT_PUBLIC_APP_URL which
- * may point to the marketing site.
+ * Build redirect URL — org subdomain in production, origin-relative in dev.
+ * NEVER uses NEXT_PUBLIC_APP_URL directly (may be the marketing domain).
  */
 function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requestUrl: string): string {
-  if (orgSlug) {
-    return `${buildOrgBaseUrl(orgSlug)}${path}`;
+  if (orgSlug && process.env.NODE_ENV !== 'development') {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const hostname = appUrl.replace(/^https?:\/\//, '').split('/')[0];
+    return `https://${orgSlug}.app.${hostname}${path}`;
   }
-  // Fallback: stay on the callback's own origin
   const origin = new URL(requestUrl).origin;
   return `${origin}${path}`;
 }
@@ -183,7 +171,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-    await admin.from('organisations').update({
+    const { error: updateError } = await admin.from('organisations').update({
       dropbox_refresh_token_enc: encryptToken(refreshToken),
       dropbox_access_token_enc: encryptToken(accessToken),
       dropbox_token_expires_at: expiresAt.toISOString(),
@@ -191,6 +179,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       storage_backend_status: 'active',
       dropbox_oauth_state: null, // Clear CSRF token to prevent replay
     }).eq('id', orgId);
+
+    if (updateError) {
+      console.error('[dropbox/callback] DB update failed:', updateError.message);
+      return NextResponse.redirect(errorUrl('dropbox_db_error', org?.slug));
+    }
   } catch (err) {
     console.error('[dropbox/callback] Token encryption/persist failed:', err);
     return NextResponse.redirect(errorUrl('dropbox_encrypt_failed', org?.slug));

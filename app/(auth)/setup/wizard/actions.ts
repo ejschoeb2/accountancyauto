@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { seedOrgDefaults } from "@/lib/onboarding/seed-defaults";
 import { type PlanTier, getPlanByTier } from "@/lib/stripe/plans";
+import { buildReminderQueue, buildCustomScheduleQueue } from "@/lib/reminders/queue-builder";
 import {
   createOrgServer,
   createOrgDomain,
@@ -251,8 +252,36 @@ export async function migrateDraftClients(): Promise<{ error?: string; created: 
 
   if (!draftRows || draftRows.length === 0) return { created: 0 };
 
+  // Check plan client limit
+  const { data: org } = await admin
+    .from("organisations")
+    .select("client_count_limit")
+    .eq("id", membership.org_id)
+    .single();
+
+  const limit = org?.client_count_limit ?? null;
+
+  let importableRows = draftRows;
+
+  if (limit !== null) {
+    const { count } = await admin
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", membership.org_id);
+
+    const currentCount = count ?? 0;
+    const remainingCapacity = Math.max(0, limit - currentCount);
+
+    if (remainingCapacity <= 0) return { created: 0 };
+
+    // Only import up to remaining capacity (rows are already ordered by row_index)
+    if (draftRows.length > remainingCapacity) {
+      importableRows = draftRows.slice(0, remainingCapacity);
+    }
+  }
+
   // Map draft rows to client inserts
-  const newClients = draftRows.map((row) => {
+  const newClients = importableRows.map((row) => {
     const d = row.data as EditableRow;
     return {
       company_name: d.company_name,
@@ -470,10 +499,14 @@ export async function getStorageInfoForWizard(): Promise<{
   googleDriveFolderId: string | null;
   storageBackendStatus: string | null;
   dropboxConnected: boolean;
+  googleConnected: boolean;
+  onedriveConnected: boolean;
 }> {
+  const empty = { storageBackend: null, googleDriveFolderId: null, storageBackendStatus: null, dropboxConnected: false, googleConnected: false, onedriveConnected: false };
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { storageBackend: null, googleDriveFolderId: null, storageBackendStatus: null, dropboxConnected: false };
+  if (!user) return empty;
 
   const admin = createAdminClient();
   const { data: membership } = await admin
@@ -482,20 +515,69 @@ export async function getStorageInfoForWizard(): Promise<{
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!membership?.org_id) return { storageBackend: null, googleDriveFolderId: null, storageBackendStatus: null, dropboxConnected: false };
+  if (!membership?.org_id) return empty;
 
   const { data } = await admin
     .from("organisations")
-    .select("storage_backend, storage_backend_status, google_drive_folder_id, dropbox_refresh_token_enc")
+    .select("storage_backend, storage_backend_status, google_drive_folder_id, google_refresh_token_enc, dropbox_refresh_token_enc, ms_token_cache_enc")
     .eq("id", membership.org_id)
     .single();
 
+  // Validate that connections actually have tokens — storage_backend alone
+  // can be stale from a previous incomplete setup or revoked access.
+  const hasGoogleTokens = !!data?.google_refresh_token_enc;
+  const hasDropboxTokens = !!data?.dropbox_refresh_token_enc;
+  const hasOnedriveTokens = !!data?.ms_token_cache_enc;
+
+  const backend = data?.storage_backend ?? null;
+
   return {
-    storageBackend: data?.storage_backend ?? null,
+    storageBackend: backend,
     googleDriveFolderId: data?.google_drive_folder_id ?? null,
     storageBackendStatus: data?.storage_backend_status ?? null,
-    dropboxConnected: !!data?.dropbox_refresh_token_enc,
+    dropboxConnected: backend === "dropbox" && hasDropboxTokens,
+    googleConnected: backend === "google_drive" && hasGoogleTokens,
+    onedriveConnected: backend === "onedrive" && hasOnedriveTokens,
   };
+}
+
+/**
+ * Reset storage backend to supabase during wizard.
+ *
+ * Used when a previous connection is stale (storage_backend set but tokens
+ * missing/expired) and the user wants to reconnect or switch providers.
+ * Uses admin client to bypass RLS during wizard setup.
+ */
+export async function resetStorageForWizard(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  const { error } = await admin.from("organisations").update({
+    storage_backend: "supabase",
+    storage_backend_status: null,
+    google_access_token_enc: null,
+    google_refresh_token_enc: null,
+    google_token_expires_at: null,
+    google_drive_folder_id: null,
+    dropbox_refresh_token_enc: null,
+    dropbox_access_token_enc: null,
+    dropbox_token_expires_at: null,
+    ms_token_cache_enc: null,
+    ms_home_account_id: null,
+  }).eq("id", membership.org_id);
+
+  if (error) return { error: error.message };
+  return {};
 }
 
 /**
@@ -1030,6 +1112,50 @@ export async function resendEmailOtp(
 
   if (error) {
     return { error: "Failed to resend. Please try again in a moment." };
+  }
+
+  return {};
+}
+
+/**
+ * Build the initial reminder queue after wizard completion.
+ *
+ * Called once after clients, filing assignments, schedules, and templates
+ * have been created so the activity page shows queued emails immediately
+ * instead of waiting for the next cron run.
+ */
+export async function buildInitialQueue(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  const { data: org } = await admin
+    .from("organisations")
+    .select("id, name")
+    .eq("id", membership.org_id)
+    .single();
+
+  if (!org) return { error: "Organisation not found." };
+
+  try {
+    await buildReminderQueue(admin, org);
+    await buildCustomScheduleQueue(admin, org);
+  } catch (err) {
+    console.error("buildInitialQueue error:", err);
+    // Non-fatal: queue will be built on next cron run
   }
 
   return {};

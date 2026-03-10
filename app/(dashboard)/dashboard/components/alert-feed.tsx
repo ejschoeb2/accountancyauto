@@ -48,9 +48,17 @@ export function AlertFeed() {
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
       <CardContent className="px-5 py-0">
         <div className="flex items-start justify-between mb-6">
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Recent Documents
-          </p>
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Recent Documents
+            </p>
+            <Link
+              href="/activity?tab=uploads&sort=received-desc"
+              className="text-xs text-blue-600 hover:underline mt-1 inline-block"
+            >
+              View all
+            </Link>
+          </div>
           <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-blue-500/20">
             <Bell className="size-6 text-blue-500" />
           </div>

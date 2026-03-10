@@ -523,6 +523,43 @@ export function DocumentCard({
   }, [clientId, filingTypeId]);
 
   // ---------------------------------------------------------------------------
+  // Realtime: auto-refresh documents when a new upload arrives for this client
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const channel = supabase
+      .channel(`doc-refresh-${clientId}-${filingTypeId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'client_documents',
+          filter: `client_id=eq.${clientId}`,
+        },
+        async (payload) => {
+          const newDoc = payload.new as { filing_type_id?: string };
+          // Only refresh if the new document is for this filing type
+          if (newDoc.filing_type_id !== filingTypeId) return;
+          // Re-fetch documents
+          try {
+            const docsRes = await fetch(
+              `/api/clients/${clientId}/documents?filing_type_id=${filingTypeId}`
+            );
+            const docsData = docsRes.ok ? await docsRes.json() : { documents: [] };
+            setDocuments(docsData.documents ?? []);
+          } catch (err) {
+            console.error('[DocumentCard] Realtime refresh failed:', err);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [clientId, filingTypeId]);
+
+  // ---------------------------------------------------------------------------
   // Reload data when checklist changes (configure modal saved)
   // ---------------------------------------------------------------------------
   const reloadData = async () => {

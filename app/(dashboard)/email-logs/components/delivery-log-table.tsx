@@ -123,9 +123,11 @@ type DateFilterType = 'send_date' | 'deadline_date';
 
 interface DeliveryLogTableProps {
   viewMode: ViewMode;
+  initialStatusFilters?: string[];
+  initialDateFilter?: 'today';
 }
 
-export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
+export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFilter }: DeliveryLogTableProps) {
   const [sentData, setSentData] = useState<AuditEntry[]>([]);
   const [queuedData, setQueuedData] = useState<QueuedReminder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -133,17 +135,24 @@ export function DeliveryLogTable({ viewMode }: DeliveryLogTableProps) {
 
   usePageLoading('email-logs-table', loading);
 
+  // Compute initial date values
+  const todayStr = initialDateFilter === 'today' ? new Date().toISOString().slice(0, 10) : '';
+
   // Filter state
   const [clientSearch, setClientSearch] = useState('');
   const [debouncedClientSearch, setDebouncedClientSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateFrom, setDateFrom] = useState(todayStr);
+  const [dateTo, setDateTo] = useState(todayStr);
   const [dateFilterType, setDateFilterType] = useState<DateFilterType>('send_date');
   const [activeClientTypeFilters, setActiveClientTypeFilters] = useState<Set<string>>(new Set());
   const [activeDeadlineTypeFilters, setActiveDeadlineTypeFilters] = useState<Set<string>>(new Set());
-  const [activeStatusFilters, setActiveStatusFilters] = useState<Set<string>>(new Set());
+  const [activeStatusFilters, setActiveStatusFilters] = useState<Set<string>>(
+    initialStatusFilters ? new Set(initialStatusFilters) : new Set()
+  );
   const [templateFilter, setTemplateFilter] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(
+    !!(initialStatusFilters?.length || initialDateFilter)
+  );
 
   // Sort state
   const [sortBy, setSortBy] = useState<string>("send-date-asc");

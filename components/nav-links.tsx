@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/activity", label: "Activity" },
   { href: "/clients", label: "Clients" },
   { href: "/schedules", label: "Reminder Schedules" },
   { href: "/templates", label: "Email Templates" },
-  { href: "/activity", label: "Activity" },
 ];
 
 export const ADMIN_ITEM: { href: string; label: string } = {

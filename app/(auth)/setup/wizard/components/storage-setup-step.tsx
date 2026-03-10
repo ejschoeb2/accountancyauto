@@ -11,14 +11,12 @@ import {
   ArrowLeft,
   ArrowRight,
   Info,
+  Unplug,
 } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import { Input } from "@/components/ui/input";
-import {
-  updateGoogleDriveFolderId,
-  type StorageInfo,
-} from "@/app/actions/settings";
-import { getStorageInfoForWizard } from "../actions";
+import { updateGoogleDriveFolderId } from "@/app/actions/settings";
+import { getStorageInfoForWizard, resetStorageForWizard } from "../actions";
 
 interface StorageSetupStepProps {
   storageConnected?: string | null;
@@ -35,12 +33,13 @@ export function StorageSetupStep({
   onBack,
   onBeforeProviderConnect,
 }: StorageSetupStepProps) {
-  const [info, setInfo] = useState<StorageInfo | null>(null);
+  const [info, setInfo] = useState<Awaited<ReturnType<typeof getStorageInfoForWizard>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [folderInput, setFolderInput] = useState("");
   const [isFolderPending, startFolderTransition] = useTransition();
   const [folderError, setFolderError] = useState<string | null>(null);
   const [folderSaved, setFolderSaved] = useState(false);
+  const [isResetting, startResetTransition] = useTransition();
 
   useEffect(() => {
     setIsLoading(true);
@@ -66,6 +65,14 @@ export function StorageSetupStep({
     });
   }
 
+  function handleReset() {
+    startResetTransition(async () => {
+      await resetStorageForWizard();
+      const updated = await getStorageInfoForWizard();
+      setInfo(updated);
+    });
+  }
+
   async function connectProvider(url: string) {
     await onBeforeProviderConnect();
     window.location.href = url;
@@ -79,11 +86,18 @@ export function StorageSetupStep({
     );
   }
 
-  const isGoogleConnected = info?.storageBackend === "google_drive";
-  const isOneDriveConnected = info?.storageBackend === "onedrive";
-  const isDropboxConnected = info?.dropboxConnected ?? false;
-  const isSupabaseActive = !info?.storageBackend || info.storageBackend === "supabase";
+  // Use token-validated fields from getStorageInfoForWizard
+  const isGoogleConnected = info?.googleConnected === true;
+  const isOneDriveConnected = info?.onedriveConnected === true;
+  const isDropboxConnected = info?.dropboxConnected === true;
+  const isSupabaseActive = !isGoogleConnected && !isOneDriveConnected && !isDropboxConnected;
   const anyProviderConnected = isGoogleConnected || isOneDriveConnected || isDropboxConnected;
+
+  // Detect stale connection: storage_backend is set to a provider but tokens are missing
+  const hasStaleConnection =
+    info?.storageBackend &&
+    info.storageBackend !== "supabase" &&
+    !anyProviderConnected;
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 min-h-[520px]">
@@ -92,7 +106,7 @@ export function StorageSetupStep({
           <h2 className="text-2xl font-bold tracking-tight">Document Storage</h2>
           <p className="text-sm text-muted-foreground">
             Connect Google Drive, OneDrive, or Dropbox and uploaded documents go straight into your
-            own account. Prompt acts as a bridge only —{" "}
+            own account. Prompt acts as a bridge only &mdash;{" "}
             <strong className="font-medium text-foreground">
               no client files are stored on Prompt&apos;s servers
             </strong>
@@ -103,7 +117,7 @@ export function StorageSetupStep({
             ) with no manual filing needed.
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            This step is optional — if you skip it, documents are held in Prompt&apos;s encrypted
+            This step is optional &mdash; if you skip it, documents are held in Prompt&apos;s encrypted
             built-in storage until you connect a provider in Settings.
           </p>
         </div>
@@ -124,6 +138,26 @@ export function StorageSetupStep({
             <div className="space-y-1">
               <p className="text-sm text-red-500">Connection failed. Please try again.</p>
               <p className="text-xs text-red-400 font-mono">Error: {storageError}</p>
+            </div>
+          </div>
+        )}
+        {hasStaleConnection && (
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10">
+            <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-2">
+              <p className="text-sm text-amber-600">
+                A previous {info?.storageBackend === "google_drive" ? "Google Drive" : info?.storageBackend === "onedrive" ? "OneDrive" : "Dropbox"} connection
+                was found but is no longer valid. Reset it to connect a fresh account.
+              </p>
+              <ButtonBase
+                variant="amber"
+                buttonType="icon-text"
+                onClick={handleReset}
+                disabled={isResetting}
+              >
+                <Unplug className="size-4" />
+                {isResetting ? "Resetting..." : "Reset connection"}
+              </ButtonBase>
             </div>
           </div>
         )}
@@ -193,7 +227,7 @@ export function StorageSetupStep({
                   <ButtonBase
                     variant="violet"
                     buttonType="icon-text"
-                    disabled={anyProviderConnected}
+                    disabled={anyProviderConnected || !!hasStaleConnection}
                     onClick={() => connectProvider("/api/auth/google-drive/connect?from=wizard")}
                   >
                     <HardDrive className="size-4" />
@@ -242,7 +276,7 @@ export function StorageSetupStep({
                     disabled={isFolderPending || !folderInput.trim()}
                   >
                     <CheckCircle className="size-4" />
-                    {isFolderPending ? "Saving…" : "Save"}
+                    {isFolderPending ? "Saving\u2026" : "Save"}
                   </ButtonBase>
                 </div>
                 {folderError && <p className="text-xs text-destructive">{folderError}</p>}
@@ -271,7 +305,7 @@ export function StorageSetupStep({
                   <ButtonBase
                     variant="violet"
                     buttonType="icon-text"
-                    disabled={anyProviderConnected}
+                    disabled={anyProviderConnected || !!hasStaleConnection}
                     onClick={() => connectProvider("/api/auth/onedrive/connect?from=wizard")}
                   >
                     <HardDrive className="size-4" />
@@ -302,7 +336,7 @@ export function StorageSetupStep({
                   <ButtonBase
                     variant="violet"
                     buttonType="icon-text"
-                    disabled={anyProviderConnected}
+                    disabled={anyProviderConnected || !!hasStaleConnection}
                     onClick={() => connectProvider("/api/auth/dropbox/connect?from=wizard")}
                   >
                     <HardDrive className="size-4" />
@@ -331,7 +365,7 @@ export function StorageSetupStep({
                   <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
                     Apps / Prompt Automation /
                   </span>{" "}
-                  in your Dropbox. The location is fixed — no configuration needed.
+                  in your Dropbox. The location is fixed &mdash; no configuration needed.
                 </p>
               </div>
             )}

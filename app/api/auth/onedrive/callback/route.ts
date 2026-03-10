@@ -24,21 +24,14 @@ import { ConfidentialClientApplication } from '@azure/msal-node';
 import { PostgresMsalCachePlugin } from '@/lib/storage/msal-cache-plugin';
 
 /**
- * Build the org's subdomain base URL from its slug.
- */
-function buildOrgBaseUrl(slug: string): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
-  const hostname = appUrl.replace(/^https?:\/\//, '').split('/')[0];
-  return `https://${slug}.app.${hostname}`;
-}
-
-/**
- * Build redirect URL — org subdomain when slug available, else callback origin.
+ * Build redirect URL — org subdomain in production, origin-relative in dev.
  * NEVER uses NEXT_PUBLIC_APP_URL directly (may be the marketing domain).
  */
 function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requestUrl: string): string {
-  if (orgSlug) {
-    return `${buildOrgBaseUrl(orgSlug)}${path}`;
+  if (orgSlug && process.env.NODE_ENV !== 'development') {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const hostname = appUrl.replace(/^https?:\/\//, '').split('/')[0];
+    return `https://${orgSlug}.app.${hostname}${path}`;
   }
   const origin = new URL(requestUrl).origin;
   return `${origin}${path}`;

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, Component, type ReactNode } from 'react';
+import { Suspense, useState, useEffect, Component, type ReactNode } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { DeliveryLogTable } from '@/app/(dashboard)/email-logs/components/delivery-log-table';
 import { UploadsTable } from '@/app/(dashboard)/email-logs/components/uploads-table';
@@ -41,8 +42,26 @@ class UploadsErrorBoundary extends Component<
 }
 
 function ActivityContent() {
-  const [directionMode, setDirectionMode] = useState<DirectionMode>('outbound');
-  const [viewMode, setViewMode] = useState<ViewMode>('queued');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const viewParam = searchParams.get('view');
+  const statusParam = searchParams.get('status');
+  const dateParam = searchParams.get('date');
+  const sortParam = searchParams.get('sort');
+
+  const initialDirection: DirectionMode = tabParam === 'uploads' ? 'uploads' : 'outbound';
+  const initialView: ViewMode = viewParam === 'sent' ? 'sent' : viewParam === 'queued' ? 'queued' : 'queued';
+
+  const [directionMode, setDirectionMode] = useState<DirectionMode>(initialDirection);
+  const [viewMode, setViewMode] = useState<ViewMode>(initialView);
+
+  // Sync state when URL params change (e.g. navigating from dashboard cards)
+  useEffect(() => {
+    if (tabParam === 'uploads') setDirectionMode('uploads');
+    else if (tabParam === 'outbound') setDirectionMode('outbound');
+    if (viewParam === 'sent') setViewMode('sent');
+    else if (viewParam === 'queued') setViewMode('queued');
+  }, [tabParam, viewParam]);
 
   return (
     <div className="space-y-6 pb-0">
@@ -81,10 +100,16 @@ function ActivityContent() {
         </div>
       </div>
 
-      {directionMode === 'outbound' && <DeliveryLogTable viewMode={viewMode} />}
+      {directionMode === 'outbound' && (
+        <DeliveryLogTable
+          viewMode={viewMode}
+          initialStatusFilters={statusParam ? statusParam.split(',') : undefined}
+          initialDateFilter={dateParam === 'today' ? 'today' : undefined}
+        />
+      )}
       {directionMode === 'uploads' && (
         <UploadsErrorBoundary>
-          <UploadsTable />
+          <UploadsTable initialSort={sortParam || undefined} />
         </UploadsErrorBoundary>
       )}
     </div>
@@ -94,7 +119,9 @@ function ActivityContent() {
 export default function ActivityPage() {
   return (
     <PageLoadingProvider>
-      <ActivityContent />
+      <Suspense>
+        <ActivityContent />
+      </Suspense>
     </PageLoadingProvider>
   );
 }

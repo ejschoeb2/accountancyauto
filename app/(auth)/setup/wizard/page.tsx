@@ -37,6 +37,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import type { UploadCheckMode } from "@/app/actions/settings";
 import {
+  buildInitialQueue,
   checkSlugAvailable,
   clearDraftClients,
   createOrgAndJoinAsAdmin,
@@ -718,6 +719,7 @@ export default function WizardPage() {
     setCompleteError(null);
     await migrateDraftClients();
     await seedOrgDefaultsForWizard(clientPortalEnabled);
+    await buildInitialQueue();
     await markOrgSetupComplete();
     // Refresh session server-side so the .prompt.accountants cross-subdomain
     // cookie gets an updated JWT with org_id in app_metadata. Without this,

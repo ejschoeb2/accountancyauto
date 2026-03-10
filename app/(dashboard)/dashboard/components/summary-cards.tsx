@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import { MailCheck, FileCheck, CheckCircle2, MailX } from 'lucide-react';
+import { MailCheck, FileCheck, Clock, MailX } from 'lucide-react';
 import type { DashboardMetrics } from '@/lib/dashboard/metrics';
 
 interface SummaryCardsProps {
@@ -12,25 +12,27 @@ interface SummaryCardsProps {
 export function SummaryCards({ metrics }: SummaryCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
-        <CardContent className="px-5 py-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Sent Today
-              </p>
-              <p className="text-4xl font-bold mt-3">
-                {metrics.sentTodayCount}
-              </p>
+      <Link href="/activity?tab=outbound&view=sent&date=today">
+        <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
+          <CardContent className="px-5 py-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Sent Today
+                </p>
+                <p className="text-4xl font-bold mt-3">
+                  {metrics.sentTodayCount}
+                </p>
+              </div>
+              <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-blue-500/20">
+                <MailCheck className="size-6 text-blue-500" />
+              </div>
             </div>
-            <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-blue-500/20">
-              <MailCheck className="size-6 text-blue-500" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </Link>
 
-      <Link href="/activity?delivery_status=bounced,failed">
+      <Link href="/activity?tab=outbound&view=queued&status=failed">
         <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
           <CardContent className="px-5 py-0">
             <div className="flex items-start justify-between">
@@ -56,7 +58,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Needs Processing
+                  Records Received
                 </p>
                 <p className="text-4xl font-bold mt-3">
                   {metrics.violetCount}
@@ -70,23 +72,25 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
         </Card>
       </Link>
 
-      <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
-        <CardContent className="px-5 py-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Completion Rate
-              </p>
-              <p className="text-4xl font-bold mt-3">
-                {Math.round(metrics.completionRate)}%
-              </p>
+      <Link href="/clients?filter=amber&sort=deadline-asc">
+        <Card className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer h-full">
+          <CardContent className="px-5 py-0">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Approaching Deadlines
+                </p>
+                <p className="text-4xl font-bold mt-3">
+                  {metrics.approachingCount + metrics.approachingSentCount}
+                </p>
+              </div>
+              <div className="size-10 rounded-lg bg-amber-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-amber-500/20">
+                <Clock className="size-6 text-amber-500" />
+              </div>
             </div>
-            <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-green-500/20">
-              <CheckCircle2 className="size-6 text-green-500" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }

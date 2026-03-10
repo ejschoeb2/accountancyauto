@@ -64,7 +64,11 @@ const FILING_LABELS: Record<string, string> = {
   self_assessment: 'Self Assessment',
 };
 
-export function UploadsTable() {
+interface UploadsTableProps {
+  initialSort?: string;
+}
+
+export function UploadsTable({ initialSort }: UploadsTableProps) {
   const [data, setData] = useState<PortalUpload[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -83,7 +87,7 @@ export function UploadsTable() {
   const [filterNeedsReview, setFilterNeedsReview] = useState(false);
 
   // Sort
-  const [sortBy, setSortBy] = useState('received-desc');
+  const [sortBy, setSortBy] = useState(initialSort || 'received-desc');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);

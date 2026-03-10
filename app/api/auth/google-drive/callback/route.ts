@@ -25,21 +25,14 @@ import { auth, drive } from '@googleapis/drive';
 import { encryptToken } from '@/lib/crypto/tokens';
 
 /**
- * Build the org's subdomain base URL from its slug.
- */
-function buildOrgBaseUrl(slug: string): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
-  const hostname = appUrl.replace(/^https?:\/\//, '').split('/')[0];
-  return `https://${slug}.app.${hostname}`;
-}
-
-/**
- * Build redirect URL — org subdomain when slug available, else callback origin.
+ * Build redirect URL — org subdomain in production, origin-relative in dev.
  * NEVER uses NEXT_PUBLIC_APP_URL directly (may be the marketing domain).
  */
 function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requestUrl: string): string {
-  if (orgSlug) {
-    return `${buildOrgBaseUrl(orgSlug)}${path}`;
+  if (orgSlug && process.env.NODE_ENV !== 'development') {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+    const hostname = appUrl.replace(/^https?:\/\//, '').split('/')[0];
+    return `https://${orgSlug}.app.${hostname}${path}`;
   }
   const origin = new URL(requestUrl).origin;
   return `${origin}${path}`;
@@ -149,7 +142,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   let rootFolderId: string;
 
   if (org?.google_drive_folder_id) {
-    rootFolderId = org.google_drive_folder_id;
+    // Verify the saved folder is still accessible with these credentials.
+    // If the user previously connected a different Google account, the old
+    // folder ID won't be reachable — fall through to create a new one.
+    try {
+      const check = await driveClient.files.get({
+        fileId: org.google_drive_folder_id,
+        fields: 'id,trashed',
+      });
+      if (check.data.id && !check.data.trashed) {
+        rootFolderId = org.google_drive_folder_id;
+      } else {
+        throw new Error('folder trashed or inaccessible');
+      }
+    } catch {
+      console.warn('[google-drive/callback] saved folder %s inaccessible, creating new one', org.google_drive_folder_id);
+      try {
+        const folderRes = await driveClient.files.create({
+          requestBody: {
+            name: 'Prompt',
+            mimeType: 'application/vnd.google-apps.folder',
+          },
+          fields: 'id',
+        });
+        rootFolderId = folderRes.data.id!;
+      } catch {
+        return NextResponse.redirect(errorUrl('folder_creation_failed', org?.slug));
+      }
+    }
   } else {
     try {
       const folderRes = await driveClient.files.create({
@@ -166,19 +186,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Persist encrypted tokens to organisations ─────────────────────────────
-  try {
-    await admin.from('organisations').update({
-      storage_backend: 'google_drive',
-      storage_backend_status: 'active',
-      google_access_token_enc: encryptToken(accessToken),
-      google_refresh_token_enc: encryptToken(refreshToken),
-      google_token_expires_at: expiryDate
-        ? new Date(expiryDate).toISOString()
-        : null,
-      google_drive_folder_id: rootFolderId,
-      google_oauth_state: null, // Clear CSRF token to prevent replay
-    }).eq('id', orgId);
-  } catch {
+  const { error: updateError } = await admin.from('organisations').update({
+    storage_backend: 'google_drive',
+    storage_backend_status: 'active',
+    google_access_token_enc: encryptToken(accessToken),
+    google_refresh_token_enc: encryptToken(refreshToken),
+    google_token_expires_at: expiryDate
+      ? new Date(expiryDate).toISOString()
+      : null,
+    google_drive_folder_id: rootFolderId,
+    google_oauth_state: null, // Clear CSRF token to prevent replay
+  }).eq('id', orgId);
+
+  if (updateError) {
+    console.error('[google-drive/callback] DB update failed:', updateError.message);
     return NextResponse.redirect(errorUrl('db_error', org?.slug));
   }
 
