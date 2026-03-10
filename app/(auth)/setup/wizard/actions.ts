@@ -1298,22 +1298,10 @@ export async function finaliseWizardSetup(
     console.error("[finaliseWizardSetup] seed defaults error:", err);
   }
 
-  // 3. Build initial reminder queue
-  try {
-    const { data: org } = await admin
-      .from("organisations")
-      .select("id, name")
-      .eq("id", orgId)
-      .single();
-
-    if (org) {
-      await buildReminderQueue(admin, org);
-      await buildCustomScheduleQueue(admin, org);
-    }
-  } catch (err) {
-    console.error("[finaliseWizardSetup] build queue error:", err);
-    // Non-fatal: queue will be built on next cron run
-  }
+  // 3. Queue building is intentionally skipped here.
+  // It makes hundreds of individual Supabase requests (one per client × filing
+  // type × schedule step) which takes 15+ seconds and causes the server action
+  // to time out. The cron pipeline will build the queue on its next run.
 
   // 4. Mark org setup complete + clean up draft
   const { error: markError } = await admin

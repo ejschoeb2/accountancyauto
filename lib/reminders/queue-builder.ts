@@ -312,14 +312,15 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
 
       // Check if this exact reminder already exists (idempotent)
       // Idempotency check: client_id + filing_type_id + step_number + deadline_date
-      const { data: existing, error: existingError } = await supabase
+      // Uses maybeSingle() — .single() returns 406 when 0 rows match
+      const { data: existing } = await supabase
         .from('reminder_queue')
         .select('id')
         .eq('client_id', client.id)
         .eq('filing_type_id', filingTypeId)
         .eq('step_index', step.step_number)
         .eq('deadline_date', deadlineDateStr)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         // Already exists, skip
@@ -496,6 +497,7 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
 
         // Idempotency check for custom schedules: client_id + template_id + step_index + deadline_date
         // (template_id stores schedule.id for custom schedules, filing_type_id is NULL)
+        // Uses maybeSingle() — .single() returns 406 when 0 rows match
         const { data: existing } = await supabase
           .from('reminder_queue')
           .select('id')
@@ -504,7 +506,7 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
           .eq('template_id', schedule.id)
           .eq('step_index', step.step_number)
           .eq('deadline_date', deadlineDateStr)
-          .single();
+          .maybeSingle();
 
         if (existing) {
           skipped++;
