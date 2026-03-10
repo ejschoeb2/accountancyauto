@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUp } from "../login/actions";
@@ -92,8 +92,9 @@ function SignupForm() {
           {/* Form */}
           <div className="space-y-4">
             {error && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {error}
+              <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
+                <AlertCircle className="size-5 text-red-500 shrink-0" />
+                <p className="text-sm text-red-500">{error}</p>
               </div>
             )}
 

@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn } from "./actions";
@@ -59,15 +59,19 @@ function LoginForm() {
           {/* Form */}
           <div className="space-y-4">
             {urlMessage && (
-              <div className="rounded-lg bg-green-500/10 p-3 text-sm text-green-700">
-                {urlMessage}
+              <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
+                <CheckCircle className="size-5 text-green-600 shrink-0" />
+                <p className="text-sm text-green-600">{urlMessage}</p>
               </div>
             )}
             {(error || urlError) && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {error ||
-                  (urlError === "auth_failed" && "Authentication failed. Please try again.") ||
-                  "An error occurred. Please try again."}
+              <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
+                <AlertCircle className="size-5 text-red-500 shrink-0" />
+                <p className="text-sm text-red-500">
+                  {error ||
+                    (urlError === "auth_failed" && "Authentication failed. Please try again.") ||
+                    "An error occurred. Please try again."}
+                </p>
               </div>
             )}
 

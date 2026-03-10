@@ -10,16 +10,6 @@ import {
   ArrowLeft,
   ArrowRight,
 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ButtonBase } from "@/components/ui/button-base";
 import { Input } from "@/components/ui/input";
@@ -39,9 +29,7 @@ import type { UploadCheckMode } from "@/app/actions/settings";
 import {
   buildInitialQueue,
   checkSlugAvailable,
-  clearDraftClients,
   createOrgAndJoinAsAdmin,
-  deleteAllWizardClients,
   getDraftClients,
   getSetupDraft,
   getWizardDashboardUrl,
@@ -225,9 +213,6 @@ export default function WizardPage() {
   const [planError, setPlanError] = useState<string | null>(null);
   // The org ID, stored so the complete step can create a Stripe checkout session
   const [orgId, setOrgId] = useState<string | null>(null);
-  // Downgrade confirmation dialog state
-  const [showDowngradeAlert, setShowDowngradeAlert] = useState(false);
-  const [pendingDowngradeTier, setPendingDowngradeTier] = useState<PlanTier | null>(null);
 
   // ── Import: persist rows so returning to the step skips re-upload ──────────
   const [savedImportRows, setSavedImportRows] = useState<EditableRow[] | null>(null);
@@ -546,17 +531,17 @@ export default function WizardPage() {
       await updateOrgPlanTier(tier);
 
       prefetchConfigDefaults();
-      setIsCreatingOrg(false);
       setOrgCreated(true);
-      // Save draft immediately — orgCreated state not yet committed, so call saveSetupDraft directly
-      await saveSetupDraft({
+      setIsCreatingOrg(false);
+      setAdminStep("import");
+      // Save draft in background — step already advanced so user isn't blocked
+      saveSetupDraft({
         step: "import",
         firmName,
         firmSlug: slug,
         selectedTier: tier,
         updatedAt: new Date().toISOString(),
-      });
-      setAdminStep("import");
+      }).catch((e) => console.warn("Draft save failed:", e));
     } catch (err) {
       setPlanError(
         err instanceof Error
@@ -568,25 +553,13 @@ export default function WizardPage() {
     }
   };
 
-  /** Check whether switching plans requires deleting imported clients. */
+  /** Advance from the plan step — update tier if org exists, or create org. */
   const handlePlanNext = async () => {
     if (!selectedTier) return;
 
-    // If clients have been imported and the new plan has a lower limit,
-    // show a confirmation dialog before proceeding.
-    if (savedImportRows && savedImportRows.length > 0 && orgCreated) {
-      const newLimit = PLAN_TIERS.find((p) => p.key === selectedTier)?.clientLimit ?? Infinity;
-
-      if (newLimit < savedImportRows.length) {
-        setPendingDowngradeTier(selectedTier);
-        setShowDowngradeAlert(true);
-        return;
-      }
-    }
-
-    // If the org is already created, just update the plan tier and advance
-    // without re-running the full create flow (which would re-mount the
-    // import step and lose in-progress client data).
+    // If the org is already created, just update the plan tier and advance.
+    // Over-limit clients are handled gracefully in the import step (highlighted
+    // in red and skipped at migration time) — no need to delete anything.
     if (orgCreated) {
       setIsCreatingOrg(true);
       setPlanError(null);
@@ -606,33 +579,6 @@ export default function WizardPage() {
     }
 
     handleSelectPlan(selectedTier);
-  };
-
-  /** Confirmed downgrade — delete imported clients and proceed. */
-  const handleConfirmDowngrade = async () => {
-    setShowDowngradeAlert(false);
-    if (!pendingDowngradeTier) return;
-
-    setIsCreatingOrg(true);
-    setPlanError(null);
-
-    try {
-      await deleteAllWizardClients();
-      setSavedImportRows(null);
-      if (orgCreated) {
-        clearDraftClients().catch((e) => console.warn("Clear draft clients failed:", e));
-      }
-      await handleSelectPlan(pendingDowngradeTier);
-    } catch (err) {
-      setPlanError(
-        err instanceof Error
-          ? err.message
-          : "Failed to remove imported clients. Please try again."
-      );
-      setIsCreatingOrg(false);
-    } finally {
-      setPendingDowngradeTier(null);
-    }
   };
 
   const handleImportComplete = () => {
@@ -717,16 +663,24 @@ export default function WizardPage() {
   const handleGoToDashboard = async () => {
     setIsLeavingWizard(true);
     setCompleteError(null);
-    await migrateDraftClients();
-    await seedOrgDefaultsForWizard(clientPortalEnabled);
-    await buildInitialQueue();
-    await markOrgSetupComplete();
-    // Refresh session server-side so the .prompt.accountants cross-subdomain
-    // cookie gets an updated JWT with org_id in app_metadata. Without this,
-    // the stale cookie (set before org creation) reaches the subdomain middleware,
-    // the fallback user_organisations RLS query fails, and the user is sent to
-    // the marketing site instead of their dashboard.
-    await refreshWizardSession();
+
+    try {
+      await migrateDraftClients();
+      await seedOrgDefaultsForWizard(clientPortalEnabled);
+      await buildInitialQueue();
+      await markOrgSetupComplete();
+      // Refresh session server-side so the .prompt.accountants cross-subdomain
+      // cookie gets an updated JWT with org_id in app_metadata. Without this,
+      // the stale cookie (set before org creation) reaches the subdomain middleware,
+      // the fallback user_organisations RLS query fails, and the user is sent to
+      // the marketing site instead of their dashboard.
+      await refreshWizardSession();
+    } catch (err) {
+      console.error("handleGoToDashboard setup error:", err);
+      setCompleteError("Something went wrong finalising your setup. Please try again.");
+      setIsLeavingWizard(false);
+      return;
+    }
 
     if (selectedTier && selectedTier !== "free") {
       // Paid plan — redirect to Stripe checkout, then to dashboard
@@ -1084,29 +1038,6 @@ export default function WizardPage() {
           </div>
         </div>
       )}
-
-      {/* ── Plan downgrade confirmation ── */}
-      <AlertDialog open={showDowngradeAlert} onOpenChange={setShowDowngradeAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Change plan?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The {PLAN_TIERS.find((p) => p.key === pendingDowngradeTier)?.name} plan supports up to{" "}
-              {PLAN_TIERS.find((p) => p.key === pendingDowngradeTier)?.clientLimit} clients, but you&apos;ve
-              imported {savedImportRows?.length ?? 0}. Switching will remove all imported clients so you can
-              re-import within the new limit.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingDowngradeTier(null)}>
-              Keep Current Plan
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDowngrade}>
-              Switch & Remove Clients
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* ── Step 4: Import Clients ── */}
       {adminStep === "import" && (

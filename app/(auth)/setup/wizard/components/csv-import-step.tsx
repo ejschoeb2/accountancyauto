@@ -37,6 +37,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  Loader2,
   Sparkles,
   Trash2,
   Pencil,
@@ -102,6 +103,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
   const [editableRows, setEditableRows] = useState<EditableRow[]>(initialRows ?? []);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMappingRows, setIsMappingRows] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Selection & bulk edit state ──────────────────────────────────────────
@@ -129,10 +131,15 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
   const reviewTopRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (stepState === "edit-data") {
-      // Double rAF ensures the browser has completed layout after the table renders
+      // Double rAF ensures the browser has completed layout after the table renders,
+      // then scroll so the review heading is at the top of the viewport
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          reviewTopRef.current?.scrollIntoView({ behavior: "instant", block: "start" });
+          if (reviewTopRef.current) {
+            reviewTopRef.current.scrollIntoView({ behavior: "instant", block: "start" });
+          } else {
+            window.scrollTo({ top: 0, behavior: "instant" });
+          }
         });
       });
     }
@@ -901,9 +908,19 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
               <ArrowLeft className="size-4" />
               Back
             </ButtonBase>
-            <ButtonBase variant="blue" buttonType="icon-text" onClick={handleProceedWithMapping}>
-              Review Data
-              <ArrowRight className="size-4" />
+            <ButtonBase variant="blue" buttonType="icon-text" onClick={() => {
+              setIsMappingRows(true);
+              // Defer to next frame so the spinner renders before the sync transform blocks
+              requestAnimationFrame(() => {
+                handleProceedWithMapping();
+                setIsMappingRows(false);
+              });
+            }} disabled={isMappingRows}>
+              {isMappingRows ? (
+                <><Loader2 className="size-4 animate-spin" /> Processing...</>
+              ) : (
+                <>Review Data <ArrowRight className="size-4" /></>
+              )}
             </ButtonBase>
           </div>
         </div>
@@ -974,16 +991,16 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                 )}
 
                 {overLimitCount > 0 && (
-                  <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
-                    <AlertTriangle className="size-5 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+                    <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-destructive">
-                        Plan limit reached — {overLimitCount} row{overLimitCount !== 1 ? "s" : ""} will not be imported
+                      <p className="text-sm font-medium text-amber-600">
+                        {overLimitCount} {overLimitCount === 1 ? "row" : "rows"} over your plan limit
                       </p>
-                      <p className="text-sm text-destructive/80">
-                        Your plan allows {clientLimit} clients ({currentClientCount} already imported, {importableCount} slot{importableCount !== 1 ? "s" : ""} remaining).
-                        The last {overLimitCount} {overLimitCount === 1 ? "row" : "rows"} in the table are highlighted in red and will be skipped.
-                        Delete rows or upgrade your plan to import all clients.
+                      <p className="text-sm text-amber-600/80">
+                        You&apos;re trying to import {editableRows.length} clients but your current plan only allows {clientLimit}.
+                        The last {overLimitCount} {overLimitCount === 1 ? "row" : "rows"} highlighted in red will be skipped.
+                        Remove rows or upgrade your plan to import them all.
                       </p>
                     </div>
                   </div>
@@ -1003,7 +1020,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                 {/* Editable data table — bleeds to layout edges like client table */}
                 <div className="-mx-8 max-h-[560px] overflow-y-auto border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
                   <Table className="min-w-[1520px]">
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-white [&_th]:bg-white shadow-[0_1px_0_0_hsl(var(--border))]">
                       <TableRow>
                         <TableHead className="w-[52px]">
                           <div className="flex items-center justify-center">
@@ -1205,6 +1222,15 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                     {selectedRowIds.size > 0 && (
                       <div className="flex items-center gap-2">
                         <ButtonBase
+                          variant="violet"
+                          buttonType="icon-text"
+                          onClick={handleOpenBulkEdit}
+                        >
+                          <Pencil className="size-4" />
+                          Bulk Edit
+                        </ButtonBase>
+
+                        <ButtonBase
                           variant="destructive"
                           buttonType="icon-text"
                           onClick={handleBulkDelete}
@@ -1221,33 +1247,8 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                           <X className="size-4" />
                           Clear
                         </ButtonBase>
-
-                        <div className="h-8 w-px bg-border" />
-
-                        <ButtonBase
-                          variant="violet"
-                          buttonType="icon-text"
-                          onClick={handleOpenBulkEdit}
-                        >
-                          <Pencil className="size-4" />
-                          Bulk Edit
-                        </ButtonBase>
                       </div>
                     )}
-
-                    <div className="h-8 w-px bg-border" />
-
-                    <ButtonBase
-                      variant="muted"
-                      buttonType="icon-only"
-                      onClick={() => {
-                        setIsSelectionModeActive(false);
-                        setSelectedRowIds(new Set());
-                      }}
-                      title="Exit selection mode"
-                    >
-                      <X className="size-4" />
-                    </ButtonBase>
                   </div>
                 </div>
 

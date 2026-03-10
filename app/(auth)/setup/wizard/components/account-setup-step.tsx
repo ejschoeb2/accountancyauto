@@ -167,7 +167,7 @@ export function AccountSetupStep({
           </form>
         </div>
 
-        <div className="flex justify-between gap-2">
+        <div className="flex justify-end gap-2">
           <ButtonBase
             variant="blue"
             buttonType="icon-text"

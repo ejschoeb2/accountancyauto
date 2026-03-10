@@ -591,6 +591,29 @@ export function EmailSetupStep({
             </div>
 
             <div className="space-y-1.5">
+              <label htmlFor="settings-reply-to" className="text-sm font-medium">
+                Reply-To Address
+              </label>
+              <div className="flex items-center gap-0">
+                <Input
+                  id="settings-reply-to"
+                  type="text"
+                  value={replyToLocalPart}
+                  onChange={(e) => setReplyToLocalPart(e.target.value.replace(/[^a-zA-Z0-9._+-]/g, ""))}
+                  placeholder="hello"
+                  className="rounded-r-none"
+                  disabled={isSaving || isCompleting}
+                />
+                <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+                  @{senderDomain}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                When a client replies to a reminder email, their reply is sent to this address. If you leave it as the default, replies go straight to your normal inbox. You can also set a different address here if you&apos;d prefer to keep client responses in a separate inbox.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
               <label htmlFor="settings-send-hour" className="text-sm font-medium">
                 Send Hour (UK time)
               </label>
@@ -612,29 +635,6 @@ export function EmailSetupStep({
               </Select>
               <p className="text-xs text-muted-foreground">
                 When your daily reminder emails are sent.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="settings-reply-to" className="text-sm font-medium">
-                Reply-To Address
-              </label>
-              <div className="flex items-center gap-0">
-                <Input
-                  id="settings-reply-to"
-                  type="text"
-                  value={replyToLocalPart}
-                  onChange={(e) => setReplyToLocalPart(e.target.value.replace(/[^a-zA-Z0-9._+-]/g, ""))}
-                  placeholder="hello"
-                  className="rounded-r-none"
-                  disabled={isSaving || isCompleting}
-                />
-                <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
-                  @{senderDomain}
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                When a client replies to a reminder email, their reply is sent to this address. If you leave it as the default, replies go straight to your normal inbox. You can also set a different address here if you&apos;d prefer to keep client responses in a separate inbox.
               </p>
             </div>
           </div>

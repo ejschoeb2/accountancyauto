@@ -12,11 +12,133 @@ import {
   ArrowRight,
   Info,
   Unplug,
+  HelpCircle,
+  X,
 } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { updateGoogleDriveFolderId } from "@/app/actions/settings";
 import { getStorageInfoForWizard, resetStorageForWizard } from "../actions";
+
+type TroubleshootProvider = "google_drive" | "onedrive" | "dropbox" | null;
+
+function TroubleshootModal({
+  provider,
+  onClose,
+}: {
+  provider: TroubleshootProvider;
+  onClose: () => void;
+}) {
+  const content: Record<
+    Exclude<TroubleshootProvider, null>,
+    { title: string; steps: string[]; tips: string[] }
+  > = {
+    google_drive: {
+      title: "Google Drive Troubleshooting",
+      steps: [
+        "Go to myaccount.google.com and sign in.",
+        "Navigate to Security \u2192 Third-party apps & services (or visit myaccount.google.com/connections directly).",
+        "Find \u201cPrompt\u201d in the list of connected apps.",
+        "Click it, then click Remove access to revoke the connection.",
+        "Come back here and click Connect to re-link with a fresh token.",
+      ],
+      tips: [
+        "If you previously connected with a different Google account, make sure you\u2019re signed into the correct account before clicking Connect.",
+        "Google may show a \u201cThis app isn\u2019t verified\u201d warning \u2014 click Advanced \u2192 Go to Prompt to proceed.",
+        "If the connection keeps failing, try using an incognito/private window to avoid cached sessions.",
+      ],
+    },
+    onedrive: {
+      title: "OneDrive Troubleshooting",
+      steps: [
+        "Go to account.live.com/consent/Manage and sign in with your Microsoft account.",
+        "Find \u201cPrompt\u201d in the list of apps with permissions.",
+        "Click Remove these permissions to revoke the connection.",
+        "Come back here and click Connect to re-link with a fresh token.",
+      ],
+      tips: [
+        "If your organisation uses Microsoft 365, your IT admin may need to grant consent for Prompt in Azure Active Directory.",
+        "A \u201cConditional Access\u201d error means your admin has blocked third-party apps \u2014 contact your IT team.",
+        "Make sure you\u2019re signed into the correct Microsoft account before clicking Connect.",
+      ],
+    },
+    dropbox: {
+      title: "Dropbox Troubleshooting",
+      steps: [
+        "Go to dropbox.com/account/connected_apps and sign in.",
+        "Find \u201cPrompt Automation\u201d in the list of connected apps.",
+        "Click Disconnect next to it to revoke the connection.",
+        "Come back here and click Connect to re-link with a fresh token.",
+      ],
+      tips: [
+        "Dropbox stores files in a fixed app folder (Apps / Prompt Automation /) \u2014 this cannot be changed.",
+        "If you see a \u201cToken has been revoked\u201d error, the app was already disconnected from the Dropbox side \u2014 use the Reset connection button below, then reconnect.",
+        "Make sure you\u2019re signed into the correct Dropbox account before clicking Connect.",
+      ],
+    },
+  };
+
+  if (!provider) return null;
+  const { title, steps, tips } = content[provider];
+
+  return (
+    <Dialog open={!!provider} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-xl" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            If the connection isn&apos;t working, you may need to revoke Prompt&apos;s access from your
+            account first, then reconnect.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">How to unlink</p>
+            <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+              {steps.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Common issues</p>
+            <ul className="list-disc list-inside space-y-1.5 text-sm text-muted-foreground">
+              {tips.map((tip, i) => (
+                <li key={i}>{tip}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-xl">
+            <Info className="size-5 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-blue-500">
+              You can also manage storage connections later from the{" "}
+              <strong className="font-medium">Settings</strong> page, where you can
+              disconnect, reconnect, or switch providers at any time.
+            </p>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <ButtonBase variant="amber" buttonType="icon-text" onClick={onClose}>
+            <X className="size-4" />
+            Close
+          </ButtonBase>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface StorageSetupStepProps {
   storageConnected?: string | null;
@@ -40,6 +162,7 @@ export function StorageSetupStep({
   const [folderError, setFolderError] = useState<string | null>(null);
   const [folderSaved, setFolderSaved] = useState(false);
   const [isResetting, startResetTransition] = useTransition();
+  const [troubleshootProvider, setTroubleshootProvider] = useState<TroubleshootProvider>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -218,7 +341,15 @@ export function StorageSetupStep({
                   Store documents in your Google Drive
                 </p>
               </div>
-              <div className="shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTroubleshootProvider("google_drive")}
+                  className="group size-8 inline-flex items-center justify-center rounded-md cursor-pointer"
+                  title="Connection help"
+                >
+                  <HelpCircle className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </button>
                 {isGoogleConnected ? (
                   <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10">
                     <span className="text-sm font-medium text-green-600">Connected</span>
@@ -296,7 +427,15 @@ export function StorageSetupStep({
                     : "Store documents in your Microsoft OneDrive"}
                 </p>
               </div>
-              <div className="shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTroubleshootProvider("onedrive")}
+                  className="group size-8 inline-flex items-center justify-center rounded-md cursor-pointer"
+                  title="Connection help"
+                >
+                  <HelpCircle className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </button>
                 {isOneDriveConnected ? (
                   <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10">
                     <span className="text-sm font-medium text-green-600">Connected</span>
@@ -327,7 +466,15 @@ export function StorageSetupStep({
                     : "Store documents in your Dropbox App folder"}
                 </p>
               </div>
-              <div className="shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setTroubleshootProvider("dropbox")}
+                  className="group size-8 inline-flex items-center justify-center rounded-md cursor-pointer"
+                  title="Connection help"
+                >
+                  <HelpCircle className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                </button>
                 {isDropboxConnected ? (
                   <div className="px-3 py-2 rounded-md inline-flex items-center bg-green-500/10">
                     <span className="text-sm font-medium text-green-600">Connected</span>
@@ -383,6 +530,11 @@ export function StorageSetupStep({
           <ArrowRight className="size-4" />
         </ButtonBase>
       </div>
+
+      <TroubleshootModal
+        provider={troubleshootProvider}
+        onClose={() => setTroubleshootProvider(null)}
+      />
     </div>
   );
 }
