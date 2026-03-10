@@ -224,6 +224,102 @@ export async function clearDraftClients(): Promise<{ error?: string }> {
  * Called when the admin clicks "Go to Dashboard" on the final wizard step.
  * Until this is set, sign-in redirects the user back to the wizard.
  */
+export async function migrateDraftClients(): Promise<{ error?: string; created: number }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated.", created: 0 };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found.", created: 0 };
+
+  // Read draft clients
+  const { data: draftRows } = await admin
+    .from("setup_draft_clients")
+    .select("data")
+    .eq("org_id", membership.org_id)
+    .order("row_index", { ascending: true });
+
+  if (!draftRows || draftRows.length === 0) return { created: 0 };
+
+  // Map draft rows to client inserts
+  const newClients = draftRows.map((row) => {
+    const d = row.data as EditableRow;
+    return {
+      company_name: d.company_name,
+      org_id: membership.org_id,
+      owner_id: user.id,
+      active: true,
+      reminders_paused: false,
+      primary_email: d.primary_email || null,
+      client_type: d.client_type || null,
+      year_end_date: d.year_end_date || null,
+      vat_registered: d.vat_registered ?? false,
+      vat_stagger_group: d.vat_stagger_group ?? null,
+      vat_scheme: d.vat_scheme || null,
+    };
+  });
+
+  const { data: createdClients, error: insertError } = await admin
+    .from("clients")
+    .insert(newClients)
+    .select("id, client_type, vat_registered");
+
+  if (insertError) return { error: insertError.message, created: 0 };
+
+  // Auto-create filing assignments based on client_type
+  if (createdClients && createdClients.length > 0) {
+    const { data: filingTypes } = await admin
+      .from("filing_types")
+      .select("id, applicable_client_types");
+
+    if (filingTypes && filingTypes.length > 0) {
+      const assignments: Array<{
+        org_id: string;
+        client_id: string;
+        filing_type_id: string;
+        is_active: boolean;
+      }> = [];
+
+      for (const client of createdClients) {
+        if (!client.client_type) continue;
+
+        const applicable = filingTypes.filter((ft) => {
+          if (!ft.applicable_client_types.includes(client.client_type)) return false;
+          if (ft.id === "vat_return") return client.vat_registered === true;
+          return true;
+        });
+
+        for (const ft of applicable) {
+          assignments.push({
+            org_id: membership.org_id,
+            client_id: client.id,
+            filing_type_id: ft.id,
+            is_active: true,
+          });
+        }
+      }
+
+      if (assignments.length > 0) {
+        await admin
+          .from("client_filing_assignments")
+          .insert(assignments);
+      }
+    }
+  }
+
+  return { created: createdClients?.length ?? 0 };
+}
+
 export async function markOrgSetupComplete(): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {

@@ -45,6 +45,7 @@ import {
   getSetupDraft,
   getWizardDashboardUrl,
   getWizardOrgId,
+  migrateDraftClients,
   markOrgSetupComplete,
   refreshWizardSession,
   saveDraftClients,
@@ -715,6 +716,7 @@ export default function WizardPage() {
   const handleGoToDashboard = async () => {
     setIsLeavingWizard(true);
     setCompleteError(null);
+    await migrateDraftClients();
     await seedOrgDefaultsForWizard(clientPortalEnabled);
     await markOrgSetupComplete();
     // Refresh session server-side so the .prompt.accountants cross-subdomain
