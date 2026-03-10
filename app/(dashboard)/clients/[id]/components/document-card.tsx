@@ -438,17 +438,25 @@ export function DocumentCard({
 
   // Org ID for upserts
   const [orgId, setOrgId] = useState<string | null>(null);
+  // Auto-receive setting from org
+  const [autoReceiveVerified, setAutoReceiveVerified] = useState(false);
 
   const supabase = createClient();
 
-  // Load org_id from user session
+  // Load org_id from user session + auto_receive_verified setting
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       const id = user.app_metadata?.org_id;
-      if (id) { setOrgId(id); return; }
+      const resolvedId = id ?? null;
+      const setOrgAndFetchSetting = (oid: string) => {
+        setOrgId(oid);
+        supabase.from('organisations').select('auto_receive_verified').eq('id', oid).single()
+          .then(({ data }) => { if (data) setAutoReceiveVerified(data.auto_receive_verified ?? false); });
+      };
+      if (id) { setOrgAndFetchSetting(id); return; }
       supabase.from('user_organisations').select('org_id').eq('user_id', user.id).limit(1).single()
-        .then(({ data }) => { if (data?.org_id) setOrgId(data.org_id); });
+        .then(({ data }) => { if (data?.org_id) setOrgAndFetchSetting(data.org_id); });
     });
   }, []);
 
@@ -671,7 +679,8 @@ export function DocumentCard({
 
     const toUpdate = effectiveChecklist.filter(item => {
       const matchedDoc = findMatchingDocument(item.documentTypeId);
-      return !matchedDoc && !item.manuallyReceived;
+      const docReceived = matchedDoc ? isDocReceived(matchedDoc) : false;
+      return !(matchedDoc && docReceived) && !item.manuallyReceived;
     });
 
     if (toUpdate.length === 0) return;
@@ -680,7 +689,8 @@ export function DocumentCard({
     setEffectiveChecklist(prev =>
       prev.map(i => {
         const matchedDoc = findMatchingDocument(i.documentTypeId);
-        return !matchedDoc ? { ...i, manuallyReceived: true } : i;
+        const docReceived = matchedDoc ? isDocReceived(matchedDoc) : false;
+        return !(matchedDoc && docReceived) ? { ...i, manuallyReceived: true } : i;
       })
     );
 
@@ -763,7 +773,10 @@ export function DocumentCard({
   // Set all items in a group to a specific manually_received value
   const setGroupManuallyReceived = async (items: EffectiveChecklistItem[], received: boolean) => {
     if (!orgId) return;
-    const toUpdate = items.filter(item => !findMatchingDocument(item.documentTypeId));
+    const toUpdate = items.filter(item => {
+      const matchedDoc = findMatchingDocument(item.documentTypeId);
+      return !(matchedDoc && isDocReceived(matchedDoc));
+    });
     if (toUpdate.length === 0) return;
 
     setEffectiveChecklist(prev =>
@@ -818,10 +831,11 @@ export function DocumentCard({
     const total = effectiveChecklist.length;
     const received = effectiveChecklist.filter(item => {
       const matchedDoc = findMatchingDocument(item.documentTypeId);
-      return !!matchedDoc || item.manuallyReceived;
+      const docReceived = matchedDoc ? isDocReceived(matchedDoc) : false;
+      return (matchedDoc && docReceived) || item.manuallyReceived;
     }).length;
     onReceivedCountChange?.(received, total);
-  }, [effectiveChecklist, documents, loading]);
+  }, [effectiveChecklist, documents, loading, autoReceiveVerified]);
 
   // Fire onRequiredAllReceivedChange when mandatory docs all-received state transitions.
   // Skips the initial load to avoid overwriting the DB value on mount.
@@ -830,9 +844,11 @@ export function DocumentCard({
     if (loading) return;
     const mandatoryItems = effectiveChecklist.filter(item => item.is_mandatory);
     if (mandatoryItems.length === 0) return;
-    const allReceived = mandatoryItems.every(
-      item => !!documents.find(d => d.document_type_id === item.documentTypeId) || item.manuallyReceived
-    );
+    const allReceived = mandatoryItems.every(item => {
+      const matchedDoc = documents.find(d => d.document_type_id === item.documentTypeId);
+      const docReceived = matchedDoc ? isDocReceived(matchedDoc) : false;
+      return (matchedDoc && docReceived) || item.manuallyReceived;
+    });
     if (prevMandatoryAllReceivedRef.current === null) {
       prevMandatoryAllReceivedRef.current = allReceived;
       return;
@@ -841,7 +857,7 @@ export function DocumentCard({
       prevMandatoryAllReceivedRef.current = allReceived;
       onRequiredAllReceivedChange?.(allReceived);
     }
-  }, [effectiveChecklist, documents, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effectiveChecklist, documents, loading, autoReceiveVerified]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------------------------------------------------------------------------
   // Accountant upload handlers
@@ -941,6 +957,19 @@ export function DocumentCard({
   // Render helpers
   // ---------------------------------------------------------------------------
 
+  /** A matched document counts as "received" only if:
+   *  - it was uploaded manually by the accountant (source === 'manual'), OR
+   *  - auto_receive_verified is on AND the document has a 'Verified' verdict
+   *  Portal uploads are otherwise "pending" until the accountant confirms. */
+  const isDocReceived = (doc: ClientDocument): boolean => {
+    if (doc.source === 'manual') return true;
+    if (!autoReceiveVerified) return false;
+    if (doc.needs_review) return false;
+    if (doc.classification_confidence === 'low' || doc.classification_confidence === 'unclassified') return false;
+    if (doc.classification_confidence === 'high' && !doc.needs_review) return true;
+    return false;
+  };
+
   /** Find a matching document for a checklist item.
    *  Matches on document_type_id regardless of confidence — portal uploads set the
    *  type explicitly via the checklist item, so even 'low'/'unclassified' docs are valid. */
@@ -973,6 +1002,7 @@ export function DocumentCard({
     rowKey: string,
     disableCheck: boolean,
     onCheck?: () => void,
+    isPending?: boolean,
   ) => {
     const verdict = getVerdict(doc);
     return (
@@ -983,14 +1013,14 @@ export function DocumentCard({
       >
         <TableCell className="w-10" onClick={e => e.stopPropagation()}>
           <CheckButton
-            checked={isChecked}
-            variant={isChecked ? 'success' : 'default'}
+            checked={isPending ? true : isChecked}
+            variant={isPending ? 'amber' : isChecked ? 'success' : 'default'}
             disabled={disableCheck}
             onCheckedChange={onCheck}
           />
         </TableCell>
         <TableCell>
-          <span className={`text-sm ${isChecked ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+          <span className={`text-sm ${isChecked && !isPending ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
             {label}
           </span>
         </TableCell>
@@ -1029,11 +1059,21 @@ export function DocumentCard({
   /** Render a table row for a checklist item — empty row if no matched doc */
   const renderChecklistRow = (item: EffectiveChecklistItem) => {
     const matchedDoc = findMatchingDocument(item.documentTypeId);
-    const isChecked = !!matchedDoc || item.manuallyReceived;
+    const docReceived = matchedDoc ? isDocReceived(matchedDoc) : false;
+    const isChecked = (matchedDoc && docReceived) || item.manuallyReceived;
+    const isPendingPortalUpload = !!matchedDoc && !docReceived && !item.manuallyReceived;
     const rowKey = `item-${item.documentTypeId}`;
 
     if (matchedDoc) {
-      return renderDocCells(matchedDoc, item.label, isChecked, rowKey, true);
+      return renderDocCells(
+        matchedDoc,
+        item.label,
+        isChecked,
+        rowKey,
+        isPendingPortalUpload ? false : true,
+        isPendingPortalUpload ? () => handleManualToggle(item) : undefined,
+        isPendingPortalUpload,
+      );
     }
 
     // No document yet — clicking the row toggles manually received
@@ -1076,7 +1116,8 @@ export function DocumentCard({
   const renderExtraRow = (doc: ClientDocument) => {
     const rowKey = `extra-${doc.id}`;
     const label = doc.document_types?.label || doc.original_filename;
-    return renderDocCells(doc, label, true, rowKey, true);
+    const isPending = doc.source === 'portal_upload' && !isDocReceived(doc);
+    return renderDocCells(doc, label, !isPending, rowKey, true, undefined, isPending);
   };
 
   // ---------------------------------------------------------------------------
@@ -1171,6 +1212,7 @@ export function DocumentCard({
           setDocuments(prev => prev.filter(d => d.id !== docId));
           setPreviewDoc(null);
         }}
+        onMarkedReceived={() => reloadData()}
       />
     </>
   );

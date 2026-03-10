@@ -195,9 +195,11 @@ export interface DocumentPreviewModalProps {
   hasNext?: boolean;
   /** When provided, skip server fetch and use this blob URL directly for preview */
   previewBlobUrl?: string | null;
+  /** Called after the document is marked as received so parent can refresh */
+  onMarkedReceived?: (docId: string) => void;
 }
 
-export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, clientName, onPrevious, onNext, hasPrevious, hasNext, previewBlobUrl }: DocumentPreviewModalProps) {
+export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, clientName, onPrevious, onNext, hasPrevious, hasNext, previewBlobUrl, onMarkedReceived }: DocumentPreviewModalProps) {
   const isUploadsMode = !!onPrevious || !!onNext;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -206,6 +208,8 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
   const [deleting, setDeleting] = useState(false);
   const [savingField, setSavingField] = useState(false);
   const [clearingReview, startClearTransition] = useTransition();
+  const [markingReceived, setMarkingReceived] = useState(false);
+  const [isReceived, setIsReceived] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
 
   const [extractedTaxYear, setExtractedTaxYear] = useState<string | null>(null);
@@ -224,7 +228,23 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
     setExtractedPayeRef(doc.extracted_paye_ref);
     setNeedsReview(doc.needs_review);
     setValidationWarnings(doc.validation_warnings);
+    setIsReceived(false);
   }, [doc?.id]);
+
+  // Check if this document's type is already marked as received
+  useEffect(() => {
+    if (!doc || !doc.document_type_id || !clientId) { setIsReceived(false); return; }
+    supabase
+      .from('client_document_checklist_customisations')
+      .select('manually_received')
+      .eq('client_id', clientId)
+      .eq('filing_type_id', doc.filing_type_id)
+      .eq('document_type_id', doc.document_type_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsReceived(data?.manually_received ?? false);
+      });
+  }, [doc?.id, clientId]);
 
   // Fetch preview URL/bytes when doc changes
   useEffect(() => {
@@ -366,6 +386,52 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
     });
   };
 
+  const handleMarkReceived = async () => {
+    if (!doc || !doc.document_type_id) return;
+    setMarkingReceived(true);
+    try {
+      // Get org_id from user session
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error('Not authenticated'); return; }
+      const orgId = user.app_metadata?.org_id
+        ?? (await supabase.from('user_organisations').select('org_id').eq('user_id', user.id).limit(1).single()).data?.org_id;
+      if (!orgId) { toast.error('Organisation not found'); return; }
+
+      // Check if there's an existing customisation to preserve is_enabled
+      const { data: existing } = await supabase
+        .from('client_document_checklist_customisations')
+        .select('is_enabled, is_ad_hoc')
+        .eq('client_id', clientId)
+        .eq('filing_type_id', doc.filing_type_id)
+        .eq('document_type_id', doc.document_type_id)
+        .maybeSingle();
+
+      const { error } = await supabase
+        .from('client_document_checklist_customisations')
+        .upsert(
+          {
+            org_id: orgId,
+            client_id: clientId,
+            filing_type_id: doc.filing_type_id,
+            document_type_id: doc.document_type_id,
+            is_enabled: existing?.is_enabled ?? true,
+            is_ad_hoc: existing?.is_ad_hoc ?? false,
+            manually_received: true,
+          },
+          { onConflict: 'client_id,filing_type_id,document_type_id' }
+        );
+
+      if (error) { toast.error('Failed to mark as received'); return; }
+      setIsReceived(true);
+      toast.success('Document marked as received');
+      onMarkedReceived?.(doc.id);
+    } catch {
+      toast.error('Failed to mark as received');
+    } finally {
+      setMarkingReceived(false);
+    }
+  };
+
   // ---------------------------------------------------------------------------
   // Derived display values
   // ---------------------------------------------------------------------------
@@ -468,13 +534,23 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
               {doc?.original_filename ?? ''}
             </DialogTitle>
 
-            {/* Download / Delete actions (uploads mode: below heading) */}
+            {/* Download / Mark Received / Delete actions (uploads mode: below heading) */}
             {isUploadsMode && (
               <div className="flex items-center gap-2">
                 <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
                   {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                   Download
                 </IconButtonWithText>
+                {doc?.document_type_id && (
+                  <IconButtonWithText
+                    variant="green"
+                    onClick={handleMarkReceived}
+                    disabled={markingReceived || isReceived}
+                  >
+                    {markingReceived ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
+                    {isReceived ? 'Received' : 'Mark Received'}
+                  </IconButtonWithText>
+                )}
                 <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
                   {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                   Delete
@@ -594,6 +670,16 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
                   {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
                   Download
                 </IconButtonWithText>
+                {doc?.document_type_id && (
+                  <IconButtonWithText
+                    variant="green"
+                    onClick={handleMarkReceived}
+                    disabled={markingReceived || isReceived}
+                  >
+                    {markingReceived ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
+                    {isReceived ? 'Received' : 'Mark Received'}
+                  </IconButtonWithText>
+                )}
                 <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
                   {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                   Delete
