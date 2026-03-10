@@ -235,6 +235,8 @@ export default function WizardPage() {
 
   // ── Upload checks step ─────────────────────────────────────────────────
   const [uploadCheckSelection, setUploadCheckSelection] = useState<UploadCheckMode | undefined>(undefined);
+  const [autoReceiveSelection, setAutoReceiveSelection] = useState(false);
+  const [rejectMismatchedSelection, setRejectMismatchedSelection] = useState(false);
 
   // ── Storage step ─────────────────────────────────────────────────────────
   const [storageConnected, setStorageConnected] = useState<string | null>(null);
@@ -271,6 +273,8 @@ export default function WizardPage() {
     if (draft.orgId) setOrgId(draft.orgId);
     if (draft.portalEnabled !== undefined) setClientPortalEnabled(draft.portalEnabled);
     if (draft.uploadCheckMode) setUploadCheckSelection(draft.uploadCheckMode as UploadCheckMode);
+    if (draft.autoReceiveVerified !== undefined) setAutoReceiveSelection(draft.autoReceiveVerified);
+    if (draft.rejectMismatchedUploads !== undefined) setRejectMismatchedSelection(draft.rejectMismatchedUploads);
     if (draft.sendHour !== undefined) setSendHour(draft.sendHour);
     if (draft.emailSubStep) setEmailInitialSubStep(draft.emailSubStep as EmailSubStep);
     setOrgCreated(true);
@@ -285,6 +289,8 @@ export default function WizardPage() {
       selectedTier: selectedTier ?? undefined,
       portalEnabled: clientPortalEnabled,
       uploadCheckMode: uploadCheckSelection,
+      autoReceiveVerified: autoReceiveSelection,
+      rejectMismatchedUploads: rejectMismatchedSelection,
       emailSubStep: emailInitialSubStep,
       sendHour: sendHour ?? undefined,
       updatedAt: new Date().toISOString(),
@@ -651,8 +657,10 @@ export default function WizardPage() {
     }
   };
 
-  const handleUploadChecksComplete = (mode: UploadCheckMode) => {
+  const handleUploadChecksComplete = (mode: UploadCheckMode, autoReceive: boolean, rejectMismatched: boolean) => {
     setUploadCheckSelection(mode);
+    setAutoReceiveSelection(autoReceive);
+    setRejectMismatchedSelection(rejectMismatched);
     advanceToStep("storage");
   };
 
@@ -1111,6 +1119,8 @@ export default function WizardPage() {
             onComplete={handleUploadChecksComplete}
             onBack={() => advanceToStep("portal")}
             initialSelection={uploadCheckSelection}
+            initialAutoReceive={autoReceiveSelection}
+            initialRejectMismatched={rejectMismatchedSelection}
           />
         </div>
       )}

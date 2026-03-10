@@ -4,7 +4,7 @@ import { resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import { classifyDocument } from '@/lib/documents/classify';
 import { runIntegrityChecks } from '@/lib/documents/integrity';
 import { calculateRetainUntil } from '@/lib/documents/metadata';
-import { runValidation, type ValidationResult } from '@/lib/documents/validate';
+import { runValidation, REJECTABLE_WARNING_CODES, type ValidationResult } from '@/lib/documents/validate';
 import crypto from 'crypto';
 import type { FilingTypeId } from '@/lib/types/database';
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // separate queries below.
   const { data: portalToken } = await supabase
     .from('upload_portal_tokens')
-    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at, organisations!inner(storage_backend, google_drive_folder_id, ms_home_account_id, upload_check_mode), clients!inner(company_name, display_name)')
+    .select('id, org_id, client_id, filing_type_id, tax_year, expires_at, revoked_at, organisations!inner(storage_backend, google_drive_folder_id, ms_home_account_id, upload_check_mode, reject_mismatched_uploads), clients!inner(company_name, display_name)')
     .eq('token_hash', tokenHash)
     .single();
 
@@ -34,12 +34,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   let orgGoogleDriveFolderId: string | null = null;
   let orgMsHomeAccountId: string | null = null;
   let uploadCheckMode: string = 'both';
+  let rejectMismatchedUploads = false;
   let clientDisplayName: string | null = null;
   let clientCompanyName: string | null = null;
 
   // Check if join data is present (PostgREST may return null if FK join cache stale)
   // PostgREST !inner joins return an array — cast through unknown to handle the inferred array type
-  const orgJoin = (portalToken.organisations as unknown) as { storage_backend: string | null; google_drive_folder_id: string | null; ms_home_account_id: string | null; upload_check_mode: string | null } | null;
+  const orgJoin = (portalToken.organisations as unknown) as { storage_backend: string | null; google_drive_folder_id: string | null; ms_home_account_id: string | null; upload_check_mode: string | null; reject_mismatched_uploads: boolean | null } | null;
   const clientJoin = (portalToken.clients as unknown) as { company_name: string | null; display_name: string | null } | null;
 
   if (orgJoin && clientJoin) {
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     orgGoogleDriveFolderId = orgJoin.google_drive_folder_id;
     orgMsHomeAccountId = orgJoin.ms_home_account_id;
     uploadCheckMode = orgJoin.upload_check_mode ?? 'both';
+    rejectMismatchedUploads = orgJoin.reject_mismatched_uploads ?? false;
     clientDisplayName = clientJoin.display_name;
     clientCompanyName = clientJoin.company_name;
   } else {
@@ -55,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const [orgResult, clientResult] = await Promise.all([
       supabase
         .from('organisations')
-        .select('storage_backend, google_drive_folder_id, ms_home_account_id, upload_check_mode')
+        .select('storage_backend, google_drive_folder_id, ms_home_account_id, upload_check_mode, reject_mismatched_uploads')
         .eq('id', portalToken.org_id)
         .single(),
       supabase
@@ -68,6 +70,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     orgGoogleDriveFolderId = orgResult.data?.google_drive_folder_id ?? null;
     orgMsHomeAccountId = orgResult.data?.ms_home_account_id ?? null;
     uploadCheckMode = orgResult.data?.upload_check_mode ?? 'both';
+    rejectMismatchedUploads = orgResult.data?.reject_mismatched_uploads ?? false;
     clientDisplayName = clientResult.data?.display_name ?? null;
     clientCompanyName = clientResult.data?.company_name ?? null;
   }
@@ -143,6 +146,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         portalToken.filing_type_id,
       )
     : { warnings: [] } satisfies ValidationResult;
+
+  // Reject clearly wrong uploads (HMRC tax year mismatches) when enabled
+  if (rejectMismatchedUploads && validation.warnings.length > 0) {
+    const rejectable = validation.warnings.find(w => REJECTABLE_WARNING_CODES.has(w.code));
+    if (rejectable) {
+      return NextResponse.json({
+        error: rejectable.message,
+        rejected: true,
+        warningCode: rejectable.code,
+      }, { status: 422 });
+    }
+  }
 
   try {
     // Phase 25: route upload through resolveProvider for Google Drive/OneDrive/Dropbox support

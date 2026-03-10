@@ -42,6 +42,8 @@ interface SettingsTabsProps {
   dropboxConnected: boolean;
   clientPortalEnabled: boolean;
   uploadCheckMode: UploadCheckMode;
+  autoReceiveVerified: boolean;
+  rejectMismatchedUploads: boolean;
 }
 
 export function SettingsTabs({
@@ -65,6 +67,8 @@ export function SettingsTabs({
   dropboxConnected,
   clientPortalEnabled,
   uploadCheckMode,
+  autoReceiveVerified,
+  rejectMismatchedUploads,
 }: SettingsTabsProps) {
   const searchParams = useSearchParams();
   const defaultTab = searchParams.get("tab") === "billing" ? "billing" : "general";
@@ -87,7 +91,7 @@ export function SettingsTabs({
         <TabsContent value="general" className="space-y-8 mt-6">
           <ClientPortalCard clientPortalEnabled={clientPortalEnabled} />
           {clientPortalEnabled && (
-            <UploadChecksCard uploadCheckMode={uploadCheckMode} />
+            <UploadChecksCard uploadCheckMode={uploadCheckMode} autoReceiveVerified={autoReceiveVerified} rejectMismatchedUploads={rejectMismatchedUploads} />
           )}
           {clientPortalEnabled && (
             <StorageCard

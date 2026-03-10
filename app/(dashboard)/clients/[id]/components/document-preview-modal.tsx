@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
-import { Download, Trash2, Loader2, AlertTriangle, AlertCircle, FileX, X, CheckCircle, Info } from 'lucide-react';
+import { Download, Trash2, Loader2, AlertTriangle, AlertCircle, FileX, X, CheckCircle, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 import type { LucideIcon } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -186,11 +187,21 @@ export interface DocumentPreviewModalProps {
   clientId: string;
   onClose: () => void;
   onDeleted: (docId: string) => void;
+  /** Uploads-page extras: show client name heading + prev/next navigation */
+  clientName?: string | null;
+  onPrevious?: () => void;
+  onNext?: () => void;
+  hasPrevious?: boolean;
+  hasNext?: boolean;
+  /** When provided, skip server fetch and use this blob URL directly for preview */
+  previewBlobUrl?: string | null;
 }
 
-export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: DocumentPreviewModalProps) {
+export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, clientName, onPrevious, onNext, hasPrevious, hasNext, previewBlobUrl }: DocumentPreviewModalProps) {
+  const isUploadsMode = !!onPrevious || !!onNext;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [savingField, setSavingField] = useState(false);
@@ -217,10 +228,21 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: Docu
 
   // Fetch preview URL/bytes when doc changes
   useEffect(() => {
-    if (!doc) { setPreviewUrl(null); return; }
+    if (!doc) { setPreviewUrl(null); setPreviewError(false); return; }
+
+    // When a blob URL is provided externally (e.g. upload test page), use it directly
+    if (previewBlobUrl) {
+      setPreviewUrl(previewBlobUrl);
+      setPreviewError(false);
+      setLoadingPreview(false);
+      return;
+    }
 
     const mime = inferMimeType(doc.original_filename);
-    if (!mime) { setPreviewUrl(null); return; }
+    if (!mime) { setPreviewUrl(null); setPreviewError(false); return; }
+
+    // Need a valid clientId to fetch — skip if not yet set
+    if (!clientId) { setPreviewUrl(null); setPreviewError(false); return; }
 
     // Revoke previous blob URL
     if (blobUrlRef.current) {
@@ -228,6 +250,7 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: Docu
       blobUrlRef.current = null;
     }
     setPreviewUrl(null);
+    setPreviewError(false);
     setLoadingPreview(true);
 
     fetch(`/api/clients/${clientId}/documents`, {
@@ -256,9 +279,9 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: Docu
           setPreviewUrl(url);
         }
       })
-      .catch(() => toast.error('Failed to load preview'))
+      .catch(() => { setPreviewError(true); toast.error('Failed to load preview'); })
       .finally(() => setLoadingPreview(false));
-  }, [doc?.id, clientId]);
+  }, [doc?.id, clientId, previewBlobUrl]);
 
   // Revoke blob URL on unmount
   useEffect(() => () => { if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current); }, []);
@@ -401,6 +424,20 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: Docu
                   className="max-h-full max-w-full object-contain rounded"
                 />
               </div>
+            ) : previewError ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <AlertCircle className="size-10 opacity-30" />
+                  <p className="text-sm">Failed to load preview</p>
+                  <button
+                    type="button"
+                    className="text-xs underline hover:text-foreground"
+                    onClick={handleDownload}
+                  >
+                    Download instead
+                  </button>
+                </div>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-3 text-muted-foreground">
@@ -421,10 +458,29 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: Docu
           {/* ── Right: info panel ── */}
           <div className="w-[420px] shrink-0 border-l p-6 flex flex-col gap-6 overflow-y-auto">
 
+            {/* Client name (uploads mode only) */}
+            {isUploadsMode && clientName && (
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{clientName}</p>
+            )}
+
             {/* Filename */}
             <DialogTitle className="text-lg font-semibold leading-snug break-words">
               {doc?.original_filename ?? ''}
             </DialogTitle>
+
+            {/* Download / Delete actions (uploads mode: below heading) */}
+            {isUploadsMode && (
+              <div className="flex items-center gap-2">
+                <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
+                  {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  Download
+                </IconButtonWithText>
+                <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  Delete
+                </IconButtonWithText>
+              </div>
+            )}
 
             {/* Assessment alert — directly below filename */}
             {assessment && (
@@ -516,20 +572,39 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted }: Docu
             )}
 
             {/* Actions — pushed to bottom */}
-            <div className="mt-auto pt-4 flex gap-2">
-              <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
-                {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                Download
-              </IconButtonWithText>
-              <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
-                {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                Delete
-              </IconButtonWithText>
-              <IconButtonWithText variant="destructive" onClick={onClose}>
-                <X className="size-4" />
-                Close
-              </IconButtonWithText>
-            </div>
+            {isUploadsMode ? (
+              <div className="mt-auto pt-4 flex items-center gap-2">
+                <IconButtonWithText variant="blue" onClick={onPrevious} disabled={!hasPrevious}>
+                  <ChevronLeft className="size-4" />
+                  Previous
+                </IconButtonWithText>
+                <IconButtonWithText variant="blue" onClick={onNext} disabled={!hasNext}>
+                  Next
+                  <ChevronRight className="size-4" />
+                </IconButtonWithText>
+                <Separator orientation="vertical" className="h-6" />
+                <IconButtonWithText variant="amber" onClick={onClose}>
+                  <X className="size-4" />
+                  Close
+                </IconButtonWithText>
+              </div>
+            ) : (
+              <div className="mt-auto pt-4 flex items-center gap-2">
+                <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
+                  {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                  Download
+                </IconButtonWithText>
+                <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
+                  {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                  Delete
+                </IconButtonWithText>
+                <Separator orientation="vertical" className="h-6" />
+                <IconButtonWithText variant="amber" onClick={onClose}>
+                  <X className="size-4" />
+                  Close
+                </IconButtonWithText>
+              </div>
+            )}
 
           </div>
 

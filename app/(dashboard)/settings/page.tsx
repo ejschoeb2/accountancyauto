@@ -63,7 +63,7 @@ export default async function SettingsPage() {
     admin
       .from("organisations")
       .select(
-        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, storage_backend, storage_backend_status, google_drive_folder_id, ms_home_account_id, dropbox_refresh_token_enc, client_portal_enabled, upload_check_mode"
+        "client_count_limit, plan_tier, subscription_status, trial_ends_at, stripe_customer_id, stripe_subscription_id, storage_backend, storage_backend_status, google_drive_folder_id, ms_home_account_id, dropbox_refresh_token_enc, client_portal_enabled, upload_check_mode, auto_receive_verified, reject_mismatched_uploads"
       )
       .eq("id", orgId)
       .single(),
@@ -145,6 +145,8 @@ export default async function SettingsPage() {
         dropboxConnected={dropboxConnected}
         clientPortalEnabled={orgResult.data?.client_portal_enabled ?? true}
         uploadCheckMode={(orgResult.data?.upload_check_mode as "none" | "verify" | "extract" | "both") ?? "both"}
+        autoReceiveVerified={orgResult.data?.auto_receive_verified ?? false}
+        rejectMismatchedUploads={orgResult.data?.reject_mismatched_uploads ?? false}
       />
     </div>
   );

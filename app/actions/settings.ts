@@ -624,6 +624,62 @@ export async function setUploadCheckMode(
   return { error: null };
 }
 
+// --- Auto-Receive Verified ---
+
+export async function getAutoReceiveVerified(): Promise<boolean> {
+  const admin = createAdminClient();
+  const { orgId } = await getOrgContext();
+  const { data } = await admin
+    .from('organisations')
+    .select('auto_receive_verified')
+    .eq('id', orgId)
+    .single();
+  return data?.auto_receive_verified ?? false;
+}
+
+export async function setAutoReceiveVerified(
+  enabled: boolean
+): Promise<{ error: string | null }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Only admins can change this setting.' };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('organisations')
+    .update({ auto_receive_verified: enabled })
+    .eq('id', orgId);
+  if (error) return { error: error.message };
+  revalidatePath('/settings');
+  return { error: null };
+}
+
+// --- Reject Mismatched Uploads ---
+
+export async function getRejectMismatchedUploads(): Promise<boolean> {
+  const admin = createAdminClient();
+  const { orgId } = await getOrgContext();
+  const { data } = await admin
+    .from('organisations')
+    .select('reject_mismatched_uploads')
+    .eq('id', orgId)
+    .single();
+  return data?.reject_mismatched_uploads ?? false;
+}
+
+export async function setRejectMismatchedUploads(
+  enabled: boolean
+): Promise<{ error: string | null }> {
+  const { orgId, orgRole } = await getOrgContext();
+  if (orgRole !== 'admin') return { error: 'Only admins can change this setting.' };
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('organisations')
+    .update({ reject_mismatched_uploads: enabled })
+    .eq('id', orgId);
+  if (error) return { error: error.message };
+  revalidatePath('/settings');
+  return { error: null };
+}
+
 // --- Client Portal ---
 
 export async function getClientPortalEnabled(): Promise<boolean> {

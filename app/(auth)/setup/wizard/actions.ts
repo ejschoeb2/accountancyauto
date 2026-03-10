@@ -22,6 +22,8 @@ export interface SetupDraft {
   emailSubStep?: string;
   portalEnabled?: boolean;
   uploadCheckMode?: string;
+  autoReceiveVerified?: boolean;
+  rejectMismatchedUploads?: boolean;
   sendHour?: number;
   updatedAt: string;
   /** Injected by getSetupDraft() from user_organisations — not stored in DB */

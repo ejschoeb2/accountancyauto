@@ -11,18 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { setUploadCheckMode, type UploadCheckMode } from "@/app/actions/settings";
+import { setUploadCheckMode, setAutoReceiveVerified, setRejectMismatchedUploads, type UploadCheckMode } from "@/app/actions/settings";
 
 interface UploadChecksStepProps {
-  onComplete: (mode: UploadCheckMode) => void;
+  onComplete: (mode: UploadCheckMode, autoReceive: boolean, rejectMismatched: boolean) => void;
   onBack: () => void;
   initialSelection?: UploadCheckMode;
+  initialAutoReceive?: boolean;
+  initialRejectMismatched?: boolean;
 }
 
-export function UploadChecksStep({ onComplete, onBack, initialSelection }: UploadChecksStepProps) {
+export function UploadChecksStep({ onComplete, onBack, initialSelection, initialAutoReceive, initialRejectMismatched }: UploadChecksStepProps) {
   const [selection, setSelection] = useState<UploadCheckMode | "">(initialSelection ?? "");
+  const [autoReceive, setAutoReceive] = useState<"yes" | "no">(initialAutoReceive ? "yes" : "no");
+  const [rejectMismatched, setRejectMismatched] = useState<"yes" | "no">(initialRejectMismatched ? "yes" : "no");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const showVerifyOptions = selection === "both" || selection === "verify";
 
   function handleContinue() {
     if (!selection) return;
@@ -33,7 +39,19 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection }: Uploa
         setError(result.error);
         return;
       }
-      onComplete(selection);
+      const autoReceiveEnabled = showVerifyOptions && autoReceive === "yes";
+      const rejectMismatchedEnabled = showVerifyOptions && rejectMismatched === "yes";
+      const arResult = await setAutoReceiveVerified(autoReceiveEnabled);
+      if (arResult.error) {
+        setError(arResult.error);
+        return;
+      }
+      const rmResult = await setRejectMismatchedUploads(rejectMismatchedEnabled);
+      if (rmResult.error) {
+        setError(rmResult.error);
+        return;
+      }
+      onComplete(selection, autoReceiveEnabled, rejectMismatchedEnabled);
     });
   }
 
@@ -129,6 +147,57 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection }: Uploa
             </p>
           )}
         </div>
+
+        {/* Verify-dependent options — only visible when verification is enabled */}
+        {showVerifyOptions && (
+          <div className="pt-2 border-t space-y-2">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Reject mismatched HMRC documents</p>
+              <p className="text-sm text-muted-foreground">
+                When enabled, portal uploads of HMRC documents (P60, P45, SA302) that
+                clearly have the wrong tax year are rejected and the client is told to
+                upload the correct document. Other document types are unaffected.
+              </p>
+            </div>
+            <Select
+              value={rejectMismatched}
+              onValueChange={(v) => setRejectMismatched(v as "yes" | "no")}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no">Disabled (warn only)</SelectItem>
+                <SelectItem value="yes">Enabled (reject wrong documents)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {showVerifyOptions && (
+          <div className="pt-2 border-t space-y-2">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Auto-confirm verified uploads</p>
+              <p className="text-sm text-muted-foreground">
+                When enabled, portal uploads with a &ldquo;Verified&rdquo; verdict are automatically
+                marked as received. Uploads that need review or have low confidence remain
+                pending for manual confirmation.
+              </p>
+            </div>
+            <Select
+              value={autoReceive}
+              onValueChange={(v) => setAutoReceive(v as "yes" | "no")}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no">Disabled (manual confirmation)</SelectItem>
+                <SelectItem value="yes">Enabled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>

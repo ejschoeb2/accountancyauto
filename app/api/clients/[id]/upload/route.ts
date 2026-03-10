@@ -5,7 +5,6 @@ import { resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import { classifyDocument } from '@/lib/documents/classify';
 import { runIntegrityChecks } from '@/lib/documents/integrity';
 import { calculateRetainUntil } from '@/lib/documents/metadata';
-import { runValidation, type ValidationResult } from '@/lib/documents/validate';
 import type { FilingTypeId } from '@/lib/types/database';
 
 // Google Drive downloads may be large — allow up to 60 seconds on Vercel
@@ -97,9 +96,11 @@ export async function POST(
   }
 
   // ── Classification ───────────────────────────────────────────────────────────
+  // Accountant uploads: run extraction for metadata but skip verification —
+  // the accountant is manually placing the file so validation adds no value.
+  // Checks run on the portal (client) side where uploads are unsupervised.
   const uploadCheckMode = orgData.upload_check_mode ?? 'both';
   const shouldOcr = uploadCheckMode !== 'none';
-  const shouldValidate = uploadCheckMode === 'verify' || uploadCheckMode === 'both';
 
   const classification = await classifyDocument(
     file.name,
@@ -115,21 +116,10 @@ export async function POST(
     );
   }
 
-  // ── Validation ───────────────────────────────────────────────────────────────
+  // ── Retention ────────────────────────────────────────────────────────────────
   const taxPeriodEndDate = new Date(`${taxYear}-12-31`);
   const effectiveFilingTypeId = filingTypeId as FilingTypeId;
   const retainUntil = calculateRetainUntil(effectiveFilingTypeId, taxPeriodEndDate);
-
-  const validation: ValidationResult = shouldValidate
-    ? await runValidation(
-        classification.documentTypeCode,
-        file.type,
-        fileBuffer,
-        taxYear,
-        classification.extractedTaxYear,
-        filingTypeId,
-      )
-    : { warnings: [] };
 
   // ── Upload to storage ────────────────────────────────────────────────────────
   try {
@@ -175,8 +165,8 @@ export async function POST(
         file_hash: integrity.sha256Hash,
         file_size_bytes: integrity.fileSizeBytes,
         page_count: integrity.pageCount,
-        needs_review: validation.warnings.length > 0,
-        validation_warnings: validation.warnings.length > 0 ? validation.warnings : null,
+        needs_review: false,
+        validation_warnings: null,
       })
       .select('id')
       .single();
@@ -207,7 +197,6 @@ export async function POST(
       documentTypeCode: classification.documentTypeCode,
       documentTypeLabel,
       confidence: classification.confidence,
-      validationWarnings: validation.warnings,
     });
   } catch (err) {
     console.error('[Accountant Upload] Storage or DB error:', err);

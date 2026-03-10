@@ -35,6 +35,18 @@ export interface ValidationResult {
 const VALIDATED_TYPES = new Set(['BANK_STATEMENT', 'VAT_RETURN_WORKINGS', 'P60', 'P45', 'SA302']);
 
 /**
+ * Warning codes that indicate the document is clearly wrong — the OCR has
+ * extracted an unambiguous tax year from a fixed-format HMRC document and it
+ * doesn't match the expected year. When `reject_mismatched_uploads` is enabled
+ * these warnings cause the portal to reject the upload outright.
+ */
+export const REJECTABLE_WARNING_CODES = new Set([
+  'P60_YEAR_MISMATCH',
+  'P45_YEAR_MISMATCH',
+  'SA302_YEAR_MISMATCH',
+]);
+
+/**
  * MIME types that indicate a spreadsheet file (bank statements can be spreadsheets).
  */
 const SPREADSHEET_MIMES = new Set([
