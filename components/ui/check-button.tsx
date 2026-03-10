@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Check, Minus } from "lucide-react"
+import { Check, Minus, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface CheckButtonProps {
@@ -8,7 +8,7 @@ interface CheckButtonProps {
   disabled?: boolean
   className?: string
   "aria-label"?: string
-  variant?: "default" | "success"
+  variant?: "default" | "success" | "amber"
 }
 
 const CheckButton = React.forwardRef<HTMLButtonElement, CheckButtonProps>(
@@ -20,6 +20,11 @@ const CheckButton = React.forwardRef<HTMLButtonElement, CheckButtonProps>(
       ? {
           bg: isChecked || isIndeterminate ? "bg-green-500/10 hover:bg-green-500/20" : "bg-status-neutral/10 hover:bg-status-neutral/20",
           icon: "text-green-600"
+        }
+      : variant === "amber"
+      ? {
+          bg: isChecked || isIndeterminate ? "bg-amber-500/10 hover:bg-amber-500/20" : "bg-status-neutral/10 hover:bg-status-neutral/20",
+          icon: "text-amber-600"
         }
       : {
           bg: isChecked || isIndeterminate ? "bg-blue-500/10 hover:bg-blue-500/20" : "bg-status-neutral/10 hover:bg-status-neutral/20",
@@ -43,6 +48,8 @@ const CheckButton = React.forwardRef<HTMLButtonElement, CheckButtonProps>(
       >
         {isIndeterminate ? (
           <Minus className={cn("size-5", colors.icon)} />
+        ) : isChecked && variant === "amber" ? (
+          <AlertCircle className={cn("size-5", colors.icon)} />
         ) : isChecked ? (
           <Check className={cn("size-5", colors.icon)} />
         ) : null}
