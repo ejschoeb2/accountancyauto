@@ -44,6 +44,7 @@ import {
   getDraftClients,
   getSetupDraft,
   getWizardDashboardUrl,
+  getWizardOrgId,
   markOrgSetupComplete,
   refreshWizardSession,
   saveDraftClients,
@@ -279,6 +280,7 @@ export default function WizardPage() {
     if (draft.firmName) setFirmName(draft.firmName);
     if (draft.firmSlug) setSlug(draft.firmSlug);
     if (draft.selectedTier) setSelectedTier(draft.selectedTier as PlanTier);
+    if (draft.orgId) setOrgId(draft.orgId);
     if (draft.portalEnabled !== undefined) setClientPortalEnabled(draft.portalEnabled);
     if (draft.uploadCheckMode) setUploadCheckSelection(draft.uploadCheckMode as UploadCheckMode);
     if (draft.sendHour !== undefined) setSendHour(draft.sendHour);
@@ -377,10 +379,9 @@ export default function WizardPage() {
           // Draft missing — force import step
           setAdminStep("import");
           setOrgCreated(true);
+          const fallbackOrgId = await getWizardOrgId();
+          if (fallbackOrgId) setOrgId(fallbackOrgId);
         }
-        // Restore orgId from JWT (needed for Stripe checkout on complete step)
-        const orgIdFromJwt = user.app_metadata?.org_id;
-        if (orgIdFromJwt) setOrgId(orgIdFromJwt);
         const draftClients = await getDraftClients();
         if (draftClients && draftClients.length > 0) {
           setSavedImportRows(draftClients);
@@ -397,10 +398,9 @@ export default function WizardPage() {
           // Draft missing (save may have been cancelled) — force storage step
           setAdminStep("storage");
           setOrgCreated(true);
+          const fallbackOrgId = await getWizardOrgId();
+          if (fallbackOrgId) setOrgId(fallbackOrgId);
         }
-        // Restore orgId from JWT (needed for Stripe checkout on complete step)
-        const orgIdFromJwt = user.app_metadata?.org_id;
-        if (orgIdFromJwt) setOrgId(orgIdFromJwt);
         const draftClients = await getDraftClients();
         if (draftClients && draftClients.length > 0) {
           setSavedImportRows(draftClients);
@@ -423,8 +423,6 @@ export default function WizardPage() {
           if (draftClients && draftClients.length > 0) {
             setSavedImportRows(draftClients);
           }
-          const orgIdFromJwt = user.app_metadata?.org_id;
-          if (orgIdFromJwt) setOrgId(orgIdFromJwt);
           if (["import", "email", "portal", "upload-checks", "storage", "complete"].includes(draft.step)) {
             prefetchConfigDefaults();
           }
@@ -448,10 +446,7 @@ export default function WizardPage() {
           } else if (userOrg.role === "admin") {
             setUserType("new-admin");
             setOrgCreated(true);
-
-            // Restore orgId from JWT app_metadata for Stripe checkout on complete step
-            const orgIdFromJwt = user.app_metadata?.org_id;
-            if (orgIdFromJwt) setOrgId(orgIdFromJwt);
+            setOrgId(userOrg.org_id);
 
             // No draft but org exists — start at import (they completed firm+plan)
             setAdminStep("import");

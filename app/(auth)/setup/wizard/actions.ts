@@ -23,6 +23,8 @@ export interface SetupDraft {
   uploadCheckMode?: string;
   sendHour?: number;
   updatedAt: string;
+  /** Injected by getSetupDraft() from user_organisations — not stored in DB */
+  orgId?: string;
 }
 
 /**
@@ -55,7 +57,11 @@ export async function getSetupDraft(): Promise<SetupDraft | null> {
     .eq("id", membership.org_id)
     .single();
 
-  return (data?.setup_draft as SetupDraft) ?? null;
+  const draft = (data?.setup_draft as SetupDraft) ?? null;
+  if (draft) {
+    draft.orgId = membership.org_id;
+  }
+  return draft;
 }
 
 /**
@@ -394,6 +400,28 @@ export async function getStorageInfoForWizard(): Promise<{
     storageBackendStatus: data?.storage_backend_status ?? null,
     dropboxConnected: !!data?.dropbox_refresh_token_enc,
   };
+}
+
+/**
+ * Return the current user's org_id from user_organisations.
+ * Used as a fallback when the setup draft is missing (e.g. save cancelled before OAuth).
+ */
+export async function getWizardOrgId(): Promise<string | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const admin = createAdminClient();
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return membership?.org_id ?? null;
 }
 
 /**
