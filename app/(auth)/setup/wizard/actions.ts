@@ -1160,3 +1160,176 @@ export async function buildInitialQueue(): Promise<{ error?: string }> {
 
   return {};
 }
+
+/**
+ * Single server action that finalises the wizard in one HTTP round-trip.
+ *
+ * Combines migrateDraftClients + seedOrgDefaultsForWizard + buildInitialQueue
+ * + markOrgSetupComplete + refreshWizardSession into one call, eliminating 5
+ * sequential round-trips (which were slow and prone to Next.js server-action
+ * serialisation queuing behind pending fire-and-forget saveSetupDraft calls).
+ */
+export async function finaliseWizardSetup(
+  portalEnabled: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  const orgId = membership.org_id;
+
+  // 1. Migrate draft clients → real clients table
+  try {
+    const { data: draftRows } = await admin
+      .from("setup_draft_clients")
+      .select("data")
+      .eq("org_id", orgId)
+      .order("row_index", { ascending: true });
+
+    if (draftRows && draftRows.length > 0) {
+      const { data: orgData } = await admin
+        .from("organisations")
+        .select("client_count_limit")
+        .eq("id", orgId)
+        .single();
+
+      const limit = orgData?.client_count_limit ?? null;
+      let importableRows = draftRows;
+
+      if (limit !== null) {
+        const { count } = await admin
+          .from("clients")
+          .select("id", { count: "exact", head: true })
+          .eq("org_id", orgId);
+
+        const currentCount = count ?? 0;
+        const remainingCapacity = Math.max(0, limit - currentCount);
+        if (remainingCapacity > 0) {
+          if (draftRows.length > remainingCapacity) {
+            importableRows = draftRows.slice(0, remainingCapacity);
+          }
+        } else {
+          importableRows = [];
+        }
+      }
+
+      if (importableRows.length > 0) {
+        const newClients = importableRows.map((row) => {
+          const d = row.data as EditableRow;
+          return {
+            company_name: d.company_name,
+            org_id: orgId,
+            owner_id: user.id,
+            active: true,
+            reminders_paused: false,
+            primary_email: d.primary_email || null,
+            client_type: d.client_type || null,
+            year_end_date: d.year_end_date || null,
+            vat_registered: d.vat_registered ?? false,
+            vat_stagger_group: d.vat_stagger_group ?? null,
+            vat_scheme: d.vat_scheme || null,
+          };
+        });
+
+        const { data: createdClients, error: insertError } = await admin
+          .from("clients")
+          .insert(newClients)
+          .select("id, client_type, vat_registered");
+
+        if (!insertError && createdClients && createdClients.length > 0) {
+          const { data: filingTypes } = await admin
+            .from("filing_types")
+            .select("id, applicable_client_types");
+
+          if (filingTypes && filingTypes.length > 0) {
+            const assignments: Array<{
+              org_id: string;
+              client_id: string;
+              filing_type_id: string;
+              is_active: boolean;
+            }> = [];
+
+            for (const client of createdClients) {
+              if (!client.client_type) continue;
+              const applicable = filingTypes.filter((ft) => {
+                if (!ft.applicable_client_types.includes(client.client_type)) return false;
+                if (ft.id === "vat_return") return client.vat_registered === true;
+                return true;
+              });
+              for (const ft of applicable) {
+                assignments.push({
+                  org_id: orgId,
+                  client_id: client.id,
+                  filing_type_id: ft.id,
+                  is_active: true,
+                });
+              }
+            }
+
+            if (assignments.length > 0) {
+              await admin.from("client_filing_assignments").insert(assignments);
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[finaliseWizardSetup] migrate draft clients error:", err);
+    // Non-fatal: continue with remaining steps
+  }
+
+  // 2. Seed org defaults (templates, schedules)
+  try {
+    await seedOrgDefaults(orgId, user.id, admin, portalEnabled);
+  } catch (err) {
+    console.error("[finaliseWizardSetup] seed defaults error:", err);
+  }
+
+  // 3. Build initial reminder queue
+  try {
+    const { data: org } = await admin
+      .from("organisations")
+      .select("id, name")
+      .eq("id", orgId)
+      .single();
+
+    if (org) {
+      await buildReminderQueue(admin, org);
+      await buildCustomScheduleQueue(admin, org);
+    }
+  } catch (err) {
+    console.error("[finaliseWizardSetup] build queue error:", err);
+    // Non-fatal: queue will be built on next cron run
+  }
+
+  // 4. Mark org setup complete + clean up draft
+  const { error: markError } = await admin
+    .from("organisations")
+    .update({ setup_complete: true, setup_draft: null })
+    .eq("id", orgId);
+
+  if (markError) return { error: markError.message };
+
+  await admin
+    .from("setup_draft_clients")
+    .delete()
+    .eq("org_id", orgId);
+
+  // 5. Refresh session so JWT contains org_id
+  await supabase.auth.refreshSession();
+
+  return {};
+}

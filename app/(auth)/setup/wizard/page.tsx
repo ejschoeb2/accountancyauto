@@ -30,6 +30,7 @@ import {
   buildInitialQueue,
   checkSlugAvailable,
   createOrgAndJoinAsAdmin,
+  finaliseWizardSetup,
   getDraftClients,
   getSetupDraft,
   getWizardDashboardUrl,
@@ -664,17 +665,15 @@ export default function WizardPage() {
     setIsLeavingWizard(true);
     setCompleteError(null);
 
+    // Single server action replaces 5 sequential round-trips
     try {
-      await migrateDraftClients();
-      await seedOrgDefaultsForWizard(clientPortalEnabled);
-      await buildInitialQueue();
-      await markOrgSetupComplete();
-      // Refresh session server-side so the .prompt.accountants cross-subdomain
-      // cookie gets an updated JWT with org_id in app_metadata. Without this,
-      // the stale cookie (set before org creation) reaches the subdomain middleware,
-      // the fallback user_organisations RLS query fails, and the user is sent to
-      // the marketing site instead of their dashboard.
-      await refreshWizardSession();
+      const result = await finaliseWizardSetup(clientPortalEnabled);
+      if (result.error) {
+        console.error("finaliseWizardSetup returned error:", result.error);
+        setCompleteError("Something went wrong finalising your setup. Please try again.");
+        setIsLeavingWizard(false);
+        return;
+      }
     } catch (err) {
       console.error("handleGoToDashboard setup error:", err);
       setCompleteError("Something went wrong finalising your setup. Please try again.");
@@ -684,7 +683,14 @@ export default function WizardPage() {
 
     if (selectedTier && selectedTier !== "free") {
       // Paid plan — redirect to Stripe checkout, then to dashboard
+      if (!orgId) {
+        setCompleteError("Organisation not found. Please refresh and try again.");
+        setIsLeavingWizard(false);
+        return;
+      }
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         const response = await fetch("/api/stripe/create-checkout-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -693,7 +699,9 @@ export default function WizardPage() {
             orgId,
             successUrl: "/setup/wizard?from=stripe-complete",
           }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
         const data = await response.json();
         if (!response.ok) {
           setCompleteError(data.error || "Failed to start checkout. Please try again.");
@@ -707,8 +715,11 @@ export default function WizardPage() {
           setCompleteError("Checkout session created but no redirect URL. Please try again.");
           setIsLeavingWizard(false);
         }
-      } catch {
-        setCompleteError("Failed to start checkout. Please try again.");
+      } catch (err) {
+        const message = err instanceof DOMException && err.name === "AbortError"
+          ? "Checkout request timed out. Please try again."
+          : "Failed to start checkout. Please try again.";
+        setCompleteError(message);
         setIsLeavingWizard(false);
       }
     } else {
