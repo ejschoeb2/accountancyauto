@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, ArrowUp, ArrowDown, ArrowRight } from "lucide-react";
+import { Loader2, ArrowUp, ArrowDown } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
   PLAN_TIERS,
@@ -11,6 +11,9 @@ import {
 
 /** Tier ordering for upgrade/downgrade comparison (higher index = higher tier) */
 const TIER_ORDER: PlanTier[] = ["free", "solo", "starter", "practice", "firm", "enterprise"];
+
+/** Tiers shown in the plan picker (free + all paid tiers) */
+const SELECTABLE_TIERS: PlanTier[] = ["free", ...PAID_PLAN_TIERS];
 
 interface UpgradePlanSectionProps {
   orgId: string;
@@ -37,6 +40,26 @@ export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: Upgr
     setError(null);
 
     try {
+      // Downgrading to free with an active subscription = cancel subscription
+      if (tier === "free" && hasSubscription) {
+        const response = await fetch("/api/stripe/change-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planTier: "free", orgId }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || "Something went wrong. Please try again.");
+          setLoadingTier(null);
+          return;
+        }
+
+        window.location.reload();
+        return;
+      }
+
       // Existing subscribers: change plan via subscription update
       // New subscribers: create checkout session
       const endpoint = hasSubscription
@@ -71,8 +94,8 @@ export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: Upgr
     }
   }
 
-  // Show all paid plans except the current one
-  const availablePlans = PAID_PLAN_TIERS.filter((tier) => tier !== currentTier);
+  // Show all selectable plans except the current one
+  const availablePlans = SELECTABLE_TIERS.filter((tier) => tier !== currentTier);
 
   return (
     <div className="space-y-4">
@@ -96,9 +119,11 @@ export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: Upgr
 
                 <div className="mb-1">
                   <span className="text-2xl font-bold text-foreground tabular-nums">
-                    {formatPrice(plan.monthlyPrice)}
+                    {plan.monthlyPrice === 0 ? "Free" : formatPrice(plan.monthlyPrice)}
                   </span>
-                  <span className="text-xs text-muted-foreground ml-1">/mo</span>
+                  {plan.monthlyPrice > 0 && (
+                    <span className="text-xs text-muted-foreground ml-1">/mo</span>
+                  )}
                 </div>
 
                 <p className="text-xs font-semibold text-foreground/60 mb-4">
@@ -116,22 +141,15 @@ export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: Upgr
                       <Loader2 className="size-4 animate-spin" />
                       {hasSubscription ? "Changing..." : "Redirecting..."}
                     </>
-                  ) : hasSubscription ? (
-                    isUpgrade ? (
-                      <>
-                        Upgrade
-                        <ArrowUp className="size-4" />
-                      </>
-                    ) : (
-                      <>
-                        Downgrade
-                        <ArrowDown className="size-4" />
-                      </>
-                    )
+                  ) : isUpgrade ? (
+                    <>
+                      Upgrade
+                      <ArrowUp className="size-4" />
+                    </>
                   ) : (
                     <>
-                      Get Started
-                      <ArrowRight className="size-4" />
+                      Downgrade
+                      <ArrowDown className="size-4" />
                     </>
                   )}
                 </ButtonBase>

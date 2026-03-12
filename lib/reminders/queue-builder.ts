@@ -218,47 +218,43 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
     (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
   );
 
-  // Process each client + filing type pair
+  // Collect all queue entries in memory, then batch-insert with ON CONFLICT DO NOTHING.
+  // This replaces the old per-entry SELECT + INSERT loop which made hundreds of
+  // individual requests and caused server action timeouts during wizard setup.
+  const entriesToInsert: Array<{
+    org_id: string;
+    client_id: string;
+    filing_type_id: string;
+    template_id: string;
+    step_index: number;
+    deadline_date: string;
+    send_date: string;
+    status: string;
+  }> = [];
+
   for (const assignment of assignments) {
     const client = assignment.clients as Client;
     const filingTypeId = assignment.filing_type_id;
 
-    // Skip if client has reminders paused
-    if (client.reminders_paused) {
-      skipped++;
-      continue;
-    }
+    if (client.reminders_paused) { skipped++; continue; }
+    if (client.records_received_for && client.records_received_for.includes(filingTypeId)) { skipped++; continue; }
 
-    // Skip if filing type is in records_received_for array
-    if (client.records_received_for && client.records_received_for.includes(filingTypeId)) {
-      skipped++;
-      continue;
-    }
-
-    // Calculate or get override deadline
     let deadlineDate: Date | null = null;
     const deadlineOverride = deadlineOverrideMap.get(client.id)?.get(filingTypeId);
 
     if (deadlineOverride) {
       deadlineDate = new UTCDate(deadlineOverride.override_date);
     } else {
-      // Calculate deadline
       deadlineDate = calculateDeadline(filingTypeId, {
         year_end_date: client.year_end_date ?? undefined,
         vat_stagger_group: client.vat_stagger_group ?? undefined,
       });
     }
 
-    if (!deadlineDate) {
-      // Can't calculate deadline (missing metadata)
-      skipped++;
-      continue;
-    }
+    if (!deadlineDate) { skipped++; continue; }
 
-    // Look up schedule by filing type
     const schedule = scheduleByFilingType.get(filingTypeId);
     if (!schedule) {
-      // Log warning to email_log and skip
       await logQueueWarning(supabase, org.id, {
         message: `No schedule found for filing type ${filingTypeId}`,
         client_id: client.id,
@@ -268,13 +264,8 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
       continue;
     }
 
-    // Skip if client is excluded from this schedule
-    if (exclusionSet.has(`${schedule.id}:${client.id}`)) {
-      skipped++;
-      continue;
-    }
+    if (exclusionSet.has(`${schedule.id}:${client.id}`)) { skipped++; continue; }
 
-    // Get steps for this schedule
     const steps = stepsBySchedule.get(schedule.id) || [];
     if (steps.length === 0) {
       await logQueueWarning(supabase, org.id, {
@@ -286,12 +277,9 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
       continue;
     }
 
-    // Create queue entries for each step
     for (const step of steps) {
-      // Look up template for this step
       const template = templateMap.get(step.email_template_id);
       if (!template) {
-        // Log warning and skip this step (continue with remaining steps)
         await logQueueWarning(supabase, org.id, {
           message: `Template ${step.email_template_id} not found for schedule ${schedule.id} step ${step.step_number}`,
           client_id: client.id,
@@ -301,54 +289,38 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
         continue;
       }
 
-      // Calculate send_date = deadline_date - delay_days
       let sendDate = subDays(new UTCDate(deadlineDate), step.delay_days);
-
-      // Adjust send_date to next working day if on weekend/bank holiday
       sendDate = new UTCDate(getNextWorkingDay(sendDate, holidays));
 
-      const sendDateStr = format(sendDate, 'yyyy-MM-dd');
-      const deadlineDateStr = format(deadlineDate, 'yyyy-MM-dd');
+      entriesToInsert.push({
+        org_id: org.id,
+        client_id: client.id,
+        filing_type_id: filingTypeId,
+        template_id: schedule.id,
+        step_index: step.step_number,
+        deadline_date: format(deadlineDate, 'yyyy-MM-dd'),
+        send_date: format(sendDate, 'yyyy-MM-dd'),
+        status: 'scheduled',
+      });
+    }
+  }
 
-      // Check if this exact reminder already exists (idempotent)
-      // Idempotency check: client_id + filing_type_id + step_number + deadline_date
-      // Uses maybeSingle() — .single() returns 406 when 0 rows match
-      const { data: existing } = await supabase
-        .from('reminder_queue')
-        .select('id')
-        .eq('client_id', client.id)
-        .eq('filing_type_id', filingTypeId)
-        .eq('step_index', step.step_number)
-        .eq('deadline_date', deadlineDateStr)
-        .maybeSingle();
+  // Batch insert with DB-level idempotency (unique index on client_id, template_id, step_index, deadline_date)
+  if (entriesToInsert.length > 0) {
+    const { data: inserted, error: batchError } = await supabase
+      .from('reminder_queue')
+      .upsert(entriesToInsert, {
+        onConflict: 'client_id,template_id,step_index,deadline_date',
+        ignoreDuplicates: true,
+      })
+      .select('id');
 
-      if (existing) {
-        // Already exists, skip
-        skipped++;
-        continue;
-      }
-
-      // Insert into reminder_queue
-      const { error: insertError } = await supabase
-        .from('reminder_queue')
-        .insert({
-          org_id: org.id,
-          client_id: client.id,
-          filing_type_id: filingTypeId,
-          template_id: schedule.id, // Points to schedule (not old reminder_templates)
-          step_index: step.step_number, // Use step_number from schedule_steps
-          deadline_date: deadlineDateStr,
-          send_date: sendDateStr,
-          status: 'scheduled',
-        });
-
-      if (insertError) {
-        // Log error but continue processing
-        console.error(`Failed to insert reminder for client ${client.id}, filing ${filingTypeId}, step ${step.step_number}:`, insertError);
-        skipped++;
-      } else {
-        created++;
-      }
+    if (batchError) {
+      console.error('Failed to batch insert reminder queue entries:', batchError);
+      skipped += entriesToInsert.length;
+    } else {
+      created = inserted?.length ?? 0;
+      skipped += entriesToInsert.length - created;
     }
   }
 
@@ -456,7 +428,18 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
     (exclusionsData || []).map(e => `${e.schedule_id}:${e.client_id}`)
   );
 
-  // 5. Process each custom schedule x client
+  // Collect all entries in memory, then batch-insert with ON CONFLICT DO NOTHING
+  const entriesToInsert: Array<{
+    org_id: string;
+    client_id: string;
+    filing_type_id: null;
+    template_id: string;
+    step_index: number;
+    deadline_date: string;
+    send_date: string;
+    status: string;
+  }> = [];
+
   for (const schedule of customSchedules) {
     const targetDate = getNextCustomDate({
       custom_date: schedule.custom_date,
@@ -484,55 +467,42 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
     const deadlineDateStr = format(targetDate, 'yyyy-MM-dd');
 
     for (const client of clients) {
-      // Skip if client is excluded from this schedule
-      if (exclusionSet.has(`${schedule.id}:${client.id}`)) {
-        skipped++;
-        continue;
-      }
+      if (exclusionSet.has(`${schedule.id}:${client.id}`)) { skipped++; continue; }
 
       for (const step of steps) {
         let sendDate = subDays(new UTCDate(targetDate), step.delay_days);
         sendDate = new UTCDate(getNextWorkingDay(sendDate, holidays));
-        const sendDateStr = format(sendDate, 'yyyy-MM-dd');
 
-        // Idempotency check for custom schedules: client_id + template_id + step_index + deadline_date
-        // (template_id stores schedule.id for custom schedules, filing_type_id is NULL)
-        // Uses maybeSingle() — .single() returns 406 when 0 rows match
-        const { data: existing } = await supabase
-          .from('reminder_queue')
-          .select('id')
-          .eq('client_id', client.id)
-          .is('filing_type_id', null)
-          .eq('template_id', schedule.id)
-          .eq('step_index', step.step_number)
-          .eq('deadline_date', deadlineDateStr)
-          .maybeSingle();
-
-        if (existing) {
-          skipped++;
-          continue;
-        }
-
-        const { error: insertError } = await supabase
-          .from('reminder_queue')
-          .insert({
-            org_id: org.id,
-            client_id: client.id,
-            filing_type_id: null,
-            template_id: schedule.id,
-            step_index: step.step_number,
-            deadline_date: deadlineDateStr,
-            send_date: sendDateStr,
-            status: 'scheduled',
-          });
-
-        if (insertError) {
-          console.error(`Failed to insert custom reminder for client ${client.id}, schedule ${schedule.id}, step ${step.step_number}:`, insertError);
-          skipped++;
-        } else {
-          created++;
-        }
+        entriesToInsert.push({
+          org_id: org.id,
+          client_id: client.id,
+          filing_type_id: null,
+          template_id: schedule.id,
+          step_index: step.step_number,
+          deadline_date: deadlineDateStr,
+          send_date: format(sendDate, 'yyyy-MM-dd'),
+          status: 'scheduled',
+        });
       }
+    }
+  }
+
+  // Batch insert with DB-level idempotency
+  if (entriesToInsert.length > 0) {
+    const { data: inserted, error: batchError } = await supabase
+      .from('reminder_queue')
+      .upsert(entriesToInsert, {
+        onConflict: 'client_id,template_id,step_index,deadline_date',
+        ignoreDuplicates: true,
+      })
+      .select('id');
+
+    if (batchError) {
+      console.error('Failed to batch insert custom schedule queue entries:', batchError);
+      skipped += entriesToInsert.length;
+    } else {
+      created = inserted?.length ?? 0;
+      skipped += entriesToInsert.length - created;
     }
   }
 

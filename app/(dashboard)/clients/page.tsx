@@ -1,6 +1,7 @@
 import { getClients } from "@/app/actions/clients";
 import { createClient } from "@/lib/supabase/server";
 import { getClientStatusList, getClientFilingStatuses } from "@/lib/dashboard/metrics";
+import { getOrgId } from "@/lib/auth/org-context";
 import { ClientTable } from "./components/client-table";
 
 interface ClientsPageProps {
@@ -12,13 +13,19 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const filterParam = params.filter;
   const sortParam = params.sort;
 
-  const [clients, supabase] = await Promise.all([
+  const [clients, supabase, orgId] = await Promise.all([
     getClients(),
     createClient(),
+    getOrgId(),
   ]);
-  const [clientStatusList, filingStatusesData] = await Promise.all([
+  const [clientStatusList, filingStatusesData, orgData] = await Promise.all([
     getClientStatusList(supabase),
     getClientFilingStatuses(supabase),
+    supabase
+      .from("organisations")
+      .select("client_count_limit")
+      .eq("id", orgId)
+      .single(),
   ]);
 
   // Build a lookup map: clientId -> { status, next_deadline, next_deadline_type, underlying_status }
@@ -32,6 +39,8 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     };
   }
 
+  const clientLimit = orgData.data?.client_count_limit ?? null;
+
   return (
     <ClientTable
       initialData={clients}
@@ -39,6 +48,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
       filingStatusMap={filingStatusesData.filingStatuses}
       initialFilter={filterParam}
       initialSort={sortParam}
+      clientLimit={clientLimit}
     />
   );
 }

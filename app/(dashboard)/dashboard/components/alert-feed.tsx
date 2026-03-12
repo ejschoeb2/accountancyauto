@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Bell } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface DocumentActivity {
@@ -18,6 +19,7 @@ interface DocumentActivity {
 
 export function AlertFeed() {
   const [activities, setActivities] = useState<DocumentActivity[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     const supabase = createClient();
@@ -45,19 +47,16 @@ export function AlertFeed() {
     a.clients?.display_name || a.clients?.company_name || 'Unknown client';
 
   return (
-    <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
+    <Card
+      className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+      onClick={() => router.push('/activity?tab=uploads&sort=received-desc')}
+    >
       <CardContent className="px-5 py-0">
         <div className="flex items-start justify-between mb-6">
           <div>
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Recent Documents
             </p>
-            <Link
-              href="/activity?tab=uploads&sort=received-desc"
-              className="text-xs text-blue-600 hover:underline mt-1 inline-block"
-            >
-              View all
-            </Link>
           </div>
           <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-blue-500/20">
             <Bell className="size-6 text-blue-500" />
@@ -74,6 +73,7 @@ export function AlertFeed() {
                 <Link
                   key={a.id}
                   href={`/clients/${a.client_id}`}
+                  onClick={(e) => e.stopPropagation()}
                   className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
                 >
                   {/* Left: Client name */}

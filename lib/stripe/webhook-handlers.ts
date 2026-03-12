@@ -185,7 +185,7 @@ export async function handleSubscriptionDeleted(
   // Find the org by subscription ID
   const { data: org, error: lookupError } = await supabase
     .from("organisations")
-    .select("id")
+    .select("id, plan_tier")
     .eq("stripe_subscription_id", subscription.id)
     .maybeSingle();
 
@@ -200,6 +200,16 @@ export async function handleSubscriptionDeleted(
   if (!org) {
     console.warn(
       `customer.subscription.deleted: no org found for subscription ${subscription.id}`
+    );
+    return;
+  }
+
+  // If the org was already downgraded to free (via change-plan endpoint),
+  // the subscription_id will have been cleared. If we still matched, it
+  // means the webhook arrived before the DB update — skip overriding.
+  if (org.plan_tier === "free") {
+    console.log(
+      `customer.subscription.deleted: org ${org.id} already on free plan, skipping`
     );
     return;
   }

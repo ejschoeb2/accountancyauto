@@ -44,19 +44,21 @@ export function MemberSettingsCard({
   const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
   const senderDomain = defaultEmailSettings.senderAddress.split("@")[1] ?? "phasetwo.uk";
 
-  const [replyTo, setReplyTo] = useState(defaultEmailSettings.replyTo);
+  const defaultReplyToLocalPart = defaultEmailSettings.replyTo.split("@")[0] ?? "hello";
+  const [replyToLocalPart, setReplyToLocalPart] = useState(defaultReplyToLocalPart);
 
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const currentAddress = `${senderLocalPart}@${senderDomain}`;
+  const currentReplyTo = `${replyToLocalPart}@${senderDomain}`;
 
   const isDirty =
     hour !== String(defaultSendHour) ||
     senderName !== defaultEmailSettings.senderName ||
     currentAddress !== defaultEmailSettings.senderAddress ||
-    replyTo !== defaultEmailSettings.replyTo;
+    currentReplyTo !== defaultEmailSettings.replyTo;
 
   function handleSave() {
     setSaved(false);
@@ -74,7 +76,7 @@ export function MemberSettingsCard({
       const emailResult = await updateUserEmailSettings({
         senderName: senderName.trim(),
         senderAddress: currentAddress,
-        replyTo: replyTo.trim(),
+        replyTo: currentReplyTo,
       });
 
       if (emailResult.error) {
@@ -182,18 +184,25 @@ export function MemberSettingsCard({
             <label htmlFor="member-reply-to" className="text-sm font-medium">
               Reply-To Address
             </label>
-            <Input
-              id="member-reply-to"
-              type="email"
-              value={replyTo}
-              onChange={(e) => {
-                setReplyTo(e.target.value);
-                setSaved(false);
-                setError(null);
-              }}
-              disabled={isPending}
-              placeholder="replies@yourdomain.co.uk"
-            />
+            <div className="flex items-center gap-0">
+              <Input
+                id="member-reply-to"
+                type="text"
+                value={replyToLocalPart}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
+                  setReplyToLocalPart(value);
+                  setSaved(false);
+                  setError(null);
+                }}
+                disabled={isPending}
+                placeholder="hello"
+                className="rounded-r-none"
+              />
+              <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+                @{senderDomain}
+              </div>
+            </div>
             <p className="text-xs text-muted-foreground">
               When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
             </p>

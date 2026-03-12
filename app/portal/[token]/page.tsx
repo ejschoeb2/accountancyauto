@@ -58,7 +58,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   }
 
   // Fetch checklist and org/client names server-side
-  const [requirementsResult, customisationsResult, clientResult, filingTypeResult] = await Promise.all([
+  const [requirementsResult, customisationsResult, clientResult, filingTypeResult, existingDocsResult] = await Promise.all([
     supabase.from('filing_document_requirements')
       .select('id, document_type_id, is_mandatory, document_types(id, code, label, expected_mime_types)')
       .eq('filing_type_id', portalToken.filing_type_id),
@@ -74,6 +74,11 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       .select('name')
       .eq('id', portalToken.filing_type_id)
       .single(),
+    supabase.from('client_documents')
+      .select('id, document_type_id, original_filename, rejected_at')
+      .eq('client_id', portalToken.client_id)
+      .eq('filing_type_id', portalToken.filing_type_id)
+      .order('created_at', { ascending: false }),
   ]);
 
   const disabledTypeIds = new Set(
@@ -100,6 +105,17 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
       document_types: { id: null, code: null, label: a.ad_hoc_label ?? '', expected_mime_types: [] },
     })),
   ];
+
+  // Build map of existing documents by document_type_id for pre-populating the checklist
+  const existingDocsByTypeId: Record<string, { filename: string; rejected: boolean }[]> = {};
+  for (const doc of existingDocsResult.data ?? []) {
+    if (!doc.document_type_id) continue;
+    if (!existingDocsByTypeId[doc.document_type_id]) existingDocsByTypeId[doc.document_type_id] = [];
+    existingDocsByTypeId[doc.document_type_id].push({
+      filename: doc.original_filename,
+      rejected: doc.rejected_at != null,
+    });
+  }
 
   const orgName = (clientResult.data?.organisations as { name?: string } | null)?.name ?? 'Your accountant';
   const clientName = clientResult.data?.display_name || clientResult.data?.company_name || 'Client';
@@ -141,6 +157,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
           checklist={checklist}
           rawToken={token}
           orgName={orgName}
+          existingDocsByTypeId={existingDocsByTypeId}
         />
       </main>
     </div>

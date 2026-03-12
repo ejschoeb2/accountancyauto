@@ -5,8 +5,11 @@ import { stripe } from "@/lib/stripe/client";
 import {
   getPlanByTier,
   PAID_PLAN_TIERS,
+  PLAN_TIERS,
   type PlanTier,
 } from "@/lib/stripe/plans";
+
+const VALID_TIERS: PlanTier[] = ["free", ...PAID_PLAN_TIERS];
 
 /**
  * POST /api/stripe/change-plan
@@ -14,6 +17,9 @@ import {
  * Updates an existing Stripe subscription to a new plan tier.
  * Uses stripe.subscriptions.update() to swap the price, which
  * Stripe handles with proration automatically.
+ *
+ * Special case: tier="free" cancels the subscription immediately
+ * and resets the org to the free plan.
  *
  * The webhook handler (customer.subscription.updated) will sync
  * the new plan_tier and client_count_limit back to the database.
@@ -52,7 +58,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!PAID_PLAN_TIERS.includes(planTier as PlanTier)) {
+    if (!VALID_TIERS.includes(planTier as PlanTier)) {
       return NextResponse.json(
         { error: `Invalid plan tier: ${planTier}` },
         { status: 400 }
@@ -111,7 +117,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get new plan's price ID
+    // ── Downgrade to free: cancel subscription and reset org ──────────
+    if (planTier === "free") {
+      const freePlan = PLAN_TIERS.free;
+
+      // Cancel the subscription immediately in Stripe
+      await stripe.subscriptions.cancel(org.stripe_subscription_id);
+
+      // Update the org to the free plan directly (don't wait for webhook)
+      const { error: updateError } = await admin
+        .from("organisations")
+        .update({
+          plan_tier: "free",
+          client_count_limit: freePlan.clientLimit,
+          subscription_status: "active",
+          stripe_subscription_id: null,
+          stripe_price_id: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", orgId);
+
+      if (updateError) {
+        console.error(
+          `[change-plan] Failed to reset org ${orgId} to free:`,
+          updateError
+        );
+        return NextResponse.json(
+          { error: "Subscription cancelled but failed to update plan. Please contact support." },
+          { status: 500 }
+        );
+      }
+
+      console.log(
+        `[change-plan] org ${orgId} downgraded to free, subscription cancelled`
+      );
+      return NextResponse.json({ success: true });
+    }
+
+    // ── Change to a paid plan ────────────────────────────────────────
     const newPlan = getPlanByTier(planTier as PlanTier);
     if (!newPlan.priceId) {
       return NextResponse.json(

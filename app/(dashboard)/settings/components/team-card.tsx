@@ -142,6 +142,7 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
   }, [accountants]);
 
   const activeMembers = members.filter((m) => m.status === "active" && m.userId);
+  const isOnlyMember = activeMembers.length <= 1;
   const showReassign = activeMembers.length > 1;
 
   const refreshMembers = useCallback(async () => {
@@ -402,7 +403,7 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
                   No team members yet.
                 </p>
               ) : (
-                <div className="divide-y divide-border rounded-lg border">
+                <div className="divide-y divide-border rounded-lg border shadow-sm">
                   {members.map((member) => {
                     const stats = member.userId ? accountantMap.get(member.userId) : undefined;
                     const clientCount = stats?.clientCount ?? 0;
@@ -453,8 +454,9 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
                                 buttonType="icon-text"
                                 onClick={() => openRoleDialog(member)}
                                 disabled={
-                                  isChangingRole &&
-                                  roleDialog?.member.id === member.id
+                                  isOnlyMember ||
+                                  (isChangingRole &&
+                                  roleDialog?.member.id === member.id)
                                 }
                               >
                                 <ArrowLeftRight className="size-4" />
@@ -465,8 +467,9 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
                                 buttonType="icon-text"
                                 onClick={() => openRemoveDialog(member)}
                                 disabled={
-                                  isRemoving &&
-                                  removeDialog?.id === member.id
+                                  isOnlyMember ||
+                                  (isRemoving &&
+                                  removeDialog?.id === member.id)
                                 }
                               >
                                 <Trash2 className="size-4" />

@@ -20,6 +20,34 @@ const EMAIL_DEFAULTS: EmailSettings = {
   replyTo: "hello@prompt.accountants",
 };
 
+/**
+ * Get the org's verified custom domain from the organisations table.
+ * Returns null if no custom domain is configured or not verified.
+ */
+async function getOrgCustomDomain(orgId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("organisations")
+    .select("postmark_sender_domain, email_domain_verified")
+    .eq("id", orgId)
+    .single();
+  if (data?.postmark_sender_domain && data?.email_domain_verified) {
+    return data.postmark_sender_domain;
+  }
+  return null;
+}
+
+function getDefaultsForDomain(domain: string | null): EmailSettings {
+  if (domain) {
+    return {
+      senderName: "Prompt",
+      senderAddress: `hello@${domain}`,
+      replyTo: `hello@${domain}`,
+    };
+  }
+  return EMAIL_DEFAULTS;
+}
+
 const EMAIL_KEYS = {
   senderName: "email_sender_name",
   senderAddress: "email_sender_address",
@@ -169,19 +197,23 @@ export async function updateSetupMode(mode: SetupMode): Promise<{ error?: string
 export async function getEmailSettings(): Promise<EmailSettings> {
   const supabase = await createClient();
   const orgId = await getOrgId();
-  const { data } = await supabase
-    .from("app_settings")
-    .select("key, value")
-    .eq("org_id", orgId)
-    .is("user_id", null)
-    .in("key", Object.values(EMAIL_KEYS));
+  const [{ data }, customDomain] = await Promise.all([
+    supabase
+      .from("app_settings")
+      .select("key, value")
+      .eq("org_id", orgId)
+      .is("user_id", null)
+      .in("key", Object.values(EMAIL_KEYS)),
+    getOrgCustomDomain(orgId),
+  ]);
 
+  const defaults = getDefaultsForDomain(customDomain);
   const map = new Map(data?.map((r) => [r.key, r.value]) ?? []);
 
   return {
-    senderName: map.get(EMAIL_KEYS.senderName) ?? EMAIL_DEFAULTS.senderName,
-    senderAddress: map.get(EMAIL_KEYS.senderAddress) ?? EMAIL_DEFAULTS.senderAddress,
-    replyTo: map.get(EMAIL_KEYS.replyTo) ?? EMAIL_DEFAULTS.replyTo,
+    senderName: map.get(EMAIL_KEYS.senderName) ?? defaults.senderName,
+    senderAddress: map.get(EMAIL_KEYS.senderAddress) ?? defaults.senderAddress,
+    replyTo: map.get(EMAIL_KEYS.replyTo) ?? defaults.replyTo,
   };
 }
 
@@ -233,14 +265,18 @@ export async function getUserEmailSettings(): Promise<EmailSettings> {
   } = await supabase.auth.getUser();
   if (!user) return EMAIL_DEFAULTS;
 
-  // Fetch user-specific rows
-  const { data: userRows } = await supabase
-    .from("app_settings")
-    .select("key, value")
-    .eq("org_id", orgId)
-    .eq("user_id", user.id)
-    .in("key", Object.values(EMAIL_KEYS));
+  // Fetch user-specific rows and custom domain in parallel
+  const [{ data: userRows }, customDomain] = await Promise.all([
+    supabase
+      .from("app_settings")
+      .select("key, value")
+      .eq("org_id", orgId)
+      .eq("user_id", user.id)
+      .in("key", Object.values(EMAIL_KEYS)),
+    getOrgCustomDomain(orgId),
+  ]);
 
+  const defaults = getDefaultsForDomain(customDomain);
   const userMap = new Map(userRows?.map((r) => [r.key, r.value]) ?? []);
 
   // Fetch org-level defaults for any keys not found in user rows
@@ -263,9 +299,9 @@ export async function getUserEmailSettings(): Promise<EmailSettings> {
   const get = (key: string, def: string) => userMap.get(key) ?? orgMap.get(key) ?? def;
 
   return {
-    senderName: get(EMAIL_KEYS.senderName, EMAIL_DEFAULTS.senderName),
-    senderAddress: get(EMAIL_KEYS.senderAddress, EMAIL_DEFAULTS.senderAddress),
-    replyTo: get(EMAIL_KEYS.replyTo, EMAIL_DEFAULTS.replyTo),
+    senderName: get(EMAIL_KEYS.senderName, defaults.senderName),
+    senderAddress: get(EMAIL_KEYS.senderAddress, defaults.senderAddress),
+    replyTo: get(EMAIL_KEYS.replyTo, defaults.replyTo),
   };
 }
 

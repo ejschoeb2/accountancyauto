@@ -61,7 +61,8 @@ export function ClientPortalStep({ onComplete, onBack, initialSelection }: Clien
         </div>
 
         {/* Feature highlights */}
-        <Card className="p-6 space-y-5">
+        <p className="text-sm font-semibold">How it works</p>
+        <Card className="p-6 space-y-3">
           <div className="flex items-start gap-4">
             <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
               <Users className="size-5 text-violet-500" />

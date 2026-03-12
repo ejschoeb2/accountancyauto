@@ -916,6 +916,42 @@ export function DocumentCard({
       const docsRes = await fetch(`/api/clients/${clientId}/documents?filing_type_id=${filingTypeId}`);
       const docsData = docsRes.ok ? await docsRes.json() : { documents: [] };
       setDocuments(docsData.documents ?? []);
+
+      // Accountant upload to a specific checklist slot → auto-tick manually_received
+      if (targetTypeId && orgId) {
+        const existing = customisations.find(c => c.document_type_id === targetTypeId);
+        if (!existing?.manually_received) {
+          await supabase
+            .from('client_document_checklist_customisations')
+            .upsert(
+              {
+                org_id: orgId,
+                client_id: clientId,
+                filing_type_id: filingTypeId,
+                document_type_id: targetTypeId,
+                is_enabled: existing?.is_enabled ?? true,
+                is_ad_hoc: existing?.is_ad_hoc ?? false,
+                manually_received: true,
+              },
+              { onConflict: 'client_id,filing_type_id,document_type_id' }
+            );
+
+          // Update local state so effects fire immediately
+          setEffectiveChecklist(prev =>
+            prev.map(i =>
+              i.documentTypeId === targetTypeId ? { ...i, manuallyReceived: true } : i
+            )
+          );
+
+          // Reload customisations to keep IDs in sync
+          const { data: custData } = await supabase
+            .from('client_document_checklist_customisations')
+            .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
+            .eq('client_id', clientId)
+            .eq('filing_type_id', filingTypeId);
+          if (custData) setCustomisations(custData as Customisation[]);
+        }
+      }
     } catch {
       toast.error('Upload failed. Please try again.');
     } finally {

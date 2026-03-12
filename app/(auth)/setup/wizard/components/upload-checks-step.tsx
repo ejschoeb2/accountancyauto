@@ -62,7 +62,7 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection, initial
           <h2 className="text-2xl font-bold tracking-tight">Upload Checks</h2>
           <p className="text-sm text-muted-foreground">
             Choose what processing Prompt runs when clients upload documents through the portal.
-            You can change this at any time from Settings.
+            Upload checks can be tested in the sandbox — you can change this at any time from Settings.
           </p>
         </div>
 
@@ -77,7 +77,8 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection, initial
         </div>
 
         {/* Mode highlights */}
-        <Card className="p-6 space-y-5">
+        <p className="text-sm font-semibold">What each mode does</p>
+        <Card className="p-6 space-y-3">
           <div className="flex items-start gap-4">
             <div className="size-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
               <ShieldCheck className="size-5 text-violet-500" />
@@ -153,7 +154,7 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection, initial
           <div className="pt-2 border-t space-y-2">
             <div className="space-y-1">
               <p className="text-sm font-medium">Reject mismatched HMRC documents</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 When enabled, portal uploads of HMRC documents (P60, P45, SA302) that
                 clearly have the wrong tax year are rejected and the client is told to
                 upload the correct document. Other document types are unaffected.
@@ -178,7 +179,7 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection, initial
           <div className="pt-2 border-t space-y-2">
             <div className="space-y-1">
               <p className="text-sm font-medium">Auto-confirm verified uploads</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 When enabled, portal uploads with a &ldquo;Verified&rdquo; verdict are automatically
                 marked as received. Uploads that need review or have low confidence remain
                 pending for manual confirmation.

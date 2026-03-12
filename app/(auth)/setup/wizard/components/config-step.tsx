@@ -113,6 +113,9 @@ export function ConfigStep({
           <label htmlFor="wizard-send-hour" className="text-sm font-medium">
             Send Hour (UK time)
           </label>
+          <p className="text-xs text-muted-foreground">
+            When your daily reminder emails are sent.
+          </p>
           <Select
             value={hour}
             onValueChange={(v) => {
@@ -132,9 +135,6 @@ export function ConfigStep({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            When your daily reminder emails are sent.
-          </p>
         </div>
 
         {/* Email Identity */}
@@ -185,6 +185,9 @@ export function ConfigStep({
           <label htmlFor="wizard-reply-to" className="text-sm font-medium">
             Reply-To Address
           </label>
+          <p className="text-xs text-muted-foreground">
+            When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
+          </p>
           <div className="flex items-center gap-0">
             <Input
               id="wizard-reply-to"
@@ -202,9 +205,6 @@ export function ConfigStep({
               @{senderDomain}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
-          </p>
         </div>
 
       </div>

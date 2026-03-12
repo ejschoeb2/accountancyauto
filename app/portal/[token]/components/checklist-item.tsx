@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { AlertTriangle, CheckCircle, Loader2, Upload, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Loader2, Upload, XCircle, Ban } from 'lucide-react';
 import type { ChecklistItem as ChecklistItemType } from '../page';
 import { ExtractionConfirmationCard } from './upload-confirmation-card';
 import { ValidationWarningCard } from './validation-warning-card';
@@ -27,9 +27,15 @@ interface UploadedFile {
   validationWarnings: ValidationWarning[];
 }
 
+interface ExistingDoc {
+  filename: string;
+  rejected: boolean;
+}
+
 interface ChecklistItemProps {
   item: ChecklistItemType;
   uploaded: UploadedFile[];
+  existingDocs: ExistingDoc[];
   onUpload: (file: File) => Promise<void>;
   disabled?: boolean;
   duplicateWarning?: string;
@@ -40,6 +46,7 @@ interface ChecklistItemProps {
 export function ChecklistItem({
   item,
   uploaded,
+  existingDocs,
   onUpload,
   disabled,
   duplicateWarning,
@@ -50,7 +57,10 @@ export function ChecklistItem({
   const [error, setError] = useState<string | null>(null);
 
   const label = item.document_types?.label ?? 'Document';
-  const isUploaded = uploaded.length > 0;
+  const hasSessionUpload = uploaded.length > 0;
+  const hasExistingNonRejected = existingDocs.some(d => !d.rejected);
+  const isUploaded = hasSessionUpload || hasExistingNonRejected;
+  const hasRejected = existingDocs.some(d => d.rejected);
 
   // Build accept map from expected_mime_types
   const expectedMimes = item.document_types?.expected_mime_types ?? [];
@@ -87,11 +97,33 @@ export function ChecklistItem({
             <span className="text-sm font-medium truncate">{label}</span>
           </div>
 
-          {/* Uploaded files list — filenames only */}
+          {/* Existing documents from previous sessions */}
+          {existingDocs.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {existingDocs.map((d, i) => (
+                <div key={`existing-${i}`} className="flex items-center gap-1.5">
+                  {d.rejected ? (
+                    <>
+                      <Ban className="size-4 text-red-500 shrink-0" />
+                      <span className="text-xs text-red-500 truncate">{d.filename}</span>
+                      <span className="text-[10px] font-medium text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-full shrink-0">Rejected</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="size-4 text-green-600 shrink-0" />
+                      <span className="text-xs text-muted-foreground truncate">{d.filename}</span>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Uploaded files from this session */}
           {uploaded.length > 0 && (
             <div className="mt-2 space-y-1">
               {uploaded.map((u, i) => (
-                <div key={i} className="flex items-center gap-1.5">
+                <div key={`session-${i}`} className="flex items-center gap-1.5">
                   <CheckCircle className="size-4 text-green-600 shrink-0" />
                   <span className="text-xs text-muted-foreground truncate">{u.filename}</span>
                 </div>
@@ -117,18 +149,31 @@ export function ChecklistItem({
                   ? 'cursor-pointer bg-sky-500/20 text-sky-700'
                   : isUploaded
                   ? 'cursor-pointer bg-green-500/10 text-green-700 hover:bg-green-500/20'
+                  : hasRejected
+                  ? 'cursor-pointer bg-red-500/10 text-red-600 hover:bg-red-500/20'
                   : 'cursor-pointer bg-sky-500/10 text-sky-600 hover:bg-sky-500/20'
               }`}
             >
               <input {...getInputProps()} />
               <Upload className="size-4" />
-              {isDragActive ? 'Drop here' : isUploaded ? 'Replace' : 'Upload'}
+              {isDragActive ? 'Drop here' : isUploaded ? 'Replace' : hasRejected ? 'Re-upload' : 'Upload'}
             </div>
           )}
         </div>
       </div>
 
       {/* Full-width alerts — below the name + button row */}
+
+      {/* Rejection notice — only show if there are rejected docs and no accepted replacement */}
+      {hasRejected && !hasExistingNonRejected && !hasSessionUpload && (
+        <div className="mt-3 flex items-start gap-3 p-4 bg-red-500/10 rounded-xl">
+          <Ban className="size-5 text-red-500 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-red-500">Document rejected</p>
+            <p className="text-xs text-red-500/80">Your accountant has rejected the uploaded document. Please upload a replacement.</p>
+          </div>
+        </div>
+      )}
 
       {/* Duplicate warning */}
       {duplicateWarning && (

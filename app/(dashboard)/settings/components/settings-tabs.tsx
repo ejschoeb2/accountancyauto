@@ -139,13 +139,9 @@ export function SettingsTabs({
                 <Sparkles className="size-6 text-violet-500" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">
-                  {hasSubscription ? "Change your plan" : "Upgrade your plan"}
-                </h2>
+                <h2 className="text-lg font-semibold">Change your plan</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {hasSubscription
-                    ? "Switch to a plan that better fits your needs."
-                    : "Choose a plan to unlock more clients and features."}
+                  Choose a plan that fits your needs.
                 </p>
               </div>
             </div>

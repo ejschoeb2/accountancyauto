@@ -5,14 +5,16 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getDashboardMetrics, getClientStatusList, type DashboardMetrics, type ClientStatusRow } from '@/lib/dashboard/metrics';
 import { getWorkloadForecast, type MonthlyWorkload } from '@/lib/dashboard/forecast';
+import { getOnboardingProgress, type OnboardingProgress } from '@/lib/dashboard/onboarding';
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading';
 import { buttonBaseVariants } from '@/components/ui/button-base';
-import { Rocket, Zap } from 'lucide-react';
+import { EyeOff, Rocket, Zap } from 'lucide-react';
 import { SummaryCards } from './components/summary-cards';
 import { UpcomingDeadlines } from './components/upcoming-deadlines';
 import { StatusDistribution } from './components/status-distribution';
 import { AlertFeed } from './components/alert-feed';
 import { WorkloadForecast } from './components/workload-forecast';
+import { GettingStarted } from './components/getting-started';
 
 function DashboardContent() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -31,6 +33,8 @@ function DashboardContent() {
   });
   const [clientStatusList, setClientStatusList] = useState<ClientStatusRow[]>([]);
   const [forecastData, setForecastData] = useState<MonthlyWorkload[]>([]);
+  const [onboarding, setOnboarding] = useState<OnboardingProgress | null>(null);
+  const [showGettingStarted, setShowGettingStarted] = useState(false);
   const [loading, setLoading] = useState(true);
 
   usePageLoading('dashboard-data', loading);
@@ -42,11 +46,13 @@ function DashboardContent() {
       getDashboardMetrics(supabase),
       getClientStatusList(supabase),
       getWorkloadForecast(supabase),
+      getOnboardingProgress(supabase),
     ])
-      .then(([metricsData, clientsData, forecast]) => {
+      .then(([metricsData, clientsData, forecast, onboardingData]) => {
         setMetrics(metricsData);
         setClientStatusList(clientsData);
         setForecastData(forecast);
+        setOnboarding(onboardingData);
       })
       .catch((error) => {
         console.error('Error loading dashboard:', error);
@@ -75,16 +81,32 @@ function DashboardContent() {
             <Zap className="size-4" />
             Go further
           </Link>
-          <Link
-            href="/help#getting-started"
-            target="_blank"
-            className={buttonBaseVariants({ variant: 'green', buttonType: 'icon-text' })}
+          <button
+            onClick={() => setShowGettingStarted((v) => !v)}
+            className={buttonBaseVariants({
+              variant: showGettingStarted ? 'amber' : 'green',
+              buttonType: 'icon-text',
+            })}
           >
-            <Rocket className="size-4" />
-            Get started
-          </Link>
+            {showGettingStarted ? (
+              <>
+                <EyeOff className="size-4" />
+                Hide get started
+              </>
+            ) : (
+              <>
+                <Rocket className="size-4" />
+                Get started
+              </>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Getting started checklist */}
+      {onboarding && showGettingStarted && (
+        <GettingStarted progress={onboarding} />
+      )}
 
       {/* Summary metrics */}
       <SummaryCards metrics={metrics} />

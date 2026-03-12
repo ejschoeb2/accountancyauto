@@ -1300,10 +1300,15 @@ export async function finaliseWizardSetup(
     console.error("[finaliseWizardSetup] seed defaults error:", err);
   }
 
-  // 3. Queue building is intentionally skipped here.
-  // It makes hundreds of individual Supabase requests (one per client × filing
-  // type × schedule step) which takes 15+ seconds and causes the server action
-  // to time out. The cron pipeline will build the queue on its next run.
+  // 3. Build reminder queue (batch insert — single DB call, no timeout risk)
+  try {
+    const org = { id: orgId, name: "" };
+    await buildReminderQueue(admin, org, user.id);
+    await buildCustomScheduleQueue(admin, org, user.id);
+  } catch (err) {
+    console.error("[finaliseWizardSetup] queue building error:", err);
+    // Non-fatal: cron will pick up any missed entries on next run
+  }
 
   // 4. Mark org setup complete + clean up draft
   const { error: markError } = await admin

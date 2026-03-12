@@ -2,8 +2,9 @@
 
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, Upload, Loader2, Trash2, Info, FlaskConical } from 'lucide-react';
+import { Upload, Loader2, Trash2, Info, FlaskConical, RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { ButtonBase } from '@/components/ui/button-base';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import {
   Table,
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { DocumentPreviewModal, type ClientDocument, type ValidationWarning } from '@/app/(dashboard)/clients/[id]/components/document-preview-modal';
-import Link from 'next/link';
+
 
 // ---------------------------------------------------------------------------
 // Types
@@ -192,16 +193,17 @@ export default function UploadTestPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/settings" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="size-5" />
-        </Link>
+      <div className="flex items-center justify-between gap-4">
         <div className="space-y-1">
           <h1>Upload Check Sandbox</h1>
           <p className="text-muted-foreground">
             Test how Prompt classifies and validates documents — nothing is saved.
           </p>
         </div>
+        <ButtonBase variant="destructive" buttonType="icon-text" onClick={handleClearAll}>
+          <RotateCcw className="size-4" />
+          Reset
+        </ButtonBase>
       </div>
 
       {/* Upload area */}
@@ -232,7 +234,7 @@ export default function UploadTestPage() {
         </div>
 
         <div className="flex items-end gap-3">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <label htmlFor="tax-year-input" className="text-sm font-medium">Expected tax year</label>
             <Input
               id="tax-year-input"

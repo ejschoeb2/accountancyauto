@@ -34,6 +34,7 @@ import { FilingManagement } from './components/filing-management';
 import { ClientEmailHistoryTable } from './components/client-email-log-table';
 import { DsarExportButton } from './components/dsar-export-button';
 import { SendEmailModal } from '../components/send-email-modal';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { Client } from '@/app/actions/clients';
 
@@ -59,6 +60,30 @@ export default function ClientPage() {
 
   // Trigger refresh for email log
   const triggerRefresh = () => setRefreshKey(k => k + 1);
+
+  // Auto-refresh when a new document is uploaded for this client (e.g. via portal)
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`client-docs-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'client_documents',
+          filter: `client_id=eq.${id}`,
+        },
+        () => {
+          triggerRefresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   useEffect(() => {
     const fetchClient = async () => {

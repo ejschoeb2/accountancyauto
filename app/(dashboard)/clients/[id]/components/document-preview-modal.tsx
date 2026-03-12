@@ -205,7 +205,7 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [savingField, setSavingField] = useState(false);
   const [clearingReview, startClearTransition] = useTransition();
   const [markingReceived, setMarkingReceived] = useState(false);
@@ -338,21 +338,27 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
     finally { setDownloading(false); }
   };
 
-  const handleDelete = async () => {
-    if (!doc || !confirm('Delete this document? This cannot be undone.')) return;
-    setDeleting(true);
+  const handleReject = async () => {
+    if (!doc) return;
+    const isPortal = doc.source === 'portal_upload';
+    const msg = isPortal
+      ? 'Reject this document? The client will see it as rejected on their portal.'
+      : 'Delete this document? This cannot be undone.';
+    if (!confirm(msg)) return;
+    setRejecting(true);
     try {
+      const action = isPortal ? 'reject' : 'delete';
       const res = await fetch(`/api/clients/${clientId}/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete', documentId: doc.id }),
+        body: JSON.stringify({ action, documentId: doc.id }),
       });
-      if (!res.ok) { toast.error('Failed to delete'); return; }
-      toast.success('Document deleted');
+      if (!res.ok) { toast.error(isPortal ? 'Failed to reject' : 'Failed to delete'); return; }
+      toast.success(isPortal ? 'Document rejected' : 'Document deleted');
       onDeleted(doc.id);
       onClose();
-    } catch { toast.error('Failed to delete'); }
-    finally { setDeleting(false); }
+    } catch { toast.error(isPortal ? 'Failed to reject' : 'Failed to delete'); }
+    finally { setRejecting(false); }
   };
 
   const handleSaveField = async (
@@ -459,8 +465,8 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
 
   return (
     <Dialog open={!!doc} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="[&>button]:hidden sm:!max-w-7xl max-h-[90vh] p-0 gap-0">
-        <div className="flex h-[80vh]">
+      <DialogContent className="[&>button]:hidden sm:!max-w-[1350px] max-h-[95vh] p-0 gap-0">
+        <div className="flex h-[88vh]">
 
           {/* ── Left: preview area ── */}
           <div className="flex-1 min-w-0 bg-muted/20 overflow-hidden">
@@ -522,41 +528,34 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
           </div>
 
           {/* ── Right: info panel ── */}
-          <div className="w-[420px] shrink-0 border-l p-6 flex flex-col gap-6 overflow-y-auto">
-
-            {/* Client name (uploads mode only) */}
-            {isUploadsMode && clientName && (
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{clientName}</p>
-            )}
+          <div className="w-[480px] shrink-0 border-l p-6 flex flex-col gap-6 overflow-y-auto">
 
             {/* Filename */}
             <DialogTitle className="text-lg font-semibold leading-snug break-words">
               {doc?.original_filename ?? ''}
             </DialogTitle>
 
-            {/* Download / Mark Received / Delete actions (uploads mode: below heading) */}
-            {isUploadsMode && (
-              <div className="flex items-center gap-2">
-                <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
-                  {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                  Download
+            {/* Action buttons — same position for both modes */}
+            <div className="flex items-center gap-2">
+              <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
+                {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Download
+              </IconButtonWithText>
+              {doc?.document_type_id && (
+                <IconButtonWithText
+                  variant="green"
+                  onClick={handleMarkReceived}
+                  disabled={markingReceived || isReceived}
+                >
+                  {markingReceived ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
+                  {isReceived ? 'Received' : 'Mark Received'}
                 </IconButtonWithText>
-                {doc?.document_type_id && (
-                  <IconButtonWithText
-                    variant="green"
-                    onClick={handleMarkReceived}
-                    disabled={markingReceived || isReceived}
-                  >
-                    {markingReceived ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
-                    {isReceived ? 'Received' : 'Mark Received'}
-                  </IconButtonWithText>
-                )}
-                <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  Delete
-                </IconButtonWithText>
-              </div>
-            )}
+              )}
+              <IconButtonWithText variant="destructive" onClick={handleReject} disabled={rejecting}>
+                {rejecting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                Reject
+              </IconButtonWithText>
+            </div>
 
             {/* Assessment alert — directly below filename */}
             {assessment && (
@@ -571,6 +570,12 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
 
             {/* File details */}
             <div className="space-y-3">
+              {isUploadsMode && clientName && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Client</p>
+                  <p className="text-sm font-medium">{clientName}</p>
+                </div>
+              )}
               {doc?.document_types?.label && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Filing Type</p>
@@ -647,50 +652,26 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
               </IconButtonWithText>
             )}
 
-            {/* Actions — pushed to bottom */}
-            {isUploadsMode ? (
-              <div className="mt-auto pt-4 flex items-center gap-2">
-                <IconButtonWithText variant="blue" onClick={onPrevious} disabled={!hasPrevious}>
-                  <ChevronLeft className="size-4" />
-                  Previous
-                </IconButtonWithText>
-                <IconButtonWithText variant="blue" onClick={onNext} disabled={!hasNext}>
-                  Next
-                  <ChevronRight className="size-4" />
-                </IconButtonWithText>
-                <Separator orientation="vertical" className="h-6" />
-                <IconButtonWithText variant="amber" onClick={onClose}>
-                  <X className="size-4" />
-                  Close
-                </IconButtonWithText>
-              </div>
-            ) : (
-              <div className="mt-auto pt-4 flex items-center gap-2">
-                <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
-                  {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                  Download
-                </IconButtonWithText>
-                {doc?.document_type_id && (
-                  <IconButtonWithText
-                    variant="green"
-                    onClick={handleMarkReceived}
-                    disabled={markingReceived || isReceived}
-                  >
-                    {markingReceived ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
-                    {isReceived ? 'Received' : 'Mark Received'}
+            {/* Bottom navigation / close */}
+            <div className="mt-auto pt-4 flex items-center gap-2">
+              {isUploadsMode && (
+                <>
+                  <IconButtonWithText variant="blue" onClick={onPrevious} disabled={!hasPrevious}>
+                    <ChevronLeft className="size-4" />
+                    Previous
                   </IconButtonWithText>
-                )}
-                <IconButtonWithText variant="destructive" onClick={handleDelete} disabled={deleting}>
-                  {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                  Delete
-                </IconButtonWithText>
-                <Separator orientation="vertical" className="h-6" />
-                <IconButtonWithText variant="amber" onClick={onClose}>
-                  <X className="size-4" />
-                  Close
-                </IconButtonWithText>
-              </div>
-            )}
+                  <IconButtonWithText variant="blue" onClick={onNext} disabled={!hasNext}>
+                    Next
+                    <ChevronRight className="size-4" />
+                  </IconButtonWithText>
+                  <Separator orientation="vertical" className="h-6" />
+                </>
+              )}
+              <IconButtonWithText variant="amber" onClick={onClose}>
+                <X className="size-4" />
+                Close
+              </IconButtonWithText>
+            </div>
 
           </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2 } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -103,6 +103,7 @@ interface ClientTableProps {
   filingStatusMap: Record<string, FilingTypeStatus[]>;
   initialFilter?: string;
   initialSort?: string;
+  clientLimit: number | null;
 }
 
 // Client type options
@@ -142,7 +143,7 @@ const SORT_LABELS: Record<string, string> = {
   "type-asc": "Type (A-Z)",
 };
 
-export function ClientTable({ initialData, statusMap, filingStatusMap, initialFilter, initialSort }: ClientTableProps) {
+export function ClientTable({ initialData, statusMap, filingStatusMap, initialFilter, initialSort, clientLimit }: ClientTableProps) {
   const router = useRouter();
   const [data, setData] = useState<Client[]>(initialData);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -186,6 +187,11 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
     currentCount: number;
     limit: number;
   } | null>(null);
+
+  // Client limit alerts
+  const clientCount = data.length;
+  const isAtLimit = clientLimit !== null && clientCount >= clientLimit;
+  const isNearLimit = clientLimit !== null && !isAtLimit && clientCount >= clientLimit * 0.85;
 
   const handleClientCreated = (newClient: Client) => {
     setData((prev) => [...prev, newClient]);
@@ -998,7 +1004,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             type="button"
             variant="green"
             onClick={() => setIsCreateDialogOpen(true)}
-            title="Add a new client"
+            title={isAtLimit ? "Client limit reached — upgrade your plan" : "Add a new client"}
+            disabled={isAtLimit}
           >
             <Plus className="h-5 w-5" />
             Add Client
@@ -1168,6 +1175,24 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Client limit alerts */}
+      {isAtLimit && (
+        <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
+          <XCircle className="size-5 text-red-500 shrink-0" />
+          <p className="text-sm text-red-500">
+            You&apos;ve reached your plan limit of {clientLimit} clients. <a href="/settings?tab=billing" className="underline font-medium hover:text-red-600">Upgrade your plan</a> to add more.
+          </p>
+        </div>
+      )}
+      {isNearLimit && (
+        <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-xl">
+          <AlertTriangle className="size-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-600">
+            You&apos;re using {clientCount} of {clientLimit} clients on your plan. <a href="/settings?tab=billing" className="underline font-medium hover:text-amber-700">Upgrade</a> to add more capacity.
+          </p>
+        </div>
       )}
 
       {/* Results count */}

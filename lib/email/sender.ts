@@ -9,7 +9,7 @@ import { render } from '@react-email/render';
 import { ServerClient } from 'postmark';
 import { postmarkClient } from './client';
 import ReminderEmail from './templates/reminder';
-import { getEmailSettings, type EmailSettings } from '@/app/actions/settings';
+import { getUserEmailSettings, type EmailSettings } from '@/app/actions/settings';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // Module-level cache for email settings (used by single-tenant server actions)
@@ -20,13 +20,32 @@ const CACHE_TTL_MS = 60_000; // 1 minute
 async function getEmailFrom(): Promise<{ from: string; replyTo: string }> {
   const now = Date.now();
   if (!cachedSettings || now - cachedSettings.fetchedAt > CACHE_TTL_MS) {
-    cachedSettings = { data: await getEmailSettings(), fetchedAt: now };
+    cachedSettings = { data: await getUserEmailSettings(), fetchedAt: now };
   }
   const s = cachedSettings.data;
   return {
     from: `${s.senderName} <${s.senderAddress}>`,
     replyTo: s.replyTo,
   };
+}
+
+/**
+ * Get the org's verified custom domain for default email addresses.
+ * Falls back to 'prompt.accountants' if no custom domain is configured.
+ */
+async function getOrgDefaultDomain(
+  supabase: SupabaseClient,
+  orgId: string
+): Promise<string> {
+  const { data } = await supabase
+    .from('organisations')
+    .select('postmark_sender_domain, email_domain_verified')
+    .eq('id', orgId)
+    .single();
+  if (data?.postmark_sender_domain && data?.email_domain_verified) {
+    return data.postmark_sender_domain;
+  }
+  return 'prompt.accountants';
 }
 
 /**
@@ -37,16 +56,20 @@ async function getEmailFromForOrg(
   supabase: SupabaseClient,
   orgId: string
 ): Promise<{ from: string; replyTo: string }> {
-  const { data } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .eq('org_id', orgId)
-    .in('key', ['email_sender_name', 'email_sender_address', 'email_reply_to']);
+  const [{ data }, defaultDomain] = await Promise.all([
+    supabase
+      .from('app_settings')
+      .select('key, value')
+      .eq('org_id', orgId)
+      .in('key', ['email_sender_name', 'email_sender_address', 'email_reply_to']),
+    getOrgDefaultDomain(supabase, orgId),
+  ]);
 
+  const defaultAddress = `hello@${defaultDomain}`;
   const map = new Map(data?.map(r => [r.key, r.value]) ?? []);
   return {
-    from: `${map.get('email_sender_name') || 'Prompt'} <${map.get('email_sender_address') || 'hello@prompt.accountants'}>`,
-    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@prompt.accountants',
+    from: `${map.get('email_sender_name') || 'Prompt'} <${map.get('email_sender_address') || defaultAddress}>`,
+    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || defaultAddress,
   };
 }
 
@@ -62,29 +85,32 @@ async function getEmailFromForUser(
 ): Promise<{ from: string; replyTo: string }> {
   const keys = ['email_sender_name', 'email_sender_address', 'email_reply_to'];
 
-  // Fetch user-specific rows
-  const { data: userRows } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .eq('org_id', orgId)
-    .eq('user_id', userId)
-    .in('key', keys);
+  // Fetch user-specific rows, org-level defaults, and custom domain in parallel
+  const [{ data: userRows }, { data: orgRows }, defaultDomain] = await Promise.all([
+    supabase
+      .from('app_settings')
+      .select('key, value')
+      .eq('org_id', orgId)
+      .eq('user_id', userId)
+      .in('key', keys),
+    supabase
+      .from('app_settings')
+      .select('key, value')
+      .eq('org_id', orgId)
+      .is('user_id', null)
+      .in('key', keys),
+    getOrgDefaultDomain(supabase, orgId),
+  ]);
 
-  // Fetch org-level defaults (user_id IS NULL)
-  const { data: orgRows } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .eq('org_id', orgId)
-    .is('user_id', null)
-    .in('key', keys);
+  const defaultAddress = `hello@${defaultDomain}`;
 
   // User rows win over org rows
   const map = new Map(orgRows?.map(r => [r.key, r.value]) ?? []);
   (userRows ?? []).forEach(r => map.set(r.key, r.value));
 
   return {
-    from: `${map.get('email_sender_name') || 'Prompt'} <${map.get('email_sender_address') || 'hello@prompt.accountants'}>`,
-    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || 'hello@prompt.accountants',
+    from: `${map.get('email_sender_name') || 'Prompt'} <${map.get('email_sender_address') || defaultAddress}>`,
+    replyTo: map.get('email_reply_to') || map.get('email_sender_address') || defaultAddress,
   };
 }
 

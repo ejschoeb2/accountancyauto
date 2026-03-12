@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Brain, XCircle, AlertTriangle } from "lucide-react";
 import { NavLinks } from "@/components/nav-links";
@@ -79,8 +80,10 @@ export default async function DashboardLayout({
         <div className="max-w-7xl mx-auto h-20 flex items-center justify-between px-4 md:px-0">
           {/* Branding */}
           <div className="flex items-center gap-3">
-            <Brain className="text-violet-600" size={22} />
-            <span className="text-lg font-bold tracking-tight">Prompt</span>
+            <Link href="/" className="flex items-center gap-3">
+              <Brain className="text-violet-600" size={22} />
+              <span className="text-lg font-bold tracking-tight">Prompt</span>
+            </Link>
             {orgName && (
               <>
                 <span className="w-px h-4 bg-border" />

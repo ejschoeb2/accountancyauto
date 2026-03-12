@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { TrafficLightBadge } from './traffic-light-badge';
 import type { ClientStatusRow } from '@/lib/dashboard/metrics';
 import { CalendarClock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 interface UpcomingDeadlinesProps {
@@ -26,6 +27,8 @@ function getFilingTypeLabel(filingTypeId: string | null): string {
 }
 
 export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
+  const router = useRouter();
+
   // Filter to clients with deadlines, sort by deadline (earliest first), and take top 4
   const upcomingClients = clients
     .filter((c) => c.next_deadline !== null)
@@ -36,19 +39,16 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
     .slice(0, 6);
 
   return (
-    <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
+    <Card
+      className="group py-5 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+      onClick={() => router.push('/clients?sort=deadline-asc')}
+    >
       <CardContent className="px-5 py-0">
         <div className="flex items-start justify-between mb-6">
           <div>
             <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
               Upcoming Deadlines
             </p>
-            <Link
-              href="/clients?sort=deadline-asc"
-              className="text-xs text-violet-600 hover:underline mt-1 inline-block"
-            >
-              View all
-            </Link>
           </div>
           <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
             <CalendarClock className="size-6 text-violet-500" />
@@ -65,6 +65,7 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
                 <Link
                   key={client.id}
                   href={`/clients/${client.id}`}
+                  onClick={(e) => e.stopPropagation()}
                   className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
                 >
                   {/* Left: Company name */}

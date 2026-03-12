@@ -250,11 +250,10 @@ export function EmailSetupStep({
           <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
             <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-amber-600">Strongly recommended — takes under 5 minutes</p>
+              <p className="text-sm font-medium text-amber-600">Recommended</p>
               <p className="text-sm text-amber-600/80">
-                If you skip, reminders will send from <span className="font-mono">noreply@prompt.accountants</span>.
-                Clients who don&apos;t recognise the sender are more likely to ignore the email or mark it as spam.
-                You can set up your own domain at any time in Settings.
+                If you skip, reminders will send from the default @prompt.accountants domain.
+                You can set up your own domain at any time in Settings. Clients who don&apos;t recognise the sender are more likely to ignore the email or mark it as spam.
               </p>
             </div>
           </div>
@@ -263,6 +262,10 @@ export function EmailSetupStep({
             <Label htmlFor="email-domain" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               Your domain
             </Label>
+            <p className="text-xs text-muted-foreground">
+              Enter just the domain — no <span className="font-mono">https://</span> or <span className="font-mono">www</span>.
+              For example: <span className="font-mono">peninsula-accounting.co.uk</span>
+            </p>
             <Input
               id="email-domain"
               type="text"
@@ -277,10 +280,6 @@ export function EmailSetupStep({
               }}
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">
-              Enter just the domain — no <span className="font-mono">https://</span> or <span className="font-mono">www</span>.
-              For example: <span className="font-mono">peninsula-accounting.co.uk</span>
-            </p>
           </div>
 
           {error && (
@@ -594,6 +593,9 @@ export function EmailSetupStep({
               <label htmlFor="settings-reply-to" className="text-sm font-medium">
                 Reply-To Address
               </label>
+              <p className="text-xs text-muted-foreground">
+                When a client replies to a reminder email, their reply is sent to this address. If you leave it as the default, replies go straight to your normal inbox. You can also set a different address here if you&apos;d prefer to keep client responses in a separate inbox.
+              </p>
               <div className="flex items-center gap-0">
                 <Input
                   id="settings-reply-to"
@@ -608,15 +610,15 @@ export function EmailSetupStep({
                   @{senderDomain}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                When a client replies to a reminder email, their reply is sent to this address. If you leave it as the default, replies go straight to your normal inbox. You can also set a different address here if you&apos;d prefer to keep client responses in a separate inbox.
-              </p>
             </div>
 
             <div className="space-y-1.5">
               <label htmlFor="settings-send-hour" className="text-sm font-medium">
                 Send Hour (UK time)
               </label>
+              <p className="text-xs text-muted-foreground">
+                When your daily reminder emails are sent.
+              </p>
               <Select
                 value={sendHour}
                 onValueChange={setSendHour}
@@ -633,9 +635,6 @@ export function EmailSetupStep({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                When your daily reminder emails are sent.
-              </p>
             </div>
           </div>
         </Card>

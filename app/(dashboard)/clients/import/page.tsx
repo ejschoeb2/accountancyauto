@@ -732,37 +732,29 @@ export default function ClientImportPage() {
                 )}
 
                 {overLimitCount > 0 && (
-                  <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
-                    <AlertCircle className="size-4 mt-0.5 shrink-0" />
-                    <span>
-                      Your plan allows <strong>{clientLimit}</strong> clients (
-                      {currentClientCount} existing). Only the first{" "}
-                      <strong>{importableCount}</strong> of{" "}
-                      {editableRows.length} rows will be imported. The{" "}
-                      <strong>
-                        {overLimitCount} highlighted row
-                        {overLimitCount !== 1 ? "s" : ""}
-                      </strong>{" "}
-                      below will be skipped. Upgrade your plan to import all
-                      clients.
-                    </span>
+                  <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+                    <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-amber-600">
+                        {overLimitCount} {overLimitCount === 1 ? "row" : "rows"} over your plan limit
+                      </p>
+                      <p className="text-sm text-amber-600/80">
+                        You&apos;re trying to import {editableRows.length} clients but your current plan only allows {clientLimit} ({currentClientCount} existing).
+                        The last {overLimitCount} {overLimitCount === 1 ? "row" : "rows"} highlighted in red will be skipped.
+                        Remove rows or <a href="/settings?tab=billing" className="underline font-medium hover:text-amber-700">upgrade your plan</a> to import them all.
+                      </p>
+                    </div>
                   </div>
                 )}
 
                 {incompleteRows.length > 0 && (
-                  <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 text-amber-800 rounded-lg">
-                    <AlertTriangle className="size-4 mt-0.5 shrink-0" />
-                    <span>
-                      <strong>
-                        {incompleteRows.length}{" "}
-                        {incompleteRows.length === 1 ? "row is" : "rows are"}
-                      </strong>{" "}
-                      missing required fields. Fill in{" "}
-                      <strong>Email</strong>,{" "}
-                      <strong>Client Type</strong> and{" "}
-                      <strong>Year End Date</strong> for every row before
-                      importing.
-                    </span>
+                  <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+                    <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-sm text-amber-600">
+                      <strong>{incompleteRows.length} {incompleteRows.length === 1 ? "row is" : "rows are"}</strong>{" "}
+                      missing required fields. Fill in <strong>Email</strong>, <strong>Client Type</strong> and{" "}
+                      <strong>Year End Date</strong> for every row before importing.
+                    </p>
                   </div>
                 )}
 

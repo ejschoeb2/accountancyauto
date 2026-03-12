@@ -30,10 +30,16 @@ interface PendingDuplicate {
   file: File;
 }
 
+interface ExistingDoc {
+  filename: string;
+  rejected: boolean;
+}
+
 interface PortalChecklistProps {
   checklist: ChecklistItemType[];
   rawToken: string;
   orgName: string;
+  existingDocsByTypeId: Record<string, ExistingDoc[]>;
 }
 
 // Phase 29: files over this threshold route through provider-native chunked upload
@@ -109,13 +115,19 @@ async function uploadInChunks(
   throw new Error('Upload loop exited without receiving a completion response from provider');
 }
 
-export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklistProps) {
+export function PortalChecklist({ checklist, rawToken, orgName, existingDocsByTypeId }: PortalChecklistProps) {
   const [uploadedByItemId, setUploadedByItemId] = useState<Record<string, UploadedFile[]>>({});
   const [pendingDuplicate, setPendingDuplicate] = useState<PendingDuplicate | null>(null);
 
   const requiredItems = checklist.filter(item => item.is_mandatory);
   const optionalItems = checklist.filter(item => !item.is_mandatory);
-  const requiredProvided = requiredItems.filter(item => (uploadedByItemId[item.id] ?? []).length > 0).length;
+  const requiredProvided = requiredItems.filter(item => {
+    const sessionUploads = (uploadedByItemId[item.id] ?? []).length > 0;
+    const existingNonRejected = item.document_type_id
+      ? (existingDocsByTypeId[item.document_type_id] ?? []).some(d => !d.rejected)
+      : false;
+    return sessionUploads || existingNonRejected;
+  }).length;
 
   const handleUpload = async (itemId: string, file: File, confirmDuplicate = false, documentTypeId?: string | null, documentTypeCode?: string | null) => {
     // ── Phase 29: Large file path — provider-native chunked upload ─────────────
@@ -272,11 +284,13 @@ export function PortalChecklist({ checklist, rawToken, orgName }: PortalChecklis
 
   const renderItem = (item: ChecklistItemType) => {
     const itemHasDuplicate = pendingDuplicate?.itemId === item.id;
+    const existing = item.document_type_id ? (existingDocsByTypeId[item.document_type_id] ?? []) : [];
     return (
       <ChecklistItem
         key={item.id}
         item={item}
         uploaded={uploadedByItemId[item.id] ?? []}
+        existingDocs={existing}
         onUpload={(file) => handleUpload(item.id, file, false, item.document_type_id, item.document_types?.code ?? null)}
         disabled={pendingDuplicate !== null && !itemHasDuplicate}
         duplicateWarning={itemHasDuplicate ? pendingDuplicate?.file.name : undefined}

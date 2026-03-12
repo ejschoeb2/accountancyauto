@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   let query = supabase
     .from('client_documents')
     .select(
-      'id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, document_types(code, label), extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, page_count, needs_review, validation_warnings'
+      'id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, document_types(code, label), extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, page_count, needs_review, validation_warnings, rejected_at'
     )
     .eq('client_id', clientId)
     .order('created_at', { ascending: false });
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const serviceSupabase = createServiceClient();
     const { data: doc } = await serviceSupabase
       .from('client_documents')
-      .select('id, storage_path, org_id, storage_backend, mime_type, original_filename')
+      .select('id, storage_path, org_id, storage_backend, original_filename')
       .eq('id', documentId)
       .eq('client_id', clientId)
       .single();
@@ -102,11 +102,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         action: 'download',
       });
 
+      // Infer MIME type from original filename (mime_type column does not exist)
+      const ext = doc.original_filename?.split('.').pop()?.toLowerCase();
+      const mimeMap: Record<string, string> = {
+        pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+        png: 'image/png', tiff: 'image/tiff', tif: 'image/tiff',
+        doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        csv: 'text/csv',
+      };
+      const inferredMime = (ext && mimeMap[ext]) || 'application/octet-stream';
+
       // Return raw bytes — do NOT return { signedUrl } for Google Drive documents
       // Convert Buffer to Uint8Array: Response BodyInit accepts Uint8Array but not Buffer directly
       return new Response(new Uint8Array(bytes), {
         headers: {
-          'Content-Type': doc.mime_type ?? 'application/octet-stream',
+          'Content-Type': inferredMime,
           'Content-Disposition': `attachment; filename="${doc.original_filename ?? 'document'}"`,
         },
       });
@@ -216,6 +227,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('client_id', clientId);  // belt-and-braces ownership check
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Reject document action (soft-delete — visible to client portal) ────
+  if (action === 'reject') {
+    const { documentId } = body as { documentId: string };
+
+    // Use session-scoped client — RLS enforces org ownership
+    const { error } = await supabase
+      .from('client_documents')
+      .update({ rejected_at: new Date().toISOString() })
+      .eq('id', documentId)
+      .eq('client_id', clientId);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Audit log
+    const serviceSupabase = createServiceClient();
+    const { data: doc } = await serviceSupabase
+      .from('client_documents')
+      .select('org_id')
+      .eq('id', documentId)
+      .single();
+
+    if (doc) {
+      await serviceSupabase.from('document_access_log').insert({
+        org_id: doc.org_id,
+        document_id: documentId,
+        user_id: user.id,
+        action: 'reject',
+      });
+    }
+
     return NextResponse.json({ success: true });
   }
 

@@ -57,7 +57,7 @@ import {
 type UserType = "new-admin" | "invited-member" | null;
 
 // New-admin step names (index matches ADMIN_STEPS position)
-type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "portal" | "upload-checks" | "storage" | "complete";
+type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "portal" | "storage" | "upload-checks" | "complete";
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
@@ -71,8 +71,8 @@ function getAdminSteps(portalEnabled: boolean) {
     { label: "Client Portal" },
   ];
   if (portalEnabled) {
-    steps.push({ label: "Upload Checks" });
     steps.push({ label: "Storage" });
+    steps.push({ label: "Upload Checks" });
   }
   steps.push({ label: "Complete" });
   return steps;
@@ -87,8 +87,8 @@ function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
       import: 3,
       email: 4,
       portal: 5,
-      "upload-checks": 6,
-      storage: 7,
+      storage: 6,
+      "upload-checks": 7,
       complete: 8,
     };
     return map[step];
@@ -132,7 +132,7 @@ const PLAN_TIERS = [
     name: "Solo",
     price: 19 as number | null,
     priceNote: "/mo",
-    range: "11 – 40 clients",
+    range: "Up to 40 clients",
     clientLimit: 40,
     tagline: "For sole traders and bookkeepers managing a small client list.",
     featured: false,
@@ -142,7 +142,7 @@ const PLAN_TIERS = [
     name: "Starter",
     price: 39 as number | null,
     priceNote: "/mo",
-    range: "41 – 80 clients",
+    range: "Up to 80 clients",
     clientLimit: 80,
     tagline: "For independent accountants and small practices.",
     featured: false,
@@ -152,7 +152,7 @@ const PLAN_TIERS = [
     name: "Practice",
     price: 69 as number | null,
     priceNote: "/mo",
-    range: "81 – 200 clients",
+    range: "Up to 200 clients",
     clientLimit: 200,
     tagline: "For growing practices managing a wide range of deadlines.",
     featured: true,
@@ -162,7 +162,7 @@ const PLAN_TIERS = [
     name: "Firm",
     price: 109 as number | null,
     priceNote: "/mo",
-    range: "201 – 400 clients",
+    range: "Up to 400 clients",
     clientLimit: 400,
     tagline: "For established firms with a broad portfolio of clients.",
     featured: false,
@@ -650,7 +650,7 @@ export default function WizardPage() {
     setClientPortalEnabled(enabled);
     setPortalSelection(enabled ? "yes" : "no");
     if (enabled) {
-      advanceToStep("upload-checks");
+      advanceToStep("storage");
     } else {
       // Portal disabled — skip to complete (don't save draft for "complete" step)
       setAdminStep("complete");
@@ -661,12 +661,12 @@ export default function WizardPage() {
     setUploadCheckSelection(mode);
     setAutoReceiveSelection(autoReceive);
     setRejectMismatchedSelection(rejectMismatched);
-    advanceToStep("storage");
+    // Don't save draft for "complete" step (Pitfall 4: race with markOrgSetupComplete)
+    setAdminStep("complete");
   };
 
   const handleStorageComplete = () => {
-    // Don't save draft for "complete" step (Pitfall 4: race with markOrgSetupComplete)
-    setAdminStep("complete");
+    advanceToStep("upload-checks");
   };
 
   const handleGoToDashboard = async () => {
@@ -893,6 +893,11 @@ export default function WizardPage() {
               {/* URL Slug */}
               <div className="space-y-1.5">
                 <Label htmlFor="slug" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">URL slug</Label>
+                {!slug && (
+                  <p className="text-xs text-muted-foreground">
+                    Enter your firm name above to auto-suggest a slug, or type your own.
+                  </p>
+                )}
                 <div className="flex-1 relative">
                   <Input
                     id="slug"
@@ -929,11 +934,6 @@ export default function WizardPage() {
                 {slugStatus === "unavailable" && slugReason && (
                   <p className="text-xs text-destructive">{slugReason}</p>
                 )}
-                {!slug && (
-                  <p className="text-xs text-muted-foreground">
-                    Enter your firm name above to auto-suggest a slug, or type your own.
-                  </p>
-                )}
               </div>
 
               {firmError && (
@@ -959,7 +959,7 @@ export default function WizardPage() {
 
       {/* ── Step 3: Plan Selection ── */}
       {adminStep === "plan" && (
-        <div className="max-w-4xl mx-auto space-y-4 min-h-[520px]">
+        <div className="max-w-5xl mx-auto space-y-4 min-h-[520px]">
           <div className="rounded-2xl border bg-card shadow-sm p-4 sm:p-8 space-y-6">
             <div className="space-y-1">
               <h1 className="text-2xl font-bold tracking-tight">Choose your plan</h1>
@@ -972,7 +972,7 @@ export default function WizardPage() {
             )}
 
             {/* 5 cards — responsive: 2 cols mobile, 3 cols tablet, 5 cols desktop */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {PLAN_TIERS.map((plan) => {
                 const isSelected = selectedTier === plan.key;
                 const isThisLoading = isCreatingOrg && isSelected;
@@ -1117,7 +1117,7 @@ export default function WizardPage() {
         <div className="min-h-[520px]">
           <UploadChecksStep
             onComplete={handleUploadChecksComplete}
-            onBack={() => advanceToStep("portal")}
+            onBack={() => advanceToStep("storage")}
             initialSelection={uploadCheckSelection}
             initialAutoReceive={autoReceiveSelection}
             initialRejectMismatched={rejectMismatchedSelection}
@@ -1132,7 +1132,7 @@ export default function WizardPage() {
             storageConnected={storageConnected}
             storageError={storageError}
             onComplete={handleStorageComplete}
-            onBack={() => advanceToStep("upload-checks")}
+            onBack={() => advanceToStep("portal")}
             onBeforeProviderConnect={async () => {
               isNavigatingAway.current = true;
               // Save draft before leaving for OAuth — must await to ensure

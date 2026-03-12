@@ -96,22 +96,8 @@ export function UploadsTable({ initialSort }: UploadsTableProps) {
   // Document preview modal state
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
   const [previewClientId, setPreviewClientId] = useState<string>('');
-
-  const handleRowClick = useCallback(async (upload: PortalUpload) => {
-    if (!upload.client_id) return;
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('client_documents')
-      .select('id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, page_count, needs_review, validation_warnings, document_types(id, code, label)')
-      .eq('id', upload.id)
-      .single();
-    if (error || !data) {
-      toast.error('Failed to load document details');
-      return;
-    }
-    setPreviewDoc(data as unknown as ClientDocument);
-    setPreviewClientId(upload.client_id);
-  }, []);
+  const [previewClientName, setPreviewClientName] = useState<string | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number>(-1);
 
   // Debounce search
   useEffect(() => {
@@ -178,6 +164,42 @@ export function UploadsTable({ initialSort }: UploadsTableProps) {
         return rows.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
     }
   }, [filteredData, sortBy]);
+
+  // Preview navigation — must be after sortedData
+  const openPreviewForUpload = useCallback(async (upload: PortalUpload, index: number) => {
+    if (!upload.client_id) return;
+    const supabase = createClient();
+    const { data: docData, error } = await supabase
+      .from('client_documents')
+      .select('id, filing_type_id, document_type_id, original_filename, received_at, classification_confidence, source, created_at, retention_flagged, extracted_tax_year, extracted_employer, extracted_paye_ref, extraction_source, page_count, needs_review, validation_warnings, document_types(id, code, label)')
+      .eq('id', upload.id)
+      .single();
+    if (error || !docData) {
+      toast.error('Failed to load document details');
+      return;
+    }
+    setPreviewDoc(docData as unknown as ClientDocument);
+    setPreviewClientId(upload.client_id);
+    setPreviewClientName(upload.client_name);
+    setPreviewIndex(index);
+  }, []);
+
+  const handleRowClick = useCallback((upload: PortalUpload) => {
+    const index = sortedData.findIndex((u) => u.id === upload.id);
+    openPreviewForUpload(upload, index);
+  }, [sortedData, openPreviewForUpload]);
+
+  const handlePrevious = useCallback(() => {
+    if (previewIndex <= 0) return;
+    const prevUpload = sortedData[previewIndex - 1];
+    if (prevUpload) openPreviewForUpload(prevUpload, previewIndex - 1);
+  }, [previewIndex, sortedData, openPreviewForUpload]);
+
+  const handleNext = useCallback(() => {
+    if (previewIndex >= sortedData.length - 1) return;
+    const nextUpload = sortedData[previewIndex + 1];
+    if (nextUpload) openPreviewForUpload(nextUpload, previewIndex + 1);
+  }, [previewIndex, sortedData, openPreviewForUpload]);
 
   function toggleFilingFilter(v: string) {
     setActiveFilingFilters((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n; });
@@ -463,12 +485,18 @@ export function UploadsTable({ initialSort }: UploadsTableProps) {
       <DocumentPreviewModal
         doc={previewDoc}
         clientId={previewClientId}
-        onClose={() => setPreviewDoc(null)}
+        clientName={previewClientName}
+        onClose={() => { setPreviewDoc(null); setPreviewIndex(-1); }}
         onDeleted={(docId) => {
           setPreviewDoc(null);
+          setPreviewIndex(-1);
           setData((prev) => prev.filter((u) => u.id !== docId));
           setTotalCount((prev) => prev - 1);
         }}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        hasPrevious={previewIndex > 0}
+        hasNext={previewIndex < sortedData.length - 1}
       />
 
       {/* Pagination */}

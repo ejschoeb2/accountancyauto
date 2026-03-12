@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { getOrgId } from '@/lib/auth/org-context';
 import { resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import { classifyDocument } from '@/lib/documents/classify';
 import { runIntegrityChecks } from '@/lib/documents/integrity';
@@ -34,8 +35,12 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const orgId: string | null = user.app_metadata?.org_id ?? null;
-  if (!orgId) return NextResponse.json({ error: 'No organisation found' }, { status: 400 });
+  let orgId: string;
+  try {
+    orgId = await getOrgId();
+  } catch {
+    return NextResponse.json({ error: 'No organisation found' }, { status: 400 });
+  }
 
   // ── Parse form data ─────────────────────────────────────────────────────────
   const formData = await request.formData();

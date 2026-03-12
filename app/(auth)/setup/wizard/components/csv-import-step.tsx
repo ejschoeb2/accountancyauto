@@ -129,16 +129,17 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
 
   // ── Scroll to top when entering edit-data (prevents viewport starting at bottom) ──
   const reviewTopRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (stepState === "edit-data") {
-      // Double rAF ensures the browser has completed layout after the table renders,
-      // then scroll so the review heading is at the top of the viewport
+      // Scroll the page to the very top first, then ensure the table container
+      // also starts at the top row (not scrolled to the bottom).
+      window.scrollTo({ top: 0, behavior: "instant" });
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (reviewTopRef.current) {
-            reviewTopRef.current.scrollIntoView({ behavior: "instant", block: "start" });
-          } else {
-            window.scrollTo({ top: 0, behavior: "instant" });
+          window.scrollTo({ top: 0, behavior: "instant" });
+          if (tableContainerRef.current) {
+            tableContainerRef.current.scrollTop = 0;
           }
         });
       });
@@ -801,7 +802,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
               </p>
             </div>
 
-          <div className="space-y-4 max-h-[320px] overflow-y-auto">
+          <div className="space-y-4 max-h-[420px] overflow-y-auto">
             {error && (
               <div className="flex items-center gap-2 text-destructive text-sm p-3 bg-destructive/5 rounded-lg">
                 <AlertCircle className="size-4" />
@@ -866,8 +867,8 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
 
                     {/* Preview values */}
                     {mappedColumn && sampleValues && sampleValues.length > 0 && (
-                      <div className="bg-white border hover:border-primary/20 shadow-sm hover:shadow-md transition-all duration-300 rounded-xl p-3">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Preview</p>
+                      <div className="bg-blue-500/10 rounded-xl p-3">
+                        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1.5">Preview</p>
                         <div className="space-y-0.5">
                           {sampleValues.map((value, idx) => {
                             // Format preview value based on field type
@@ -932,7 +933,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
             <div className="space-y-1">
               <h2 className="text-2xl font-bold tracking-tight">Review &amp; Edit Import Data</h2>
               <p className="text-sm text-muted-foreground">
-                Review and complete your data before importing. Company names will be matched to existing clients.
+                Review and complete your data before importing. Use the select rows to edit feature to make bulk changes, or start over to re-upload your file.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1018,7 +1019,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                 )}
 
                 {/* Editable data table — bleeds to layout edges like client table */}
-                <div className="-mx-8 max-h-[560px] overflow-y-auto border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
+                <div ref={tableContainerRef} className="-mx-8 max-h-[min(420px,50vh)] overflow-y-auto border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
                   <Table className="min-w-[1520px]">
                     <TableHeader className="sticky top-0 z-10 bg-white [&_th]:bg-white shadow-[0_1px_0_0_hsl(var(--border))]">
                       <TableRow>

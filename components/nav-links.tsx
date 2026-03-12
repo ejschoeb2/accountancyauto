@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/activity", label: "Activity" },
   { href: "/clients", label: "Clients" },
+  { href: "/activity", label: "Activity" },
   { href: "/schedules", label: "Reminder Schedules" },
   { href: "/templates", label: "Email Templates" },
 ];
