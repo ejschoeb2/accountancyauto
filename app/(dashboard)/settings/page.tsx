@@ -126,6 +126,7 @@ export default async function SettingsPage() {
         totalClients={totalClients}
         clientLimit={clientLimit}
         planName={planConfig.name}
+        currentTier={(orgResult.data?.plan_tier ?? "free") as PlanTier}
         subscriptionStatus={
           orgResult.data?.subscription_status as
             | "trialing"

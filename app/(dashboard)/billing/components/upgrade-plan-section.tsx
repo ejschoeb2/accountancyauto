@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowUp, ArrowDown, ArrowRight } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
   PLAN_TIERS,
@@ -9,24 +9,41 @@ import {
   type PlanTier,
 } from "@/lib/stripe/plans";
 
+/** Tier ordering for upgrade/downgrade comparison (higher index = higher tier) */
+const TIER_ORDER: PlanTier[] = ["free", "solo", "starter", "practice", "firm", "enterprise"];
+
 interface UpgradePlanSectionProps {
   orgId: string;
+  currentTier: PlanTier;
+  hasSubscription: boolean;
 }
 
 function formatPrice(pence: number): string {
   return `£${(pence / 100).toFixed(0)}`;
 }
 
-export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
+function getTierIndex(tier: PlanTier): number {
+  return TIER_ORDER.indexOf(tier);
+}
+
+export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: UpgradePlanSectionProps) {
   const [loadingTier, setLoadingTier] = useState<PlanTier | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleUpgrade(tier: PlanTier) {
+  const currentIndex = getTierIndex(currentTier);
+
+  async function handlePlanAction(tier: PlanTier) {
     setLoadingTier(tier);
     setError(null);
 
     try {
-      const response = await fetch("/api/stripe/create-checkout-session", {
+      // Existing subscribers: change plan via subscription update
+      // New subscribers: create checkout session
+      const endpoint = hasSubscription
+        ? "/api/stripe/change-plan"
+        : "/api/stripe/create-checkout-session";
+
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planTier: tier, orgId }),
@@ -35,20 +52,27 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to start checkout. Please try again.");
+        setError(data.error || "Something went wrong. Please try again.");
         setLoadingTier(null);
         return;
       }
 
-      if (data.url) {
+      if (hasSubscription) {
+        // Plan changed via API — reload to reflect the new plan
+        window.location.reload();
+      } else if (data.url) {
+        // New subscription — redirect to Stripe Checkout
         window.location.href = data.url;
       }
     } catch (err) {
-      console.error("Checkout error:", err);
+      console.error("Plan change error:", err);
       setError("Something went wrong. Please try again.");
       setLoadingTier(null);
     }
   }
+
+  // Show all paid plans except the current one
+  const availablePlans = PAID_PLAN_TIERS.filter((tier) => tier !== currentTier);
 
   return (
     <div className="space-y-4">
@@ -56,10 +80,12 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
         <p className="text-sm text-destructive">{error}</p>
       )}
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        {PAID_PLAN_TIERS.map((tier) => {
+      <div className={`grid gap-3 ${availablePlans.length <= 3 ? "grid-cols-3" : "grid-cols-2 xl:grid-cols-4"}`}>
+        {availablePlans.map((tier) => {
           const plan = PLAN_TIERS[tier];
           const isLoading = loadingTier === tier;
+          const tierIndex = getTierIndex(tier);
+          const isUpgrade = tierIndex > currentIndex;
 
           return (
             <div key={tier} className="flex flex-col relative">
@@ -80,16 +106,28 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
                 </p>
 
                 <ButtonBase
-                  variant="violet"
+                  variant={isUpgrade ? "violet" : "muted"}
                   buttonType="icon-text"
-                  onClick={() => handleUpgrade(tier)}
+                  onClick={() => handlePlanAction(tier)}
                   disabled={loadingTier !== null}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="size-4 animate-spin" />
-                      Redirecting...
+                      {hasSubscription ? "Changing..." : "Redirecting..."}
                     </>
+                  ) : hasSubscription ? (
+                    isUpgrade ? (
+                      <>
+                        Upgrade
+                        <ArrowUp className="size-4" />
+                      </>
+                    ) : (
+                      <>
+                        Downgrade
+                        <ArrowDown className="size-4" />
+                      </>
+                    )
                   ) : (
                     <>
                       Get Started
@@ -103,7 +141,11 @@ export function UpgradePlanSection({ orgId }: UpgradePlanSectionProps) {
         })}
       </div>
 
-      <p className="text-xs text-muted-foreground mt-1">All prices exclude VAT.</p>
+      <p className="text-xs text-muted-foreground mt-1">
+        {hasSubscription
+          ? "Plan changes are prorated. You'll be charged or credited for the difference."
+          : "All prices exclude VAT."}
+      </p>
     </div>
   );
 }

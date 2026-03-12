@@ -15,6 +15,7 @@ import { UploadChecksCard } from "./upload-checks-card";
 import { BillingStatusCard } from "@/app/(dashboard)/billing/components/billing-status-card";
 import { UpgradePlanSection } from "@/app/(dashboard)/billing/components/upgrade-plan-section";
 import type { EmailSettings, OrgDomainDnsData, UploadCheckMode } from "@/app/actions/settings";
+import type { PlanTier } from "@/lib/stripe/plans";
 
 interface SettingsTabsProps {
   sendHour: number;
@@ -25,6 +26,7 @@ interface SettingsTabsProps {
   totalClients: number;
   clientLimit: number | null;
   planName: string;
+  currentTier: PlanTier;
   subscriptionStatus:
     | "trialing"
     | "active"
@@ -55,6 +57,7 @@ export function SettingsTabs({
   totalClients,
   clientLimit,
   planName,
+  currentTier,
   subscriptionStatus,
   trialEndsAt,
   monthlyPrice,
@@ -130,22 +133,24 @@ export function SettingsTabs({
             clientCount={totalClients}
             clientLimit={clientLimit}
           />
-          {!hasSubscription && (
-            <Card className="p-6 space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
-                  <Sparkles className="size-6 text-violet-500" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">Upgrade your plan</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Choose a plan to unlock more clients and features.
-                  </p>
-                </div>
+          <Card className="p-6 space-y-6">
+            <div className="flex items-start gap-4">
+              <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
+                <Sparkles className="size-6 text-violet-500" />
               </div>
-              <UpgradePlanSection orgId={orgId} />
-            </Card>
-          )}
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {hasSubscription ? "Change your plan" : "Upgrade your plan"}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {hasSubscription
+                    ? "Switch to a plan that better fits your needs."
+                    : "Choose a plan to unlock more clients and features."}
+                </p>
+              </div>
+            </div>
+            <UpgradePlanSection orgId={orgId} currentTier={currentTier} hasSubscription={hasSubscription} />
+          </Card>
         </TabsContent>
 
       </Tabs>
