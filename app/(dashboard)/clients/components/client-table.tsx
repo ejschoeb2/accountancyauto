@@ -1014,7 +1014,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             type="button"
             variant="sky"
             onClick={() => setIsCsvDialogOpen(true)}
-            title="Import clients from CSV"
+            title={isAtLimit ? "Client limit reached — upgrade your plan" : "Import clients from CSV"}
+            disabled={isAtLimit}
           >
             <Upload className="h-5 w-5" />
             Import CSV
