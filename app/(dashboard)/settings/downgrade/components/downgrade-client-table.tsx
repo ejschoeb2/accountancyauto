@@ -210,92 +210,94 @@ export function DowngradeClientTable({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <h1>Downgrade to {targetPlanName}</h1>
-          <p className="text-muted-foreground">
-            Select clients to remove before downgrading
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ButtonBase
-            variant="amber"
-            buttonType="icon-text"
-            onClick={() => router.push("/settings?tab=billing")}
-          >
-            <X className="size-4" />
-            Cancel
-          </ButtonBase>
-          <ButtonBase
-            variant="destructive"
-            buttonType="icon-text"
-            onClick={handleConfirmDowngrade}
-            disabled={!canConfirm || loading}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Downgrading...
-              </>
-            ) : (
-              <>
-                <ArrowDown className="size-4" />
-                Confirm downgrade
-              </>
-            )}
-          </ButtonBase>
-        </div>
-      </div>
-
-      {/* Alert banner */}
-      {canConfirm ? (
-        <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
-          <CheckCircle className="size-5 text-green-600 shrink-0" />
-          <p className="text-sm text-green-600">
-            You&apos;ve selected enough clients. Ready to downgrade.
-          </p>
-        </div>
-      ) : (
-        <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
-          <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+    <div className="space-y-6 pb-0">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
-            <p className="text-sm font-medium text-amber-600">
-              Select {remaining} more client{remaining === 1 ? "" : "s"} to remove
-            </p>
-            <p className="text-sm text-amber-600/80">
-              The {targetPlanName} plan supports up to {targetLimit} clients.
-              You currently have {clients.length}. Choose {clientsToRemove} to permanently remove.
+            <h1>Downgrade to {targetPlanName}</h1>
+            <p className="text-muted-foreground">
+              Select clients to remove before downgrading
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            <ButtonBase
+              variant="amber"
+              buttonType="icon-text"
+              onClick={() => router.push("/settings?tab=billing")}
+            >
+              <X className="size-4" />
+              Cancel
+            </ButtonBase>
+            <ButtonBase
+              variant="destructive"
+              buttonType="icon-text"
+              onClick={handleConfirmDowngrade}
+              disabled={!canConfirm || loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Downgrading...
+                </>
+              ) : (
+                <>
+                  <ArrowDown className="size-4" />
+                  Confirm downgrade
+                </>
+              )}
+            </ButtonBase>
+          </div>
         </div>
-      )}
 
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
-          <AlertTriangle className="size-5 text-red-500 shrink-0" />
-          <p className="text-sm text-red-500">{error}</p>
-        </div>
-      )}
-
-      {/* Search bar */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-        <Input
-          placeholder="Search clients..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="pl-9 pr-9"
-        />
-        {globalFilter && (
-          <button
-            onClick={() => setGlobalFilter("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
+        {/* Alert banner */}
+        {canConfirm ? (
+          <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
+            <CheckCircle className="size-5 text-green-600 shrink-0" />
+            <p className="text-sm text-green-600">
+              You&apos;ve selected enough clients. Ready to downgrade.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+            <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-600">
+                Select {remaining} more client{remaining === 1 ? "" : "s"} to remove
+              </p>
+              <p className="text-sm text-amber-600/80">
+                The {targetPlanName} plan supports up to {targetLimit} clients.
+                You currently have {clients.length}. Choose {clientsToRemove} to permanently remove.
+              </p>
+            </div>
+          </div>
         )}
+
+        {error && (
+          <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
+            <AlertTriangle className="size-5 text-red-500 shrink-0" />
+            <p className="text-sm text-red-500">{error}</p>
+          </div>
+        )}
+
+        {/* Search bar */}
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Input
+            placeholder="Search clients..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {globalFilter && (
+            <button
+              onClick={() => setGlobalFilter("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Full-width table matching clients page */}

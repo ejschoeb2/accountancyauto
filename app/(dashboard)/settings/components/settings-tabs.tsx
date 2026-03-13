@@ -1,9 +1,7 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
 import { SendHourPicker } from "./send-hour-picker";
 import { EmailSettingsCard } from "./email-settings-card";
 import { DomainSetupCard } from "./domain-setup-card";
@@ -13,7 +11,6 @@ import { StorageCard } from "./storage-card";
 import { ClientPortalCard } from "./client-portal-card";
 import { UploadChecksCard } from "./upload-checks-card";
 import { BillingStatusCard } from "@/app/(dashboard)/billing/components/billing-status-card";
-import { UpgradePlanSection } from "@/app/(dashboard)/billing/components/upgrade-plan-section";
 import type { EmailSettings, OrgDomainDnsData, UploadCheckMode } from "@/app/actions/settings";
 import type { PlanTier } from "@/lib/stripe/plans";
 
@@ -122,7 +119,7 @@ export function SettingsTabs({
           <SendHourPicker defaultHour={sendHour} />
         </TabsContent>
 
-        <TabsContent value="billing" className="space-y-8 mt-6">
+        <TabsContent value="billing" className="mt-6">
           <BillingStatusCard
             planName={planName}
             planTier={currentTier}
@@ -134,20 +131,6 @@ export function SettingsTabs({
             clientCount={totalClients}
             clientLimit={clientLimit}
           />
-          <Card className="p-6 space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
-                <Sparkles className="size-6 text-violet-500" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold">Change your plan</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Choose a plan that fits your needs.
-                </p>
-              </div>
-            </div>
-            <UpgradePlanSection orgId={orgId} currentTier={currentTier} hasSubscription={hasSubscription} clientCount={totalClients} />
-          </Card>
         </TabsContent>
 
       </Tabs>
