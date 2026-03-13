@@ -4,7 +4,7 @@ import { useState } from "react";
 import { DeadlineTrackingIllustration }    from "./feature-illustrations/deadline-tracking";
 import { AutomatedRemindersIllustration }  from "./feature-illustrations/automated-reminders";
 import { ClientUploadPortalIllustration }  from "./feature-illustrations/client-upload-portal";
-import { DocumentStorageIllustration }     from "./feature-illustrations/document-storage";
+import { DocumentIntelligenceIllustration } from "./feature-illustrations/document-intelligence";
 import { DocumentAwareEmailsIllustration } from "./feature-illustrations/document-aware-emails";
 import { EmailManagementIllustration }     from "./feature-illustrations/email-management";
 
@@ -31,14 +31,14 @@ const features: {
   {
     number:      "03",
     title:       "Client Upload Portal",
-    description: "Clients receive a secure, no-login link and upload their records against a filing-specific checklist. Prompt tracks what's arrived, what's still outstanding, and chases automatically until everything's in.",
+    description: "Clients receive a secure, no-login link and upload their records against a filing-specific checklist. Documents go straight to your Google Drive, OneDrive, or Dropbox — Prompt never stores your clients' files on its own servers. GDPR compliant by design.",
     Illustration: ClientUploadPortalIllustration,
   },
   {
     number:      "04",
-    title:       "Document Storage",
-    description: "Connect your Google Drive, OneDrive, or Dropbox and uploaded documents go straight into your existing folders — Prompt never stores your clients' files on its own servers. GDPR compliant by design: your data stays in your cloud, not ours. Every transfer logged for full accountability.",
-    Illustration: DocumentStorageIllustration,
+    title:       "Document Intelligence",
+    description: "Every upload is automatically classified, verified, and scored. Prompt checks tax years, employer names, and PAYE references — flagging mismatches and auto-rejecting wrong documents before they reach your desk.",
+    Illustration: DocumentIntelligenceIllustration,
   },
   {
     number:      "05",

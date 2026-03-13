@@ -21,7 +21,7 @@ const STEPS: {
     number: "01",
     title: "Add your clients",
     description:
-      "Enter each client's details — company name, accounting year-end, and VAT stagger group. That's all Prompt needs. No manual deadline entry, no spreadsheets.",
+      "Import from CSV or add clients one by one — company name, accounting year-end, and VAT stagger group. That's all Prompt needs. No manual deadline entry, no spreadsheets.",
     Illustration: AddClientsIllustration,
   },
   {
@@ -42,7 +42,7 @@ const STEPS: {
     number: "04",
     title: "Clients upload their documents",
     description:
-      "Each reminder includes a secure, no-login upload link. Clients see exactly what's needed and upload directly. Prompt tracks what's arrived and keeps chasing what hasn't.",
+      "Each reminder includes a secure, no-login upload link. Clients see exactly what's needed and upload directly. Prompt verifies each document automatically — checking tax years, names, and references — and keeps chasing what hasn't arrived.",
     Illustration: ClientUploadsIllustration,
   },
   {
@@ -56,7 +56,7 @@ const STEPS: {
     number: "06",
     title: "You stay in control",
     description:
-      "Every document received, email sent, and client reply is logged. Full audit trail per client, per filing. Nothing falls through the cracks.",
+      "Every document received, email sent, and client reply is logged. Full audit trail per client, per filing. Your whole team has visibility — nothing falls through the cracks.",
     Illustration: StayInControlIllustration,
   },
 ];

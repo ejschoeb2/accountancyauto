@@ -21,6 +21,10 @@ const ROWS: { oldWay: string; withPrompt: string }[] = [
     withPrompt:  "Just set the stagger group — all three HMRC groups supported",
   },
   {
+    oldWay:      "Manually check every document — wrong tax year, wrong form, wrong client",
+    withPrompt:  "Automatic document verification: Prompt classifies, validates, and flags mismatches before you touch a thing",
+  },
+  {
     oldWay:      "No record of who was chased or when",
     withPrompt:  "Full audit log: every action tracked, every email logged",
   },
