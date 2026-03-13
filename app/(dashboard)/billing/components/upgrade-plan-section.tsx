@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, ArrowUp, ArrowDown } from "lucide-react";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
@@ -19,6 +20,7 @@ interface UpgradePlanSectionProps {
   orgId: string;
   currentTier: PlanTier;
   hasSubscription: boolean;
+  clientCount: number;
 }
 
 function formatPrice(pence: number): string {
@@ -29,7 +31,8 @@ function getTierIndex(tier: PlanTier): number {
   return TIER_ORDER.indexOf(tier);
 }
 
-export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: UpgradePlanSectionProps) {
+export function UpgradePlanSection({ orgId, currentTier, hasSubscription, clientCount }: UpgradePlanSectionProps) {
+  const router = useRouter();
   const [loadingTier, setLoadingTier] = useState<PlanTier | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +41,21 @@ export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: Upgr
   async function handlePlanAction(tier: PlanTier) {
     setLoadingTier(tier);
     setError(null);
+
+    const tierIndex = getTierIndex(tier);
+    const isDowngrade = tierIndex < currentIndex;
+
+    // For downgrades, check if client count exceeds the target plan's limit
+    if (isDowngrade) {
+      const targetPlan = PLAN_TIERS[tier];
+      const targetLimit = targetPlan.clientLimit;
+
+      if (targetLimit !== null && clientCount > targetLimit) {
+        // Redirect to client selection page
+        router.push(`/settings/downgrade?plan=${tier}`);
+        return;
+      }
+    }
 
     try {
       // Downgrading to free = cancel subscription via change-plan

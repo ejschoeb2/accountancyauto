@@ -146,7 +146,7 @@ export function SettingsTabs({
                 </p>
               </div>
             </div>
-            <UpgradePlanSection orgId={orgId} currentTier={currentTier} hasSubscription={hasSubscription} />
+            <UpgradePlanSection orgId={orgId} currentTier={currentTier} hasSubscription={hasSubscription} clientCount={totalClients} />
           </Card>
         </TabsContent>
 
