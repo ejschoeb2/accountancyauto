@@ -53,7 +53,7 @@ export default async function DowngradePage({ searchParams }: DowngradePageProps
   const clientsToRemove = clients.length - targetLimit;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto">
       <DowngradeClientTable
         clients={clients}
         clientsToRemove={clientsToRemove}

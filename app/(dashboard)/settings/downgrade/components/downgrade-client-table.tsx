@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, AlertTriangle, Loader2, Check, Search, X } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Search, X, ArrowDown, Trash2 } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { ButtonBase } from "@/components/ui/button-base";
+import { CheckButton } from "@/components/ui/check-button";
 import { Card } from "@/components/ui/card";
 import type { Client } from "@/app/actions/clients";
 import type { PlanTier } from "@/lib/stripe/plans";
@@ -78,25 +79,34 @@ export function DowngradeClientTable({
         cell: ({ row }) => {
           const isSelected = selectedIds.has(row.original.id);
           return (
-            <div className="flex items-center justify-center">
-              <div
-                className={`size-5 rounded border-2 flex items-center justify-center transition-colors ${
-                  isSelected
-                    ? "bg-destructive border-destructive text-white"
-                    : "border-border"
-                }`}
-              >
-                {isSelected && <Check className="size-3" />}
-              </div>
+            <div
+              className="flex items-center justify-center cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleRow(row.original.id);
+              }}
+            >
+              <CheckButton
+                checked={isSelected}
+                onCheckedChange={() => toggleRow(row.original.id)}
+                aria-label="Select row"
+              />
             </div>
           );
         },
       },
       {
         accessorKey: "display_name",
-        header: "Client Name",
-        cell: ({ row }) =>
-          row.original.display_name || row.original.company_name,
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Client Name
+          </span>
+        ),
+        cell: ({ row }) => (
+          <span className="text-muted-foreground transition-colors">
+            {row.original.display_name || row.original.company_name}
+          </span>
+        ),
         sortingFn: (rowA, rowB) => {
           const a = (rowA.original.display_name || rowA.original.company_name).toLowerCase();
           const b = (rowB.original.display_name || rowB.original.company_name).toLowerCase();
@@ -105,26 +115,47 @@ export function DowngradeClientTable({
       },
       {
         accessorKey: "client_type",
-        header: "Type",
-        cell: ({ getValue }) => getValue() || "—",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Type
+          </span>
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm text-muted-foreground">
+            {(getValue() as string) || "—"}
+          </span>
+        ),
       },
       {
         accessorKey: "year_end_date",
-        header: "Year End",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Year End
+          </span>
+        ),
         cell: ({ getValue }) => {
           const val = getValue() as string | null;
-          if (!val) return "—";
+          if (!val) return <span className="text-sm text-muted-foreground">—</span>;
           const d = new Date(val + "T00:00:00");
-          return d.toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-          });
+          return (
+            <span className="text-sm text-muted-foreground">
+              {d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </span>
+          );
         },
       },
       {
         accessorKey: "primary_email",
-        header: "Email",
-        cell: ({ getValue }) => getValue() || "—",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Email
+          </span>
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm text-muted-foreground">
+            {(getValue() as string) || "—"}
+          </span>
+        ),
       },
     ],
     [selectedIds]
@@ -180,62 +211,82 @@ export function DowngradeClientTable({
   }
 
   return (
-    <>
+    <Card className="gap-1.5">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <ButtonBase
-          variant="ghost"
-          buttonType="icon-only"
-          onClick={() => router.push("/settings?tab=billing")}
-        >
-          <ArrowLeft className="size-5" />
-        </ButtonBase>
-        <div>
-          <h1>Downgrade to {targetPlanName}</h1>
-          <p className="text-sm text-muted-foreground">
-            Select clients to remove before downgrading
-          </p>
+      <div className="px-8">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-semibold">Downgrade to {targetPlanName}</h2>
+            <p className="text-sm text-muted-foreground">
+              Select clients to remove before downgrading
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ButtonBase
+              variant="muted"
+              buttonType="icon-text"
+              onClick={() => router.push("/settings?tab=billing")}
+            >
+              <X className="size-4" />
+              Cancel
+            </ButtonBase>
+            <ButtonBase
+              variant="destructive"
+              buttonType="icon-text"
+              onClick={handleConfirmDowngrade}
+              disabled={!canConfirm || loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Downgrading...
+                </>
+              ) : (
+                <>
+                  <ArrowDown className="size-4" />
+                  Confirm downgrade
+                </>
+              )}
+            </ButtonBase>
+          </div>
         </div>
       </div>
 
       {/* Alert banner */}
-      <div
-        className={`flex items-start gap-3 rounded-lg border p-4 ${
-          canConfirm
-            ? "bg-green-500/10 border-green-500/30"
-            : "bg-amber-500/10 border-amber-500/30"
-        }`}
-      >
-        <AlertTriangle
-          className={`size-5 shrink-0 mt-0.5 ${
-            canConfirm ? "text-green-600" : "text-amber-600"
-          }`}
-        />
-        <div className="space-y-1">
-          <p className={`text-sm font-medium ${canConfirm ? "text-green-600" : "text-amber-600"}`}>
-            {canConfirm
-              ? `You've selected enough clients. Ready to downgrade.`
-              : `Select ${remaining} more client${remaining === 1 ? "" : "s"} to remove`}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            The {targetPlanName} plan supports up to {targetLimit} clients.
-            You currently have {clients.length} client{clients.length === 1 ? "" : "s"}.
-            {!canConfirm &&
-              ` Choose ${clientsToRemove} to permanently remove.`}
-          </p>
-        </div>
+      <div className="px-8">
+        {canConfirm ? (
+          <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
+            <CheckCircle className="size-5 text-green-600 shrink-0" />
+            <p className="text-sm text-green-600">
+              You&apos;ve selected enough clients. Ready to downgrade.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+            <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-600">
+                Select {remaining} more client{remaining === 1 ? "" : "s"} to remove
+              </p>
+              <p className="text-sm text-amber-600/80">
+                The {targetPlanName} plan supports up to {targetLimit} clients.
+                You currently have {clients.length}. Choose {clientsToRemove} to permanently remove.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl mt-3">
+            <AlertTriangle className="size-5 text-red-500 shrink-0" />
+            <p className="text-sm text-red-500">{error}</p>
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="flex items-start gap-3 rounded-lg border p-4 bg-destructive/10 border-destructive/30">
-          <AlertTriangle className="size-5 shrink-0 mt-0.5 text-destructive" />
-          <p className="text-sm font-medium text-destructive">{error}</p>
-        </div>
-      )}
-
-      {/* Search + action bar */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="relative max-w-sm flex-1">
+      {/* Search bar */}
+      <div className="px-8 mt-2">
+        <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search clients..."
@@ -252,88 +303,59 @@ export function DowngradeClientTable({
             </button>
           )}
         </div>
-
-        <div className="flex items-center gap-3">
-          <p className="text-sm text-muted-foreground">
-            {selectedIds.size} of {clientsToRemove} selected
-          </p>
-          <ButtonBase
-            variant="destructive"
-            buttonType="icon-text"
-            onClick={handleConfirmDowngrade}
-            disabled={!canConfirm || loading}
-          >
-            {loading ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Downgrading...
-              </>
-            ) : (
-              `Confirm downgrade`
-            )}
-          </ButtonBase>
-        </div>
       </div>
 
-      {/* Client table */}
-      <Card>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-8 text-muted-foreground">
-                    No clients found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => {
-                  const isSelected = selectedIds.has(row.original.id);
-                  return (
-                    <TableRow
-                      key={row.id}
-                      onClick={() => toggleRow(row.original.id)}
-                      className={`cursor-pointer transition-colors ${
-                        isSelected
-                          ? "bg-destructive/5 hover:bg-destructive/10"
-                          : "hover:bg-muted/50"
-                      }`}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
-    </>
+      {/* Full-width table matching clients page */}
+      <div className="-mx-[1px] -mb-[1px] mt-2 border-t shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white rounded-b-xl overflow-hidden">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No clients found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => {
+                const isSelected = selectedIds.has(row.original.id);
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-state={isSelected && "selected"}
+                    onClick={() => toggleRow(row.original.id)}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
   );
 }
