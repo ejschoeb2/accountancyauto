@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
+import { CreditCard, ExternalLink, Loader2, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { UsageBars } from "./usage-bars";
 
 type SubscriptionStatus =
@@ -98,7 +109,39 @@ export function BillingStatusCard({
   const isTrialing = subscriptionStatus === "trialing" && trialEndsAt;
 
   const [loading, setLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleCancelPlan() {
+    setCancelLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/stripe/change-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId, planTier: "free" }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Failed to cancel plan");
+        setCancelLoading(false);
+        setCancelDialogOpen(false);
+        return;
+      }
+
+      // Reload to reflect the updated plan
+      window.location.reload();
+    } catch (err) {
+      console.error("Cancel plan error:", err);
+      setError("Something went wrong. Please try again.");
+      setCancelLoading(false);
+      setCancelDialogOpen(false);
+    }
+  }
 
   async function handleManageBilling() {
     setLoading(true);
@@ -143,26 +186,74 @@ export function BillingStatusCard({
                 Your current plan and billing status
               </p>
             </div>
-            <div className="shrink-0">
+            <div className="shrink-0 flex items-center gap-2">
               {hasSubscription ? (
-                <ButtonBase
-                  variant="violet"
-                  buttonType="icon-text"
-                  onClick={handleManageBilling}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Opening portal...
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="size-4" />
-                      Manage billing
-                    </>
+                <>
+                  <ButtonBase
+                    variant="violet"
+                    buttonType="icon-text"
+                    onClick={handleManageBilling}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Opening portal...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="size-4" />
+                        Manage billing
+                      </>
+                    )}
+                  </ButtonBase>
+
+                  {subscriptionStatus !== "cancelled" && (
+                    <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                      <AlertDialogTrigger asChild>
+                        <ButtonBase
+                          variant="destructive"
+                          buttonType="icon-text"
+                        >
+                          <XCircle className="size-4" />
+                          Cancel plan
+                        </ButtonBase>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Your subscription will be cancelled immediately and your
+                            organisation will be downgraded to the Free plan (10 clients).
+                            You can resubscribe at any time.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel disabled={cancelLoading}>
+                            Keep my plan
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleCancelPlan();
+                            }}
+                            disabled={cancelLoading}
+                          >
+                            {cancelLoading ? (
+                              <>
+                                <Loader2 className="size-4 animate-spin" />
+                                Cancelling...
+                              </>
+                            ) : (
+                              "Yes, cancel my plan"
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   )}
-                </ButtonBase>
+                </>
               ) : null}
             </div>
           </div>
