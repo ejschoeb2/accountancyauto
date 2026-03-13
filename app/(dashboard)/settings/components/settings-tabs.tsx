@@ -125,6 +125,7 @@ export function SettingsTabs({
         <TabsContent value="billing" className="space-y-8 mt-6">
           <BillingStatusCard
             planName={planName}
+            planTier={currentTier}
             subscriptionStatus={subscriptionStatus}
             trialEndsAt={trialEndsAt}
             monthlyPrice={monthlyPrice}

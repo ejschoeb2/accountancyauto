@@ -26,6 +26,7 @@ type SubscriptionStatus =
 
 interface BillingStatusCardProps {
   planName: string;
+  planTier: string;
   subscriptionStatus: SubscriptionStatus;
   trialEndsAt: string | null;
   monthlyPrice: number;
@@ -97,6 +98,7 @@ function daysRemaining(dateString: string): number {
 
 export function BillingStatusCard({
   planName,
+  planTier,
   subscriptionStatus,
   trialEndsAt,
   monthlyPrice,
@@ -107,6 +109,8 @@ export function BillingStatusCard({
 }: BillingStatusCardProps) {
   const statusConfig = STATUS_CONFIG[subscriptionStatus];
   const isTrialing = subscriptionStatus === "trialing" && trialEndsAt;
+  const isPaidPlan = planTier !== "free";
+  const canCancel = isPaidPlan && subscriptionStatus !== "cancelled";
 
   const [loading, setLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -187,74 +191,72 @@ export function BillingStatusCard({
               </p>
             </div>
             <div className="shrink-0 flex items-center gap-2">
-              {hasSubscription ? (
-                <>
-                  <ButtonBase
-                    variant="violet"
-                    buttonType="icon-text"
-                    onClick={handleManageBilling}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        Opening portal...
-                      </>
-                    ) : (
-                      <>
-                        <ExternalLink className="size-4" />
-                        Manage billing
-                      </>
-                    )}
-                  </ButtonBase>
-
-                  {subscriptionStatus !== "cancelled" && (
-                    <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-                      <AlertDialogTrigger asChild>
-                        <ButtonBase
-                          variant="destructive"
-                          buttonType="icon-text"
-                        >
-                          <XCircle className="size-4" />
-                          Cancel plan
-                        </ButtonBase>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Your subscription will be cancelled immediately and your
-                            organisation will be downgraded to the Free plan (10 clients).
-                            You can resubscribe at any time.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel disabled={cancelLoading}>
-                            Keep my plan
-                          </AlertDialogCancel>
-                          <AlertDialogAction
-                            variant="destructive"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              handleCancelPlan();
-                            }}
-                            disabled={cancelLoading}
-                          >
-                            {cancelLoading ? (
-                              <>
-                                <Loader2 className="size-4 animate-spin" />
-                                Cancelling...
-                              </>
-                            ) : (
-                              "Yes, cancel my plan"
-                            )}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+              {hasSubscription && (
+                <ButtonBase
+                  variant="violet"
+                  buttonType="icon-text"
+                  onClick={handleManageBilling}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Opening portal...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="size-4" />
+                      Manage billing
+                    </>
                   )}
-                </>
-              ) : null}
+                </ButtonBase>
+              )}
+
+              {canCancel && (
+                <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <ButtonBase
+                      variant="destructive"
+                      buttonType="icon-text"
+                    >
+                      <XCircle className="size-4" />
+                      Cancel plan
+                    </ButtonBase>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Your subscription will be cancelled immediately and your
+                        organisation will be downgraded to the Free plan (10 clients).
+                        You can resubscribe at any time.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={cancelLoading}>
+                        Keep my plan
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleCancelPlan();
+                        }}
+                        disabled={cancelLoading}
+                      >
+                        {cancelLoading ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" />
+                            Cancelling...
+                          </>
+                        ) : (
+                          "Yes, cancel my plan"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           </div>
 

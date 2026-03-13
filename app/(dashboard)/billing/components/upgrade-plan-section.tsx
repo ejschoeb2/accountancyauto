@@ -40,8 +40,8 @@ export function UpgradePlanSection({ orgId, currentTier, hasSubscription }: Upgr
     setError(null);
 
     try {
-      // Downgrading to free with an active subscription = cancel subscription
-      if (tier === "free" && hasSubscription) {
+      // Downgrading to free = cancel subscription via change-plan
+      if (tier === "free") {
         const response = await fetch("/api/stripe/change-plan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

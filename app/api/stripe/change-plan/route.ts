@@ -103,13 +103,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!org.stripe_subscription_id) {
-      return NextResponse.json(
-        { error: "No active subscription found. Please subscribe first." },
-        { status: 400 }
-      );
-    }
-
     if (org.plan_tier === planTier) {
       return NextResponse.json(
         { error: "You are already on this plan" },
@@ -121,8 +114,10 @@ export async function POST(request: NextRequest) {
     if (planTier === "free") {
       const freePlan = PLAN_TIERS.free;
 
-      // Cancel the subscription immediately in Stripe
-      await stripe.subscriptions.cancel(org.stripe_subscription_id);
+      // Cancel the Stripe subscription if one exists
+      if (org.stripe_subscription_id) {
+        await stripe.subscriptions.cancel(org.stripe_subscription_id);
+      }
 
       // Update the org to the free plan directly (don't wait for webhook)
       const { error: updateError } = await admin
@@ -155,6 +150,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Change to a paid plan ────────────────────────────────────────
+    if (!org.stripe_subscription_id) {
+      return NextResponse.json(
+        { error: "No active subscription found. Please subscribe first." },
+        { status: 400 }
+      );
+    }
+
     const newPlan = getPlanByTier(planTier as PlanTier);
     if (!newPlan.priceId) {
       return NextResponse.json(
