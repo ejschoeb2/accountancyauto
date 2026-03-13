@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle, Loader2, Search, X, ArrowDown, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Search, X, ArrowDown } from "lucide-react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -24,7 +24,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { ButtonBase } from "@/components/ui/button-base";
 import { CheckButton } from "@/components/ui/check-button";
-import { Card } from "@/components/ui/card";
 import type { Client } from "@/app/actions/clients";
 import type { PlanTier } from "@/lib/stripe/plans";
 
@@ -122,7 +121,7 @@ export function DowngradeClientTable({
         ),
         cell: ({ getValue }) => (
           <span className="text-sm text-muted-foreground">
-            {(getValue() as string) || "—"}
+            {(getValue() as string) || "\u2014"}
           </span>
         ),
       },
@@ -135,7 +134,7 @@ export function DowngradeClientTable({
         ),
         cell: ({ getValue }) => {
           const val = getValue() as string | null;
-          if (!val) return <span className="text-sm text-muted-foreground">—</span>;
+          if (!val) return <span className="text-sm text-muted-foreground">{"\u2014"}</span>;
           const d = new Date(val + "T00:00:00");
           return (
             <span className="text-sm text-muted-foreground">
@@ -153,7 +152,7 @@ export function DowngradeClientTable({
         ),
         cell: ({ getValue }) => (
           <span className="text-sm text-muted-foreground">
-            {(getValue() as string) || "—"}
+            {(getValue() as string) || "\u2014"}
           </span>
         ),
       },
@@ -211,102 +210,96 @@ export function DowngradeClientTable({
   }
 
   return (
-    <Card className="gap-1.5">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="px-8">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">Downgrade to {targetPlanName}</h2>
-            <p className="text-sm text-muted-foreground">
-              Select clients to remove before downgrading
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <ButtonBase
-              variant="muted"
-              buttonType="icon-text"
-              onClick={() => router.push("/settings?tab=billing")}
-            >
-              <X className="size-4" />
-              Cancel
-            </ButtonBase>
-            <ButtonBase
-              variant="destructive"
-              buttonType="icon-text"
-              onClick={handleConfirmDowngrade}
-              disabled={!canConfirm || loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  Downgrading...
-                </>
-              ) : (
-                <>
-                  <ArrowDown className="size-4" />
-                  Confirm downgrade
-                </>
-              )}
-            </ButtonBase>
-          </div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1>Downgrade to {targetPlanName}</h1>
+          <p className="text-muted-foreground">
+            Select clients to remove before downgrading
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <ButtonBase
+            variant="amber"
+            buttonType="icon-text"
+            onClick={() => router.push("/settings?tab=billing")}
+          >
+            <X className="size-4" />
+            Cancel
+          </ButtonBase>
+          <ButtonBase
+            variant="destructive"
+            buttonType="icon-text"
+            onClick={handleConfirmDowngrade}
+            disabled={!canConfirm || loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Downgrading...
+              </>
+            ) : (
+              <>
+                <ArrowDown className="size-4" />
+                Confirm downgrade
+              </>
+            )}
+          </ButtonBase>
         </div>
       </div>
 
       {/* Alert banner */}
-      <div className="px-8">
-        {canConfirm ? (
-          <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
-            <CheckCircle className="size-5 text-green-600 shrink-0" />
-            <p className="text-sm text-green-600">
-              You&apos;ve selected enough clients. Ready to downgrade.
+      {canConfirm ? (
+        <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl">
+          <CheckCircle className="size-5 text-green-600 shrink-0" />
+          <p className="text-sm text-green-600">
+            You&apos;ve selected enough clients. Ready to downgrade.
+          </p>
+        </div>
+      ) : (
+        <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+          <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-amber-600">
+              Select {remaining} more client{remaining === 1 ? "" : "s"} to remove
+            </p>
+            <p className="text-sm text-amber-600/80">
+              The {targetPlanName} plan supports up to {targetLimit} clients.
+              You currently have {clients.length}. Choose {clientsToRemove} to permanently remove.
             </p>
           </div>
-        ) : (
-          <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
-            <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-amber-600">
-                Select {remaining} more client{remaining === 1 ? "" : "s"} to remove
-              </p>
-              <p className="text-sm text-amber-600/80">
-                The {targetPlanName} plan supports up to {targetLimit} clients.
-                You currently have {clients.length}. Choose {clientsToRemove} to permanently remove.
-              </p>
-            </div>
-          </div>
-        )}
+        </div>
+      )}
 
-        {error && (
-          <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl mt-3">
-            <AlertTriangle className="size-5 text-red-500 shrink-0" />
-            <p className="text-sm text-red-500">{error}</p>
-          </div>
-        )}
-      </div>
+      {error && (
+        <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
+          <AlertTriangle className="size-5 text-red-500 shrink-0" />
+          <p className="text-sm text-red-500">{error}</p>
+        </div>
+      )}
 
       {/* Search bar */}
-      <div className="px-8 mt-2">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search clients..."
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-9 pr-9"
-          />
-          {globalFilter && (
-            <button
-              onClick={() => setGlobalFilter("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-4" />
-            </button>
-          )}
-        </div>
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          placeholder="Search clients..."
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {globalFilter && (
+          <button
+            onClick={() => setGlobalFilter("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        )}
       </div>
 
       {/* Full-width table matching clients page */}
-      <div className="-mx-[1px] -mb-[1px] mt-2 border-t shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white rounded-b-xl overflow-hidden">
+      <div className="-mx-8 -mb-10 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -356,6 +349,6 @@ export function DowngradeClientTable({
           </TableBody>
         </Table>
       </div>
-    </Card>
+    </div>
   );
 }
