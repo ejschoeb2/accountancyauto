@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Loader2, Eye, EyeOff, ArrowRight, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MarketingNav } from "@/components/marketing/nav";
 import { resetPassword } from "../../login/actions";
 
 export default function ResetPasswordPage() {
@@ -41,8 +41,10 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-background flex flex-col">
+      <MarketingNav hideLogin hideSignup />
+      <div className="flex-1 flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-4">
 
         {/* Card box */}
         <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
@@ -58,8 +60,9 @@ export default function ResetPasswordPage() {
           {/* Form */}
           <div className="space-y-4">
             {error && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                {error}
+              <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
+                <AlertCircle className="size-5 text-red-500 shrink-0" />
+                <p className="text-sm text-red-500">{error}</p>
               </div>
             )}
 
@@ -114,24 +117,29 @@ export default function ResetPasswordPage() {
                 </div>
               </div>
 
-              <Button
+              <button
                 type="submit"
                 disabled={isLoading || !password || !confirmPassword}
-                className="w-full"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none"
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="size-4 mr-2 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                     Updating password...
                   </>
                 ) : (
-                  "Update password"
+                  <>
+                    Update password
+                    <ArrowRight size={15} />
+                  </>
                 )}
-              </Button>
+              </button>
             </form>
           </div>
 
         </div>
+
+      </div>
       </div>
     </div>
   );

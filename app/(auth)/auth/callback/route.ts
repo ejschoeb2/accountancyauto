@@ -74,7 +74,12 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
 
-    let redirectTarget = `${origin}/setup/wizard`;
+    // Preserve any redirect path from the query string (e.g. password reset flow)
+    const redirectPath = requestUrl.searchParams.get("redirect");
+
+    let redirectTarget = redirectPath
+      ? `${origin}${redirectPath}`
+      : `${origin}/setup/wizard`;
 
     if (user) {
       // Use org_id from JWT app_metadata (set by Custom Access Token Hook)
@@ -92,13 +97,11 @@ export async function GET(request: NextRequest) {
           const isLocalhost =
             hostname.includes("localhost") || hostname.includes("127.0.0.1");
 
-          // Preserve any redirect path that middleware set before sending to /login
-          const redirectPath =
-            requestUrl.searchParams.get("redirect") || "/dashboard";
+          const targetPath = redirectPath || "/dashboard";
 
           if (isLocalhost) {
             // Development: redirect to localhost with ?org= query param
-            const devUrl = new URL(redirectPath, origin);
+            const devUrl = new URL(targetPath, origin);
             devUrl.searchParams.set("org", org.slug);
             redirectTarget = devUrl.toString();
           } else {
@@ -107,7 +110,7 @@ export async function GET(request: NextRequest) {
             const baseDomain =
               hostname.replace(/^([^.]+\.)*app\./, "") || hostname;
             redirectTarget = new URL(
-              redirectPath,
+              targetPath,
               `https://${org.slug}.app.${baseDomain}`
             ).toString();
           }
