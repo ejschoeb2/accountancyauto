@@ -12,7 +12,7 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card'
-import { Trash2 } from 'lucide-react'
+import { Trash2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import type { EmailTemplate } from '@/lib/types/database'
 import { formatDistanceToNow } from 'date-fns'
@@ -20,9 +20,10 @@ import { formatDistanceToNow } from 'date-fns'
 interface TemplateCardProps {
   template: EmailTemplate
   usedInSchedules: string[]
+  portalIssue?: 'portal-disabled' | 'portal-missing'
 }
 
-export function TemplateCard({ template, usedInSchedules }: TemplateCardProps) {
+export function TemplateCard({ template, usedInSchedules, portalIssue }: TemplateCardProps) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
 
@@ -64,6 +65,12 @@ export function TemplateCard({ template, usedInSchedules }: TemplateCardProps) {
               <CardTitle className="truncate text-lg">{template.name}</CardTitle>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {portalIssue === 'portal-disabled' && (
+                <div className="px-3 py-2 rounded-md inline-flex items-center gap-1.5 bg-amber-500/10">
+                  <AlertTriangle className="size-3.5 text-amber-500" />
+                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400">Portal link</span>
+                </div>
+              )}
               {template.is_custom && (
                 <div className="px-3 py-2 rounded-md inline-flex items-center bg-violet-500/10">
                   <span className="text-sm font-medium text-violet-500">Custom</span>
@@ -112,6 +119,16 @@ export function TemplateCard({ template, usedInSchedules }: TemplateCardProps) {
               </div>
             )}
           </div>
+
+          {/* Portal issue warning */}
+          {portalIssue === 'portal-disabled' && (
+            <div className="mt-auto pt-3 border-t">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                This template contains a portal link placeholder but the client portal is disabled.
+                The link will be empty in sent emails. Edit this template to remove it.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>

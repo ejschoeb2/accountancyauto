@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     // Fetch all active organisations
     const { data: orgs, error: orgsError } = await adminClient
       .from('organisations')
-      .select('id, name, slug, postmark_server_token')
+      .select('id, name, slug, postmark_server_token, client_portal_enabled')
       .in('subscription_status', ['active', 'trialing']);
 
     if (orgsError) {

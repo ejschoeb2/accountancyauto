@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Cloud, CheckCircle, XCircle } from "lucide-react";
+import { Cloud, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import {
   Select,
@@ -86,10 +87,23 @@ export function ClientPortalCard({ clientPortalEnabled: initial }: ClientPortalC
       </div>
 
       {value === "no" && (
-        <p className="text-xs text-muted-foreground mt-3">
-          With the client portal disabled, the document storage section is hidden. Accountants can
-          still tick document receipt manually per client.
-        </p>
+        <div className="mt-3 space-y-2">
+          <p className="text-xs text-muted-foreground">
+            With the client portal disabled, the document storage section is hidden. Accountants can
+            still tick document receipt manually per client.
+          </p>
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+            <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              If any of your email templates contain a portal link placeholder, those links will be empty in sent
+              emails.{" "}
+              <Link href="/templates" className="underline hover:no-underline">
+                Check your templates
+              </Link>{" "}
+              to review and remove portal link placeholders.
+            </p>
+          </div>
+        </div>
       )}
     </Card>
   );

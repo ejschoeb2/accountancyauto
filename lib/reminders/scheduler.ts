@@ -306,8 +306,9 @@ export async function processRemindersForUser(
         }
 
         // Resolve {{portal_link}}: fresh portal upload token with expiry matching next step interval
+        // Skip portal token generation entirely when client portal is disabled for this org
         let portalLink = '';
-        if (reminder.filing_type_id) {
+        if (reminder.filing_type_id && org.client_portal_enabled !== false) {
           try {
             const nextStep = steps.find((s) => s.step_number === reminder.step_index + 1);
             const daysToNextStep = nextStep?.delay_days ?? 30; // 30-day fallback for last step

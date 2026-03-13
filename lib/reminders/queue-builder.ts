@@ -18,6 +18,7 @@ interface Client {
 export interface Org {
   id: string;
   name: string;
+  client_portal_enabled?: boolean;
 }
 
 export interface BuildResult {
