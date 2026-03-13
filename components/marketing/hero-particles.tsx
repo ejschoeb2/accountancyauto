@@ -271,11 +271,14 @@ export const HeroParticles = () => {
           let newY = p.y + newVy;
           const r  = p.size / 2;
 
-          if (newX + r < -100 || newX - r > containerWidth + 100 || newY - r > containerHeight + 200) {
+          if (newX + r < -100 || newY - r > containerHeight + 200) {
             removedIds.push(p.id);
             return null;
           }
 
+          // Bounce off right edge of viewport
+          if (newX + r > containerWidth) { newX = containerWidth - r; newVx *= -0.8; }
+          // Bounce off top edge
           if (newY - r < 0) { newY = r; newVy *= -0.8; }
 
           return { ...p, x: newX, y: newY, vx: newVx, vy: newVy };
