@@ -21,6 +21,7 @@ When you establish a new UI pattern during development, update DESIGN.md to docu
 
 - This project uses the GSD workflow with plans in `.planning/`
 - Commits go directly to main/master (no branching)
+- After completing a requested change, commit the changes with a descriptive commit message. Do not push unless explicitly asked.
 - Use specific file paths with git commands (repo is in user home directory)
 
 ## Design Reference Project
