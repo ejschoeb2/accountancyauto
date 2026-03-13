@@ -1,7 +1,6 @@
 import { MarketingNav } from "@/components/marketing/nav";
 import { HeroSection } from "@/components/marketing/hero-section";
 import { FeaturesSection } from "@/components/marketing/features-section";
-import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { ComparisonSection } from "@/components/marketing/comparison-section";
 import { FaqSection } from "@/components/marketing/faq-section";
@@ -13,7 +12,6 @@ export default function MarketingPage() {
       <MarketingNav />
       <HeroSection />
       <FeaturesSection />
-      <HowItWorksSection />
       <PricingSection />
       <ComparisonSection />
       <FaqSection />

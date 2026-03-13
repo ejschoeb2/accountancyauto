@@ -23,19 +23,19 @@ const FAQS = [
   },
   {
     q: "How are uploaded documents stored?",
-    a: "All documents are stored in EU-region infrastructure. Downloads are served via short-lived signed URLs — no direct storage access is ever exposed. Every download is logged, giving you a complete audit trail for every file.",
+    a: "Uploaded documents are forwarded directly to your connected cloud storage — Google Drive, OneDrive, or Dropbox. Prompt never stores your clients' files on its own servers. GDPR compliant by design: your data stays in your cloud, not ours.",
   },
   {
     q: "Can I customise the reminder schedule?",
     a: "Yes. You control when reminders go out relative to each deadline — how many days in advance, how frequently to chase, and what the emails say. Templates are fully customisable per filing type.",
   },
   {
-    q: "What happens when a client replies to a reminder?",
-    a: "Inbound replies are captured, parsed, and logged against the client record. You get a full communication audit trail without managing another inbox.",
+    q: "What happens after a client uploads their documents?",
+    a: "Each upload is automatically classified and verified using document intelligence — Prompt checks tax years, employer names, and PAYE references. Verified documents are forwarded to your cloud storage. Mismatches are flagged, and wrong documents can be auto-rejected before they reach your desk.",
   },
   {
     q: "Is Prompt suitable for sole practitioners as well as full practices?",
-    a: "Absolutely. The free tier covers up to 10 clients — perfect for a sole practitioner or small bookkeeper. The Solo, Starter, and Practice plans scale with you as your client list grows.",
+    a: "Absolutely. The free tier covers up to 10 clients — perfect for a sole practitioner or small bookkeeper. The Solo, Starter, Practice, and Firm plans scale with you as your client list grows.",
   },
 ];
 

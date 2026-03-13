@@ -1,55 +1,69 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FileText, FolderOpen, Check } from "lucide-react";
+import { Upload, FileCheck, ShieldCheck } from "lucide-react";
+
+const ITEMS = [
+  { label: "P60",             delay: 0.08 },
+  { label: "Bank statements", delay: 0.18 },
+  { label: "Invoices",        delay: 0.28 },
+];
 
 export const ClientUploadPortalIllustration = ({ isHovered }: { isHovered: boolean }) => (
-  <div className="relative w-full h-full flex items-center justify-center py-3 px-6">
+  <div className="w-full h-full flex items-center justify-center px-3 py-2">
+    <div className="w-full max-w-[180px]">
 
-    <div className="flex items-center gap-6">
-
-      {/* File icon on the left */}
+      {/* Upload zone */}
       <motion.div
-        className="flex items-center justify-center"
+        className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-violet-400/40 bg-violet-500/[0.04] px-3 py-2 mb-2.5"
         animate={{
-          x:       isHovered ? 10 : 0,
-          opacity: isHovered ? 0  : 1,
+          borderColor: isHovered ? "rgba(139,92,246,0.5)" : "rgba(139,92,246,0.25)",
         }}
-        transition={{ type: "spring", stiffness: 220, damping: 20, delay: 0.05 }}
+        transition={{ duration: 0.3 }}
       >
-        <FileText size={24} className="text-violet-400" strokeWidth={1.5} />
+        <motion.div
+          animate={{ y: isHovered ? -2 : 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 14, delay: 0.1 }}
+        >
+          <Upload size={13} className="text-violet-400" strokeWidth={2} />
+        </motion.div>
+        <span className="text-[8px] text-muted-foreground/55 font-medium">
+          Drop files here
+        </span>
       </motion.div>
 
-      {/* Dashed horizontal connector */}
-      <svg width="40" height="2" viewBox="0 0 40 2" className="flex-shrink-0">
-        <line
-          x1="0" y1="1" x2="40" y2="1"
-          stroke="rgb(139 92 246 / 0.3)"
-          strokeWidth="1.5"
-          strokeDasharray="3 3"
-        />
-      </svg>
-
-      {/* Folder + checkmark badge on the right */}
-      <div className="relative flex items-center justify-center">
-        <motion.div
-          animate={{ scale: isHovered ? 1.12 : 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 14, delay: 0.34 }}
-        >
-          <FolderOpen size={28} className="text-violet-500" strokeWidth={1.5} />
-        </motion.div>
-
-        <motion.div
-          className="absolute -right-1 -top-1 w-[14px] h-[14px] rounded-full bg-violet-500 flex items-center justify-center"
-          initial={{ scale: 0 }}
-          animate={{ scale: isHovered ? 1 : 0 }}
-          transition={{ type: "spring", stiffness: 460, damping: 13, delay: 0.5 }}
-        >
-          <Check size={8} strokeWidth={3.5} className="text-white" />
-        </motion.div>
+      {/* Checklist items */}
+      <div className="space-y-[5px]">
+        {ITEMS.map((item, i) => (
+          <motion.div
+            key={i}
+            className="flex items-center gap-2 px-1"
+            initial={{ opacity: 0, x: -5 }}
+            animate={{ opacity: isHovered ? 1 : 0.45, x: isHovered ? 0 : -5 }}
+            transition={{ duration: 0.2, delay: item.delay }}
+          >
+            <motion.div
+              animate={{ scale: isHovered ? 1 : 0.8 }}
+              transition={{ type: "spring", stiffness: 300, damping: 14, delay: item.delay + 0.1 }}
+            >
+              <FileCheck size={10} className="text-violet-400 flex-shrink-0" strokeWidth={2} />
+            </motion.div>
+            <span className="text-[8px] text-muted-foreground/55 leading-none">{item.label}</span>
+          </motion.div>
+        ))}
       </div>
 
-    </div>
+      {/* Secure badge */}
+      <motion.div
+        className="flex items-center gap-1 mt-2.5 px-1"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isHovered ? 0.6 : 0 }}
+        transition={{ duration: 0.2, delay: 0.4 }}
+      >
+        <ShieldCheck size={8} className="text-emerald-500" strokeWidth={2} />
+        <span className="text-[7px] text-emerald-500/80 font-medium">No login required</span>
+      </motion.div>
 
+    </div>
   </div>
 );

@@ -95,7 +95,7 @@ export const FeaturesSection = () => {
               What We Do
             </p>
             <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
-              Everything between you<br className="hidden lg:block" /> and a fully automated practice.
+              Less admin.<br className="hidden lg:block" /> More accounting.
             </h2>
           </div>
 

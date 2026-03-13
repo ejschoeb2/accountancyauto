@@ -62,20 +62,20 @@ function getTier(clients: number): TierInfo {
   };
 }
 
-// Free zone = 0–5% of track (clients 1–20 out of 400), rest is unified violet
+// Free zone = 0–2.5% of track (clients 1–10 out of 400), rest is unified violet
 const TRACK_SEGMENTS = [
-  { from: 0,  to: 5,   cls: "bg-green-400"  },  // Free
-  { from: 5,  to: 100, cls: "bg-violet-600" },  // Solo → Firm → Enterprise
+  { from: 0,    to: 2.3, cls: "bg-green-400"  },  // Free
+  { from: 2.3,  to: 100, cls: "bg-violet-600" },  // Solo → Firm → Enterprise
 ];
 
 // Percentages calculated for range 1–400:
 //   pct(n) = (n-1)/(400-1)*100
-//   20→5%, 50→12%, 100→25%, 200→50%
+//   10→2.3%, 40→9.8%, 80→19.8%, 200→49.9%
 const TICK_MARKS = [
-  { pct: 5,  label: "20"  },
-  { pct: 12, label: "50"  },
-  { pct: 25, label: "100" },
-  { pct: 50, label: "200" },
+  { pct: 2.3,  label: "10"  },
+  { pct: 9.8,  label: "40"  },
+  { pct: 19.8, label: "80"  },
+  { pct: 49.9, label: "200" },
 ];
 
 export interface PricingSliderProps {
