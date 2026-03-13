@@ -49,7 +49,7 @@ const features: {
   {
     number:      "06",
     title:       "Email Management",
-    description: "Send from your own domain with fully customisable templates. Inbound client replies are captured, parsed, and logged — giving you a complete audit trail for every client communication.",
+    description: "Send from your own domain with fully customisable templates. Every outbound email is tracked and logged — giving you a complete audit trail of every client communication.",
     Illustration: EmailManagementIllustration,
   },
 ];

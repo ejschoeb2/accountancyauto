@@ -8,8 +8,6 @@ const EMAILS = [
   { from: "M. Webb",   subject: "VAT Q3 — records needed" },
 ];
 
-const REPLY_CHARS = "Reply logged".split("");
-
 export const EmailManagementIllustration = ({ isHovered }: { isHovered: boolean }) => (
   <div className="w-full h-full flex items-center justify-center px-3 py-2">
     <div className="w-full space-y-0">
@@ -57,25 +55,15 @@ export const EmailManagementIllustration = ({ isHovered }: { isHovered: boolean 
             </span>
           </div>
 
-          {/* Typing animation on first row */}
-          {i === 0 && (
-            <motion.div className="flex flex-shrink-0">
-              {REPLY_CHARS.map((char, ci) => (
-                <motion.span
-                  key={ci}
-                  className="text-[7px] text-emerald-500 font-semibold leading-none"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: isHovered ? 1 : 0 }}
-                  transition={{
-                    duration: 0.03,
-                    delay:    isHovered ? 0.28 + ci * 0.045 : 0,
-                  }}
-                >
-                  {char}
-                </motion.span>
-              ))}
-            </motion.div>
-          )}
+          {/* Sent badge */}
+          <motion.span
+            className="text-[7px] text-emerald-500 font-semibold leading-none flex-shrink-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isHovered ? 1 : 0 }}
+            transition={{ duration: 0.2, delay: i * 0.1 + 0.2 }}
+          >
+            Sent
+          </motion.span>
         </motion.div>
       ))}
     </div>

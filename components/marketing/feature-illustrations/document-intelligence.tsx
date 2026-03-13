@@ -3,18 +3,18 @@
 import { motion } from "framer-motion";
 
 const DOCS = [
-  { label: "P60",   verdict: "Verified",    color: "#10b981", icon: "✓" },
-  { label: "SA302", verdict: "Likely match", color: "#f59e0b", icon: "~" },
-  { label: "P45",   verdict: "Review",      color: "#ef4444", icon: "!" },
+  { label: "P60",   verdict: "Verified",     color: "#10b981", icon: "✓" },
+  { label: "SA302", verdict: "Likely match",  color: "#f59e0b", icon: "~" },
+  { label: "P45",   verdict: "Review",        color: "#ef4444", icon: "!" },
 ];
 
 export const DocumentIntelligenceIllustration = ({ isHovered }: { isHovered: boolean }) => (
-  <div className="relative w-full h-full flex items-center justify-center">
-    <div className="flex flex-col gap-2">
+  <div className="relative w-full h-full flex items-center justify-center px-2">
+    <div className="flex flex-col gap-1.5 w-full">
       {DOCS.map((doc, i) => (
         <motion.div
           key={i}
-          className="flex items-center gap-2.5 rounded-lg border border-white/10 bg-card/80 px-3 py-2 shadow-sm"
+          className="flex items-center gap-2 rounded-lg border border-white/10 bg-card/80 px-2.5 py-1.5 shadow-sm"
           animate={{
             x: isHovered ? 0 : -4,
             opacity: isHovered ? 1 : 0.7,
@@ -26,26 +26,23 @@ export const DocumentIntelligenceIllustration = ({ isHovered }: { isHovered: boo
             delay: i * 0.08,
           }}
         >
-          {/* Document icon */}
-          <div
-            className="w-7 h-8 rounded border border-white/15 flex items-center justify-center text-[8px] font-bold text-white/90 shadow-sm"
-            style={{ backgroundColor: doc.color + "CC" }}
-          >
+          {/* Document type label */}
+          <span className="text-[8px] font-bold text-muted-foreground/70 flex-shrink-0 w-7">
             {doc.label}
-          </div>
+          </span>
 
           {/* Scanning line */}
           <motion.div
             className="flex-1 flex flex-col gap-[3px]"
             animate={{ opacity: isHovered ? 1 : 0.5 }}
           >
-            <div className="h-[1.5px] bg-muted-foreground/20 rounded-full w-14" />
-            <div className="h-[1.5px] bg-muted-foreground/20 rounded-full w-10" />
+            <div className="h-[1.5px] bg-muted-foreground/20 rounded-full w-full" />
+            <div className="h-[1.5px] bg-muted-foreground/20 rounded-full w-3/4" />
           </motion.div>
 
           {/* Verdict badge */}
           <motion.div
-            className="rounded-full px-2 py-0.5 text-[7px] font-bold text-white tracking-wide"
+            className="rounded-full px-2.5 py-[3px] text-[8px] font-bold text-white tracking-wide flex-shrink-0"
             style={{ backgroundColor: doc.color }}
             animate={{
               scale: isHovered ? 1 : 0.85,

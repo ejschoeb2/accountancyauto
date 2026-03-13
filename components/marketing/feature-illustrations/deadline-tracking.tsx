@@ -2,12 +2,14 @@
 
 import { motion } from "framer-motion";
 
-const DAYS = Array.from({ length: 20 }, (_, i) => i + 1);
+const DAYS = Array.from({ length: 25 }, (_, i) => i + 1);
 
 const MARKS = [
-  { day: 5,  bg: "rgba(239,68,68,0.14)",   dot: "#ef4444", delay: 0,    ring: true  },
-  { day: 12, bg: "rgba(245,158,11,0.14)",  dot: "#f59e0b", delay: 0.14, ring: false },
-  { day: 18, bg: "rgba(59,130,246,0.14)",  dot: "#3b82f6", delay: 0.28, ring: false },
+  { day: 3,  bg: "rgba(239,68,68,0.14)",   dot: "#ef4444", delay: 0,    ring: true  },
+  { day: 8,  bg: "rgba(245,158,11,0.14)",  dot: "#f59e0b", delay: 0.1,  ring: false },
+  { day: 14, bg: "rgba(245,158,11,0.14)",  dot: "#f59e0b", delay: 0.18, ring: false },
+  { day: 19, bg: "rgba(239,68,68,0.14)",   dot: "#ef4444", delay: 0.26, ring: false },
+  { day: 23, bg: "rgba(245,158,11,0.14)",  dot: "#f59e0b", delay: 0.34, ring: false },
 ];
 
 export const DeadlineTrackingIllustration = ({ isHovered }: { isHovered: boolean }) => (
@@ -27,7 +29,7 @@ export const DeadlineTrackingIllustration = ({ isHovered }: { isHovered: boolean
         {DAYS.map(day => {
           const mark = MARKS.find(m => m.day === day);
           return (
-            <div key={day} className="relative flex flex-col items-center justify-center h-[22px] rounded">
+            <div key={day} className="relative flex flex-col items-center justify-center h-[20px] rounded">
 
               {/* Highlight background */}
               {mark && (
@@ -56,17 +58,18 @@ export const DeadlineTrackingIllustration = ({ isHovered }: { isHovered: boolean
                 />
               )}
 
-              {/* Pulsing ring on overdue date */}
+              {/* Single flash ring on overdue date */}
               {mark?.ring && (
                 <motion.div
                   className="absolute inset-0 rounded"
                   style={{ borderWidth: 1, borderStyle: "solid", borderColor: mark.dot }}
+                  initial={{ opacity: 0, scale: 0.85 }}
                   animate={isHovered
                     ? { opacity: [0, 0.65, 0], scale: [0.85, 1.25, 1.55] }
                     : { opacity: 0, scale: 0.85 }
                   }
                   transition={isHovered
-                    ? { duration: 1.7, delay: 0.42, repeat: Infinity, ease: "easeOut" }
+                    ? { duration: 1.2, delay: 0.42, ease: "easeOut" }
                     : { duration: 0.15 }
                   }
                 />
