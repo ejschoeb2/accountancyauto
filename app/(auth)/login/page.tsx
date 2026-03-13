@@ -6,6 +6,7 @@ import { Loader2, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle } from "luci
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signIn } from "./actions";
+import { createClient } from "@/lib/supabase/client";
 import { MarketingNav } from "@/components/marketing/nav";
 
 function LoginForm() {
@@ -25,6 +26,12 @@ function LoginForm() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    // Clear any stale session from a previous account in this browser
+    // to prevent auth conflicts and wizard loading the wrong draft
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    sessionStorage.removeItem("wizard_pending_email");
 
     const result = await signIn(email, password, inviteToken);
 

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { signUp } from "../login/actions";
 import { startSignup } from "../setup/wizard/actions";
+import { createClient } from "@/lib/supabase/client";
 import { MarketingNav } from "@/components/marketing/nav";
 
 function SignupForm() {
@@ -37,6 +38,12 @@ function SignupForm() {
     }
 
     setIsLoading(true);
+
+    // Clear any stale session from a previous account in this browser
+    // to prevent auth conflicts and wizard loading the wrong draft
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    sessionStorage.removeItem("wizard_pending_email");
 
     if (inviteToken) {
       // Invite flow: pre-confirmed account, redirects server-side
