@@ -91,15 +91,15 @@ export default async function SchedulesPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1>Reminder Schedules</h1>
+          <h1>Deadlines</h1>
           <p className="text-muted-foreground mt-1">
-            Configure when and how clients are reminded about upcoming deadlines
+            Manage filing and custom deadlines, and configure when clients are reminded
           </p>
         </div>
-        <Link href="/schedules/new/edit?type=custom">
+        <Link href="/deadlines/new/edit?type=custom">
           <IconButtonWithText variant="violet">
             <Plus className="h-5 w-5" />
-            Create Custom Reminder
+            Create Deadline
           </IconButtonWithText>
         </Link>
       </div>

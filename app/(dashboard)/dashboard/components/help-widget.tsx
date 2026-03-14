@@ -22,10 +22,10 @@ export function HelpWidget() {
           • Manage email templates
         </Link>
         <Link
-          href="/schedules"
+          href="/deadlines"
           className="block text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          • Configure reminder schedules
+          • Configure deadlines
         </Link>
         <Link
           href="/clients"

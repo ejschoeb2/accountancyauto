@@ -26,7 +26,7 @@ const FAQS = [
     a: "Uploaded documents are forwarded directly to your connected cloud storage — Google Drive, OneDrive, or Dropbox. Prompt never stores your clients' files on its own servers. GDPR compliant by design: your data stays in your cloud, not ours.",
   },
   {
-    q: "Can I customise the reminder schedule?",
+    q: "Can I customise the deadline reminders?",
     a: "Yes. You control when reminders go out relative to each deadline — how many days in advance, how frequently to chase, and what the emails say. Templates are fully customisable per filing type.",
   },
   {

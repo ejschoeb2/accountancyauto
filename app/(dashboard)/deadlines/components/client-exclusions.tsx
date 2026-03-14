@@ -116,7 +116,7 @@ export function ClientExclusions({ scheduleId }: ClientExclusionsProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          This schedule applies to all clients by default.
+          This deadline applies to all clients by default.
           {excludedCount > 0 && (
             <> <span className="text-amber-600 font-medium">{excludedCount} client{excludedCount !== 1 ? 's' : ''} excluded.</span></>
           )}

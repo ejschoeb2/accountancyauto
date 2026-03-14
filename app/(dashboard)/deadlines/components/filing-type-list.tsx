@@ -97,8 +97,8 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
       {filingTypes.map((ft) => {
         const schedule = scheduleMap[ft.id] ?? null
         const href = schedule
-          ? `/schedules/${schedule.id}/edit`
-          : `/schedules/new/edit?filing_type_id=${ft.id}`
+          ? `/deadlines/${schedule.id}/edit`
+          : `/deadlines/new/edit?filing_type_id=${ft.id}`
 
         return (
           <Link key={ft.id} href={href}>
@@ -150,7 +150,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
               {schedule ? (
                 <div className="space-y-3 flex-1 flex flex-col">
                   <p className="text-base font-bold">
-                    Reminder Schedule:
+                    Reminder Steps:
                   </p>
                   {schedule.steps.length > 0 && (
                     <ol className="space-y-2 text-sm">
@@ -169,9 +169,9 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
                 </div>
               ) : (
                 <div className="text-center flex-1 flex items-center justify-center space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">No reminder schedule configured</p>
+                  <p className="text-sm font-medium text-muted-foreground">No reminders configured</p>
                   <p className="text-xs text-muted-foreground">
-                    Create a reminder schedule to automatically notify clients about this deadline
+                    Configure reminders to automatically notify clients about this deadline
                   </p>
                 </div>
               )}
@@ -181,7 +181,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
               <CardFooter>
                 <Button variant="outline" size="sm" className="active:scale-[0.97]" onClick={(e) => e.stopPropagation()}>
                   <Icon name="add" size="sm" className="mr-1.5" />
-                  Create Reminder Schedule
+                  Configure Reminders
                 </Button>
               </CardFooter>
             )}
@@ -192,7 +192,7 @@ export function FilingTypeList({ filingTypes, scheduleMap, deadlineDescriptions,
 
       {/* Custom schedule cards */}
       {customSchedules.map((schedule) => (
-        <Link key={schedule.id} href={`/schedules/${schedule.id}/edit`}>
+        <Link key={schedule.id} href={`/deadlines/${schedule.id}/edit`}>
           <Card className="cursor-pointer h-full flex flex-col">
             <CardHeader>
               <div className="flex items-start justify-between gap-3">

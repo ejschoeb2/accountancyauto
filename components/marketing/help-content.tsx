@@ -91,9 +91,9 @@ function GettingStarted() {
         Tip: run a small test import of 5–10 clients first to confirm your column mapping is correct before importing your full list.
       </Callout>
 
-      <SubHeading>Set up reminder schedules and templates</SubHeading>
+      <SubHeading>Set up deadlines and templates</SubHeading>
       <Body>
-        Before Prompt will send any emails, you need at least one active reminder schedule. Go to <strong>Reminder Schedules</strong>, create a schedule for the filing type you want to chase (e.g. Corporation Tax), and activate it. Then review the default email templates under <strong>Email Templates</strong> — the default wording is generic, so customise it to match your practice's tone before emails start going out.
+        Before Prompt will send any emails, you need at least one active deadline with reminder steps configured. Go to <strong>Deadlines</strong>, create a deadline for the filing type you want to chase (e.g. Corporation Tax), and activate it. Then review the default email templates under <strong>Email Templates</strong> — the default wording is generic, so customise it to match your practice's tone before emails start going out.
       </Body>
 
       <SubHeading>Send a test email</SubHeading>
@@ -149,14 +149,14 @@ function ClientsAndDeadlines() {
 function RemindersAndSchedules() {
   return (
     <>
-      <SectionHeading>Reminders &amp; schedules</SectionHeading>
+      <SectionHeading>Reminders &amp; deadlines</SectionHeading>
       <Body>
-        Reminder schedules are automated email sequences that chase clients for outstanding documents. Once configured, the pipeline runs every day without any manual input — sending the right email to the right client at the right stage.
+        Deadlines are automated email sequences that chase clients for outstanding documents. Once configured, the pipeline runs every day without any manual input — sending the right email to the right client at the right stage.
       </Body>
 
       <SubHeading>Creating a schedule</SubHeading>
       <Body>
-        Go to <strong>Reminder Schedules</strong> and click <strong>New schedule</strong>. Choose the filing type this schedule applies to (e.g. Corporation Tax, VAT, Self Assessment), then define the stages. Each stage is a number of days — for example, stages at Day 1, Day 7, Day 14, and Day 21 mean Prompt will send four emails before the deadline arrives. You also assign an email template to each stage, so the tone can escalate from friendly to urgent.
+        Go to <strong>Deadlines</strong> and click <strong>Create Deadline</strong>. Choose the filing type this deadline applies to (e.g. Corporation Tax, VAT, Self Assessment), then define the reminder steps. Each step is a number of days — for example, steps at Day 1, Day 7, Day 14, and Day 21 mean Prompt will send four emails before the deadline arrives. You also assign an email template to each step, so the tone can escalate from friendly to urgent.
       </Body>
 
       <SubHeading>How the daily pipeline works</SubHeading>
@@ -172,7 +172,7 @@ function RemindersAndSchedules() {
 
       <SubHeading>Pausing and resuming</SubHeading>
       <Body>
-        You can pause a reminder schedule at any time from the Reminder Schedules page. When paused, no emails are sent for that filing type across all clients. When you resume, the pipeline picks up where it left off — clients don't lose their reminder history and won't receive duplicate emails.
+        You can pause a deadline at any time from the Deadlines page. When paused, no emails are sent for that filing type across all clients. When you resume, the pipeline picks up where it left off — clients don't lose their reminder history and won't receive duplicate emails.
       </Body>
       <Body>
         You can also pause an individual client without affecting others. Do this from the client's detail page or by changing their status to <strong>Paused</strong> in the client table.
@@ -359,7 +359,7 @@ function TeamAndSettings() {
 
       <SubHeading>Roles and permissions</SubHeading>
       <Body>
-        There are two roles: <strong>Admin</strong> and <strong>Member</strong>. Admins have full access — they can manage settings, billing, team members, email templates, reminder schedules, and all client data. Members can view and manage clients and documents, send ad hoc reminder emails, and view the dashboard — but cannot change organisation-level settings, templates, or schedules.
+        There are two roles: <strong>Admin</strong> and <strong>Member</strong>. Admins have full access — they can manage settings, billing, team members, email templates, deadlines, and all client data. Members can view and manage clients and documents, send ad hoc reminder emails, and view the dashboard — but cannot change organisation-level settings, templates, or deadlines.
       </Body>
       <Callout>
         Only admins can invite or remove team members, change billing details, or connect and disconnect storage providers.

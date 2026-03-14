@@ -69,7 +69,7 @@ export function ClientSelector({ selectedIds, onToggle }: ClientSelectorProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Select which clients this schedule applies to.
+          Select which clients this deadline applies to.
           {selectedCount > 0 && (
             <> <span className="text-blue-600 font-medium">{selectedCount} client{selectedCount !== 1 ? 's' : ''} selected.</span></>
           )}

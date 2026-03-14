@@ -52,7 +52,7 @@ export function SendHourPicker({ defaultHour }: { defaultHour: number }) {
           </div>
           <div className="space-y-2">
             <div>
-              <h2 className="text-lg font-semibold">Reminder Schedule</h2>
+              <h2 className="text-lg font-semibold">Reminder Timing</h2>
               <p className="text-sm text-muted-foreground mt-1">
                 Choose when daily reminders are sent (UK time)
               </p>

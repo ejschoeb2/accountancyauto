@@ -146,7 +146,7 @@ export default function EditSchedulePage() {
               const error = await scheduleResponse.json()
               toast.error(error.error || 'Failed to load schedule')
             }
-            router.push('/schedules')
+            router.push('/deadlines')
             return
           }
 
@@ -204,7 +204,7 @@ export default function EditSchedulePage() {
         setLoading(false)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load data')
-        router.push('/schedules')
+        router.push('/deadlines')
       }
     }
 
@@ -271,11 +271,11 @@ export default function EditSchedulePage() {
         }
       }
 
-      toast.success(isNew ? 'Reminder schedule created!' : 'Reminder schedule updated!')
+      toast.success(isNew ? 'Deadline created!' : 'Deadline updated!')
       setShowUnsavedDialog(false)
-      router.push('/schedules')
+      router.push('/deadlines')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : `Failed to ${isNew ? 'create' : 'update'} reminder schedule`)
+      toast.error(error instanceof Error ? error.message : `Failed to ${isNew ? 'create' : 'update'} deadline`)
     } finally {
       setSaving(false)
     }
@@ -293,10 +293,10 @@ export default function EditSchedulePage() {
         throw new Error(error.error || 'Failed to delete schedule')
       }
 
-      toast.success('Reminder schedule deleted!')
-      router.push('/schedules')
+      toast.success('Deadline deleted!')
+      router.push('/deadlines')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to delete reminder schedule')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete deadline')
       setDeleting(false)
       setShowDeleteDialog(false)
     }
@@ -319,7 +319,7 @@ export default function EditSchedulePage() {
       const next = !isActive
       setIsActive(next)
       form.setValue('is_active', next, { shouldDirty: false })
-      toast.success(next ? 'Schedule activated' : 'Schedule deactivated')
+      toast.success(next ? 'Deadline activated' : 'Deadline deactivated')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update schedule')
     } finally {
@@ -331,12 +331,12 @@ export default function EditSchedulePage() {
     if (hasUnsavedChanges) {
       setShowUnsavedDialog(true)
     } else {
-      router.push('/schedules')
+      router.push('/deadlines')
     }
   }
 
   const confirmCancel = () => {
-    router.push('/schedules')
+    router.push('/deadlines')
   }
 
   const handleResetChanges = () => {
@@ -352,8 +352,8 @@ export default function EditSchedulePage() {
       <div className="flex items-center justify-between">
         <h1 className="text-foreground">
           {isNew
-            ? (scheduleType === 'custom' ? 'Create Custom Reminder Schedule' : 'Create Reminder Schedule')
-            : 'Edit Reminder Schedule'}
+            ? (scheduleType === 'custom' ? 'Create Custom Deadline' : 'Create Deadline')
+            : 'Edit Deadline'}
         </h1>
         <div className="flex items-center gap-2">
           {!isNew && (
@@ -363,7 +363,7 @@ export default function EditSchedulePage() {
                   type="button"
                   variant="destructive"
                   onClick={() => setShowDeleteDialog(true)}
-                  title="Delete schedule"
+                  title="Delete deadline"
                 >
                   <Trash2 className="h-5 w-5" />
                   Delete
@@ -384,7 +384,7 @@ export default function EditSchedulePage() {
                 variant={isActive ? 'destructive' : 'green'}
                 onClick={handleToggleActive}
                 disabled={toggling}
-                title={isActive ? 'Deactivate schedule' : 'Activate schedule'}
+                title={isActive ? 'Deactivate deadline' : 'Activate deadline'}
               >
                 {isActive ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
                 {toggling ? '...' : isActive ? 'Deactivate' : 'Activate'}
@@ -417,7 +417,7 @@ export default function EditSchedulePage() {
             type="submit"
             variant="blue"
             disabled={saving || (!isNew && !hasUnsavedChanges)}
-            title={saving ? 'Saving...' : isNew ? 'Create schedule' : 'Save changes'}
+            title={saving ? 'Saving...' : isNew ? 'Create deadline' : 'Save changes'}
           >
             <CheckCircle className="h-5 w-5" />
             {saving ? 'Saving...' : isNew ? 'Create' : 'Save'}
@@ -435,7 +435,7 @@ export default function EditSchedulePage() {
             <div className="space-y-1">
               <h2 className="text-2xl font-semibold">Basic Information</h2>
               <p className="text-sm text-muted-foreground">
-                Configure the name, filing type, and basic settings for this schedule.
+                Configure the name, filing type, and basic settings for this deadline.
               </p>
             </div>
           </div>
@@ -444,9 +444,9 @@ export default function EditSchedulePage() {
           {/* Schedule Type indicator (read-only for existing schedules) */}
           {!isNew && (
             <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reminder Type</Label>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deadline Type</Label>
               <p className="text-sm text-muted-foreground">
-                {scheduleType === 'custom' ? 'Custom Reminder' : 'Filing Deadline Reminder'}
+                {scheduleType === 'custom' ? 'Custom Deadline' : 'Filing Deadline'}
                 {' '}&mdash; type cannot be changed after creation.
               </p>
             </div>
@@ -616,12 +616,12 @@ export default function EditSchedulePage() {
           )}
 
         <div className="space-y-2">
-          <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reminder Name</Label>
+          <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deadline Name</Label>
           <Input
             id="name"
             placeholder={scheduleType === 'custom'
-              ? "e.g., Monthly Payroll Reminder"
-              : "e.g., Standard Corporation Tax Reminders"}
+              ? "e.g., Monthly Payroll Deadline"
+              : "e.g., Standard Corporation Tax Deadline"}
             className="hover:border-foreground/20"
             {...form.register('name')}
           />
@@ -637,7 +637,7 @@ export default function EditSchedulePage() {
           <Textarea
             id="description"
             rows={3}
-            placeholder="Internal notes about this schedule"
+            placeholder="Internal notes about this deadline"
             className="hover:border-foreground/20"
             {...form.register('description')}
           />
@@ -676,7 +676,7 @@ export default function EditSchedulePage() {
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold">Applies To</h2>
                 <p className="text-sm text-muted-foreground">
-                  Select which clients this schedule should apply to.
+                  Select which clients this deadline should apply to.
                 </p>
               </div>
             </div>
@@ -708,7 +708,7 @@ export default function EditSchedulePage() {
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold">Applies To</h2>
                 <p className="text-sm text-muted-foreground">
-                  This schedule applies to all clients by default. Untick any clients to exclude them.
+                  This deadline applies to all clients by default. Untick any clients to exclude them.
                 </p>
               </div>
             </div>
@@ -759,9 +759,9 @@ export default function EditSchedulePage() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Reminder Schedule</DialogTitle>
+            <DialogTitle>Delete Deadline</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this reminder schedule? All reminder steps will be removed. This action cannot be undone.
+              Are you sure you want to delete this deadline? All reminder steps will be removed. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

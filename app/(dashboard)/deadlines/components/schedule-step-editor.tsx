@@ -568,7 +568,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType }
             </DialogTitle>
             <DialogDescription>
               {editingTemplateId
-                ? "Changes here update the template globally — all reminder schedules that use this template will be affected."
+                ? "Changes here update the template globally — all deadlines that use this template will be affected."
                 : "Compose the email for this reminder step. A new email template will be created."}
             </DialogDescription>
           </DialogHeader>

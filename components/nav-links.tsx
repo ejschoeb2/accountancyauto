@@ -8,7 +8,7 @@ export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/clients", label: "Clients" },
   { href: "/activity", label: "Activity" },
-  { href: "/schedules", label: "Reminder Schedules" },
+  { href: "/deadlines", label: "Deadlines" },
   { href: "/templates", label: "Email Templates" },
 ];
 

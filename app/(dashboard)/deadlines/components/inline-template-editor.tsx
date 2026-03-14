@@ -180,7 +180,7 @@ export function InlineTemplateEditor({ templateId, onCancel, onSave }: InlineTem
           aria-label="Active template"
         />
         <Label className="cursor-pointer" onClick={() => setIsActive(!isActive)}>
-          Active (available for use in schedules)
+          Active (available for use in deadlines)
         </Label>
       </div>
 
@@ -212,7 +212,7 @@ export function InlineTemplateEditor({ templateId, onCancel, onSave }: InlineTem
       <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-xl">
         <AlertCircle className="size-5 text-amber-500 shrink-0" />
         <p className="text-sm text-amber-500">
-          The portal link placeholder will only generate a working link when this template is used in a reminder schedule linked to a filing type, or sent via bulk email with a filing context selected.
+          The portal link placeholder will only generate a working link when this template is used in a deadline linked to a filing type, or sent via bulk email with a filing context selected.
         </p>
       </div>
 
