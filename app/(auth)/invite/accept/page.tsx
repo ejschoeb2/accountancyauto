@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Brain, Loader2, CheckCircle, AlertCircle, Users, ArrowRight } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Users, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { validateInviteToken, acceptInvite } from "./actions";
 
@@ -101,7 +101,7 @@ function AcceptInviteContent() {
         {/* Branding */}
         <div className="flex flex-col items-center gap-4">
           <div className="flex items-center gap-2">
-            <Brain className="text-violet-600" size={28} />
+            <img src="/promptlogov1.svg" alt="Prompt" width={28} height={28} />
             <span className="text-2xl font-bold tracking-tight">Prompt</span>
           </div>
         </div>
