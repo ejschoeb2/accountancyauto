@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { createServiceClient } from '@/lib/supabase/service';
 import crypto from 'crypto';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Brain } from 'lucide-react';
 import { PortalChecklist } from './components/portal-checklist';
 
 export const metadata: Metadata = {
@@ -133,7 +133,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
         <div className="max-w-screen-xl mx-auto px-4">
           <div className="flex items-center h-16">
             <a href="/" className="flex items-center gap-2 shrink-0">
-              <img src="/promptlogov1.svg" alt="Prompt" width={24} height={24} />
+              <Brain className="text-violet-600" size={24} />
               <span className="font-bold text-lg text-foreground">Prompt</span>
             </a>
             <span className="w-px h-4 bg-border mx-3" />

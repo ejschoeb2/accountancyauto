@@ -1,6 +1,6 @@
 "use client";
 
-import { UserPlus, LogIn } from "lucide-react";
+import { Brain, UserPlus, LogIn } from "lucide-react";
 
 interface MarketingNavProps {
   hideLogin?: boolean;
@@ -17,7 +17,7 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
 
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 shrink-0">
-            <img src="/promptlogov1.svg" alt="Prompt" width={24} height={24} />
+            <Brain className="text-violet-600" size={24} />
             <span className="font-bold text-lg text-foreground">Prompt</span>
           </a>
 

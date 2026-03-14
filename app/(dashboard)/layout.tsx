@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { XCircle, AlertTriangle } from "lucide-react";
-import Image from "next/image";
+import { Brain, XCircle, AlertTriangle } from "lucide-react";
 import { NavLinks } from "@/components/nav-links";
 import { MobileNav } from "@/components/mobile-nav";
 import { HelpLink } from "@/components/help-link";
@@ -82,7 +81,7 @@ export default async function DashboardLayout({
           {/* Branding */}
           <div className="flex items-center gap-3">
             <Link href="/" className="flex items-center gap-3">
-              <Image src="/promptlogov1.svg" alt="Prompt" width={22} height={22} />
+              <Brain className="text-violet-600" size={22} />
               <span className="text-lg font-bold tracking-tight">Prompt</span>
             </Link>
             {orgName && (
