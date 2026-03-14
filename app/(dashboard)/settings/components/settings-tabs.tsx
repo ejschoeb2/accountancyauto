@@ -7,6 +7,7 @@ import { EmailSettingsCard } from "./email-settings-card";
 import { DomainSetupCard } from "./domain-setup-card";
 import { TeamCard, type AccountantStats } from "./team-card";
 import { SignOutCard } from "./sign-out-card";
+import { DeleteAccountCard } from "./delete-account-card";
 import { StorageCard } from "./storage-card";
 import { ClientPortalCard } from "./client-portal-card";
 import { UploadChecksCard } from "./upload-checks-card";
@@ -108,6 +109,7 @@ export function SettingsTabs({
             clientLimit={clientLimit}
           />
           <SignOutCard />
+          <DeleteAccountCard />
         </TabsContent>
 
         <TabsContent value="email" className="space-y-8 mt-6">

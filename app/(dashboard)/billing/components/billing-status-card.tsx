@@ -1,20 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, ExternalLink, Loader2, XCircle } from "lucide-react";
+import { CreditCard, ExternalLink, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { UsageBars } from "./usage-bars";
 import { UpgradePlanSection } from "./upgrade-plan-section";
 import type { PlanTier } from "@/lib/stripe/plans";
@@ -111,43 +100,8 @@ export function BillingStatusCard({
 }: BillingStatusCardProps) {
   const statusConfig = STATUS_CONFIG[subscriptionStatus];
   const isTrialing = subscriptionStatus === "trialing" && trialEndsAt;
-  const isPaidPlan = planTier !== "free";
-  const canCancel = isPaidPlan && subscriptionStatus !== "cancelled";
-
   const [loading, setLoading] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function handleCancelPlan() {
-    setCancelLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/stripe/change-plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orgId, planTier: "free" }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to cancel plan");
-        setCancelLoading(false);
-        setCancelDialogOpen(false);
-        return;
-      }
-
-      // Reload to reflect the updated plan
-      window.location.reload();
-    } catch (err) {
-      console.error("Cancel plan error:", err);
-      setError("Something went wrong. Please try again.");
-      setCancelLoading(false);
-      setCancelDialogOpen(false);
-    }
-  }
 
   async function handleManageBilling() {
     setLoading(true);
@@ -183,80 +137,37 @@ export function BillingStatusCard({
       {/* Header */}
       <div className="px-8">
         <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">Your Subscription</h2>
-            <p className="text-sm text-muted-foreground">
-              Your current plan and billing status
-            </p>
+          <div className="flex items-start gap-4">
+            <div className="flex items-center justify-center size-12 rounded-lg bg-green-500/10 shrink-0">
+              <CreditCard className="size-6 text-green-600" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-2xl font-semibold">Your Subscription</h2>
+              <p className="text-sm text-muted-foreground">
+                Your current plan and billing status
+              </p>
+            </div>
           </div>
-          <div className="shrink-0 flex items-center gap-2">
-            {hasSubscription && (
-              <ButtonBase
-                variant="violet"
-                buttonType="icon-text"
-                onClick={handleManageBilling}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Opening portal...
-                  </>
-                ) : (
-                  <>
-                    <ExternalLink className="size-4" />
-                    Manage billing
-                  </>
-                )}
-              </ButtonBase>
-            )}
-
-            {canCancel && (
-              <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-                <AlertDialogTrigger asChild>
-                  <ButtonBase
-                    variant="destructive"
-                    buttonType="icon-text"
-                  >
-                    <XCircle className="size-4" />
-                    Cancel plan
-                  </ButtonBase>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure you want to cancel?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Your subscription will be cancelled immediately and your
-                      organisation will be downgraded to the Free plan (10 clients).
-                      You can resubscribe at any time.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={cancelLoading}>
-                      Keep my plan
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleCancelPlan();
-                      }}
-                      disabled={cancelLoading}
-                    >
-                      {cancelLoading ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin" />
-                          Cancelling...
-                        </>
-                      ) : (
-                        "Yes, cancel my plan"
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
+          {hasSubscription && (
+            <ButtonBase
+              variant="violet"
+              buttonType="icon-text"
+              onClick={handleManageBilling}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Opening portal...
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="size-4" />
+                  Manage billing
+                </>
+              )}
+            </ButtonBase>
+          )}
         </div>
       </div>
 
