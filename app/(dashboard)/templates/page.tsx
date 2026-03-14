@@ -71,7 +71,7 @@ export default async function TemplatesPage() {
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <h1>Email Templates</h1>
+          <h1>Emails</h1>
           <p className="text-muted-foreground mt-1">
             Create and manage reusable templates for client communications.
           </p>
