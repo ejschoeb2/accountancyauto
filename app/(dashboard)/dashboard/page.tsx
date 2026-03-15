@@ -34,7 +34,7 @@ function DashboardContent() {
   const [clientStatusList, setClientStatusList] = useState<ClientStatusRow[]>([]);
   const [forecastData, setForecastData] = useState<MonthlyWorkload[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingProgress | null>(null);
-  const [showGettingStarted, setShowGettingStarted] = useState(false);
+  const [showGettingStarted, setShowGettingStarted] = useState(true);
   const [loading, setLoading] = useState(true);
 
   usePageLoading('dashboard-data', loading);
@@ -53,6 +53,8 @@ function DashboardContent() {
         setClientStatusList(clientsData);
         setForecastData(forecast);
         setOnboarding(onboardingData);
+        // Hide getting started if previously dismissed
+        if (onboardingData.dismissed) setShowGettingStarted(false);
       })
       .catch((error) => {
         console.error('Error loading dashboard:', error);
@@ -81,31 +83,39 @@ function DashboardContent() {
             <Zap className="size-4" />
             Go further
           </Link>
-          <button
-            onClick={() => setShowGettingStarted((v) => !v)}
-            className={buttonBaseVariants({
-              variant: showGettingStarted ? 'amber' : 'green',
-              buttonType: 'icon-text',
-            })}
-          >
-            {showGettingStarted ? (
-              <>
-                <EyeOff className="size-4" />
-                Hide get started
-              </>
-            ) : (
-              <>
-                <Rocket className="size-4" />
-                Get started
-              </>
-            )}
-          </button>
+          {!onboarding?.dismissed && (
+            <button
+              onClick={() => setShowGettingStarted((v) => !v)}
+              className={buttonBaseVariants({
+                variant: showGettingStarted ? 'amber' : 'green',
+                buttonType: 'icon-text',
+              })}
+            >
+              {showGettingStarted ? (
+                <>
+                  <EyeOff className="size-4" />
+                  Hide get started
+                </>
+              ) : (
+                <>
+                  <Rocket className="size-4" />
+                  Get started
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Getting started checklist */}
-      {onboarding && showGettingStarted && (
-        <GettingStarted progress={onboarding} />
+      {onboarding && showGettingStarted && !onboarding.dismissed && (
+        <GettingStarted
+          progress={onboarding}
+          onDismiss={() => {
+            setShowGettingStarted(false);
+            setOnboarding((prev) => prev ? { ...prev, dismissed: true } : prev);
+          }}
+        />
       )}
 
       {/* Summary metrics */}

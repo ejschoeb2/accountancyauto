@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, UserPlus, FileText, Send, ExternalLink } from 'lucide-react';
+import { Check, UserPlus, FileText, Send, ExternalLink, X } from 'lucide-react';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
+import { markOnboardingComplete } from '@/app/actions/settings';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 interface GettingStartedProps {
   progress: OnboardingProgress;
+  onDismiss: () => void;
 }
 
 const steps = [
@@ -72,11 +74,23 @@ const colorMap: Record<string, { bg: string; bgHover: string; text: string }> = 
   },
 };
 
-export function GettingStarted({ progress }: GettingStartedProps) {
+export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
   const router = useRouter();
   const hasShownToasts = useRef(false);
+  const [dismissing, setDismissing] = useState(false);
   const completedCount = steps.filter((s) => progress[s.key]).length;
   const allComplete = completedCount === steps.length;
+
+  async function handleDismiss() {
+    setDismissing(true);
+    const result = await markOnboardingComplete();
+    if (result.error) {
+      toast.error('Failed to dismiss');
+      setDismissing(false);
+      return;
+    }
+    onDismiss();
+  }
 
   // Detect newly completed steps and show toast notifications
   useEffect(() => {
@@ -106,7 +120,7 @@ export function GettingStarted({ progress }: GettingStartedProps) {
             description: 'You\'ve finished setting up Prompt. You\'re ready to go!',
             duration: 6000,
           });
-          break; // Don't show individual toasts if all complete
+          break;
         }
 
         toast.success(`Step complete: ${step.label}`, {
@@ -130,9 +144,21 @@ export function GettingStarted({ progress }: GettingStartedProps) {
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Getting Started
           </p>
-          <span className="text-xs text-muted-foreground">
-            {completedCount}/{steps.length} complete
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">
+              {completedCount}/{steps.length} complete
+            </span>
+            {allComplete && (
+              <button
+                onClick={handleDismiss}
+                disabled={dismissing}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                <X className="size-3.5" />
+                Dismiss
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
