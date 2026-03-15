@@ -19,10 +19,28 @@ import {
   Card,
   CardContent,
 } from '@/components/ui/card'
-import { Plus, Search, SlidersHorizontal, X, AlertTriangle, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, X, AlertTriangle, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { formatDistanceToNow } from 'date-fns'
 import type { EmailTemplate } from '@/lib/types/database'
+
+// Generic template names — everything else that's not custom is "Dedicated"
+const GENERIC_TEMPLATE_NAMES = new Set([
+  'Friendly First Reminder',
+  'Follow-Up Reminder',
+  'Urgent Final Notice',
+])
+
+function getTemplateType(template: EmailTemplate): 'custom' | 'dedicated' | 'default' {
+  if (template.is_custom) return 'custom'
+  if (!GENERIC_TEMPLATE_NAMES.has(template.name)) return 'dedicated'
+  return 'default'
+}
+
+const TYPE_CONFIG = {
+  custom: { bg: 'bg-violet-500/10', text: 'text-violet-500', label: 'Custom' },
+  dedicated: { bg: 'bg-amber-500/10', text: 'text-amber-600', label: 'Dedicated' },
+  default: { bg: 'bg-blue-500/10', text: 'text-blue-500', label: 'Default' },
+} as const
 
 interface TemplatesViewProps {
   templates: EmailTemplate[]
@@ -30,9 +48,6 @@ interface TemplatesViewProps {
   portalIssueMap: Record<string, 'portal-disabled' | 'portal-missing'>
   hasPortalConflicts: boolean
 }
-
-type SortField = 'name' | 'subject' | 'created_at'
-type SortDir = 'asc' | 'desc'
 
 export function TemplatesView({
   templates,
@@ -42,39 +57,21 @@ export function TemplatesView({
 }: TemplatesViewProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState('most-used')
   const [showFilters, setShowFilters] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
-  const [typeFilter, setTypeFilter] = useState<'all' | 'custom' | 'default'>('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'custom' | 'dedicated' | 'default'>('all')
   const [usageFilter, setUsageFilter] = useState<'all' | 'used' | 'unused'>('all')
-  const [sortField, setSortField] = useState<SortField>('created_at')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const clearAllFilters = () => {
-    setStatusFilter('all')
     setTypeFilter('all')
     setUsageFilter('all')
   }
 
-  const hasActiveFilters = statusFilter !== 'all' || typeFilter !== 'all' || usageFilter !== 'all'
+  const hasActiveFilters = typeFilter !== 'all' || usageFilter !== 'all'
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDir('asc')
-    }
-  }
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null
-    return sortDir === 'asc'
-      ? <ChevronUp className="size-3.5 inline ml-1" />
-      : <ChevronDown className="size-3.5 inline ml-1" />
-  }
-
-  const handleDelete = async (template: EmailTemplate) => {
+  const handleDelete = async (template: EmailTemplate, e: React.MouseEvent) => {
+    e.stopPropagation()
     if (!confirm(`Are you sure you want to delete "${template.name}"?\n\nThis action cannot be undone.`)) {
       return
     }
@@ -110,13 +107,8 @@ export function TemplatesView({
         if (!matchesName && !matchesSubject) return false
       }
 
-      // Status filter
-      if (statusFilter === 'active' && !t.is_active) return false
-      if (statusFilter === 'inactive' && t.is_active) return false
-
       // Type filter
-      if (typeFilter === 'custom' && !t.is_custom) return false
-      if (typeFilter === 'default' && t.is_custom) return false
+      if (typeFilter !== 'all' && getTemplateType(t) !== typeFilter) return false
 
       // Usage filter
       const isUsed = (templateUsageMap[t.id] || []).length > 0
@@ -128,23 +120,27 @@ export function TemplatesView({
 
     // Sort
     result.sort((a, b) => {
-      let cmp = 0
-      switch (sortField) {
-        case 'name':
-          cmp = a.name.localeCompare(b.name)
-          break
-        case 'subject':
-          cmp = (a.subject ?? '').localeCompare(b.subject ?? '')
-          break
-        case 'created_at':
-          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          break
+      switch (sortBy) {
+        case 'most-used': {
+          const aCount = (templateUsageMap[a.id] || []).length
+          const bCount = (templateUsageMap[b.id] || []).length
+          return bCount - aCount || a.name.localeCompare(b.name)
+        }
+        case 'name-asc':
+          return a.name.localeCompare(b.name)
+        case 'name-desc':
+          return b.name.localeCompare(a.name)
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        case 'oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        default:
+          return 0
       }
-      return sortDir === 'asc' ? cmp : -cmp
     })
 
     return result
-  }, [templates, searchQuery, sortField, sortDir, statusFilter, typeFilter, usageFilter, templateUsageMap])
+  }, [templates, searchQuery, sortBy, typeFilter, usageFilter, templateUsageMap])
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -214,6 +210,22 @@ export function TemplatesView({
             <SlidersHorizontal className="h-5 w-5" />
             {showFilters ? "Close Filters" : "Filter"}
           </IconButtonWithText>
+          <div className="w-px h-6 bg-border mx-1" />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="h-9 min-w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="most-used">Most Used</SelectItem>
+                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -223,27 +235,6 @@ export function TemplatesView({
           <CardContent className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 space-y-4">
-                {/* Status */}
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
-                  <div className="flex flex-wrap gap-2">
-                    <ButtonWithText
-                      onClick={() => setStatusFilter(statusFilter === 'active' ? 'all' : 'active')}
-                      isSelected={statusFilter === 'active'}
-                      variant="muted"
-                    >
-                      Active
-                    </ButtonWithText>
-                    <ButtonWithText
-                      onClick={() => setStatusFilter(statusFilter === 'inactive' ? 'all' : 'inactive')}
-                      isSelected={statusFilter === 'inactive'}
-                      variant="muted"
-                    >
-                      Inactive
-                    </ButtonWithText>
-                  </div>
-                </div>
-
                 {/* Type */}
                 <div className="space-y-2">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</span>
@@ -254,6 +245,13 @@ export function TemplatesView({
                       variant="muted"
                     >
                       Custom
+                    </ButtonWithText>
+                    <ButtonWithText
+                      onClick={() => setTypeFilter(typeFilter === 'dedicated' ? 'all' : 'dedicated')}
+                      isSelected={typeFilter === 'dedicated'}
+                      variant="muted"
+                    >
+                      Dedicated
                     </ButtonWithText>
                     <ButtonWithText
                       onClick={() => setTypeFilter(typeFilter === 'default' ? 'all' : 'default')}
@@ -313,17 +311,11 @@ export function TemplatesView({
             <table className="w-full">
               <thead>
                 <tr className="border-b text-left">
-                  <th
-                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort('name')}
-                  >
-                    Name <SortIcon field="name" />
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Name
                   </th>
-                  <th
-                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort('subject')}
-                  >
-                    Subject <SortIcon field="subject" />
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Subject
                   </th>
                   <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     Used in
@@ -332,15 +324,7 @@ export function TemplatesView({
                     Type
                   </th>
                   <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Status
-                  </th>
-                  <th
-                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort('created_at')}
-                  >
-                    Created <SortIcon field="created_at" />
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-12">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -348,6 +332,8 @@ export function TemplatesView({
                 {filteredTemplates.map((template) => {
                   const usedIn = templateUsageMap[template.id] || []
                   const portalIssue = portalIssueMap[template.id]
+                  const templateType = getTemplateType(template)
+                  const typeStyle = TYPE_CONFIG[templateType]
 
                   return (
                     <tr
@@ -373,47 +359,24 @@ export function TemplatesView({
                       <td className="px-6 py-4">
                         {usedIn.length > 0 ? (
                           <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
-                            {usedIn.join(', ')}
+                            {usedIn.length} schedule{usedIn.length !== 1 ? 's' : ''}
                           </span>
                         ) : (
                           <span className="text-sm text-muted-foreground/50">—</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        {template.is_custom ? (
-                          <div className="px-3 py-1.5 rounded-md inline-flex items-center bg-violet-500/10">
-                            <span className="text-xs font-medium text-violet-500">Custom</span>
-                          </div>
-                        ) : (
-                          <div className="px-3 py-1.5 rounded-md inline-flex items-center bg-blue-500/10">
-                            <span className="text-xs font-medium text-blue-500">Default</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className={`px-3 py-1.5 rounded-md inline-flex items-center ${
-                          template.is_active ? 'bg-green-500/10' : 'bg-status-neutral/10'
-                        }`}>
-                          <span className={`text-xs font-medium ${
-                            template.is_active ? 'text-green-600' : 'text-status-neutral'
-                          }`}>
-                            {template.is_active ? 'Active' : 'Inactive'}
+                        <div className={`px-2.5 py-1 rounded-md inline-flex items-center ${typeStyle.bg}`}>
+                          <span className={`text-xs font-medium ${typeStyle.text}`}>
+                            {typeStyle.label}
                           </span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDistanceToNow(new Date(template.created_at), { addSuffix: true })}
-                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <ButtonBase
                           variant="destructive"
                           buttonType="icon-only"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(template)
-                          }}
+                          onClick={(e) => handleDelete(template, e)}
                           disabled={deletingId === template.id}
                         >
                           <Trash2 className="size-4" />
