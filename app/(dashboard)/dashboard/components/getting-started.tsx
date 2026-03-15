@@ -128,7 +128,7 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
               disabled={dismissing}
               className="inline-flex items-center gap-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none"
             >
-              <Check className="size-5" strokeWidth={2.5} />
+              <Check className="size-4" strokeWidth={2.5} />
               Complete getting started
             </button>
           ) : (
