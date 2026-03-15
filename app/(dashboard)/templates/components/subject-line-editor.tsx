@@ -73,30 +73,32 @@ export const SubjectLineEditor = forwardRef<HTMLInputElement, SubjectLineEditorP
       <div className="flex items-center gap-3 border-b px-4 py-3">
         <span className="text-sm font-medium text-muted-foreground shrink-0">Subject:</span>
         <div className="flex-1 relative">
-          {/* Styled overlay - always shown when there's content */}
+          {/* Styled overlay - matches the input's text layout exactly so cursor aligns */}
           {value && (
             <div
-              className="absolute inset-0 px-3 py-2 pointer-events-none flex items-center flex-wrap gap-x-0.5"
+              className="absolute inset-0 pointer-events-none overflow-hidden flex items-center px-3"
               aria-hidden="true"
             >
-              {parsedContent.map((part, index) => {
-                if (part.type === 'variable') {
-                  return (
-                    <span
-                      key={index}
-                      className="inline-flex items-center rounded-md bg-sky-500/10 text-sky-600 px-3 py-1 text-sm font-medium select-none"
-                    >
-                      {part.content}
-                    </span>
-                  )
-                } else {
-                  return (
-                    <span key={index} className="text-sm whitespace-pre">
-                      {part.content}
-                    </span>
-                  )
-                }
-              })}
+              <span className="text-sm whitespace-pre truncate">
+                {parsedContent.map((part, index) => {
+                  if (part.type === 'variable') {
+                    return (
+                      <span
+                        key={index}
+                        className="text-sky-600 bg-sky-500/10 rounded-sm font-medium"
+                      >
+                        {part.content}
+                      </span>
+                    )
+                  } else {
+                    return (
+                      <span key={index}>
+                        {part.content}
+                      </span>
+                    )
+                  }
+                })}
+              </span>
             </div>
           )}
 
@@ -109,7 +111,7 @@ export const SubjectLineEditor = forwardRef<HTMLInputElement, SubjectLineEditorP
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder="Subject line..."
-            className={`flex-1 border-0 bg-transparent focus-visible:ring-0 text-sm ${
+            className={`flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:border-0 text-sm ${
               value ? 'text-transparent caret-black dark:caret-white' : ''
             }`}
           />
