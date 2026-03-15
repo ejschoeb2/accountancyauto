@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getDashboardMetrics, getClientStatusList, type DashboardMetrics, type ClientStatusRow } from '@/lib/dashboard/metrics';
 import { getWorkloadForecast, type MonthlyWorkload } from '@/lib/dashboard/forecast';
-import { getOnboardingProgress, type OnboardingProgress } from '@/lib/dashboard/onboarding';
+import { getOnboardingProgress, getGoFurtherProgress, type OnboardingProgress, type GoFurtherProgress } from '@/lib/dashboard/onboarding';
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading';
 import { buttonBaseVariants } from '@/components/ui/button-base';
 import { EyeOff, Rocket, Zap } from 'lucide-react';
@@ -15,6 +14,9 @@ import { StatusDistribution } from './components/status-distribution';
 import { AlertFeed } from './components/alert-feed';
 import { WorkloadForecast } from './components/workload-forecast';
 import { GettingStarted } from './components/getting-started';
+import { GoFurther } from './components/go-further';
+
+type ActivePanel = 'getting-started' | 'go-further' | null;
 
 function DashboardContent() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -34,7 +36,8 @@ function DashboardContent() {
   const [clientStatusList, setClientStatusList] = useState<ClientStatusRow[]>([]);
   const [forecastData, setForecastData] = useState<MonthlyWorkload[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingProgress | null>(null);
-  const [showGettingStarted, setShowGettingStarted] = useState(true);
+  const [goFurther, setGoFurther] = useState<GoFurtherProgress | null>(null);
+  const [activePanel, setActivePanel] = useState<ActivePanel>('getting-started');
   const [loading, setLoading] = useState(true);
 
   usePageLoading('dashboard-data', loading);
@@ -47,14 +50,16 @@ function DashboardContent() {
       getClientStatusList(supabase),
       getWorkloadForecast(supabase),
       getOnboardingProgress(supabase),
+      getGoFurtherProgress(supabase),
     ])
-      .then(([metricsData, clientsData, forecast, onboardingData]) => {
+      .then(([metricsData, clientsData, forecast, onboardingData, goFurtherData]) => {
         setMetrics(metricsData);
         setClientStatusList(clientsData);
         setForecastData(forecast);
         setOnboarding(onboardingData);
-        // Hide getting started if previously dismissed
-        if (onboardingData.dismissed) setShowGettingStarted(false);
+        setGoFurther(goFurtherData);
+        // If getting started was dismissed, don't show either panel by default
+        if (onboardingData.dismissed) setActivePanel(null);
       })
       .catch((error) => {
         console.error('Error loading dashboard:', error);
@@ -63,6 +68,12 @@ function DashboardContent() {
         setLoading(false);
       });
   }, []);
+
+  const onboardingDismissed = onboarding?.dismissed ?? false;
+
+  function togglePanel(panel: 'getting-started' | 'go-further') {
+    setActivePanel((current) => (current === panel ? null : panel));
+  }
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto">
@@ -75,23 +86,34 @@ function DashboardContent() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/help#go-further"
-            target="_blank"
-            className={buttonBaseVariants({ variant: 'blue', buttonType: 'icon-text' })}
+          <button
+            onClick={() => togglePanel('go-further')}
+            className={buttonBaseVariants({
+              variant: activePanel === 'go-further' ? 'amber' : 'blue',
+              buttonType: 'icon-text',
+            })}
           >
-            <Zap className="size-4" />
-            Go further
-          </Link>
-          {!onboarding?.dismissed && (
+            {activePanel === 'go-further' ? (
+              <>
+                <EyeOff className="size-4" />
+                Hide go further
+              </>
+            ) : (
+              <>
+                <Zap className="size-4" />
+                Go further
+              </>
+            )}
+          </button>
+          {!onboardingDismissed && (
             <button
-              onClick={() => setShowGettingStarted((v) => !v)}
+              onClick={() => togglePanel('getting-started')}
               className={buttonBaseVariants({
-                variant: showGettingStarted ? 'amber' : 'green',
+                variant: activePanel === 'getting-started' ? 'amber' : 'green',
                 buttonType: 'icon-text',
               })}
             >
-              {showGettingStarted ? (
+              {activePanel === 'getting-started' ? (
                 <>
                   <EyeOff className="size-4" />
                   Hide get started
@@ -108,14 +130,19 @@ function DashboardContent() {
       </div>
 
       {/* Getting started checklist */}
-      {onboarding && showGettingStarted && !onboarding.dismissed && (
+      {onboarding && activePanel === 'getting-started' && !onboardingDismissed && (
         <GettingStarted
           progress={onboarding}
           onDismiss={() => {
-            setShowGettingStarted(false);
+            setActivePanel(null);
             setOnboarding((prev) => prev ? { ...prev, dismissed: true } : prev);
           }}
         />
+      )}
+
+      {/* Go further checklist */}
+      {goFurther && activePanel === 'go-further' && (
+        <GoFurther progress={goFurther} />
       )}
 
       {/* Summary metrics */}

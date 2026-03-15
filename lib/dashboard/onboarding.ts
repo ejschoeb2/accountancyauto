@@ -8,6 +8,13 @@ export interface OnboardingProgress {
   dismissed: boolean;
 }
 
+export interface GoFurtherProgress {
+  hasPortalEnabled: boolean;
+  hasCustomDomain: boolean;
+  hasUploadChecks: boolean;
+  hasCustomSchedule: boolean;
+}
+
 /**
  * Check onboarding milestone completion by querying existing tables.
  * No event listeners needed — all derived from current state.
@@ -59,5 +66,36 @@ export async function getOnboardingProgress(
     hasEmailSent: (emailRes.count ?? 0) > 0,
     hasPortalLink: (portalRes.count ?? 0) > 0,
     dismissed: dismissedRes.data?.value === 'true',
+  };
+}
+
+/**
+ * Check advanced feature adoption for the "Go further" checklist.
+ */
+export async function getGoFurtherProgress(
+  supabase: SupabaseClient
+): Promise<GoFurtherProgress> {
+  const [orgRes, customScheduleRes] = await Promise.all([
+    // Org-level feature flags (portal, domain, upload checks)
+    supabase
+      .from('organisations')
+      .select('client_portal_enabled, email_domain_verified, upload_check_mode')
+      .single(),
+
+    // Has at least one custom schedule
+    supabase
+      .from('schedules')
+      .select('id', { count: 'exact', head: true })
+      .eq('schedule_type', 'custom')
+      .limit(1),
+  ]);
+
+  const org = orgRes.data;
+
+  return {
+    hasPortalEnabled: org?.client_portal_enabled === true,
+    hasCustomDomain: org?.email_domain_verified === true,
+    hasUploadChecks: !!org?.upload_check_mode && org.upload_check_mode !== 'none',
+    hasCustomSchedule: (customScheduleRes.count ?? 0) > 0,
   };
 }
