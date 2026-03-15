@@ -11,7 +11,16 @@ export type FilingTypeId =
   | 'ct600_filing'
   | 'companies_house'
   | 'vat_return'
-  | 'self_assessment';
+  | 'self_assessment'
+  | 'mtd_quarterly_update'
+  | 'confirmation_statement'
+  | 'p11d_filing'
+  | 'paye_monthly'
+  | 'cis_monthly_return'
+  | 'payroll_year_end'
+  | 'sa_payment_on_account'
+  | 'partnership_tax_return'
+  | 'trust_tax_return';
 
 export interface FilingType {
   id: FilingTypeId;
@@ -20,6 +29,16 @@ export interface FilingType {
   applicable_client_types: Array<'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP' | 'Individual'>;
   created_at: string;
   document_requirements?: Array<{ label: string; is_mandatory: boolean }>;
+  is_seeded_default?: boolean;
+  calculator_type?: string;
+  sort_order?: number;
+}
+
+export interface OrgFilingTypeSelection {
+  org_id: string;
+  filing_type_id: FilingTypeId;
+  is_active: boolean;
+  activated_at: string;
 }
 
 

@@ -72,6 +72,9 @@ export default function EditSchedulePage() {
 
   const VALID_FILING_TYPE_IDS: FilingTypeId[] = [
     'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return', 'self_assessment',
+    'mtd_quarterly_update', 'confirmation_statement', 'p11d_filing', 'paye_monthly',
+    'cis_monthly_return', 'payroll_year_end', 'sa_payment_on_account',
+    'partnership_tax_return', 'trust_tax_return',
   ]
   const prefillFilingType = searchParams.get('filing_type_id')
   const defaultFilingTypeId: FilingTypeId = (

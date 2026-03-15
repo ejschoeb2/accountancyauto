@@ -1,4 +1,4 @@
-import { addYears } from 'date-fns';
+import { addYears, addMonths } from 'date-fns';
 import { UTCDate } from '@date-fns/utc';
 import {
   calculateCorporationTaxPayment,
@@ -6,6 +6,7 @@ import {
   calculateCompaniesHouseAccounts,
   calculateVATDeadline,
   getNextQuarterEnd,
+  getNextMTDQuarterDeadline,
   VatStaggerGroup,
 } from './calculators';
 
@@ -65,6 +66,46 @@ export function rolloverDeadline(
 
     case 'self_assessment': {
       // Always Jan 31, advance by 1 year
+      return addYears(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'mtd_quarterly_update': {
+      // MTD deadlines are fixed tax-year calendar dates — NEVER use addDays/addMonths
+      return getNextMTDQuarterDeadline(currentDeadline);
+    }
+
+    case 'confirmation_statement': {
+      // Annual cycle — advance by 1 year
+      return addYears(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'p11d_filing': {
+      return addYears(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'paye_monthly': {
+      // Monthly — advance by 1 month
+      return addMonths(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'cis_monthly_return': {
+      // Monthly — advance by 1 month
+      return addMonths(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'payroll_year_end': {
+      return addYears(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'sa_payment_on_account': {
+      return addYears(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'partnership_tax_return': {
+      return addYears(new UTCDate(currentDeadline), 1);
+    }
+
+    case 'trust_tax_return': {
       return addYears(new UTCDate(currentDeadline), 1);
     }
 
