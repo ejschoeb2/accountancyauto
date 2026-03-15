@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: completed
-stopped_at: Completed 32-03-PLAN.md — org-scoped deadlines filtering, ManageFilingTypesSheet, server actions for filing type selections
-last_updated: "2026-03-15T16:59:51.407Z"
+stopped_at: Completed 32-02-PLAN.md — queue builder filters by org-active types, wizard Deadlines step, seedOrgDefaults activates default filing types
+last_updated: "2026-03-15T17:02:29.245Z"
 last_activity: 2026-03-09 — Phase 31-02 staging table migration + server actions + wizard page wiring
 progress:
   total_phases: 33
-  completed_phases: 30
+  completed_phases: 31
   total_plans: 110
-  completed_plans: 106
+  completed_plans: 107
   percent: 0
 ---
 
@@ -305,6 +305,8 @@ Recent decisions affecting v3.0:
 - [Phase 32]: [D-32-01-02] confirmation_statement rollover uses addYears(currentDeadline, 1) — annual cycle off deadline date itself
 - [Phase 32]: [D-32-01-03] partnership_tax_return and trust_tax_return reuse calculateSelfAssessmentDeadline (same Jan 31 formula)
 - [Phase 32-03]: Fallback to all types when orgSelections is empty — fresh org with no rows should see all types rather than empty page
+- [Phase 32]: [D-32-02-01] activeTypeIds guard uses size > 0 check — if org has no selections yet skip filter rather than blocking all types
+- [Phase 32]: [D-32-02-02] saveOrgFilingTypeSelections upserts ALL filing types (active+inactive) in one call for complete org selection state
 
 ### Roadmap Evolution
 
@@ -365,6 +367,7 @@ Recent decisions affecting v3.0:
 | Phase 30 P03 | 7 | 2 tasks | 5 files |
 | Phase 32-expandable-deadline-system-mtd-quarterly-updates P01 | 194 | 2 tasks | 6 files |
 | Phase 32-03 P03 | 480 | 2 tasks | 3 files |
+| Phase 32 P02 | 222 | 2 tasks | 5 files |
 
 ### Tech Debt
 
@@ -405,8 +408,8 @@ Recent decisions affecting v3.0:
 
 ## Session Continuity
 
-Last session: 2026-03-15T16:59:51.387Z
-Stopped at: Completed 32-03-PLAN.md — org-scoped deadlines filtering, ManageFilingTypesSheet, server actions for filing type selections
+Last session: 2026-03-15T17:02:29.239Z
+Stopped at: Completed 32-02-PLAN.md — queue builder filters by org-active types, wizard Deadlines step, seedOrgDefaults activates default filing types
 Resume file: none
 Next step: Phase 31 complete — all 2 plans executed
 
