@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/card'
 import { Plus, Search, SlidersHorizontal, X, AlertTriangle, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { TemplateEditorModal } from './template-editor-modal'
 import type { EmailTemplate } from '@/lib/types/database'
 
 // Generic template names — everything else that's not custom is "Dedicated"
@@ -62,6 +63,8 @@ export function TemplatesView({
   const [typeFilter, setTypeFilter] = useState<'all' | 'custom' | 'dedicated' | 'default'>('all')
   const [usageFilter, setUsageFilter] = useState<'all' | 'used' | 'unused'>('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
 
   const clearAllFilters = () => {
     setTypeFilter('all')
@@ -195,12 +198,16 @@ export function TemplatesView({
 
         {/* Controls */}
         <div className="flex gap-2 sm:ml-auto items-center">
-          <Link href="/templates/new">
-            <IconButtonWithText variant="green">
-              <Plus className="h-5 w-5" />
-              Create Template
-            </IconButtonWithText>
-          </Link>
+          <IconButtonWithText
+            variant="green"
+            onClick={() => {
+              setEditingTemplateId(null)
+              setModalOpen(true)
+            }}
+          >
+            <Plus className="h-5 w-5" />
+            Create Template
+          </IconButtonWithText>
           <IconButtonWithText
             type="button"
             variant={showFilters ? "amber" : "violet"}
@@ -339,7 +346,10 @@ export function TemplatesView({
                     <tr
                       key={template.id}
                       className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => router.push(`/templates/${template.id}/edit`)}
+                      onClick={() => {
+                        setEditingTemplateId(template.id)
+                        setModalOpen(true)
+                      }}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -399,15 +409,27 @@ export function TemplatesView({
                 : 'No templates match your filters.'}
           </p>
           {templates.length === 0 && (
-            <Link href="/templates/new">
-              <IconButtonWithText variant="green" className="mt-4">
-                <Plus className="h-5 w-5" />
-                Create Template
-              </IconButtonWithText>
-            </Link>
+            <IconButtonWithText
+              variant="green"
+              className="mt-4"
+              onClick={() => {
+                setEditingTemplateId(null)
+                setModalOpen(true)
+              }}
+            >
+              <Plus className="h-5 w-5" />
+              Create Template
+            </IconButtonWithText>
           )}
         </div>
       )}
+
+      {/* Template editor modal */}
+      <TemplateEditorModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        templateId={editingTemplateId}
+      />
     </div>
   )
 }
