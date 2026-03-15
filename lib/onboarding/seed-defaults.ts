@@ -802,6 +802,31 @@ export async function seedOrgDefaults(
         }
       }
     }
+
+    // 3. Activate default filing types for this org
+    const { data: defaultFilingTypes, error: ftErr } = await adminClient
+      .from("filing_types")
+      .select("id")
+      .eq("is_seeded_default", true);
+
+    if (ftErr) {
+      console.error("[seedOrgDefaults] Failed to fetch default filing types:", ftErr);
+    } else if (defaultFilingTypes && defaultFilingTypes.length > 0) {
+      const selections = defaultFilingTypes.map((ft) => ({
+        org_id: orgId,
+        filing_type_id: ft.id,
+        is_active: true,
+        activated_at: new Date().toISOString(),
+      }));
+
+      const { error: selErr } = await adminClient
+        .from("org_filing_type_selections")
+        .upsert(selections, { onConflict: "org_id,filing_type_id" });
+
+      if (selErr) {
+        console.error("[seedOrgDefaults] Failed to activate default filing types:", selErr);
+      }
+    }
   } catch (err) {
     // Non-fatal — org creation succeeded even if seeding fails
     console.error("[seedOrgDefaults] Unexpected error:", err);

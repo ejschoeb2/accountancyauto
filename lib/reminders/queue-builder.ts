@@ -108,6 +108,15 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
     return { created: 0, skipped: 0 };
   }
 
+  // Fetch org-active filing types to filter assignments at queue-build time only.
+  // Entries already in the queue were scheduled when the type was active — don't disturb them.
+  const { data: orgActiveTypes } = await supabase
+    .from('org_filing_type_selections')
+    .select('filing_type_id')
+    .eq('org_id', org.id)
+    .eq('is_active', true);
+  const activeTypeIds = new Set((orgActiveTypes ?? []).map(r => r.filing_type_id));
+
   // Fetch v1.1 normalized tables (PostgREST FK workaround: fetch separately and map in app)
   let schedulesQuery = supabase
     .from('schedules')
@@ -236,6 +245,10 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
   for (const assignment of assignments) {
     const client = assignment.clients as Client;
     const filingTypeId = assignment.filing_type_id;
+
+    // Skip if this filing type is not active for the org.
+    // Only filter at queue-build time — entries already in queue remain unaffected.
+    if (activeTypeIds.size > 0 && !activeTypeIds.has(filingTypeId)) { skipped++; continue; }
 
     if (client.reminders_paused) { skipped++; continue; }
     if (client.records_received_for && client.records_received_for.includes(filingTypeId)) { skipped++; continue; }
@@ -566,6 +579,14 @@ export async function rebuildQueueForClient(
     return;
   }
 
+  // Fetch org-active filing types to filter at queue-build time only
+  const { data: orgActiveTypesRebuild } = await supabase
+    .from('org_filing_type_selections')
+    .select('filing_type_id')
+    .eq('org_id', resolvedOrgId)
+    .eq('is_active', true);
+  const activeTypeIdsRebuild = new Set((orgActiveTypesRebuild ?? []).map(r => r.filing_type_id));
+
   // Fetch v1.1 normalized tables scoped to org
   const { data: schedules, error: schedulesError } = await supabase
     .from('schedules')
@@ -650,6 +671,11 @@ export async function rebuildQueueForClient(
   // Process each assignment (filing schedules)
   for (const assignment of assignments) {
     const filingTypeId = assignment.filing_type_id;
+
+    // Skip if this filing type is not active for the org
+    if (activeTypeIdsRebuild.size > 0 && !activeTypeIdsRebuild.has(filingTypeId)) {
+      continue;
+    }
 
     // Skip if client has reminders paused
     if (client.reminders_paused) {
