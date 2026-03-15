@@ -1,9 +1,6 @@
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { FilingTypeList, type ScheduleWithSteps, type StepDisplay, type CustomScheduleDisplay } from './components/filing-type-list'
+import { DeadlinesView, type ScheduleWithSteps, type StepDisplay, type CustomScheduleDisplay } from './components/filing-type-list'
 import { DEADLINE_DESCRIPTIONS } from '@/lib/deadlines/descriptions'
-import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
-import { Plus } from 'lucide-react'
 import type { EmailTemplate, FilingType, Schedule, ScheduleStep } from '@/lib/types/database'
 import { getOrgFilingTypeSelections, getAllFilingTypes } from '@/app/actions/deadlines'
 
@@ -17,7 +14,6 @@ export default async function SchedulesPage() {
   ])
 
   // Build a set of active type IDs for this org
-  // If no selection rows exist, fall back to seeded defaults being active
   const activeTypeIds = orgSelections.length > 0
     ? orgSelections.filter(s => s.is_active).map(s => s.filing_type_id)
     : allFilingTypes.filter(ft => ft.is_seeded_default).map(ft => ft.id)
@@ -64,7 +60,7 @@ export default async function SchedulesPage() {
   const filingSchedules = allSchedules.filter(s => s.schedule_type !== 'custom')
   const customSchedules = allSchedules.filter(s => s.schedule_type === 'custom')
 
-  // Build scheduleMap for ALL filing types (not just active ones — filter happens client-side)
+  // Build scheduleMap for ALL filing types
   const scheduleMap: Record<string, ScheduleWithSteps | null> = {}
   for (const ft of allFilingTypes) {
     scheduleMap[ft.id] = null
@@ -94,32 +90,12 @@ export default async function SchedulesPage() {
   }))
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1>Deadlines</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage filing and custom deadlines, and configure when clients are reminded
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/deadlines/new/edit?type=custom">
-            <IconButtonWithText variant="violet">
-              <Plus className="h-5 w-5" />
-              Create Deadline
-            </IconButtonWithText>
-          </Link>
-        </div>
-      </div>
-
-      <FilingTypeList
-        allFilingTypes={allFilingTypes as FilingType[]}
-        activeTypeIds={activeTypeIds}
-        scheduleMap={scheduleMap}
-        deadlineDescriptions={DEADLINE_DESCRIPTIONS}
-        customSchedules={customScheduleDisplays}
-      />
-    </div>
+    <DeadlinesView
+      allFilingTypes={allFilingTypes as FilingType[]}
+      activeTypeIds={activeTypeIds}
+      scheduleMap={scheduleMap}
+      deadlineDescriptions={DEADLINE_DESCRIPTIONS}
+      customSchedules={customScheduleDisplays}
+    />
   )
 }

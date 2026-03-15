@@ -7,8 +7,17 @@ import { Button } from '@/components/ui/button'
 import { ButtonBase } from '@/components/ui/button-base'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { ButtonWithText } from '@/components/ui/button-with-text'
+import { ToggleGroup } from '@/components/ui/toggle-group'
 import { Icon } from '@/components/ui/icon'
-import { SlidersHorizontal, X, Trash2, Plus } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { SlidersHorizontal, X, Trash2, Plus, Search, CircleMinus } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -68,7 +77,7 @@ const CLIENT_TYPE_OPTIONS = [
   'Individual',
 ] as const
 
-interface FilingTypeListProps {
+interface DeadlinesViewProps {
   allFilingTypes: FilingType[]
   activeTypeIds: string[]
   scheduleMap: Record<string, ScheduleWithSteps | null>
@@ -76,18 +85,20 @@ interface FilingTypeListProps {
   customSchedules: CustomScheduleDisplay[]
 }
 
-export function FilingTypeList({
+export function DeadlinesView({
   allFilingTypes,
   activeTypeIds,
   scheduleMap,
   deadlineDescriptions,
   customSchedules,
-}: FilingTypeListProps) {
+}: DeadlinesViewProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
   const [typeFilters, setTypeFilters] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState('name-asc')
   const [isPending, startTransition] = useTransition()
 
   const activeSet = useMemo(() => new Set(activeTypeIds), [activeTypeIds])
@@ -101,17 +112,24 @@ export function FilingTypeList({
   }
 
   const clearAllFilters = () => {
-    setStatusFilter('active')
     setTypeFilters(new Set())
   }
 
-  // Filter filing types based on active/inactive status and client type
+  // Filter filing types
   const filteredFilingTypes = useMemo(() => {
-    return allFilingTypes.filter(ft => {
+    let result = allFilingTypes.filter(ft => {
       // Status filter
       const isActive = activeSet.has(ft.id)
       if (statusFilter === 'active' && !isActive) return false
       if (statusFilter === 'inactive' && isActive) return false
+
+      // Search
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const matchesName = ft.name.toLowerCase().includes(q)
+        const matchesDesc = ft.description?.toLowerCase().includes(q)
+        if (!matchesName && !matchesDesc) return false
+      }
 
       // Client type filter
       if (typeFilters.size > 0) {
@@ -121,7 +139,23 @@ export function FilingTypeList({
 
       return true
     })
-  }, [allFilingTypes, activeSet, statusFilter, typeFilters])
+
+    // Sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name)
+        case 'name-desc':
+          return b.name.localeCompare(a.name)
+        case 'type-asc':
+          return (a.applicable_client_types[0] ?? '').localeCompare(b.applicable_client_types[0] ?? '')
+        default:
+          return (a.sort_order ?? 99) - (b.sort_order ?? 99)
+      }
+    })
+
+    return result
+  }, [allFilingTypes, activeSet, statusFilter, searchQuery, typeFilters, sortBy])
 
   const handleActivate = (filingTypeId: string) => {
     startTransition(async () => {
@@ -175,49 +209,106 @@ export function FilingTypeList({
     }
   }
 
-  const hasActiveFilters = statusFilter !== 'active' || typeFilters.size > 0
-
   return (
-    <div className="space-y-6">
-      {/* Filter toggle */}
-      <div className="flex items-center gap-3">
-        <IconButtonWithText
-          type="button"
-          variant={showFilters ? "amber" : "violet"}
-          onClick={() => setShowFilters(v => !v)}
-          title={showFilters ? "Close filters" : "Open filters"}
-        >
-          <SlidersHorizontal className="h-5 w-5" />
-          {showFilters ? "Close Filters" : "Filter"}
-        </IconButtonWithText>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Page header with toggle */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h1>Deadlines</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage filing and custom deadlines, and configure when clients are reminded
+          </p>
+        </div>
+        <ToggleGroup
+          options={[
+            { value: 'active', label: 'Active Deadlines' },
+            { value: 'inactive', label: 'Inactive Deadlines' },
+          ]}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          variant="muted"
+        />
+      </div>
+
+      {/* Search + Controls toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search deadlines..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 hover:border-foreground/20"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Controls */}
+        <div className="flex gap-2 sm:ml-auto items-center">
+          <Link href="/deadlines/new/edit?type=custom">
+            <IconButtonWithText variant="green">
+              <Plus className="h-5 w-5" />
+              Create Deadline
+            </IconButtonWithText>
+          </Link>
+          <IconButtonWithText
+            type="button"
+            variant={showFilters ? "amber" : "violet"}
+            onClick={() => setShowFilters(v => !v)}
+            title={showFilters ? "Close filters" : "Open filters"}
+          >
+            <SlidersHorizontal className="h-5 w-5" />
+            {showFilters ? "Close Filters" : "Filter"}
+          </IconButtonWithText>
+          <div className="w-px h-6 bg-border mx-1" />
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="h-9 min-w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default Order</SelectItem>
+                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                <SelectItem value="type-asc">Client Type (A-Z)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {/* Collapsible filter panel */}
       {showFilters && (
         <Card>
           <CardContent className="space-y-4">
-            {/* Status + Clear */}
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2 flex-1">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Applies to</span>
                 <div className="flex flex-wrap gap-2">
-                  <ButtonWithText
-                    onClick={() => setStatusFilter('active')}
-                    isSelected={statusFilter === 'active'}
-                    variant="muted"
-                  >
-                    Active
-                  </ButtonWithText>
-                  <ButtonWithText
-                    onClick={() => setStatusFilter('inactive')}
-                    isSelected={statusFilter === 'inactive'}
-                    variant="muted"
-                  >
-                    Inactive
-                  </ButtonWithText>
+                  {CLIENT_TYPE_OPTIONS.map(type => (
+                    <ButtonWithText
+                      key={type}
+                      onClick={() => toggleTypeFilter(type)}
+                      isSelected={typeFilters.has(type)}
+                      variant="muted"
+                    >
+                      {type}
+                    </ButtonWithText>
+                  ))}
                 </div>
               </div>
-              {hasActiveFilters && (
+              {typeFilters.size > 0 && (
                 <div className="space-y-2">
                   <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide invisible">Clear</span>
                   <IconButtonWithText
@@ -231,23 +322,6 @@ export function FilingTypeList({
                   </IconButtonWithText>
                 </div>
               )}
-            </div>
-
-            {/* Applies to */}
-            <div className="space-y-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Applies to</span>
-              <div className="flex flex-wrap gap-2">
-                {CLIENT_TYPE_OPTIONS.map(type => (
-                  <ButtonWithText
-                    key={type}
-                    onClick={() => toggleTypeFilter(type)}
-                    isSelected={typeFilters.has(type)}
-                    variant="muted"
-                  >
-                    {type}
-                  </ButtonWithText>
-                ))}
-              </div>
             </div>
           </CardContent>
         </Card>
@@ -265,7 +339,7 @@ export function FilingTypeList({
           return (
             <div key={ft.id} className="relative">
               <Link href={isActive ? href : '#'} className={!isActive ? 'pointer-events-none' : undefined}>
-                <Card className={`h-full flex flex-col ${isActive ? 'cursor-pointer' : 'opacity-75'}`}>
+                <Card className={`h-full flex flex-col ${!isActive ? 'opacity-75' : ''}`}>
                   <CardHeader>
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-1 min-w-0">
@@ -274,43 +348,11 @@ export function FilingTypeList({
                           <CardDescription>{ft.description}</CardDescription>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {isActive && schedule && (
-                          <div className={`px-3 py-2 rounded-md inline-flex items-center ${
-                            schedule.is_active
-                              ? 'bg-green-500/10'
-                              : 'bg-status-neutral/10'
-                          }`}>
-                            <span className={`text-sm font-medium ${
-                              schedule.is_active
-                                ? 'text-green-600'
-                                : 'text-status-neutral'
-                            }`}>
-                              {schedule.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </div>
-                        )}
-                        {!isActive && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="pointer-events-auto gap-1.5"
-                            disabled={isPending}
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              handleActivate(ft.id)
-                            }}
-                          >
-                            <Plus className="h-4 w-4" />
-                            {isPending ? 'Activating...' : 'Activate'}
-                          </Button>
-                        )}
-                        {isActive && statusFilter === 'active' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="pointer-events-auto text-muted-foreground hover:text-destructive"
+                      <div className="flex items-center gap-2 shrink-0 pointer-events-auto">
+                        {isActive && (
+                          <ButtonBase
+                            variant="amber"
+                            buttonType="icon-text"
                             disabled={isPending}
                             onClick={(e) => {
                               e.preventDefault()
@@ -318,8 +360,24 @@ export function FilingTypeList({
                               handleDeactivate(ft.id)
                             }}
                           >
-                            <X className="h-4 w-4" />
-                          </Button>
+                            <CircleMinus className="size-4" />
+                            {isPending ? 'Saving...' : 'Deactivate'}
+                          </ButtonBase>
+                        )}
+                        {!isActive && (
+                          <ButtonBase
+                            variant="green"
+                            buttonType="icon-text"
+                            disabled={isPending}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleActivate(ft.id)
+                            }}
+                          >
+                            <Plus className="size-4" />
+                            {isPending ? 'Saving...' : 'Activate'}
+                          </ButtonBase>
                         )}
                       </div>
                     </div>
@@ -362,7 +420,7 @@ export function FilingTypeList({
                         )}
                       </div>
                     ) : isActive ? (
-                      <div className="text-center flex-1 flex items-center justify-center space-y-1">
+                      <div className="text-center flex-1 flex items-center justify-center">
                         <p className="text-sm font-medium text-muted-foreground">No reminders configured</p>
                       </div>
                     ) : (
@@ -387,7 +445,13 @@ export function FilingTypeList({
         })}
 
         {/* Custom schedule cards — only show when viewing active */}
-        {statusFilter === 'active' && customSchedules.map((schedule) => (
+        {statusFilter === 'active' && customSchedules
+          .filter(s => {
+            if (!searchQuery) return true
+            const q = searchQuery.toLowerCase()
+            return s.name.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q)
+          })
+          .map((schedule) => (
           <Link key={schedule.id} href={`/deadlines/${schedule.id}/edit`}>
             <Card className="cursor-pointer h-full flex flex-col">
               <CardHeader>
@@ -401,19 +465,6 @@ export function FilingTypeList({
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="px-3 py-2 rounded-md inline-flex items-center bg-violet-500/10">
                       <span className="text-sm font-medium text-violet-500">Custom</span>
-                    </div>
-                    <div className={`px-3 py-2 rounded-md inline-flex items-center ${
-                      schedule.is_active
-                        ? 'bg-green-500/10'
-                        : 'bg-status-neutral/10'
-                    }`}>
-                      <span className={`text-sm font-medium ${
-                        schedule.is_active
-                          ? 'text-green-600'
-                          : 'text-status-neutral'
-                      }`}>
-                        {schedule.is_active ? 'Active' : 'Inactive'}
-                      </span>
                     </div>
                     <ButtonBase
                       variant="destructive"
@@ -472,11 +523,16 @@ export function FilingTypeList({
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-sm">
             {statusFilter === 'inactive'
-              ? 'All deadlines are active — none to show here.'
-              : 'No deadlines match your filters.'}
+              ? 'All deadlines are currently active.'
+              : searchQuery
+                ? 'No deadlines match your search.'
+                : 'No deadlines match your filters.'}
           </p>
         </div>
       )}
     </div>
   )
 }
+
+// Keep backwards-compatible export name
+export { DeadlinesView as FilingTypeList }
