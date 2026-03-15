@@ -23,6 +23,7 @@ import { StorageSetupStep } from "./components/storage-setup-step";
 import { ClientPortalStep } from "./components/client-portal-step";
 import { UploadChecksStep } from "./components/upload-checks-step";
 import { AccountSetupStep } from "./components/account-setup-step";
+import { DeadlineSelectionStep } from "./components/deadline-selection-step";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanTier } from "@/lib/stripe/plans";
 import type { UploadCheckMode } from "@/app/actions/settings";
@@ -57,7 +58,7 @@ import {
 type UserType = "new-admin" | "invited-member" | null;
 
 // New-admin step names (index matches ADMIN_STEPS position)
-type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "portal" | "storage" | "upload-checks" | "complete";
+type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "deadlines" | "portal" | "storage" | "upload-checks" | "complete";
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
@@ -68,6 +69,7 @@ function getAdminSteps(portalEnabled: boolean) {
     { label: "Plan" },
     { label: "Import Clients" },
     { label: "Email Setup" },
+    { label: "Deadlines" },
     { label: "Client Portal" },
   ];
   if (portalEnabled) {
@@ -86,10 +88,11 @@ function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
       plan: 2,
       import: 3,
       email: 4,
-      portal: 5,
-      storage: 6,
-      "upload-checks": 7,
-      complete: 8,
+      deadlines: 5,
+      portal: 6,
+      storage: 7,
+      "upload-checks": 8,
+      complete: 9,
     };
     return map[step];
   } else {
@@ -99,10 +102,11 @@ function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
       plan: 2,
       import: 3,
       email: 4,
-      portal: 5,
+      deadlines: 5,
+      portal: 6,
       "upload-checks": -1,
       storage: -1,
-      complete: 6,
+      complete: 7,
     };
     return map[step];
   }
@@ -233,6 +237,9 @@ export default function WizardPage() {
   // Tracks whether the user has already visited the portal step (for restoring selection)
   const [portalSelection, setPortalSelection] = useState<"yes" | "no" | undefined>(undefined);
 
+  // ── Deadline selections ─────────────────────────────────────────────────
+  const [deadlineSelections, setDeadlineSelections] = useState<string[] | undefined>(undefined);
+
   // ── Upload checks step ─────────────────────────────────────────────────
   const [uploadCheckSelection, setUploadCheckSelection] = useState<UploadCheckMode | undefined>(undefined);
   const [autoReceiveSelection, setAutoReceiveSelection] = useState(false);
@@ -277,6 +284,7 @@ export default function WizardPage() {
     if (draft.rejectMismatchedUploads !== undefined) setRejectMismatchedSelection(draft.rejectMismatchedUploads);
     if (draft.sendHour !== undefined) setSendHour(draft.sendHour);
     if (draft.emailSubStep) setEmailInitialSubStep(draft.emailSubStep as EmailSubStep);
+    if (draft.deadlineSelections) setDeadlineSelections(draft.deadlineSelections);
     setOrgCreated(true);
   }
 
@@ -293,6 +301,7 @@ export default function WizardPage() {
       rejectMismatchedUploads: rejectMismatchedSelection,
       emailSubStep: emailInitialSubStep,
       sendHour: sendHour ?? undefined,
+      deadlineSelections,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -417,7 +426,7 @@ export default function WizardPage() {
           if (draftClients && draftClients.length > 0) {
             setSavedImportRows(draftClients);
           }
-          if (["import", "email", "portal", "upload-checks", "storage", "complete"].includes(draft.step)) {
+          if (["import", "email", "deadlines", "portal", "upload-checks", "storage", "complete"].includes(draft.step)) {
             prefetchConfigDefaults();
           }
           if (draft.step === "complete") {
@@ -638,9 +647,9 @@ export default function WizardPage() {
     setDashboardUrl(url);
     setIsCompleting(false);
 
-    // Advance to the portal step (admin) or complete step (member)
+    // Advance to the deadlines step (admin) or complete step (member)
     if (userType === "new-admin") {
-      advanceToStep("portal");
+      advanceToStep("deadlines");
     } else {
       setMemberStep(2);
     }
@@ -848,8 +857,8 @@ export default function WizardPage() {
           // Firm step (1) is locked once the org is created (slug already registered)
           if (index === 1 && orgCreated) return;
           const stepNames: AdminStep[] = clientPortalEnabled
-            ? ["account", "firm", "plan", "import", "email", "portal", "upload-checks", "storage", "complete"]
-            : ["account", "firm", "plan", "import", "email", "portal", "complete"];
+            ? ["account", "firm", "plan", "import", "email", "deadlines", "portal", "storage", "upload-checks", "complete"]
+            : ["account", "firm", "plan", "import", "email", "deadlines", "portal", "complete"];
           advanceToStep(stepNames[index]);
         }}
       />
@@ -1097,17 +1106,37 @@ export default function WizardPage() {
         </div>
       )}
 
-      {/* ── Step 5b: Client Portal ── */}
-      {adminStep === "portal" && (
+      {/* ── Step 6: Deadline Selection ── */}
+      {adminStep === "deadlines" && (
         <div className="min-h-[520px]">
-          <ClientPortalStep
-            onComplete={handlePortalComplete}
-            initialSelection={portalSelection}
+          <DeadlineSelectionStep
+            onComplete={(selectedIds) => {
+              setDeadlineSelections(selectedIds);
+              saveSetupDraft({
+                ...collectCurrentState(),
+                step: "portal",
+                deadlineSelections: selectedIds,
+                updatedAt: new Date().toISOString(),
+              }).catch((e) => console.warn("Draft save failed:", e));
+              setAdminStep("portal");
+            }}
             onBack={() => {
               setEmailInitialSubStep("settings");
               prefetchConfigDefaults();
               advanceToStep("email");
             }}
+            initialSelection={deadlineSelections}
+          />
+        </div>
+      )}
+
+      {/* ── Step 7: Client Portal ── */}
+      {adminStep === "portal" && (
+        <div className="min-h-[520px]">
+          <ClientPortalStep
+            onComplete={handlePortalComplete}
+            initialSelection={portalSelection}
+            onBack={() => advanceToStep("deadlines")}
           />
         </div>
       )}

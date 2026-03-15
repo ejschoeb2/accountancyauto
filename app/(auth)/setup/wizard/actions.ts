@@ -25,6 +25,7 @@ export interface SetupDraft {
   autoReceiveVerified?: boolean;
   rejectMismatchedUploads?: boolean;
   sendHour?: number;
+  deadlineSelections?: string[];
   updatedAt: string;
   /** Injected by getSetupDraft() from user_organisations — not stored in DB */
   orgId?: string;
@@ -1116,6 +1117,87 @@ export async function resendEmailOtp(
     return { error: "Failed to resend. Please try again in a moment." };
   }
 
+  return {};
+}
+
+/**
+ * Fetch all filing types ordered by sort_order for the deadline selection wizard step.
+ *
+ * Returns global filing types — no org context needed since filing_types is a global reference table.
+ */
+export async function getFilingTypesForWizard(): Promise<Array<{
+  id: string;
+  name: string;
+  description: string | null;
+  is_seeded_default: boolean;
+  calculator_type: string;
+  applicable_client_types: string[];
+}>> {
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from("filing_types")
+    .select("id, name, description, is_seeded_default, calculator_type, applicable_client_types")
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("[getFilingTypesForWizard] Failed to fetch filing types:", error);
+    return [];
+  }
+
+  return data ?? [];
+}
+
+/**
+ * Persist the org's active filing type selections from the wizard deadline step.
+ *
+ * Upserts all filing types: sets is_active=true for selected IDs, is_active=false for others.
+ * Uses admin client (service_role) — no authenticated INSERT/UPDATE RLS policies on this table.
+ */
+export async function saveOrgFilingTypeSelections(
+  activeTypeIds: string[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  // Fetch all filing types to build a complete upsert (active + inactive)
+  const { data: allFilingTypes, error: ftError } = await admin
+    .from("filing_types")
+    .select("id");
+
+  if (ftError || !allFilingTypes) {
+    return { error: "Failed to fetch filing types." };
+  }
+
+  const now = new Date().toISOString();
+  const activeSet = new Set(activeTypeIds);
+
+  const selections = allFilingTypes.map((ft) => ({
+    org_id: membership.org_id,
+    filing_type_id: ft.id,
+    is_active: activeSet.has(ft.id),
+    activated_at: now,
+  }));
+
+  const { error } = await admin
+    .from("org_filing_type_selections")
+    .upsert(selections, { onConflict: "org_id,filing_type_id" });
+
+  if (error) return { error: error.message };
   return {};
 }
 
