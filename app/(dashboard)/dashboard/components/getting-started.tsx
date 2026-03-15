@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, UserPlus, FileText, Send, ExternalLink, X } from 'lucide-react';
+import { Check, UserPlus, FileText, Send, ExternalLink, Rocket, X } from 'lucide-react';
+import { buttonBaseVariants } from '@/components/ui/button-base';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
 import { markOnboardingComplete } from '@/app/actions/settings';
 import Link from 'next/link';
@@ -101,17 +102,14 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
       const stored = localStorage.getItem(STORAGE_KEY);
       const prev: Record<string, boolean> = stored ? JSON.parse(stored) : {};
 
-      // Find steps that are now complete but weren't before
       const newlyCompleted = steps.filter(
         (s) => progress[s.key] && !prev[s.key]
       );
 
-      // Save current state
       const current: Record<string, boolean> = {};
       for (const s of steps) current[s.key] = progress[s.key];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
 
-      // Show toasts for newly completed steps
       for (const step of newlyCompleted) {
         const nowComplete = steps.every((s) => current[s.key]);
 
@@ -140,24 +138,29 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
   return (
     <Card className="py-5">
       <CardContent className="px-5 py-0">
-        <div className="flex items-center justify-between mb-5">
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Getting Started
-          </p>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-muted-foreground">
+        <div className="flex items-start justify-between mb-7">
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Getting Started
+            </p>
+            <p className="text-sm font-medium text-muted-foreground mt-1.5">
               {completedCount}/{steps.length} complete
-            </span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             {allComplete && (
               <button
                 onClick={handleDismiss}
                 disabled={dismissing}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                className={buttonBaseVariants({ variant: 'destructive', buttonType: 'icon-text' })}
               >
-                <X className="size-3.5" />
+                <X className="size-4" />
                 Dismiss
               </button>
             )}
+            <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+              <Rocket className="size-6 text-green-600" />
+            </div>
           </div>
         </div>
 
@@ -208,12 +211,6 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
             );
           })}
         </div>
-
-        {allComplete && (
-          <p className="text-sm text-muted-foreground text-center pt-4">
-            You&apos;re all set! You can dismiss this section.
-          </p>
-        )}
       </CardContent>
     </Card>
   );

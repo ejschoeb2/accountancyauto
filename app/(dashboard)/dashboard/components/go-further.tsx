@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, Globe, ShieldCheck, CalendarPlus, Upload } from 'lucide-react';
+import { Check, Globe, ShieldCheck, CalendarPlus, Upload, Zap } from 'lucide-react';
 import type { GoFurtherProgress } from '@/lib/dashboard/onboarding';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -123,13 +123,18 @@ export function GoFurther({ progress }: GoFurtherProps) {
   return (
     <Card className="py-5">
       <CardContent className="px-5 py-0">
-        <div className="flex items-center justify-between mb-5">
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Go Further
-          </p>
-          <span className="text-sm font-medium text-muted-foreground">
-            {completedCount}/{steps.length} enabled
-          </span>
+        <div className="flex items-start justify-between mb-7">
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Go Further
+            </p>
+            <p className="text-sm font-medium text-muted-foreground mt-1.5">
+              {completedCount}/{steps.length} enabled
+            </p>
+          </div>
+          <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+            <Zap className="size-6 text-blue-500" />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
