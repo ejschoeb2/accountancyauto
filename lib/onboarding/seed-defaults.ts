@@ -481,6 +481,385 @@ const TEMPLATES = [
   },
 
   {
+    name: "MTD Quarterly Update Reminder",
+    subject:
+      "MTD Quarterly Update due {{deadline_short}} — {{client_name}}",
+    body_json: {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { text: "Dear ", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "client_name", label: "Client Name" },
+            },
+            { text: ",", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            { text: "Your ", type: "text" },
+            {
+              text: "MTD Quarterly Update",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            {
+              text: " is due for digital submission to HMRC by ",
+              type: "text",
+            },
+            {
+              text: "{{deadline}}",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            { text: " (", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
+            },
+            { text: " days remaining).", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "Under Making Tax Digital, quarterly updates must be submitted digitally through compatible software. To prepare your submission, please ensure we have:",
+              type: "text",
+            },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- All income received during the quarter", type: "text" },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- All business expenses and receipts", type: "text" },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "- Bank statements covering the quarter period",
+              type: "text",
+            },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "If your bookkeeping software is up to date, please let us know and we can submit on your behalf.",
+              type: "text",
+            },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [{ text: "Kind regards,", type: "text" }],
+        },
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "placeholder",
+              attrs: { id: "accountant_name", label: "Accountant Name" },
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    name: "Confirmation Statement Reminder",
+    subject:
+      "Confirmation Statement due {{deadline_short}} — {{client_name}}",
+    body_json: {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { text: "Dear ", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "client_name", label: "Client Name" },
+            },
+            { text: ",", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            { text: "Your ", type: "text" },
+            {
+              text: "Confirmation Statement",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            {
+              text: " is due to be filed with Companies House by ",
+              type: "text",
+            },
+            {
+              text: "{{deadline}}",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            { text: " (", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
+            },
+            { text: " days remaining).", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "The Confirmation Statement confirms that the information Companies House holds about your company is correct and up to date. Please let us know if there have been any changes to:",
+              type: "text",
+            },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- Registered office address", type: "text" },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- Directors or company secretary", type: "text" },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- Shareholders or share capital", type: "text" },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- SIC codes (nature of business)", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "If nothing has changed, we can file this on your behalf. Late filing may result in your company being struck off the register.",
+              type: "text",
+            },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [{ text: "Kind regards,", type: "text" }],
+        },
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "placeholder",
+              attrs: { id: "accountant_name", label: "Accountant Name" },
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    name: "Payroll & P11D Reminder",
+    subject:
+      "{{filing_type}} due {{deadline_short}} — {{client_name}}",
+    body_json: {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { text: "Dear ", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "client_name", label: "Client Name" },
+            },
+            { text: ",", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            { text: "Your ", type: "text" },
+            {
+              text: "{{filing_type}}",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            { text: " deadline is ", type: "text" },
+            {
+              text: "{{deadline}}",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            { text: " (", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
+            },
+            { text: " days remaining).", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "Please ensure all payroll records are up to date and any employee benefits or expenses have been reported. If you have any queries about what needs to be included, please get in touch.",
+              type: "text",
+            },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [{ text: "Kind regards,", type: "text" }],
+        },
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "placeholder",
+              attrs: { id: "accountant_name", label: "Accountant Name" },
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    name: "CIS Monthly Return Reminder",
+    subject:
+      "CIS Monthly Return due {{deadline_short}} — {{client_name}}",
+    body_json: {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { text: "Dear ", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "client_name", label: "Client Name" },
+            },
+            { text: ",", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            { text: "Your ", type: "text" },
+            {
+              text: "CIS Monthly Return",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            { text: " is due by ", type: "text" },
+            {
+              text: "{{deadline}}",
+              type: "text",
+              marks: [{ type: "bold" }],
+            },
+            { text: " (", type: "text" },
+            {
+              type: "placeholder",
+              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
+            },
+            { text: " days remaining).", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "Please provide details of all payments made to subcontractors during this period, including:",
+              type: "text",
+            },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- Subcontractor names and UTR numbers", type: "text" },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- Gross payment amounts", type: "text" },
+          ],
+        },
+        {
+          type: "paragraph",
+          content: [
+            { text: "- CIS deductions made", type: "text" },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [
+            {
+              text: "Late filing incurs a £100 penalty from HMRC, increasing with further delays. Please send this information through promptly.",
+              type: "text",
+            },
+          ],
+        },
+        { type: "paragraph" },
+        {
+          type: "paragraph",
+          content: [{ text: "Kind regards,", type: "text" }],
+        },
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "placeholder",
+              attrs: { id: "accountant_name", label: "Accountant Name" },
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     name: "Self Assessment Reminder",
     subject:
       "Self Assessment tax return — {{days_until_deadline}} days left for {{client_name}}",
@@ -638,7 +1017,7 @@ function addPortalLinkSection(bodyJson: object): object {
 // Each step: [templateName, delayDays]
 // ---------------------------------------------------------------------------
 
-const SCHEDULES: Array<{
+export const DEFAULT_SCHEDULES: Array<{
   name: string;
   description: string;
   filing_type_id: string;
@@ -691,6 +1070,87 @@ const SCHEDULES: Array<{
     steps: [
       ["VAT Return Reminder", 14],
       ["Urgent Final Notice", 5],
+    ],
+  },
+  {
+    name: "MTD Quarterly Update Reminders",
+    description: "Automated reminders for MTD for Income Tax quarterly submissions.",
+    filing_type_id: "mtd_quarterly_update",
+    steps: [
+      ["MTD Quarterly Update Reminder", 14],
+      ["Urgent Final Notice", 5],
+    ],
+  },
+  {
+    name: "Confirmation Statement Reminders",
+    description: "Automated reminders for Companies House confirmation statement.",
+    filing_type_id: "confirmation_statement",
+    steps: [
+      ["Confirmation Statement Reminder", 21],
+      ["Urgent Final Notice", 7],
+    ],
+  },
+  {
+    name: "P11D Filing Reminders",
+    description: "Automated reminders for P11D employee benefits return.",
+    filing_type_id: "p11d_filing",
+    steps: [
+      ["Payroll & P11D Reminder", 30],
+      ["Urgent Final Notice", 7],
+    ],
+  },
+  {
+    name: "PAYE Monthly Reminders",
+    description: "Automated reminders for monthly PAYE payment.",
+    filing_type_id: "paye_monthly",
+    steps: [
+      ["Payroll & P11D Reminder", 7],
+    ],
+  },
+  {
+    name: "CIS Monthly Return Reminders",
+    description: "Automated reminders for CIS monthly contractor return.",
+    filing_type_id: "cis_monthly_return",
+    steps: [
+      ["CIS Monthly Return Reminder", 7],
+    ],
+  },
+  {
+    name: "Payroll Year-End Reminders",
+    description: "Automated reminders for final payroll submission.",
+    filing_type_id: "payroll_year_end",
+    steps: [
+      ["Payroll & P11D Reminder", 21],
+      ["Urgent Final Notice", 7],
+    ],
+  },
+  {
+    name: "Partnership Tax Return Reminders",
+    description: "Automated reminders for annual partnership tax return.",
+    filing_type_id: "partnership_tax_return",
+    steps: [
+      ["Friendly First Reminder", 60],
+      ["Follow-Up Reminder", 21],
+      ["Urgent Final Notice", 7],
+    ],
+  },
+  {
+    name: "Trust Tax Return Reminders",
+    description: "Automated reminders for annual trust and estate tax return.",
+    filing_type_id: "trust_tax_return",
+    steps: [
+      ["Friendly First Reminder", 60],
+      ["Follow-Up Reminder", 21],
+      ["Urgent Final Notice", 7],
+    ],
+  },
+  {
+    name: "SA Payment on Account Reminders",
+    description: "Automated reminders for Self Assessment payment on account.",
+    filing_type_id: "sa_payment_on_account",
+    steps: [
+      ["Friendly First Reminder", 21],
+      ["Urgent Final Notice", 7],
     ],
   },
 ];
@@ -746,7 +1206,7 @@ export async function seedOrgDefaults(
     const byName = Object.fromEntries(templates.map((t) => [t.name, t.id]));
 
     // 2. Insert schedules + steps
-    for (const sched of SCHEDULES) {
+    for (const sched of DEFAULT_SCHEDULES) {
       const { data: schedule, error: sErr } = await adminClient
         .from("schedules")
         .insert({

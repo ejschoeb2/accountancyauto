@@ -2,8 +2,10 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { ButtonBase } from '@/components/ui/button-base'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { ButtonWithText } from '@/components/ui/button-with-text'
 import {
@@ -17,8 +19,9 @@ import {
   Card,
   CardContent,
 } from '@/components/ui/card'
-import { Plus, Search, SlidersHorizontal, X, AlertTriangle } from 'lucide-react'
-import { TemplateCard } from './template-card'
+import { Plus, Search, SlidersHorizontal, X, AlertTriangle, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { toast } from 'sonner'
+import { formatDistanceToNow } from 'date-fns'
 import type { EmailTemplate } from '@/lib/types/database'
 
 interface TemplatesViewProps {
@@ -28,18 +31,24 @@ interface TemplatesViewProps {
   hasPortalConflicts: boolean
 }
 
+type SortField = 'name' | 'subject' | 'created_at'
+type SortDir = 'asc' | 'desc'
+
 export function TemplatesView({
   templates,
   templateUsageMap,
   portalIssueMap,
   hasPortalConflicts,
 }: TemplatesViewProps) {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState('newest')
   const [showFilters, setShowFilters] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [typeFilter, setTypeFilter] = useState<'all' | 'custom' | 'default'>('all')
   const [usageFilter, setUsageFilter] = useState<'all' | 'used' | 'unused'>('all')
+  const [sortField, setSortField] = useState<SortField>('created_at')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const clearAllFilters = () => {
     setStatusFilter('all')
@@ -48,6 +57,48 @@ export function TemplatesView({
   }
 
   const hasActiveFilters = statusFilter !== 'all' || typeFilter !== 'all' || usageFilter !== 'all'
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null
+    return sortDir === 'asc'
+      ? <ChevronUp className="size-3.5 inline ml-1" />
+      : <ChevronDown className="size-3.5 inline ml-1" />
+  }
+
+  const handleDelete = async (template: EmailTemplate) => {
+    if (!confirm(`Are you sure you want to delete "${template.name}"?\n\nThis action cannot be undone.`)) {
+      return
+    }
+
+    setDeletingId(template.id)
+    try {
+      const response = await fetch(`/api/email-templates/${template.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete template')
+      }
+
+      toast.success(`Deleted "${template.name}"`)
+      router.refresh()
+    } catch (error) {
+      console.error('Error deleting template:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete template')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const filteredTemplates = useMemo(() => {
     let result = templates.filter(t => {
@@ -77,21 +128,23 @@ export function TemplatesView({
 
     // Sort
     result.sort((a, b) => {
-      switch (sortBy) {
-        case 'name-asc':
-          return a.name.localeCompare(b.name)
-        case 'name-desc':
-          return b.name.localeCompare(a.name)
-        case 'oldest':
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        case 'newest':
-        default:
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      let cmp = 0
+      switch (sortField) {
+        case 'name':
+          cmp = a.name.localeCompare(b.name)
+          break
+        case 'subject':
+          cmp = (a.subject ?? '').localeCompare(b.subject ?? '')
+          break
+        case 'created_at':
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          break
       }
+      return sortDir === 'asc' ? cmp : -cmp
     })
 
     return result
-  }, [templates, searchQuery, sortBy, statusFilter, typeFilter, usageFilter, templateUsageMap])
+  }, [templates, searchQuery, sortField, sortDir, statusFilter, typeFilter, usageFilter, templateUsageMap])
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -161,21 +214,6 @@ export function TemplatesView({
             <SlidersHorizontal className="h-5 w-5" />
             {showFilters ? "Close Filters" : "Filter"}
           </IconButtonWithText>
-          <div className="w-px h-6 bg-border mx-1" />
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="h-9 min-w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
@@ -268,18 +306,126 @@ export function TemplatesView({
         </Card>
       )}
 
-      {/* Template grid */}
+      {/* Templates table */}
       {filteredTemplates.length > 0 ? (
-        <div className="grid gap-6 md:grid-cols-2">
-          {filteredTemplates.map((template) => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              usedInSchedules={templateUsageMap[template.id] || []}
-              portalIssue={portalIssueMap[template.id]}
-            />
-          ))}
-        </div>
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b text-left">
+                  <th
+                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
+                    onClick={() => handleSort('name')}
+                  >
+                    Name <SortIcon field="name" />
+                  </th>
+                  <th
+                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
+                    onClick={() => handleSort('subject')}
+                  >
+                    Subject <SortIcon field="subject" />
+                  </th>
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Used in
+                  </th>
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Status
+                  </th>
+                  <th
+                    className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer hover:text-foreground select-none"
+                    onClick={() => handleSort('created_at')}
+                  >
+                    Created <SortIcon field="created_at" />
+                  </th>
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-12">
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTemplates.map((template) => {
+                  const usedIn = templateUsageMap[template.id] || []
+                  const portalIssue = portalIssueMap[template.id]
+
+                  return (
+                    <tr
+                      key={template.id}
+                      className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => router.push(`/templates/${template.id}/edit`)}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium truncate max-w-[200px]">
+                            {template.name}
+                          </span>
+                          {portalIssue === 'portal-disabled' && (
+                            <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-muted-foreground truncate max-w-[280px] block">
+                          {template.subject}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {usedIn.length > 0 ? (
+                          <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
+                            {usedIn.join(', ')}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground/50">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {template.is_custom ? (
+                          <div className="px-3 py-1.5 rounded-md inline-flex items-center bg-violet-500/10">
+                            <span className="text-xs font-medium text-violet-500">Custom</span>
+                          </div>
+                        ) : (
+                          <div className="px-3 py-1.5 rounded-md inline-flex items-center bg-blue-500/10">
+                            <span className="text-xs font-medium text-blue-500">Default</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className={`px-3 py-1.5 rounded-md inline-flex items-center ${
+                          template.is_active ? 'bg-green-500/10' : 'bg-status-neutral/10'
+                        }`}>
+                          <span className={`text-xs font-medium ${
+                            template.is_active ? 'text-green-600' : 'text-status-neutral'
+                          }`}>
+                            {template.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDistanceToNow(new Date(template.created_at), { addSuffix: true })}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <ButtonBase
+                          variant="destructive"
+                          buttonType="icon-only"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDelete(template)
+                          }}
+                          disabled={deletingId === template.id}
+                        >
+                          <Trash2 className="size-4" />
+                        </ButtonBase>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       ) : (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-sm">
