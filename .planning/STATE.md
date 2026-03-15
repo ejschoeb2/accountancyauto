@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
 status: completed
-stopped_at: Completed 32-01-PLAN.md — filing_types expanded to 14 types, org_filing_type_selections table, all new calculators and rollover cases
-last_updated: "2026-03-15T16:55:53.058Z"
+stopped_at: Completed 32-03-PLAN.md — org-scoped deadlines filtering, ManageFilingTypesSheet, server actions for filing type selections
+last_updated: "2026-03-15T16:59:51.407Z"
 last_activity: 2026-03-09 — Phase 31-02 staging table migration + server actions + wizard page wiring
 progress:
   total_phases: 33
   completed_phases: 30
   total_plans: 110
-  completed_plans: 105
+  completed_plans: 106
   percent: 0
 ---
 
@@ -304,6 +304,7 @@ Recent decisions affecting v3.0:
 - [Phase 32]: [D-32-01-01] MTD rollover uses getNextMTDQuarterDeadline(currentDeadline) to preserve fixed HMRC tax-year calendar anchors
 - [Phase 32]: [D-32-01-02] confirmation_statement rollover uses addYears(currentDeadline, 1) — annual cycle off deadline date itself
 - [Phase 32]: [D-32-01-03] partnership_tax_return and trust_tax_return reuse calculateSelfAssessmentDeadline (same Jan 31 formula)
+- [Phase 32-03]: Fallback to all types when orgSelections is empty — fresh org with no rows should see all types rather than empty page
 
 ### Roadmap Evolution
 
@@ -363,6 +364,7 @@ Recent decisions affecting v3.0:
 | Phase 30-per-document-type-upload-validation P02 | 4 | 2 tasks | 4 files |
 | Phase 30 P03 | 7 | 2 tasks | 5 files |
 | Phase 32-expandable-deadline-system-mtd-quarterly-updates P01 | 194 | 2 tasks | 6 files |
+| Phase 32-03 P03 | 480 | 2 tasks | 3 files |
 
 ### Tech Debt
 
@@ -403,8 +405,8 @@ Recent decisions affecting v3.0:
 
 ## Session Continuity
 
-Last session: 2026-03-15T16:55:53.053Z
-Stopped at: Completed 32-01-PLAN.md — filing_types expanded to 14 types, org_filing_type_selections table, all new calculators and rollover cases
+Last session: 2026-03-15T16:59:51.387Z
+Stopped at: Completed 32-03-PLAN.md — org-scoped deadlines filtering, ManageFilingTypesSheet, server actions for filing type selections
 Resume file: none
 Next step: Phase 31 complete — all 2 plans executed
 
