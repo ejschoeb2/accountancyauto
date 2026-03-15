@@ -1,19 +1,28 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { FilingTypeList, type ScheduleWithSteps, type StepDisplay, type CustomScheduleDisplay } from './components/filing-type-list'
+import { ManageFilingTypesSheet } from './components/manage-filing-types-sheet'
 import { DEADLINE_DESCRIPTIONS } from '@/lib/deadlines/descriptions'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { Plus } from 'lucide-react'
 import type { EmailTemplate, FilingType, Schedule, ScheduleStep } from '@/lib/types/database'
+import { getOrgFilingTypeSelections, getAllFilingTypes } from '@/app/actions/deadlines'
 
 export default async function SchedulesPage() {
   const supabase = await createClient()
 
-  // Fetch filing types
-  const { data: filingTypes } = await supabase
-    .from('filing_types')
-    .select('*')
-    .order('name')
+  // Fetch org filing type selections + all filing types in parallel
+  const [orgSelections, allFilingTypes] = await Promise.all([
+    getOrgFilingTypeSelections(),
+    getAllFilingTypes(),
+  ])
+
+  // Determine active type IDs for this org
+  // If the org has no selection rows yet (empty array), fall back to showing all types
+  // (the migration backfills defaults for existing orgs, so this is a safety fallback)
+  const activeTypeIds = orgSelections.length > 0
+    ? orgSelections.filter(s => s.is_active).map(s => s.filing_type_id)
+    : allFilingTypes.map(ft => ft.id)
 
   // Fetch schedules
   const { data: schedules } = await supabase
@@ -57,9 +66,12 @@ export default async function SchedulesPage() {
   const filingSchedules = allSchedules.filter(s => s.schedule_type !== 'custom')
   const customSchedules = allSchedules.filter(s => s.schedule_type === 'custom')
 
+  // Filter filing types to only show org-active ones
+  const filteredFilingTypes = allFilingTypes.filter(ft => activeTypeIds.includes(ft.id))
+
   // Build scheduleMap: filing_type_id -> ScheduleWithSteps | null (only filing schedules)
   const scheduleMap: Record<string, ScheduleWithSteps | null> = {}
-  for (const ft of (filingTypes as FilingType[] | null) ?? []) {
+  for (const ft of filteredFilingTypes) {
     scheduleMap[ft.id] = null
   }
   for (const s of filingSchedules) {
@@ -96,16 +108,22 @@ export default async function SchedulesPage() {
             Manage filing and custom deadlines, and configure when clients are reminded
           </p>
         </div>
-        <Link href="/deadlines/new/edit?type=custom">
-          <IconButtonWithText variant="violet">
-            <Plus className="h-5 w-5" />
-            Create Deadline
-          </IconButtonWithText>
-        </Link>
+        <div className="flex items-center gap-3">
+          <ManageFilingTypesSheet
+            allFilingTypes={allFilingTypes}
+            activeTypeIds={activeTypeIds}
+          />
+          <Link href="/deadlines/new/edit?type=custom">
+            <IconButtonWithText variant="violet">
+              <Plus className="h-5 w-5" />
+              Create Deadline
+            </IconButtonWithText>
+          </Link>
+        </div>
       </div>
 
       <FilingTypeList
-        filingTypes={(filingTypes as FilingType[]) ?? []}
+        filingTypes={filteredFilingTypes as FilingType[]}
         scheduleMap={scheduleMap}
         deadlineDescriptions={DEADLINE_DESCRIPTIONS}
         customSchedules={customScheduleDisplays}
