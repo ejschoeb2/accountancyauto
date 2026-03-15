@@ -2,13 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Multi-Tenancy & SaaS Platform
-status: unknown
-last_updated: "2026-03-09T23:02:57.193Z"
+status: completed
+stopped_at: Completed 32-01-PLAN.md — filing_types expanded to 14 types, org_filing_type_selections table, all new calculators and rollover cases
+last_updated: "2026-03-15T16:55:53.058Z"
+last_activity: 2026-03-09 — Phase 31-02 staging table migration + server actions + wizard page wiring
 progress:
   total_phases: 33
   completed_phases: 30
-  total_plans: 107
-  completed_plans: 104
+  total_plans: 110
+  completed_plans: 105
+  percent: 0
 ---
 
 # Project State
@@ -28,7 +31,7 @@ Plan: 02 complete
 Status: Phase 31 complete — setup_draft JSONB + setup_draft_clients staging table, DB-backed wizard hydration, import rows in dedicated table
 Last activity: 2026-03-09 — Phase 31-02 staging table migration + server actions + wizard page wiring
 
-Resume file: none
+Resume file: None
 Next step: Phase 31 complete — all 2 plans executed
 
 Progress: ░░░░░░░░░░ 0% (0/6 phases complete)
@@ -298,6 +301,9 @@ Recent decisions affecting v3.0:
 - [Phase 30]: ValidationWarning interface redefined locally in portal client components to avoid importing server-only lib/documents/validate.ts into client bundle
 - [Phase 30]: showConfirmationCard requires validationWarnings.length === 0 — amber warning card takes absolute priority over green confirmation card (never both simultaneously)
 - [Phase 30]: ValidationWarning type duplicated locally in client files (not imported from server module) to avoid importing server-only module into client bundle
+- [Phase 32]: [D-32-01-01] MTD rollover uses getNextMTDQuarterDeadline(currentDeadline) to preserve fixed HMRC tax-year calendar anchors
+- [Phase 32]: [D-32-01-02] confirmation_statement rollover uses addYears(currentDeadline, 1) — annual cycle off deadline date itself
+- [Phase 32]: [D-32-01-03] partnership_tax_return and trust_tax_return reuse calculateSelfAssessmentDeadline (same Jan 31 formula)
 
 ### Roadmap Evolution
 
@@ -317,6 +323,7 @@ Recent decisions affecting v3.0:
 - Phase 29 added: Hardening & Integration Testing — large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification
 - Phase 30 added: Per-document-type upload validation — tailored checks per document type, CSV MIME fix, large-file path validation
 - Phase 31 added: Server-Side Wizard State Persistence — persist wizard progress to DB setup_draft column; survives refresh, tab close, OAuth/Stripe redirects
+- Phase 32 added: Expandable Deadline System & MTD Quarterly Updates — org-level deadline catalogue with active/inactive selection, MTD ITSA quarterly deadlines, wizard step for deadline selection, and additional UK filing types (Confirmation Statement, P11D, PAYE, CIS)
 
 ### Known Risks
 
@@ -355,6 +362,7 @@ Recent decisions affecting v3.0:
 | Phase 30 P01 | 3 | 1 tasks | 3 files |
 | Phase 30-per-document-type-upload-validation P02 | 4 | 2 tasks | 4 files |
 | Phase 30 P03 | 7 | 2 tasks | 5 files |
+| Phase 32-expandable-deadline-system-mtd-quarterly-updates P01 | 194 | 2 tasks | 6 files |
 
 ### Tech Debt
 
@@ -395,8 +403,8 @@ Recent decisions affecting v3.0:
 
 ## Session Continuity
 
-Last session: 2026-03-09 UTC
-Stopped at: Completed 31-02-PLAN.md — Draft clients staging table: setup_draft_clients table, saveDraftClients/getDraftClients/clearDraftClients, import rows decoupled from JSONB
+Last session: 2026-03-15T16:55:53.053Z
+Stopped at: Completed 32-01-PLAN.md — filing_types expanded to 14 types, org_filing_type_selections table, all new calculators and rollover cases
 Resume file: none
 Next step: Phase 31 complete — all 2 plans executed
 

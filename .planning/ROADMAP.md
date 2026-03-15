@@ -605,7 +605,7 @@ Plans:
 6. Existing orgs unaffected -- current 5 filing types remain active by default
 7. Deadlines page shows all active types with ability to activate/deactivate more
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 32-01-PLAN.md -- Schema migration + type widening + all new calculators + rollover + descriptions (14 filing types)
