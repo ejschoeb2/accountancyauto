@@ -24,6 +24,9 @@ export function PlaceholderDropdown({
   onEditorInsert,
 }: PlaceholderDropdownProps) {
   const dropdownRef = useRef<HTMLButtonElement>(null)
+  // Capture active element and cursor position BEFORE the dropdown click steals focus
+  const activeElementOnOpenRef = useRef<Element | null>(null)
+  const subjectCursorRef = useRef<number>(0)
 
   // Convert snake_case to Title Case
   const toTitleCase = (str: string): string => {
@@ -40,19 +43,29 @@ export function PlaceholderDropdown({
       return
     }
 
-    // Unified mode - detect which field has focus
-    if (subjectInputRef?.current === document.activeElement) {
-      // Subject input has focus
-      const input = subjectInputRef.current
-      if (!input) return
+    // Unified mode - check which field had focus when dropdown was opened
+    const isSubjectFocused =
+      subjectInputRef?.current && activeElementOnOpenRef.current === subjectInputRef.current
 
-      const cursorPosition = input.selectionStart ?? input.value.length
+    if (isSubjectFocused) {
+      // Subject input had focus
+      const input = subjectInputRef!.current!
+
+      const cursorPosition = subjectCursorRef.current
       const textBefore = input.value.slice(0, cursorPosition)
       const textAfter = input.value.slice(cursorPosition)
       const placeholderText = `{{${id}}}`
       const newValue = textBefore + placeholderText + textAfter
 
-      input.value = newValue
+      // Use native value setter to reliably trigger React's onChange on controlled input
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype, 'value'
+      )?.set
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(input, newValue)
+      } else {
+        input.value = newValue
+      }
       input.dispatchEvent(new Event('input', { bubbles: true }))
 
       // Restore focus and set cursor
@@ -62,8 +75,17 @@ export function PlaceholderDropdown({
         input.setSelectionRange(newCursorPosition, newCursorPosition)
       }, 0)
     } else {
-      // Body editor has focus
+      // Body editor had focus (or nothing specific)
       onEditorInsert?.(id, label)
+    }
+  }
+
+  // Capture focus state on pointerdown — fires before focus shifts to the dropdown trigger
+  const handlePointerDown = () => {
+    activeElementOnOpenRef.current = document.activeElement
+    if (subjectInputRef?.current && subjectInputRef.current === document.activeElement) {
+      subjectCursorRef.current =
+        subjectInputRef.current.selectionStart ?? subjectInputRef.current.value.length
     }
   }
 
@@ -76,6 +98,7 @@ export function PlaceholderDropdown({
           type="button"
           className="px-4 py-2 h-10 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 hover:text-sky-500 transition-all duration-200 active:scale-[0.97] flex items-center gap-2 text-sm font-medium"
           title="Insert variable"
+          onPointerDown={handlePointerDown}
         >
           <Plus className="h-5 w-5" />
           Insert Variable
