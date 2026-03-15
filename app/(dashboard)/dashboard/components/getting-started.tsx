@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Check, UserPlus, FileText, Send, ExternalLink } from 'lucide-react';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 interface GettingStartedProps {
   progress: OnboardingProgress;
@@ -22,7 +25,7 @@ const steps = [
     key: 'hasEmailTemplate' as const,
     label: 'Create an email template',
     description: 'Build a custom reminder template with your practice branding and preferred wording',
-    href: '/settings?tab=email',
+    href: '/templates',
     icon: FileText,
     color: 'violet',
   },
@@ -43,6 +46,8 @@ const steps = [
     color: 'amber',
   },
 ];
+
+const STORAGE_KEY = 'onboarding-progress';
 
 const colorMap: Record<string, { bg: string; bgHover: string; text: string }> = {
   blue: {
@@ -68,13 +73,60 @@ const colorMap: Record<string, { bg: string; bgHover: string; text: string }> = 
 };
 
 export function GettingStarted({ progress }: GettingStartedProps) {
+  const router = useRouter();
+  const hasShownToasts = useRef(false);
   const completedCount = steps.filter((s) => progress[s.key]).length;
   const allComplete = completedCount === steps.length;
+
+  // Detect newly completed steps and show toast notifications
+  useEffect(() => {
+    if (hasShownToasts.current) return;
+    hasShownToasts.current = true;
+
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const prev: Record<string, boolean> = stored ? JSON.parse(stored) : {};
+
+      // Find steps that are now complete but weren't before
+      const newlyCompleted = steps.filter(
+        (s) => progress[s.key] && !prev[s.key]
+      );
+
+      // Save current state
+      const current: Record<string, boolean> = {};
+      for (const s of steps) current[s.key] = progress[s.key];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+
+      // Show toasts for newly completed steps
+      for (const step of newlyCompleted) {
+        const nowComplete = steps.every((s) => current[s.key]);
+
+        if (nowComplete) {
+          toast.success('All steps complete!', {
+            description: 'You\'ve finished setting up Prompt. You\'re ready to go!',
+            duration: 6000,
+          });
+          break; // Don't show individual toasts if all complete
+        }
+
+        toast.success(`Step complete: ${step.label}`, {
+          description: `${completedCount}/${steps.length} steps done`,
+          duration: 5000,
+          action: {
+            label: 'Back to dashboard',
+            onClick: () => router.push('/dashboard'),
+          },
+        });
+      }
+    } catch {
+      // localStorage unavailable — skip
+    }
+  }, [progress, completedCount, router]);
 
   return (
     <Card className="py-5">
       <CardContent className="px-5 py-0">
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center justify-between mb-5">
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             Getting Started
           </p>
@@ -95,7 +147,7 @@ export function GettingStarted({ progress }: GettingStartedProps) {
                   className={`group/step rounded-lg border p-4 transition-all duration-200 cursor-pointer h-full ${
                     done
                       ? 'bg-muted/30 hover:bg-muted/50'
-                      : 'border-dashed hover:bg-muted/30'
+                      : 'hover:bg-muted/30'
                   }`}
                 >
                   <div className="flex items-start justify-between">
@@ -114,12 +166,12 @@ export function GettingStarted({ progress }: GettingStartedProps) {
                     <div
                       className={`size-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 ${
                         done
-                          ? 'bg-emerald-500 shadow-sm'
+                          ? 'bg-green-500/10'
                           : `${colors.bg} ${colors.bgHover}`
                       }`}
                     >
                       {done ? (
-                        <Check className="size-5 text-white" strokeWidth={3} />
+                        <Check className="size-5 text-green-600" strokeWidth={2.5} />
                       ) : (
                         <Icon className={`size-5 ${colors.text}`} />
                       )}
