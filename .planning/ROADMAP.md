@@ -462,8 +462,10 @@ Phases execute in numeric order: 18 -> 19
 - [x] **Phase 25: Google Drive Integration** - OAuth2 connect/disconnect, GoogleDriveProvider, withTokenRefresh utility, portal/inbound/DSAR updated (completed 2026-02-28)
 - [x] **Phase 26: Microsoft OneDrive Integration** - MSAL OAuth2, OneDriveProvider, M365/personal account support, AADSTS53003 handling (completed 2026-02-28)
 - [x] **Phase 27: Dropbox Integration** - OAuth2 with offline token, DropboxProvider, app folder boundary, temporary link downloads (completed 2026-02-28)
-- [x] **Phase 28: Settings UI & Token Lifecycle** - Unified Storage tab, re-auth banner, disconnect modal, daily health-check cron, privacy policy update (completed 2026-02-28)
-- [x] **Phase 29: Hardening & Integration Testing** - Large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification per provider (completed 2026-03-03)
+- [x] **Phase 28: Settings UI & Token Lifecycle** - Unified Storage tab, re-auth banner, disconnect modal, daily health-check cron, privacy policy update
+ (completed 2026-02-28)
+- [x] **Phase 29: Hardening & Integration Testing** - Large file uploads, Postmark webhook safety, mixed-backend DSAR, end-to-end verification per provider
+ (completed 2026-03-03)
 
 ## Phase Details
 
@@ -584,5 +586,30 @@ Plans:
 Plans:
 - [ ] 31-01-PLAN.md — Core draft persistence: setup_draft JSONB column, getSetupDraft/saveSetupDraft server actions, wizard mount/transition refactor, sessionStorage removal
 - [ ] 31-02-PLAN.md — CSV import staging table: setup_draft_clients table, bulk insert/read/delete actions, wizard wired to staging table for import rows
+
+
+### Phase 32: Expandable Deadline System & MTD Quarterly Updates
+
+**Goal:** Transform the hardcoded 5-filing-type system into an expandable deadline catalogue that accountants can customise per practice. Add MTD ITSA Quarterly Update as the first new deadline type. Add a wizard step where accountants select which deadlines apply to their practice. Seed additional UK filing types (Confirmation Statement, P11D, PAYE, CIS, Partnership/Trust returns) as selectable options.
+
+**Requirements**: Driven by client feedback -- accountant needs MTD quarterly reporting deadlines and ability to attach deadlines to emails that are not in the current fixed set.
+
+**Depends on:** Phase 31
+
+**Success Criteria** (what must be TRUE):
+1. `filing_types` table contains 12+ deadline types (up from 5)
+2. Org-level active/inactive tracking -- each org chooses which filing types apply
+3. MTD ITSA Quarterly Update deadlines calculate correctly (5 Jul+33d, 5 Oct+33d, 5 Jan+33d, 5 Apr+32d)
+4. Setup wizard includes a "Select your deadlines" step
+5. Only active filing types generate reminder schedules and queue entries
+6. Existing orgs unaffected -- current 5 filing types remain active by default
+7. Deadlines page shows all active types with ability to activate/deactivate more
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 32-01-PLAN.md -- Schema migration + type widening + all new calculators + rollover + descriptions (14 filing types)
+- [ ] 32-02-PLAN.md -- Queue builder org-selection filter + wizard deadline step + draft persistence
+- [ ] 32-03-PLAN.md -- Deadlines page active-type filtering + Manage Filing Types sheet
 
 ---
