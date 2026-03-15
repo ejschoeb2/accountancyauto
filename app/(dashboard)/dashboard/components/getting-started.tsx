@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, UserPlus, FileText, Send, ExternalLink, Rocket, X } from 'lucide-react';
-import { buttonBaseVariants } from '@/components/ui/button-base';
+import { Check, UserPlus, FileText, Send, ExternalLink, Rocket } from 'lucide-react';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
 import { markOnboardingComplete } from '@/app/actions/settings';
 import Link from 'next/link';
@@ -52,29 +51,6 @@ const steps = [
 
 const STORAGE_KEY = 'onboarding-progress';
 
-const colorMap: Record<string, { bg: string; bgHover: string; text: string }> = {
-  blue: {
-    bg: 'bg-blue-500/10',
-    bgHover: 'group-hover/step:bg-blue-500/20',
-    text: 'text-blue-500',
-  },
-  violet: {
-    bg: 'bg-violet-500/10',
-    bgHover: 'group-hover/step:bg-violet-500/20',
-    text: 'text-violet-500',
-  },
-  emerald: {
-    bg: 'bg-emerald-500/10',
-    bgHover: 'group-hover/step:bg-emerald-500/20',
-    text: 'text-emerald-500',
-  },
-  amber: {
-    bg: 'bg-amber-500/10',
-    bgHover: 'group-hover/step:bg-amber-500/20',
-    text: 'text-amber-500',
-  },
-};
-
 export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
   const router = useRouter();
   const hasShownToasts = useRef(false);
@@ -93,7 +69,6 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
     onDismiss();
   }
 
-  // Detect newly completed steps and show toast notifications
   useEffect(() => {
     if (hasShownToasts.current) return;
     hasShownToasts.current = true;
@@ -147,28 +122,25 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
               {completedCount}/{steps.length} complete
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {allComplete && (
-              <button
-                onClick={handleDismiss}
-                disabled={dismissing}
-                className={buttonBaseVariants({ variant: 'destructive', buttonType: 'icon-text' })}
-              >
-                <X className="size-4" />
-                Dismiss
-              </button>
-            )}
+          {allComplete ? (
+            <button
+              onClick={handleDismiss}
+              disabled={dismissing}
+              className="inline-flex items-center gap-2 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-600 px-4 py-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <Check className="size-5" strokeWidth={2.5} />
+              Complete getting started
+            </button>
+          ) : (
             <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center">
               <Rocket className="size-6 text-green-600" />
             </div>
-          </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {steps.map((step) => {
             const done = progress[step.key];
-            const colors = colorMap[step.color];
-            const Icon = step.icon;
 
             return (
               <Link key={step.key} href={step.href}>
@@ -192,19 +164,11 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
                         {step.description}
                       </p>
                     </div>
-                    <div
-                      className={`size-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 ${
-                        done
-                          ? 'bg-green-500/10'
-                          : `${colors.bg} ${colors.bgHover}`
-                      }`}
-                    >
-                      {done ? (
+                    {done && (
+                      <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-green-500/10">
                         <Check className="size-5 text-green-600" strokeWidth={2.5} />
-                      ) : (
-                        <Icon className={`size-5 ${colors.text}`} />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>

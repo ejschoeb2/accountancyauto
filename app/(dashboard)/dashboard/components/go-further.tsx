@@ -49,35 +49,11 @@ const steps = [
 
 const STORAGE_KEY = 'go-further-progress';
 
-const colorMap: Record<string, { bg: string; bgHover: string; text: string }> = {
-  blue: {
-    bg: 'bg-blue-500/10',
-    bgHover: 'group-hover/step:bg-blue-500/20',
-    text: 'text-blue-500',
-  },
-  violet: {
-    bg: 'bg-violet-500/10',
-    bgHover: 'group-hover/step:bg-violet-500/20',
-    text: 'text-violet-500',
-  },
-  emerald: {
-    bg: 'bg-emerald-500/10',
-    bgHover: 'group-hover/step:bg-emerald-500/20',
-    text: 'text-emerald-500',
-  },
-  amber: {
-    bg: 'bg-amber-500/10',
-    bgHover: 'group-hover/step:bg-amber-500/20',
-    text: 'text-amber-500',
-  },
-};
-
 export function GoFurther({ progress }: GoFurtherProps) {
   const router = useRouter();
   const hasShownToasts = useRef(false);
   const completedCount = steps.filter((s) => progress[s.key]).length;
 
-  // Detect newly completed steps and show toast notifications
   useEffect(() => {
     if (hasShownToasts.current) return;
     hasShownToasts.current = true;
@@ -90,7 +66,6 @@ export function GoFurther({ progress }: GoFurtherProps) {
         (s) => progress[s.key] && !prev[s.key]
       );
 
-      // Save current state
       const current: Record<string, boolean> = {};
       for (const s of steps) current[s.key] = progress[s.key];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
@@ -140,8 +115,6 @@ export function GoFurther({ progress }: GoFurtherProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {steps.map((step) => {
             const done = progress[step.key];
-            const colors = colorMap[step.color];
-            const Icon = step.icon;
 
             return (
               <Link key={step.key} href={step.href}>
@@ -165,19 +138,11 @@ export function GoFurther({ progress }: GoFurtherProps) {
                         {step.description}
                       </p>
                     </div>
-                    <div
-                      className={`size-10 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 ${
-                        done
-                          ? 'bg-green-500/10'
-                          : `${colors.bg} ${colors.bgHover}`
-                      }`}
-                    >
-                      {done ? (
+                    {done && (
+                      <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-green-500/10">
                         <Check className="size-5 text-green-600" strokeWidth={2.5} />
-                      ) : (
-                        <Icon className={`size-5 ${colors.text}`} />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>
