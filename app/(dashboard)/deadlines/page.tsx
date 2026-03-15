@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { FilingTypeList, type ScheduleWithSteps, type StepDisplay, type CustomScheduleDisplay } from './components/filing-type-list'
-import { ManageFilingTypesSheet } from './components/manage-filing-types-sheet'
 import { DEADLINE_DESCRIPTIONS } from '@/lib/deadlines/descriptions'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { Plus } from 'lucide-react'
@@ -17,12 +16,11 @@ export default async function SchedulesPage() {
     getAllFilingTypes(),
   ])
 
-  // Determine active type IDs for this org
-  // If the org has no selection rows yet (empty array), fall back to showing all types
-  // (the migration backfills defaults for existing orgs, so this is a safety fallback)
+  // Build a set of active type IDs for this org
+  // If no selection rows exist, fall back to seeded defaults being active
   const activeTypeIds = orgSelections.length > 0
     ? orgSelections.filter(s => s.is_active).map(s => s.filing_type_id)
-    : allFilingTypes.map(ft => ft.id)
+    : allFilingTypes.filter(ft => ft.is_seeded_default).map(ft => ft.id)
 
   // Fetch schedules
   const { data: schedules } = await supabase
@@ -66,12 +64,9 @@ export default async function SchedulesPage() {
   const filingSchedules = allSchedules.filter(s => s.schedule_type !== 'custom')
   const customSchedules = allSchedules.filter(s => s.schedule_type === 'custom')
 
-  // Filter filing types to only show org-active ones
-  const filteredFilingTypes = allFilingTypes.filter(ft => activeTypeIds.includes(ft.id))
-
-  // Build scheduleMap: filing_type_id -> ScheduleWithSteps | null (only filing schedules)
+  // Build scheduleMap for ALL filing types (not just active ones — filter happens client-side)
   const scheduleMap: Record<string, ScheduleWithSteps | null> = {}
-  for (const ft of filteredFilingTypes) {
+  for (const ft of allFilingTypes) {
     scheduleMap[ft.id] = null
   }
   for (const s of filingSchedules) {
@@ -109,10 +104,6 @@ export default async function SchedulesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <ManageFilingTypesSheet
-            allFilingTypes={allFilingTypes}
-            activeTypeIds={activeTypeIds}
-          />
           <Link href="/deadlines/new/edit?type=custom">
             <IconButtonWithText variant="violet">
               <Plus className="h-5 w-5" />
@@ -123,7 +114,8 @@ export default async function SchedulesPage() {
       </div>
 
       <FilingTypeList
-        filingTypes={filteredFilingTypes as FilingType[]}
+        allFilingTypes={allFilingTypes as FilingType[]}
+        activeTypeIds={activeTypeIds}
         scheduleMap={scheduleMap}
         deadlineDescriptions={DEADLINE_DESCRIPTIONS}
         customSchedules={customScheduleDisplays}
