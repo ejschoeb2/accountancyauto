@@ -217,10 +217,10 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
             </div>
           )}
 
-          {/* Company Name */}
+          {/* Client Name */}
           <div className="space-y-1.5">
             <label htmlFor="company-name" className={labelClass}>
-              Company Name *
+              Client Name *
             </label>
             <Input
               id="company-name"

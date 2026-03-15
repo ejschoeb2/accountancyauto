@@ -34,7 +34,7 @@ export const CSV_COLUMNS = [
   {
     name: "company_name",
     required: true,
-    description: "Company name to match existing clients",
+    description: "Client name to match existing clients",
   },
   {
     name: "primary_email",
@@ -121,7 +121,7 @@ export function generateCsvTemplateWithComments(): string {
     "# Prompt - Client Import Template",
     "#",
     "# Instructions:",
-    "# 1. Required: company_name — must match client names exactly (case-insensitive)",
+    "# 1. Required: company_name — the client name, must match existing clients exactly (case-insensitive)",
     "# 2. All other columns are optional — leave blank to skip that field",
     "# 3. Dates accepted in any of: DD/MM/YYYY, DD/MM/YY, YYYY-MM-DD, '31 March 2026', '31 Mar 2026'",
     "# 4. Yes/No fields accept: Yes, No, yes, no, TRUE, FALSE, true, false",

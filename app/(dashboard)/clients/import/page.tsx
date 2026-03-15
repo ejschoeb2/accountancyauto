@@ -686,7 +686,7 @@ export default function ClientImportPage() {
             <div className="space-y-1">
               <h2 className="text-xl font-semibold">Review &amp; Edit Import Data</h2>
               <p className="text-sm text-muted-foreground">
-                Review and complete your data before importing. Company names will be matched to existing clients.
+                Review and complete your data before importing. Client names will be matched to existing clients.
               </p>
             </div>
             <ButtonBase
@@ -781,7 +781,7 @@ export default function ClientImportPage() {
                         </TableHead>
                         <TableHead className="min-w-[220px]">
                           <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                            Company Name
+                            Client Name
                           </span>
                         </TableHead>
                         <TableHead className="min-w-[220px]">

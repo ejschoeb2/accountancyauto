@@ -21,7 +21,7 @@ const STEPS: {
     number: "01",
     title: "Add your clients",
     description:
-      "Import from CSV or add clients one by one — company name, accounting year-end, and VAT stagger group. That's all Prompt needs. No manual deadline entry, no spreadsheets.",
+      "Import from CSV or add clients one by one — client name, accounting year-end, and VAT stagger group. That's all Prompt needs. No manual deadline entry, no spreadsheets.",
     Illustration: AddClientsIllustration,
   },
   {

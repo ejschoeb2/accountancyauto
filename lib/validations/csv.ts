@@ -84,7 +84,7 @@ function parseFlexibleDate(dateStr: string): string | undefined {
  * Be lenient on input formats to accommodate various CSV sources.
  */
 export const csvRowSchema = z.object({
-  company_name: z.string().min(1, "Company name is required"),
+  company_name: z.string().min(1, "Client name is required"),
   primary_email: z
     .string()
     .optional()

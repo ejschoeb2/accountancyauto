@@ -1040,7 +1040,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                         </TableHead>
                         <TableHead className="min-w-[220px]">
                           <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                            Company Name
+                            Client Name
                           </span>
                         </TableHead>
                         <TableHead className="min-w-[220px]">
@@ -1106,7 +1106,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                               </div>
                             </TableCell>
 
-                            {/* Company Name - readonly */}
+                            {/* Client Name - readonly */}
                             <TableCell className="font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                               {row.company_name || "—"}
                             </TableCell>

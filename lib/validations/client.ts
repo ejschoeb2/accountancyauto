@@ -35,7 +35,7 @@ export const bulkUpdateSchema = z.array(
 
 // Schema for creating a new client (demo client creation dialog)
 export const createClientSchema = z.object({
-  company_name: z.string().trim().min(1, "Company name is required").max(200, "Company name must be 200 characters or fewer"),
+  company_name: z.string().trim().min(1, "Client name is required").max(200, "Client name must be 200 characters or fewer"),
   primary_email: z.string().trim().email("Invalid email address"),
   client_type: clientTypeSchema,
   year_end_date: isoDateSchema.optional().nullable(),

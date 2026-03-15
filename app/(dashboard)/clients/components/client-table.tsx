@@ -981,7 +981,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         <div className="relative flex-1 max-w-sm">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by company name..."
+            placeholder="Search by client name..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             className="pl-9 hover:border-foreground/20"
