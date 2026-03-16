@@ -35,6 +35,7 @@ import {
   AlertCircle,
   CheckCircle,
   AlertTriangle,
+  Info,
   ArrowLeft,
   ArrowRight,
   Loader2,
@@ -120,6 +121,9 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
   // ── Client limit state (for pre-import warning) ────────────────────────
   const [clientLimit, setClientLimit] = useState<number | null>(planClientLimit ?? null);
   const [currentClientCount, setCurrentClientCount] = useState(0);
+
+  // ── Rollover tracking ─────────────────────────────────────────────────
+  const [rolledOverCount, setRolledOverCount] = useState(0);
 
   // ── Notify parent whenever rows change so it can persist them ───────────
   useEffect(() => {
@@ -499,6 +503,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
     setError(null);
 
     // Transform rows based on column mapping into editable format
+    let rolloverCount = 0;
     const transformed = parsedData.rows
       .map((row) => {
         const mappedData: Record<string, string> = {};
@@ -509,13 +514,20 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
           }
         });
 
+        // Detect if year end was rolled forward
+        const parsedDate = parseDate(mappedData.year_end_date || "");
+        const rolledDate = rollYearEndToFuture(parsedDate);
+        if (parsedDate && rolledDate && parsedDate !== rolledDate) {
+          rolloverCount++;
+        }
+
         // Convert to EditableRow format
         const editableRow: EditableRow = {
           id: crypto.randomUUID(),
           company_name: mappedData.company_name || "",
           primary_email: mappedData.primary_email || null,
           client_type: mappedData.client_type || null,
-          year_end_date: rollYearEndToFuture(parseDate(mappedData.year_end_date || "")),
+          year_end_date: rolledDate,
           vat_registered: mappedData.vat_registered
             ? ["yes", "true", "1"].includes(mappedData.vat_registered.toLowerCase())
             : true, // Default to true if not specified
@@ -530,6 +542,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
       // Filter out rows with empty company names (data cleansing)
       .filter((row) => row.company_name.trim() !== "");
 
+    setRolledOverCount(rolloverCount);
     setEditableRows(transformed);
     setStepState("edit-data");
   }, [parsedData, columnMapping, validateMapping, parseDate]);
@@ -1014,6 +1027,17 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                       <strong>{incompleteRows.length} {incompleteRows.length === 1 ? "row is" : "rows are"}</strong>{" "}
                       missing required fields. Fill in <strong>Email</strong>, <strong>Client Type</strong> and{" "}
                       <strong>Year End Date</strong> for every row before importing.
+                    </p>
+                  </div>
+                )}
+
+                {rolledOverCount > 0 && (
+                  <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-xl">
+                    <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
+                    <p className="text-sm text-blue-600">
+                      <strong>{rolledOverCount} {rolledOverCount === 1 ? "client has" : "clients have"}</strong>{" "}
+                      a year end date that has already passed, so {rolledOverCount === 1 ? "it has" : "they have"} been
+                      rolled forward to the next tax year. You can adjust individual dates in the table below.
                     </p>
                   </div>
                 )}
