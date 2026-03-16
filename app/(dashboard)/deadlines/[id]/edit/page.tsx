@@ -17,7 +17,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Bell, BellOff, CheckCircle, Pencil, RotateCcw, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Bell, BellOff, CheckCircle, Pencil, RotateCcw, Trash2, X, Loader2 } from 'lucide-react'
+import { CheckButton } from '@/components/ui/check-button'
 import {
   Select,
   SelectContent,
@@ -69,6 +70,9 @@ export default function EditSchedulePage() {
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set())
   const [initialClientIds, setInitialClientIds] = useState<Set<string>>(new Set())
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+  const [docSettings, setDocSettings] = useState<Record<string, boolean>>({})
+  const [docSettingsLoading, setDocSettingsLoading] = useState(false)
+  const [docSettingsDirty, setDocSettingsDirty] = useState(false)
 
   const VALID_FILING_TYPE_IDS: FilingTypeId[] = [
     'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return', 'self_assessment',
@@ -214,8 +218,52 @@ export default function EditSchedulePage() {
     loadData()
   }, [scheduleId, isNew, router, form])
 
+  // Load org-level document settings when filing type changes
+  const currentFilingTypeId = form.watch('filing_type_id') as string | null
+  useEffect(() => {
+    if (scheduleType !== 'filing' || !currentFilingTypeId) return
+    setDocSettingsLoading(true)
+    fetch(`/api/filing-types/${currentFilingTypeId}/document-settings`)
+      .then(res => res.json())
+      .then((data: Array<{ document_type_id: string; is_enabled: boolean }>) => {
+        const map: Record<string, boolean> = {}
+        for (const s of data) map[s.document_type_id] = s.is_enabled
+        setDocSettings(map)
+        setDocSettingsDirty(false)
+      })
+      .catch(() => {})
+      .finally(() => setDocSettingsLoading(false))
+  }, [currentFilingTypeId, scheduleType])
+
+  const isDocEnabled = (docTypeId: string): boolean => {
+    return docSettings[docTypeId] ?? true // default enabled
+  }
+
+  const toggleDocSetting = (docTypeId: string) => {
+    setDocSettings(prev => ({ ...prev, [docTypeId]: !(prev[docTypeId] ?? true) }))
+    setDocSettingsDirty(true)
+  }
+
+  const saveDocSettings = async (filingTypeId: string) => {
+    const selectedFt = filingTypes.find(ft => ft.id === filingTypeId)
+    const docs = selectedFt?.document_requirements ?? []
+    if (docs.length === 0) return
+
+    const settings = docs.map(d => ({
+      document_type_id: d.document_type_id,
+      is_enabled: docSettings[d.document_type_id] ?? true,
+    }))
+
+    await fetch(`/api/filing-types/${filingTypeId}/document-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings }),
+    })
+    setDocSettingsDirty(false)
+  }
+
   // Track unsaved changes
-  const hasUnsavedChanges = form.formState.isDirty || (
+  const hasUnsavedChanges = form.formState.isDirty || docSettingsDirty || (
     isNew && scheduleType === 'custom' && (
       selectedClientIds.size !== initialClientIds.size ||
       Array.from(selectedClientIds).some(id => !initialClientIds.has(id))
@@ -272,6 +320,11 @@ export default function EditSchedulePage() {
             })
           }
         }
+      }
+
+      // Save document settings for filing schedules
+      if (scheduleType === 'filing' && docSettingsDirty && data.filing_type_id) {
+        await saveDocSettings(data.filing_type_id as string)
       }
 
       toast.success(isNew ? 'Deadline created!' : 'Deadline updated!')
@@ -511,18 +564,61 @@ export default function EditSchedulePage() {
             const mandatory = docs.filter(d => d.is_mandatory)
             const optional = docs.filter(d => !d.is_mandatory)
             return (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documents to collect</Label>
-                <ul className="list-disc pl-5 space-y-1.5">
-                  {mandatory.map(d => (
-                    <li key={d.label} className="text-sm font-medium">{d.label}</li>
-                  ))}
-                  {optional.map(d => (
-                    <li key={d.label} className="text-sm font-medium">
-                      {d.label} <span className="text-muted-foreground font-normal">(may also need)</span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="text-sm text-muted-foreground">
+                  Select which documents clients need to provide for this filing type.
+                </p>
+                {docSettingsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading...
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {mandatory.map(d => {
+                      const enabled = isDocEnabled(d.document_type_id)
+                      return (
+                        <div
+                          key={d.document_type_id}
+                          className="flex items-center gap-3 rounded-md px-3 py-2 border hover:bg-muted/50 cursor-pointer border-l-2 border-l-amber-400"
+                          onClick={() => toggleDocSetting(d.document_type_id)}
+                        >
+                          <CheckButton
+                            checked={enabled}
+                            aria-label={`${enabled ? 'Disable' : 'Enable'} ${d.label}`}
+                          />
+                          <span className={`text-sm font-medium flex-1 ${!enabled ? 'text-muted-foreground line-through' : ''}`}>
+                            {d.label}
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 shrink-0">
+                            <span className="size-1.5 rounded-full bg-amber-500" />
+                            Required
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {optional.map(d => {
+                      const enabled = isDocEnabled(d.document_type_id)
+                      return (
+                        <div
+                          key={d.document_type_id}
+                          className="flex items-center gap-3 rounded-md px-3 py-2 border hover:bg-muted/50 cursor-pointer"
+                          onClick={() => toggleDocSetting(d.document_type_id)}
+                        >
+                          <CheckButton
+                            checked={enabled}
+                            aria-label={`${enabled ? 'Disable' : 'Enable'} ${d.label}`}
+                          />
+                          <span className={`text-sm font-medium flex-1 ${!enabled ? 'text-muted-foreground line-through' : ''}`}>
+                            {d.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground shrink-0">Optional</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )
           })()}

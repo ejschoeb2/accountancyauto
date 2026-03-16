@@ -28,7 +28,7 @@ export interface FilingType {
   description: string | null;
   applicable_client_types: Array<'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP' | 'Individual'>;
   created_at: string;
-  document_requirements?: Array<{ label: string; is_mandatory: boolean }>;
+  document_requirements?: Array<{ document_type_id: string; label: string; is_mandatory: boolean }>;
   is_seeded_default?: boolean;
   calculator_type?: string;
   sort_order?: number;

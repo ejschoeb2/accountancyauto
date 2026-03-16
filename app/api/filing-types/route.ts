@@ -24,13 +24,13 @@ export async function GET() {
     }
 
     // Group document requirements by filing_type_id
-    const reqsByFilingType: Record<string, { label: string; is_mandatory: boolean }[]> = {};
+    const reqsByFilingType: Record<string, { document_type_id: string; label: string; is_mandatory: boolean }[]> = {};
     for (const req of requirements ?? []) {
       const ft = req.filing_type_id as string;
       if (!reqsByFilingType[ft]) reqsByFilingType[ft] = [];
       const dt = req.document_types as unknown as { id: string; label: string } | null;
       if (dt) {
-        reqsByFilingType[ft].push({ label: dt.label, is_mandatory: req.is_mandatory });
+        reqsByFilingType[ft].push({ document_type_id: dt.id, label: dt.label, is_mandatory: req.is_mandatory });
       }
     }
 
