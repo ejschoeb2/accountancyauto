@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { CheckButton } from '@/components/ui/check-button'
-import { Button } from '@/components/ui/button'
+import { ButtonBase } from '@/components/ui/button-base'
 import {
   Dialog,
   DialogContent,
@@ -164,17 +164,23 @@ export function ActivateDeadlineModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={activating}>
+          <ButtonBase
+            variant="amber"
+            buttonType="text-only"
+            onClick={onClose}
+            disabled={activating}
+          >
             Cancel
-          </Button>
-          <Button
+          </ButtonBase>
+          <ButtonBase
+            variant="green"
+            buttonType="icon-text"
             onClick={handleActivate}
             disabled={activating || loading}
-            className="bg-green-600 hover:bg-green-700 text-white"
           >
-            <Plus className="size-4 mr-1.5" />
+            <Plus className="size-4" />
             {activating ? 'Activating...' : 'Activate'}
-          </Button>
+          </ButtonBase>
         </DialogFooter>
       </DialogContent>
     </Dialog>

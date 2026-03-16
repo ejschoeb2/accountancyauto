@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { DEFAULT_SCHEDULES } from "@/lib/onboarding/seed-defaults";
+import { buildReminderQueue } from "@/lib/reminders/queue-builder";
 import type { FilingType } from "@/lib/types/database";
 
 // --- Org Filing Type Selections ---
@@ -118,9 +119,20 @@ export async function updateOrgFilingTypeSelections(
   let newScheduleIds: Record<string, string> = {};
   if (newlyActivated.length > 0) {
     newScheduleIds = await seedSchedulesForFilingTypes(orgId, userId, admin, newlyActivated);
+
+    // Create client_filing_assignments for all matching clients (so deadlines show on client pages)
+    await createClientAssignmentsForFilingTypes(orgId, admin, newlyActivated);
+
+    // Immediately rebuild the reminder queue so new reminders are visible straight away
+    try {
+      await buildReminderQueue(admin, { id: orgId, name: "" });
+    } catch (e) {
+      console.error("[updateOrgFilingTypeSelections] Non-fatal: failed to rebuild queue:", e);
+    }
   }
 
   revalidatePath("/deadlines");
+  revalidatePath("/clients", "layout");
   return { newScheduleIds };
 }
 
@@ -228,4 +240,68 @@ async function seedSchedulesForFilingTypes(
   }
 
   return createdIds;
+}
+
+/**
+ * Upserts client_filing_assignments for all org clients whose client_type matches
+ * the newly activated filing types. Uses ignoreDuplicates so manually-deactivated
+ * assignments are never overwritten.
+ */
+async function createClientAssignmentsForFilingTypes(
+  orgId: string,
+  admin: ReturnType<typeof createAdminClient>,
+  filingTypeIds: string[]
+): Promise<void> {
+  // Fetch applicable_client_types for the newly activated types
+  const { data: filingTypes, error: ftError } = await admin
+    .from("filing_types")
+    .select("id, applicable_client_types")
+    .in("id", filingTypeIds);
+
+  if (ftError || !filingTypes?.length) return;
+
+  // Fetch all clients for this org
+  const { data: clients, error: clientsError } = await admin
+    .from("clients")
+    .select("id, client_type, vat_registered")
+    .eq("org_id", orgId);
+
+  if (clientsError || !clients?.length) return;
+
+  const assignments: Array<{
+    org_id: string;
+    client_id: string;
+    filing_type_id: string;
+    is_active: boolean;
+  }> = [];
+
+  for (const ft of filingTypes) {
+    const applicableTypes = (ft.applicable_client_types as string[]) ?? [];
+    for (const client of clients) {
+      if (!client.client_type) continue;
+      if (!applicableTypes.includes(client.client_type)) continue;
+      // VAT return only applies to VAT-registered clients
+      if (ft.id === "vat_return" && !client.vat_registered) continue;
+
+      assignments.push({
+        org_id: orgId,
+        client_id: client.id,
+        filing_type_id: ft.id,
+        is_active: true,
+      });
+    }
+  }
+
+  if (!assignments.length) return;
+
+  const { error } = await admin
+    .from("client_filing_assignments")
+    .upsert(assignments, {
+      onConflict: "client_id,filing_type_id",
+      ignoreDuplicates: true, // Never overwrite a manually-deactivated assignment
+    });
+
+  if (error) {
+    console.error("[createClientAssignmentsForFilingTypes] Failed:", error);
+  }
 }
