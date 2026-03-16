@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { format, isPast } from 'date-fns';
 import { enGB } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Calendar, CheckCircle, X, RefreshCw, Loader2, ExternalLink, Settings, Link2 } from 'lucide-react';
+import { Calendar, CheckCircle, X, RefreshCw, Loader2, ExternalLink, Link2 } from 'lucide-react';
 import { rolloverFiling } from '@/lib/rollover/executor';
 import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -60,7 +60,6 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
   const [overrideReason, setOverrideReason] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const [checklistOpenFor, setChecklistOpenFor] = useState<string | null>(null);
   const documentCardActionsRef = useRef<Record<string, DocumentCardActions>>({});
   const [effectiveCounts, setEffectiveCounts] = useState<Record<string, { received: number; total: number }>>({});
   const [portalStates, setPortalStates] = useState<Record<string, { generating: boolean; url: string | null; expiresAt: string | null }>>({});
@@ -642,15 +641,6 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                       )}
                     </IconButtonWithText>
 
-                    {/* Configure checklist */}
-                    <IconButtonWithText
-                      variant="blue"
-                      onClick={() => setChecklistOpenFor(filing.filing_type.id)}
-                    >
-                      <Settings className="size-4" />
-                      Configure
-                    </IconButtonWithText>
-
                     {/* Deadline action button */}
                     {filing.calculated_deadline && (
                       <>
@@ -700,8 +690,6 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                       filingTypeName={filing.filing_type.name}
                       docCount={filing.doc_count ?? 0}
                       lastReceivedAt={filing.last_received_at ?? null}
-                      checklistOpen={checklistOpenFor === filing.filing_type.id}
-                      onChecklistClose={() => setChecklistOpenFor(null)}
                       portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
                       portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
                       onActionsReady={(actions) => {

@@ -1,20 +1,11 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { IconButton } from '@/components/ui/icon-button';
 import {
-  Plus,
   Loader2,
   X,
   Upload,
@@ -36,17 +27,6 @@ import {
 // ---------------------------------------------------------------------------
 
 // ClientDocument and ValidationWarning are imported from document-preview-modal
-
-interface ChecklistRequirement {
-  id: string;
-  document_type_id: string;
-  is_mandatory: boolean;
-  document_types: {
-    id: string;
-    code: string;
-    label: string;
-  };
-}
 
 interface Customisation {
   id: string;
@@ -75,8 +55,6 @@ export interface DocumentCardProps {
   filingTypeName: string;
   docCount: number;
   lastReceivedAt: string | null;
-  checklistOpen?: boolean;
-  onChecklistClose?: () => void;
   portalUrl?: string | null;
   portalExpiresAt?: string | null;
   onActionsReady?: (actions: DocumentCardActions) => void;
@@ -116,282 +94,6 @@ function formatDate(isoDate: string | null): string {
 }
 
 // ---------------------------------------------------------------------------
-// Checklist customisation sub-component (inline, no filing type dropdown)
-// ---------------------------------------------------------------------------
-
-interface ChecklistModalProps {
-  open: boolean;
-  onClose: () => void;
-  clientId: string;
-  filingTypeId: string;
-  filingTypeName: string;
-  onChecklistChanged: () => void;
-}
-
-function ChecklistModal({
-  open,
-  onClose,
-  clientId,
-  filingTypeId,
-  filingTypeName,
-  onChecklistChanged,
-}: ChecklistModalProps) {
-  const [requirements, setRequirements] = useState<ChecklistRequirement[]>([]);
-  const [customisations, setCustomisations] = useState<Customisation[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [adHocLabel, setAdHocLabel] = useState('');
-  const [showAdHoc, setShowAdHoc] = useState(false);
-  const [, startTransition] = useTransition();
-
-  const supabase = createClient();
-
-  // Load org_id from user session
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      const id = user.app_metadata?.org_id;
-      if (id) { setOrgId(id); return; }
-      supabase.from('user_organisations').select('org_id').eq('user_id', user.id).limit(1).single()
-        .then(({ data }) => { if (data?.org_id) setOrgId(data.org_id); });
-    });
-  }, []);
-
-  // Load requirements + customisations when modal opens
-  useEffect(() => {
-    if (!open || !filingTypeId || !clientId) return;
-    setLoading(true);
-
-    Promise.all([
-      supabase
-        .from('filing_document_requirements')
-        .select('id, document_type_id, is_mandatory, document_types(id, code, label)')
-        .eq('filing_type_id', filingTypeId),
-      supabase
-        .from('client_document_checklist_customisations')
-        .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
-        .eq('client_id', clientId)
-        .eq('filing_type_id', filingTypeId),
-    ]).then(([reqResult, custResult]) => {
-      setRequirements((reqResult.data ?? []) as unknown as ChecklistRequirement[]);
-      setCustomisations((custResult.data ?? []) as Customisation[]);
-    }).finally(() => setLoading(false));
-  }, [open, filingTypeId, clientId]);
-
-  const isEnabled = (documentTypeId: string, isMandatory: boolean): boolean => {
-    const cust = customisations.find(c => c.document_type_id === documentTypeId);
-    // If no customisation row exists, default mandatory items to enabled, optional to disabled
-    return cust ? cust.is_enabled : isMandatory;
-  };
-
-  const handleToggle = (req: ChecklistRequirement) => {
-    if (!orgId) return;
-    const currentlyEnabled = isEnabled(req.document_type_id, req.is_mandatory);
-    const newEnabled = !currentlyEnabled;
-
-    // Optimistic update
-    startTransition(() => {
-      const existing = customisations.find(c => c.document_type_id === req.document_type_id);
-      if (existing) {
-        setCustomisations(prev =>
-          prev.map(c =>
-            c.document_type_id === req.document_type_id ? { ...c, is_enabled: newEnabled } : c
-          )
-        );
-      } else {
-        setCustomisations(prev => [
-          ...prev,
-          { id: '', document_type_id: req.document_type_id, is_enabled: newEnabled, is_ad_hoc: false, ad_hoc_label: null, manually_received: false },
-        ]);
-      }
-    });
-
-    // Persist — preserve manually_received from existing row
-    const existingCust = customisations.find(c => c.document_type_id === req.document_type_id);
-    supabase
-      .from('client_document_checklist_customisations')
-      .upsert(
-        {
-          org_id: orgId,
-          client_id: clientId,
-          filing_type_id: filingTypeId,
-          document_type_id: req.document_type_id,
-          is_enabled: newEnabled,
-          is_ad_hoc: false,
-          manually_received: existingCust?.manually_received ?? false,
-        },
-        { onConflict: 'client_id,filing_type_id,document_type_id' }
-      )
-      .then(({ error }) => {
-        if (error) {
-          toast.error('Failed to save change');
-          // Revert on error
-          startTransition(() => {
-            setCustomisations(prev =>
-              prev.map(c =>
-                c.document_type_id === req.document_type_id
-                  ? { ...c, is_enabled: currentlyEnabled }
-                  : c
-              )
-            );
-          });
-        } else {
-          // Reload to get real IDs
-          supabase
-            .from('client_document_checklist_customisations')
-            .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
-            .eq('client_id', clientId)
-            .eq('filing_type_id', filingTypeId)
-            .then(({ data }) => {
-              if (data) setCustomisations(data as Customisation[]);
-            });
-          onChecklistChanged();
-        }
-      });
-  };
-
-  const handleAddAdHoc = async () => {
-    if (!adHocLabel.trim() || !orgId) return;
-
-    const { error } = await supabase.from('client_document_checklist_customisations').insert({
-      org_id: orgId,
-      client_id: clientId,
-      filing_type_id: filingTypeId,
-      is_enabled: true,
-      is_ad_hoc: true,
-      ad_hoc_label: adHocLabel.trim(),
-    });
-
-    if (error) {
-      toast.error('Failed to add custom item');
-      return;
-    }
-
-    toast.success('Custom item added');
-    setAdHocLabel('');
-    setShowAdHoc(false);
-
-    const { data } = await supabase
-      .from('client_document_checklist_customisations')
-      .select('id, document_type_id, is_enabled, is_ad_hoc, ad_hoc_label, manually_received')
-      .eq('client_id', clientId)
-      .eq('filing_type_id', filingTypeId);
-    if (data) setCustomisations(data as Customisation[]);
-    onChecklistChanged();
-  };
-
-  const adHocItems = customisations.filter(c => c.is_ad_hoc);
-
-  return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-      <DialogContent className="max-w-lg" showCloseButton={false}>
-        <DialogHeader>
-          <DialogTitle>Checklist Customisation — {filingTypeName}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 pt-2">
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Loading checklist...
-            </div>
-          ) : (
-            <>
-              {requirements.length === 0 && adHocItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No document requirements configured for this filing type.
-                </p>
-              ) : (
-                <>
-                  {/* Standard requirements */}
-                  {requirements.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Standard Documents
-                      </p>
-                      <div className="space-y-1.5">
-                        {requirements.map(req => {
-                          const enabled = isEnabled(req.document_type_id, req.is_mandatory);
-                          return (
-                            <div key={req.id} className="flex items-center gap-2">
-                              <CheckButton
-                                checked={enabled}
-                                variant={enabled ? 'success' : 'default'}
-                                onCheckedChange={() => handleToggle(req)}
-                              />
-                              <span className={`text-sm ${enabled ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                {req.document_types?.label}
-                              </span>
-                              {req.is_mandatory && (
-                                <span className="text-xs text-muted-foreground shrink-0">(required)</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Ad-hoc items */}
-                  {adHocItems.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Custom Items
-                      </p>
-                      <div className="space-y-1.5">
-                        {adHocItems.map(item => (
-                          <div key={item.id} className="flex items-center gap-2">
-                            <CheckButton checked={true} variant="success" disabled className="pointer-events-none" />
-                            <span className="text-sm text-foreground">{item.ad_hoc_label}</span>
-                            <span className="text-xs px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-600 shrink-0">Custom</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Add custom item */}
-              {showAdHoc ? (
-                <div className="flex items-center gap-2 pt-2">
-                  <Input
-                    value={adHocLabel}
-                    onChange={e => setAdHocLabel(e.target.value)}
-                    placeholder="e.g. Rental income spreadsheet"
-                    className="h-9"
-                    onKeyDown={e => e.key === 'Enter' && handleAddAdHoc()}
-                    autoFocus
-                  />
-                  <IconButtonWithText variant="green" onClick={handleAddAdHoc} disabled={!adHocLabel.trim()}>
-                    Add
-                  </IconButtonWithText>
-                  <IconButtonWithText variant="amber" onClick={() => { setShowAdHoc(false); setAdHocLabel(''); }}>
-                    <X className="size-4" />
-                    Cancel
-                  </IconButtonWithText>
-                </div>
-              ) : (
-                <IconButtonWithText variant="blue" onClick={() => setShowAdHoc(true)}>
-                  <Plus className="size-4" />
-                  Add custom item
-                </IconButtonWithText>
-              )}
-            </>
-          )}
-        </div>
-        <div className="flex justify-end pt-2">
-          <DialogClose asChild>
-            <IconButtonWithText variant="muted">
-              <X className="size-4" />
-              Close
-            </IconButtonWithText>
-          </DialogClose>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Main DocumentCard component
 // ---------------------------------------------------------------------------
@@ -413,8 +115,6 @@ export function DocumentCard({
   filingTypeName,
   docCount,
   lastReceivedAt,
-  checklistOpen,
-  onChecklistClose,
   portalUrl,
   portalExpiresAt,
   onActionsReady,
@@ -1227,16 +927,6 @@ export function DocumentCard({
         className="hidden"
         accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff,.doc,.docx,.xls,.xlsx,.csv"
         onChange={handleFileChange}
-      />
-
-      {/* Checklist customisation modal */}
-      <ChecklistModal
-        open={checklistOpen ?? false}
-        onClose={() => onChecklistClose?.()}
-        clientId={clientId}
-        filingTypeId={filingTypeId}
-        filingTypeName={filingTypeName}
-        onChecklistChanged={reloadData}
       />
 
       {/* Document preview modal — opened by clicking any document row */}
