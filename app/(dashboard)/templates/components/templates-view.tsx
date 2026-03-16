@@ -146,7 +146,7 @@ export function TemplatesView({
   }, [templates, searchQuery, sortBy, typeFilter, usageFilter, templateUsageMap])
 
   return (
-    <>
+    <div className="space-y-6 pb-0">
       <div className="max-w-7xl mx-auto space-y-4">
         {/* Page header */}
         <div className="space-y-1">
@@ -311,28 +311,32 @@ export function TemplatesView({
             </CardContent>
           </Card>
         )}
+
+        {/* Results count */}
+        <div className="text-sm font-medium text-foreground/70">
+          Showing <span className="font-semibold text-foreground">{filteredTemplates.length}</span> of <span className="font-semibold text-foreground">{templates.length}</span> templates
+        </div>
       </div>
 
       {/* Templates table — full-width edge-to-edge like clients page */}
       {filteredTemplates.length > 0 ? (
-        <div className="-mx-8 -mb-10 mt-4 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white dark:bg-background">
+        <div className="-mx-8 -mb-10 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white dark:bg-background">
           <table className="w-full">
             <thead>
-              <tr className="border-b text-left">
-                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+              <tr className="border-b transition-colors">
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0">
+                </th>
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
                   Name
                 </th>
-                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-full">
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap w-full">
                   Subject
                 </th>
-                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
                   Used in
                 </th>
-                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
                   Type
-                </th>
-                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                  Actions
                 </th>
               </tr>
             </thead>
@@ -346,12 +350,24 @@ export function TemplatesView({
                 return (
                   <tr
                     key={template.id}
-                    className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="group border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
                     onClick={() => {
                       setEditingTemplateId(template.id)
                       setModalOpen(true)
                     }}
                   >
+                    <td className="p-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0">
+                      <div className="flex items-center justify-center">
+                        <ButtonBase
+                          variant="destructive"
+                          buttonType="icon-only"
+                          onClick={(e) => handleDelete(template, e)}
+                          disabled={deletingId === template.id}
+                        >
+                          <Trash2 className="size-4" />
+                        </ButtonBase>
+                      </div>
+                    </td>
                     <td className="p-3 align-middle whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">
@@ -382,16 +398,6 @@ export function TemplatesView({
                           {typeStyle.label}
                         </span>
                       </div>
-                    </td>
-                    <td className="p-3 align-middle whitespace-nowrap">
-                      <ButtonBase
-                        variant="destructive"
-                        buttonType="icon-only"
-                        onClick={(e) => handleDelete(template, e)}
-                        disabled={deletingId === template.id}
-                      >
-                        <Trash2 className="size-4" />
-                      </ButtonBase>
                     </td>
                   </tr>
                 )
@@ -430,6 +436,6 @@ export function TemplatesView({
         onOpenChange={setModalOpen}
         templateId={editingTemplateId}
       />
-    </>
+    </div>
   )
 }
