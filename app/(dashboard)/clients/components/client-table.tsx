@@ -87,6 +87,7 @@ interface ClientTableProps {
   initialData: Client[];
   statusMap: Record<string, ClientStatusInfo>;
   filingStatusMap: Record<string, FilingTypeStatus[]>;
+  activeFilingTypeIds: string[];
   initialFilter?: string;
   initialSort?: string;
   clientLimit: number | null;
@@ -128,7 +129,7 @@ const SORT_LABELS: Record<string, string> = {
   "type-asc": "Type (A-Z)",
 };
 
-export function ClientTable({ initialData, statusMap, filingStatusMap, initialFilter, initialSort, clientLimit }: ClientTableProps) {
+export function ClientTable({ initialData, statusMap, filingStatusMap, activeFilingTypeIds, initialFilter, initialSort, clientLimit }: ClientTableProps) {
   const router = useRouter();
   const [data, setData] = useState<Client[]>(initialData);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -462,10 +463,12 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   );
 
 
-  // Filing types for the selected client type in deadline view
+  // Filing types for the selected client type, filtered to only those activated by the org
   const activeDeadlineFilingTypes = useMemo(
-    () => FILING_TYPES_BY_CLIENT_TYPE[deadlineClientType] || [],
-    [deadlineClientType]
+    () => (FILING_TYPES_BY_CLIENT_TYPE[deadlineClientType] || []).filter(
+      (ft) => activeFilingTypeIds.includes(ft)
+    ),
+    [deadlineClientType, activeFilingTypeIds]
   );
 
   // Define status view columns — only filing types applicable to selected client type
