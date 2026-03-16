@@ -57,10 +57,11 @@ export async function getAllFilingTypes(): Promise<FilingType[]> {
  * Admin only. Upserts a row for every filing type — active if in activeTypeIds, inactive otherwise.
  * For newly activated types, auto-creates a default schedule with generic templates.
  * Revalidates /deadlines after save.
+ * Returns newScheduleIds: map of filing_type_id → schedule_id for newly created schedules.
  */
 export async function updateOrgFilingTypeSelections(
   activeTypeIds: string[]
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; newScheduleIds?: Record<string, string> }> {
   const { orgId, orgRole } = await getOrgContext();
 
   if (orgRole !== "admin") {
@@ -114,12 +115,13 @@ export async function updateOrgFilingTypeSelections(
   }
 
   // Auto-create default schedules for newly activated types
+  let newScheduleIds: Record<string, string> = {};
   if (newlyActivated.length > 0) {
-    await seedSchedulesForFilingTypes(orgId, userId, admin, newlyActivated);
+    newScheduleIds = await seedSchedulesForFilingTypes(orgId, userId, admin, newlyActivated);
   }
 
   revalidatePath("/deadlines");
-  return {};
+  return { newScheduleIds };
 }
 
 /**
@@ -132,7 +134,8 @@ async function seedSchedulesForFilingTypes(
   ownerId: string,
   admin: ReturnType<typeof createAdminClient>,
   filingTypeIds: string[]
-): Promise<void> {
+): Promise<Record<string, string>> {
+  const createdIds: Record<string, string> = {};
   // Build template name -> id map for this org
   const { data: templates } = await admin
     .from("email_templates")
@@ -187,6 +190,8 @@ async function seedSchedulesForFilingTypes(
       continue;
     }
 
+    createdIds[filingTypeId] = schedule.id;
+
     // Create steps
     const steps = schedDef.steps
       .map(([templateName, delayDays], i) => {
@@ -221,4 +226,6 @@ async function seedSchedulesForFilingTypes(
       }
     }
   }
+
+  return createdIds;
 }

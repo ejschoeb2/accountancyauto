@@ -29,6 +29,7 @@ import {
 import { toast } from 'sonner'
 import { updateOrgFilingTypeSelections } from '@/app/actions/deadlines'
 import type { FilingType, FilingTypeId } from '@/lib/types/database'
+import { ActivateDeadlineModal } from './activate-deadline-modal'
 
 export interface StepDisplay {
   step_number: number
@@ -100,6 +101,7 @@ export function DeadlinesView({
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('name-asc')
   const [isPending, startTransition] = useTransition()
+  const [activatingFilingType, setActivatingFilingType] = useState<FilingType | null>(null)
 
   const activeSet = useMemo(() => new Set(activeTypeIds), [activeTypeIds])
 
@@ -157,17 +159,33 @@ export function DeadlinesView({
     return result
   }, [allFilingTypes, activeSet, statusFilter, searchQuery, typeFilters, sortBy])
 
-  const handleActivate = (filingTypeId: string) => {
-    startTransition(async () => {
-      const newActiveIds = [...activeTypeIds, filingTypeId]
-      const result = await updateOrgFilingTypeSelections(newActiveIds)
-      if (result.error) {
-        toast.error(result.error)
-      } else {
-        toast.success('Deadline activated')
-        router.refresh()
+  const handleActivateWithExclusions = async (excludedClientIds: string[]) => {
+    if (!activatingFilingType) return
+    const filingTypeId = activatingFilingType.id
+    const newActiveIds = [...activeTypeIds, filingTypeId]
+    const result = await updateOrgFilingTypeSelections(newActiveIds)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    // Save exclusions if any were selected
+    if (excludedClientIds.length > 0) {
+      // Get schedule ID: newly created or pre-existing
+      const scheduleId =
+        result.newScheduleIds?.[filingTypeId] ?? scheduleMap[filingTypeId]?.id
+      if (scheduleId) {
+        await fetch(`/api/schedules/${scheduleId}/exclusions`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ excluded_client_ids: excludedClientIds }),
+        })
       }
-    })
+    }
+
+    toast.success('Deadline activated')
+    setActivatingFilingType(null)
+    router.refresh()
   }
 
   const handleDeactivate = (filingTypeId: string) => {
@@ -372,11 +390,11 @@ export function DeadlinesView({
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
-                              handleActivate(ft.id)
+                              setActivatingFilingType(ft)
                             }}
                           >
                             <Plus className="size-4" />
-                            {isPending ? 'Saving...' : 'Activate'}
+                            Activate
                           </ButtonBase>
                         )}
                       </div>
@@ -530,6 +548,13 @@ export function DeadlinesView({
           </p>
         </div>
       )}
+
+      {/* Activate deadline modal */}
+      <ActivateDeadlineModal
+        filingType={activatingFilingType}
+        onClose={() => setActivatingFilingType(null)}
+        onActivate={handleActivateWithExclusions}
+      />
     </div>
   )
 }
