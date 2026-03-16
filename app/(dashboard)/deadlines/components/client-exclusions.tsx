@@ -16,9 +16,10 @@ interface Client {
 
 interface ClientExclusionsProps {
   scheduleId: string
+  applicableClientTypes?: string[]
 }
 
-export function ClientExclusions({ scheduleId }: ClientExclusionsProps) {
+export function ClientExclusions({ scheduleId, applicableClientTypes }: ClientExclusionsProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
@@ -65,13 +66,21 @@ export function ClientExclusions({ scheduleId }: ClientExclusionsProps) {
     load()
   }, [scheduleId])
 
-  const filteredClients = useMemo(() => {
-    if (!search.trim()) return clients
-    const term = search.toLowerCase()
+  // Filter by applicable client types first (for filing-type schedules)
+  const eligibleClients = useMemo(() => {
+    if (!applicableClientTypes || applicableClientTypes.length === 0) return clients
     return clients.filter(c =>
+      c.client_type && applicableClientTypes.includes(c.client_type)
+    )
+  }, [clients, applicableClientTypes])
+
+  const filteredClients = useMemo(() => {
+    if (!search.trim()) return eligibleClients
+    const term = search.toLowerCase()
+    return eligibleClients.filter(c =>
       c.company_name.toLowerCase().includes(term)
     )
-  }, [clients, search])
+  }, [eligibleClients, search])
 
   const toggleExclusion = async (clientId: string) => {
     // Prevent multiple simultaneous updates
@@ -106,7 +115,9 @@ export function ClientExclusions({ scheduleId }: ClientExclusionsProps) {
     }
   }
 
-  const excludedCount = excludedIds.size
+  const excludedCount = Array.from(excludedIds).filter(id =>
+    eligibleClients.some(c => c.id === id)
+  ).length
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading...</p>
