@@ -552,11 +552,18 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           }
 
           return (
-            <FilingStatusBadge
-              status={filingStatus.status}
-              isRecordsReceived={filingStatus.is_records_received}
-              isOverride={filingStatus.is_override}
-            />
+            <div className="flex flex-col gap-1">
+              {filingStatus.deadline_date && (
+                <span className="text-xs text-muted-foreground">
+                  {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
+                </span>
+              )}
+              <FilingStatusBadge
+                status={filingStatus.status}
+                isRecordsReceived={filingStatus.is_records_received}
+                isOverride={filingStatus.is_override}
+              />
+            </div>
           );
         },
         enableSorting: false,
