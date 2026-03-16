@@ -11,7 +11,7 @@ import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { CheckButton } from '@/components/ui/check-button'
+
 import { CheckCircle, X, Link, AlertCircle, Trash2 } from 'lucide-react'
 import {
   Dialog,
@@ -39,7 +39,6 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
   const [bodyJson, setBodyJson] = useState<TipTapDocument | null>(null)
-  const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editor, setEditor] = useState<any>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -68,7 +67,6 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
       setName('')
       setSubject('')
       setBodyJson(null)
-      setIsActive(true)
       setLoading(false)
       setEditor(null)
       return
@@ -89,7 +87,6 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
         setName(template.name)
         setSubject(template.subject)
         setBodyJson(template.body_json)
-        setIsActive(template.is_active)
       } catch {
         toast.error('Failed to load template')
         onOpenChange(false)
@@ -123,7 +120,7 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, subject, body_json: bodyJson, is_active: isActive }),
+        body: JSON.stringify({ name, subject, body_json: bodyJson, is_active: true }),
       })
 
       if (!response.ok) {
@@ -184,18 +181,6 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
                   placeholder="e.g., Monthly VAT Reminder"
                   className="hover:border-foreground/20"
                 />
-              </div>
-
-              {/* Active Checkbox */}
-              <div className="flex items-center space-x-2">
-                <CheckButton
-                  checked={isActive}
-                  onCheckedChange={(checked) => setIsActive(checked as boolean)}
-                  aria-label="Active template"
-                />
-                <Label className="cursor-pointer" onClick={() => setIsActive(!isActive)}>
-                  Active (available for use in schedules)
-                </Label>
               </div>
 
               {/* Toolbar */}

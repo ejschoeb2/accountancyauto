@@ -146,259 +146,259 @@ export function TemplatesView({
   }, [templates, searchQuery, sortBy, typeFilter, usageFilter, templateUsageMap])
 
   return (
-    <div className="space-y-8">
-      {/* Page header */}
-      <div className="space-y-1">
-        <h1>Email Templates</h1>
-        <p className="text-muted-foreground mt-1">
-          Create and manage reusable templates for client communications.
-        </p>
-      </div>
-
-      {/* Portal conflict banner */}
-      {hasPortalConflicts && (
-        <div className="flex items-start gap-3 rounded-xl p-4 bg-amber-500/10">
-          <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-amber-600">
-              Client portal is disabled but some templates contain portal links
-            </p>
-            <p className="text-sm text-amber-600/80">
-              These templates will send emails with empty portal links. Edit the affected templates to remove the portal link placeholder, or{' '}
-              <Link href="/settings" className="underline hover:no-underline">
-                re-enable the client portal
-              </Link>.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Search + Controls toolbar */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-        {/* Search */}
-        <div className="relative flex-1 max-w-sm">
-          <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search templates..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 hover:border-foreground/20"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-              onClick={() => setSearchQuery('')}
-            >
-              <X className="size-4" />
-            </Button>
-          )}
+    <>
+      <div className="max-w-7xl mx-auto space-y-4">
+        {/* Page header */}
+        <div className="space-y-1">
+          <h1>Email Templates</h1>
+          <p className="text-muted-foreground mt-1">
+            Create and manage reusable templates for client communications.
+          </p>
         </div>
 
-        {/* Controls */}
-        <div className="flex gap-2 sm:ml-auto items-center">
-          <IconButtonWithText
-            variant="green"
-            onClick={() => {
-              setEditingTemplateId(null)
-              setModalOpen(true)
-            }}
-          >
-            <Plus className="h-5 w-5" />
-            Create Template
-          </IconButtonWithText>
-          <IconButtonWithText
-            type="button"
-            variant={showFilters ? "amber" : "violet"}
-            onClick={() => setShowFilters(v => !v)}
-            title={showFilters ? "Close filters" : "Open filters"}
-          >
-            <SlidersHorizontal className="h-5 w-5" />
-            {showFilters ? "Close Filters" : "Filter"}
-          </IconButtonWithText>
-          <div className="w-px h-6 bg-border mx-1" />
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="h-9 min-w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="most-used">Most Used</SelectItem>
-                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                <SelectItem value="newest">Newest First</SelectItem>
-                <SelectItem value="oldest">Oldest First</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* Collapsible filter panel */}
-      {showFilters && (
-        <Card>
-          <CardContent className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 space-y-4">
-                {/* Type */}
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</span>
-                  <div className="flex flex-wrap gap-2">
-                    <ButtonWithText
-                      onClick={() => setTypeFilter(typeFilter === 'custom' ? 'all' : 'custom')}
-                      isSelected={typeFilter === 'custom'}
-                      variant="muted"
-                    >
-                      Custom
-                    </ButtonWithText>
-                    <ButtonWithText
-                      onClick={() => setTypeFilter(typeFilter === 'dedicated' ? 'all' : 'dedicated')}
-                      isSelected={typeFilter === 'dedicated'}
-                      variant="muted"
-                    >
-                      Dedicated
-                    </ButtonWithText>
-                    <ButtonWithText
-                      onClick={() => setTypeFilter(typeFilter === 'default' ? 'all' : 'default')}
-                      isSelected={typeFilter === 'default'}
-                      variant="muted"
-                    >
-                      Default
-                    </ButtonWithText>
-                  </div>
-                </div>
-
-                {/* Usage */}
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Usage</span>
-                  <div className="flex flex-wrap gap-2">
-                    <ButtonWithText
-                      onClick={() => setUsageFilter(usageFilter === 'used' ? 'all' : 'used')}
-                      isSelected={usageFilter === 'used'}
-                      variant="muted"
-                    >
-                      Used in Schedule
-                    </ButtonWithText>
-                    <ButtonWithText
-                      onClick={() => setUsageFilter(usageFilter === 'unused' ? 'all' : 'unused')}
-                      isSelected={usageFilter === 'unused'}
-                      variant="muted"
-                    >
-                      Not Used
-                    </ButtonWithText>
-                  </div>
-                </div>
-              </div>
-
-              {hasActiveFilters && (
-                <div className="space-y-2">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide invisible">Clear</span>
-                  <IconButtonWithText
-                    type="button"
-                    variant="destructive"
-                    onClick={clearAllFilters}
-                    title="Clear all filters"
-                  >
-                    <X className="h-5 w-5" />
-                    Clear all filters
-                  </IconButtonWithText>
-                </div>
-              )}
+        {/* Portal conflict banner */}
+        {hasPortalConflicts && (
+          <div className="flex items-start gap-3 rounded-xl p-4 bg-amber-500/10">
+            <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-600">
+                Client portal is disabled but some templates contain portal links
+              </p>
+              <p className="text-sm text-amber-600/80">
+                These templates will send emails with empty portal links. Edit the affected templates to remove the portal link placeholder, or{' '}
+                <Link href="/settings" className="underline hover:no-underline">
+                  re-enable the client portal
+                </Link>.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Templates table */}
-      {filteredTemplates.length > 0 ? (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b text-left">
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-full">
-                    Subject
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                    Used in
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTemplates.map((template) => {
-                  const usedIn = templateUsageMap[template.id] || []
-                  const portalIssue = portalIssueMap[template.id]
-                  const templateType = getTemplateType(template)
-                  const typeStyle = TYPE_CONFIG[templateType]
-
-                  return (
-                    <tr
-                      key={template.id}
-                      className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => {
-                        setEditingTemplateId(template.id)
-                        setModalOpen(true)
-                      }}
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate max-w-[200px]">
-                            {template.name}
-                          </span>
-                          {portalIssue === 'portal-disabled' && (
-                            <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground block">
-                          {template.subject}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {usedIn.length > 0 ? (
-                          <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
-                            {usedIn.length} schedule{usedIn.length !== 1 ? 's' : ''}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground/50">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className={`px-3 py-2 rounded-md inline-flex items-center ${typeStyle.bg}`}>
-                          <span className={`text-sm font-medium ${typeStyle.text}`}>
-                            {typeStyle.label}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <ButtonBase
-                          variant="destructive"
-                          buttonType="icon-only"
-                          onClick={(e) => handleDelete(template, e)}
-                          disabled={deletingId === template.id}
-                        >
-                          <Trash2 className="size-4" />
-                        </ButtonBase>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
           </div>
-        </Card>
+        )}
+
+        {/* Search + Controls toolbar */}
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          {/* Search */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search templates..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 hover:border-foreground/20"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="size-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div className="flex gap-2 sm:ml-auto items-center">
+            <IconButtonWithText
+              variant="green"
+              onClick={() => {
+                setEditingTemplateId(null)
+                setModalOpen(true)
+              }}
+            >
+              <Plus className="h-5 w-5" />
+              Create Template
+            </IconButtonWithText>
+            <IconButtonWithText
+              type="button"
+              variant={showFilters ? "amber" : "violet"}
+              onClick={() => setShowFilters(v => !v)}
+              title={showFilters ? "Close filters" : "Open filters"}
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+              {showFilters ? "Close Filters" : "Filter"}
+            </IconButtonWithText>
+            <div className="w-px h-6 bg-border mx-1" />
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-9 min-w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="most-used">Most Used</SelectItem>
+                  <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                  <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Collapsible filter panel */}
+        {showFilters && (
+          <Card>
+            <CardContent className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 space-y-4">
+                  {/* Type */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</span>
+                    <div className="flex flex-wrap gap-2">
+                      <ButtonWithText
+                        onClick={() => setTypeFilter(typeFilter === 'custom' ? 'all' : 'custom')}
+                        isSelected={typeFilter === 'custom'}
+                        variant="muted"
+                      >
+                        Custom
+                      </ButtonWithText>
+                      <ButtonWithText
+                        onClick={() => setTypeFilter(typeFilter === 'dedicated' ? 'all' : 'dedicated')}
+                        isSelected={typeFilter === 'dedicated'}
+                        variant="muted"
+                      >
+                        Dedicated
+                      </ButtonWithText>
+                      <ButtonWithText
+                        onClick={() => setTypeFilter(typeFilter === 'default' ? 'all' : 'default')}
+                        isSelected={typeFilter === 'default'}
+                        variant="muted"
+                      >
+                        Default
+                      </ButtonWithText>
+                    </div>
+                  </div>
+
+                  {/* Usage */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Usage</span>
+                    <div className="flex flex-wrap gap-2">
+                      <ButtonWithText
+                        onClick={() => setUsageFilter(usageFilter === 'used' ? 'all' : 'used')}
+                        isSelected={usageFilter === 'used'}
+                        variant="muted"
+                      >
+                        Used in Schedule
+                      </ButtonWithText>
+                      <ButtonWithText
+                        onClick={() => setUsageFilter(usageFilter === 'unused' ? 'all' : 'unused')}
+                        isSelected={usageFilter === 'unused'}
+                        variant="muted"
+                      >
+                        Not Used
+                      </ButtonWithText>
+                    </div>
+                  </div>
+                </div>
+
+                {hasActiveFilters && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide invisible">Clear</span>
+                    <IconButtonWithText
+                      type="button"
+                      variant="destructive"
+                      onClick={clearAllFilters}
+                      title="Clear all filters"
+                    >
+                      <X className="h-5 w-5" />
+                      Clear all filters
+                    </IconButtonWithText>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Templates table — full-width edge-to-edge like clients page */}
+      {filteredTemplates.length > 0 ? (
+        <div className="-mx-8 -mb-10 mt-4 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white dark:bg-background">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                  Name
+                </th>
+                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide w-full">
+                  Subject
+                </th>
+                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                  Used in
+                </th>
+                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                  Type
+                </th>
+                <th className="h-12 px-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTemplates.map((template) => {
+                const usedIn = templateUsageMap[template.id] || []
+                const portalIssue = portalIssueMap[template.id]
+                const templateType = getTemplateType(template)
+                const typeStyle = TYPE_CONFIG[templateType]
+
+                return (
+                  <tr
+                    key={template.id}
+                    className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => {
+                      setEditingTemplateId(template.id)
+                      setModalOpen(true)
+                    }}
+                  >
+                    <td className="p-3 align-middle whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">
+                          {template.name}
+                        </span>
+                        {portalIssue === 'portal-disabled' && (
+                          <AlertTriangle className="size-3.5 text-amber-500 shrink-0" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3 align-middle whitespace-nowrap">
+                      <span className="text-sm text-muted-foreground">
+                        {template.subject}
+                      </span>
+                    </td>
+                    <td className="p-3 align-middle whitespace-nowrap">
+                      {usedIn.length > 0 ? (
+                        <span className="text-sm text-muted-foreground">
+                          {usedIn.length} schedule{usedIn.length !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground/50">—</span>
+                      )}
+                    </td>
+                    <td className="p-3 align-middle whitespace-nowrap">
+                      <div className={`px-3 py-2 rounded-md inline-flex items-center ${typeStyle.bg}`}>
+                        <span className={`text-sm font-medium ${typeStyle.text}`}>
+                          {typeStyle.label}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3 align-middle whitespace-nowrap">
+                      <ButtonBase
+                        variant="destructive"
+                        buttonType="icon-only"
+                        onClick={(e) => handleDelete(template, e)}
+                        disabled={deletingId === template.id}
+                      >
+                        <Trash2 className="size-4" />
+                      </ButtonBase>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-sm">
@@ -430,6 +430,6 @@ export function TemplatesView({
         onOpenChange={setModalOpen}
         templateId={editingTemplateId}
       />
-    </div>
+    </>
   )
 }
