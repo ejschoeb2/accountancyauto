@@ -542,19 +542,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             return <span className="text-muted-foreground">—</span>;
           }
 
-          if (isEditMode) {
-            return (
-              <StatusDropdown
-                clientId={client.id}
-                filingTypeId={filingTypeId}
-                currentStatus={filingStatus.status}
-                isRecordsReceived={filingStatus.is_records_received}
-                isOverride={filingStatus.is_override}
-                onUpdate={handleStatusUpdate}
-              />
-            );
-          }
-
           return (
             <FilingStatusBadge
               status={filingStatus.status}
@@ -566,7 +553,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         enableSorting: false,
       })),
     ],
-    [activeDeadlineFilingTypes, filingStatusMap, isEditMode, handleStatusUpdate]
+    [activeDeadlineFilingTypes, filingStatusMap]
   );
 
   // Define columns
@@ -1038,16 +1025,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             </>
           ) : (
             <>
-              <IconButtonWithText
-                type="button"
-                variant={isEditMode ? "amber" : "violet"}
-                onClick={() => setIsEditMode(!isEditMode)}
-                title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
-              >
-                {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-                {isEditMode ? "Done" : "Edit"}
-              </IconButtonWithText>
-              <div className="w-px h-6 bg-border mx-1" />
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">Client type:</span>
                 <Select value={deadlineClientType} onValueChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}>
@@ -1060,6 +1037,22 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
                         {opt.label}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-px h-6 bg-border mx-1" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-9 min-w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="most-urgent">Most Urgent</SelectItem>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="deadline-asc">Deadline (Earliest)</SelectItem>
+                    <SelectItem value="deadline-desc">Deadline (Latest)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
