@@ -56,6 +56,26 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
     (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
   );
 
+  // Build step-level template name lookup: (schedule_id:step_number) → email template name
+  const { data: scheduleSteps } = await supabase
+    .from('schedule_steps')
+    .select('schedule_id, step_number, email_template_id');
+  const { data: emailTemplates } = await supabase
+    .from('email_templates')
+    .select('id, name');
+  const emailTemplateNameMap = new Map(
+    (emailTemplates || []).map((t: { id: string; name: string }) => [t.id, t.name])
+  );
+  const stepTemplateNameMap = new Map(
+    (scheduleSteps || []).map((s: { schedule_id: string; step_number: number; email_template_id: string }) => [
+      `${s.schedule_id}:${s.step_number}`,
+      emailTemplateNameMap.get(s.email_template_id) || null,
+    ])
+  );
+  const filingTypeToScheduleId = new Map(
+    (schedules || []).map((s: { id: string; filing_type_id: string }) => [s.filing_type_id, s.id])
+  );
+
   // If client search is provided, find matching client IDs first
   let matchingClientIds: string[] | undefined;
   if (clientSearch) {
@@ -82,9 +102,9 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
   // Fetch reminder_queue separately (to avoid PostgREST FK join cache issues)
   const { data: reminderQueue } = await supabase
     .from('reminder_queue')
-    .select('id, deadline_date, step_index');
+    .select('id, deadline_date, step_index, template_id');
   const reminderQueueMap = new Map(
-    (reminderQueue || []).map((rq: { id: string; deadline_date: string; step_index: number }) => [rq.id, { deadline_date: rq.deadline_date, step_index: rq.step_index }])
+    (reminderQueue || []).map((rq: { id: string; deadline_date: string; step_index: number; template_id: string | null }) => [rq.id, { deadline_date: rq.deadline_date, step_index: rq.step_index, template_id: rq.template_id }])
   );
 
   // Build the query - no embedded joins, fetch base table only
@@ -140,7 +160,15 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
       filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
       deadline_date: reminderQueueData?.deadline_date || null,
       step_index: reminderQueueData?.step_index ?? null,
-      template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
+      template_name: (() => {
+        const rq = row.reminder_queue_id ? reminderQueueMap.get(row.reminder_queue_id) : null;
+        const scheduleId = row.filing_type_id ? filingTypeToScheduleId.get(row.filing_type_id) : rq?.template_id;
+        const stepIndex = rq?.step_index;
+        if (scheduleId && stepIndex != null) {
+          return stepTemplateNameMap.get(`${scheduleId}:${stepIndex}`) || scheduleMap.get(row.filing_type_id) || null;
+        }
+        return row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null;
+      })(),
       delivery_status: row.delivery_status,
       recipient_email: row.recipient_email,
       subject: row.subject,
@@ -223,6 +251,27 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
   );
 
+  // Build step-level template name lookup: (schedule_id:step_number) → email template name
+  const { data: scheduleSteps } = await supabase
+    .from('schedule_steps')
+    .select('schedule_id, step_number, email_template_id');
+  const { data: emailTemplates } = await supabase
+    .from('email_templates')
+    .select('id, name');
+  const emailTemplateNameMap = new Map(
+    (emailTemplates || []).map((t: { id: string; name: string }) => [t.id, t.name])
+  );
+  const stepTemplateNameMap = new Map(
+    (scheduleSteps || []).map((s: { schedule_id: string; step_number: number; email_template_id: string }) => [
+      `${s.schedule_id}:${s.step_number}`,
+      emailTemplateNameMap.get(s.email_template_id) || null,
+    ])
+  );
+  // Also build schedule_id lookup from filing_type_id
+  const filingTypeToScheduleId = new Map(
+    (schedules || []).map((s: { id: string; filing_type_id: string }) => [s.filing_type_id, s.id])
+  );
+
   // Fetch clients lookup (to avoid PostgREST FK join cache issues - PGRST200)
   const { data: clients } = await supabase
     .from('clients')
@@ -283,8 +332,14 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
       filing_type_id: row.filing_type_id,
       filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
       template_id: row.template_id,
-      // Use schedule name based on filing_type_id (schedules replaced reminder_templates)
-      template_name: row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null,
+      // Resolve the actual email template name for this specific step
+      template_name: (() => {
+        const scheduleId = row.filing_type_id ? filingTypeToScheduleId.get(row.filing_type_id) : row.template_id;
+        if (scheduleId && row.step_index != null) {
+          return stepTemplateNameMap.get(`${scheduleId}:${row.step_index}`) || scheduleMap.get(row.filing_type_id) || null;
+        }
+        return row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null;
+      })(),
       send_date: row.send_date,
       deadline_date: row.deadline_date,
       status: row.status,
