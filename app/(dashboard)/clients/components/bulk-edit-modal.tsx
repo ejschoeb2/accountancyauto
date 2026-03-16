@@ -189,10 +189,9 @@ export function BulkEditModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Limited Company">Limited Company</SelectItem>
-                    <SelectItem value="Sole Trader">Sole Trader</SelectItem>
                     <SelectItem value="Partnership">Partnership</SelectItem>
                     <SelectItem value="LLP">LLP</SelectItem>
-                    <SelectItem value="Individual">Individual (Personal Tax)</SelectItem>
+                    <SelectItem value="Individual">Individual</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

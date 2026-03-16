@@ -81,21 +81,9 @@ export interface ClientStatusInfo {
   underlying_status?: string;
 }
 
-const FILING_TYPE_LABELS: Record<string, string> = {
-  corporation_tax_payment: "Corp Tax",
-  ct600_filing: "CT600",
-  companies_house: "Companies House",
-  vat_return: "VAT Return",
-  self_assessment: "Self Assessment",
-};
+import { FILING_TYPE_LABELS, ALL_FILING_TYPE_IDS } from '@/lib/constants/filing-types';
 
-const ALL_FILING_TYPES = [
-  'corporation_tax_payment',
-  'ct600_filing',
-  'companies_house',
-  'vat_return',
-  'self_assessment',
-] as const;
+const ALL_FILING_TYPES = ALL_FILING_TYPE_IDS;
 
 interface ClientTableProps {
   initialData: Client[];
@@ -109,7 +97,6 @@ interface ClientTableProps {
 // Client type options
 const CLIENT_TYPE_OPTIONS = [
   { value: "Limited Company", label: "Limited Company" },
-  { value: "Sole Trader", label: "Sole Trader" },
   { value: "Partnership", label: "Partnership" },
   { value: "LLP", label: "LLP" },
   { value: "Individual", label: "Individual" },

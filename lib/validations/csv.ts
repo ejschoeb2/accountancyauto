@@ -91,7 +91,7 @@ export const csvRowSchema = z.object({
     .transform((val) => (val === "" || val === undefined ? undefined : val)),
   client_type: z
     .union([
-      z.enum(["Limited Company", "Sole Trader", "Partnership", "LLP", "Individual"]),
+      z.enum(["Limited Company", "Partnership", "LLP", "Individual"]),
       z.literal(""),
     ])
     .optional()

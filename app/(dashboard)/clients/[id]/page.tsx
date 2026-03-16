@@ -38,7 +38,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { Client } from '@/app/actions/clients';
 
-type ClientType = 'Limited Company' | 'Sole Trader' | 'Partnership' | 'LLP' | 'Individual';
+type ClientType = 'Limited Company' | 'Partnership' | 'LLP' | 'Individual';
 type VATScheme = 'Standard' | 'Flat Rate' | 'Cash Accounting';
 
 export default function ClientPage() {
@@ -288,7 +288,6 @@ export default function ClientPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Limited Company">Limited Company</SelectItem>
-                  <SelectItem value="Sole Trader">Sole Trader</SelectItem>
                   <SelectItem value="Partnership">Partnership</SelectItem>
                   <SelectItem value="LLP">LLP</SelectItem>
                   <SelectItem value="Individual">Individual</SelectItem>

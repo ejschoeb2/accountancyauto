@@ -910,10 +910,6 @@ export default function ClientImportPage() {
                                     label: "Limited Company",
                                   },
                                   {
-                                    value: "Sole Trader",
-                                    label: "Sole Trader",
-                                  },
-                                  {
                                     value: "Partnership",
                                     label: "Partnership",
                                   },
@@ -1140,9 +1136,6 @@ export default function ClientImportPage() {
                               <SelectContent>
                                 <SelectItem value="Limited Company">
                                   Limited Company
-                                </SelectItem>
-                                <SelectItem value="Sole Trader">
-                                  Sole Trader
                                 </SelectItem>
                                 <SelectItem value="Partnership">
                                   Partnership

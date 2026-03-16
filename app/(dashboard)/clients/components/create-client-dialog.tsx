@@ -34,10 +34,9 @@ interface CreateClientDialogProps {
 
 const CLIENT_TYPE_OPTIONS = [
   { value: "Limited Company", label: "Limited Company" },
-  { value: "Sole Trader", label: "Sole Trader" },
   { value: "Partnership", label: "Partnership" },
   { value: "LLP", label: "LLP" },
-  { value: "Individual", label: "Individual (Personal Tax)" },
+  { value: "Individual", label: "Individual" },
 ];
 
 const VAT_SCHEME_OPTIONS = [

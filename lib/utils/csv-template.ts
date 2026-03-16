@@ -44,7 +44,7 @@ export const CSV_COLUMNS = [
   {
     name: "client_type",
     required: false,
-    description: "Limited Company, Sole Trader, Partnership, LLP, or Individual",
+    description: "Limited Company, Partnership, LLP, or Individual",
   },
   {
     name: "year_end_date",
@@ -86,11 +86,11 @@ export function generateCsvTemplate(): string {
     '"Standard"',
   ].join(",");
 
-  // Example row 2: Sole Trader with minimal fields
+  // Example row 2: Individual with minimal fields
   const example2 = [
     '"Jane Smith Trading"',
     '"jane@janesmith.co.uk"',
-    '"Sole Trader"',
+    '"Individual"',
     '"2026-04-05"',
     '"No"',
     '""',
@@ -127,7 +127,7 @@ export function generateCsvTemplateWithComments(): string {
     "# 4. Yes/No fields accept: Yes, No, yes, no, TRUE, FALSE, true, false",
     "#",
     "# client_type values:",
-    "#   Limited Company | Sole Trader | Partnership | LLP | Individual",
+    "#   Limited Company | Partnership | LLP | Individual",
     "#",
     "# vat_stagger_group - which HMRC VAT stagger group the client is in:",
     "#   1 = VAT quarters end in March / June / September / December",

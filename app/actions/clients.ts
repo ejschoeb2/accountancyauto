@@ -15,7 +15,7 @@ export interface Client {
   primary_email: string | null;
   phone: string | null;
   active: boolean;
-  client_type: "Limited Company" | "Sole Trader" | "Partnership" | "LLP" | "Individual" | null;
+  client_type: "Limited Company" | "Partnership" | "LLP" | "Individual" | null;
   year_end_date: string | null; // ISO date string (YYYY-MM-DD)
   vat_registered: boolean;
   vat_stagger_group: 1 | 2 | 3 | null;
@@ -35,7 +35,7 @@ export type ClientMetadata = Pick<
 
 // Bulk update fields (only fields that can be bulk-edited)
 export interface BulkUpdateFields {
-  client_type?: "Limited Company" | "Sole Trader" | "Partnership" | "LLP" | "Individual" | null;
+  client_type?: "Limited Company" | "Partnership" | "LLP" | "Individual" | null;
   year_end_date?: string | null;
   vat_registered?: boolean;
   vat_stagger_group?: 1 | 2 | 3 | null;
@@ -101,7 +101,7 @@ export async function updateClientMetadata(
 
 // Bulk update validation schema
 const bulkUpdateFieldsSchema = z.object({
-  client_type: z.enum(["Limited Company", "Sole Trader", "Partnership", "LLP", "Individual"]).optional().nullable(),
+  client_type: z.enum(["Limited Company", "Partnership", "LLP", "Individual"]).optional().nullable(),
   year_end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   vat_registered: z.boolean().optional(),
   vat_stagger_group: z.number().int().min(1).max(3).optional().nullable(),

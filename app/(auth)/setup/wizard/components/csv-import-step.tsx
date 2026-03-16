@@ -1159,7 +1159,6 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                                 type="select"
                                 options={[
                                   { value: "Limited Company", label: "Limited Company" },
-                                  { value: "Sole Trader", label: "Sole Trader" },
                                   { value: "Partnership", label: "Partnership" },
                                   { value: "LLP", label: "LLP" },
                                   { value: "Individual", label: "Individual" },
@@ -1320,7 +1319,6 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="Limited Company">Limited Company</SelectItem>
-                                <SelectItem value="Sole Trader">Sole Trader</SelectItem>
                                 <SelectItem value="Partnership">Partnership</SelectItem>
                                 <SelectItem value="LLP">LLP</SelectItem>
                                 <SelectItem value="Individual">Individual</SelectItem>

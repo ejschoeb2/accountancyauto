@@ -73,7 +73,6 @@ type StatusFilter = 'active' | 'inactive'
 const CLIENT_TYPE_OPTIONS = [
   'Limited Company',
   'LLP',
-  'Sole Trader',
   'Partnership',
   'Individual',
 ] as const

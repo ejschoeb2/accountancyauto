@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const clientTypeSchema = z.enum([
   "Limited Company",
-  "Sole Trader",
   "Partnership",
   "LLP",
   "Individual",

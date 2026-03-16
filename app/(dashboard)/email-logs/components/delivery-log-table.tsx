@@ -75,7 +75,6 @@ const FILING_TYPE_LABELS: Record<string, string> = {
 // Client type options
 const CLIENT_TYPE_OPTIONS = [
   { value: "Limited Company", label: "Limited Company" },
-  { value: "Sole Trader", label: "Sole Trader" },
   { value: "Partnership", label: "Partnership" },
   { value: "LLP", label: "LLP" },
   { value: "Individual", label: "Individual" },
