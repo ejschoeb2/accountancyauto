@@ -152,11 +152,19 @@ export async function updateOrgFilingTypeSelections(
       );
     }
 
-    // Rebuild reminder queue to remove deactivated reminders
-    try {
-      await buildReminderQueue(admin, { id: orgId, name: "" });
-    } catch (e) {
-      console.error("[updateOrgFilingTypeSelections] Non-fatal: failed to rebuild queue after deactivation:", e);
+    // Cancel queued reminders for the deactivated filing types
+    const { error: cancelError } = await admin
+      .from("reminder_queue")
+      .update({ status: "cancelled" })
+      .eq("org_id", orgId)
+      .in("filing_type_id", newlyDeactivated)
+      .eq("status", "scheduled");
+
+    if (cancelError) {
+      console.error(
+        "[updateOrgFilingTypeSelections] Non-fatal: failed to cancel queued reminders:",
+        cancelError
+      );
     }
   }
 
