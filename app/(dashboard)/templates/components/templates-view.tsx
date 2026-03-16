@@ -321,10 +321,10 @@ export function TemplatesView({
       {/* Templates table — full-width edge-to-edge like clients page */}
       {filteredTemplates.length > 0 ? (
         <div className="-mx-8 -mb-10 border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white dark:bg-background">
-          <table className="w-full">
-            <thead>
+          <table className="w-full caption-bottom text-sm">
+            <thead className="[&_tr]:border-b">
               <tr className="border-b transition-colors">
-                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0">
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
                 </th>
                 <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
                   Name
@@ -340,7 +340,7 @@ export function TemplatesView({
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="[&_tr:last-child]:border-0">
               {filteredTemplates.map((template) => {
                 const usedIn = templateUsageMap[template.id] || []
                 const portalIssue = portalIssueMap[template.id]
@@ -350,7 +350,7 @@ export function TemplatesView({
                 return (
                   <tr
                     key={template.id}
-                    className="group border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="group border-b hover:bg-muted/50 cursor-pointer transition-colors"
                     onClick={() => {
                       setEditingTemplateId(template.id)
                       setModalOpen(true)
