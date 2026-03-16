@@ -7,6 +7,21 @@ import { CheckButton } from '@/components/ui/check-button'
 import { usePageLoading } from '@/components/page-loading'
 import { toast } from 'sonner'
 import { Search } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+
+const CLIENT_TYPE_OPTIONS = [
+  { value: 'all', label: 'All Types' },
+  { value: 'Limited Company', label: 'Limited Company' },
+  { value: 'Partnership', label: 'Partnership' },
+  { value: 'LLP', label: 'LLP' },
+  { value: 'Individual', label: 'Individual' },
+]
 
 interface Client {
   id: string
@@ -27,6 +42,7 @@ export function ClientExclusions({ scheduleId, applicableClientTypes }: ClientEx
   usePageLoading('client-exclusions', loading)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('all')
 
   // Load clients and exclusions
   useEffect(() => {
@@ -75,12 +91,16 @@ export function ClientExclusions({ scheduleId, applicableClientTypes }: ClientEx
   }, [clients, applicableClientTypes])
 
   const filteredClients = useMemo(() => {
-    if (!search.trim()) return eligibleClients
-    const term = search.toLowerCase()
-    return eligibleClients.filter(c =>
-      c.company_name.toLowerCase().includes(term)
-    )
-  }, [eligibleClients, search])
+    let result = eligibleClients
+    if (typeFilter !== 'all') {
+      result = result.filter(c => c.client_type === typeFilter)
+    }
+    if (search.trim()) {
+      const term = search.toLowerCase()
+      result = result.filter(c => c.company_name.toLowerCase().includes(term))
+    }
+    return result
+  }, [eligibleClients, search, typeFilter])
 
   const toggleExclusion = async (clientId: string) => {
     // Prevent multiple simultaneous updates
@@ -135,22 +155,36 @@ export function ClientExclusions({ scheduleId, applicableClientTypes }: ClientEx
         {saving && <span className="text-xs text-muted-foreground">Saving...</span>}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search clients..."
-          className="pl-9 hover:border-foreground/20"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Search + Type Filter */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search clients..."
+            className="pl-9 hover:border-foreground/20"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="h-9 min-w-[180px] w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CLIENT_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Client list */}
       <div className="max-h-64 overflow-y-auto space-y-1 rounded-md border p-2">
         {filteredClients.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            {search ? 'No clients match your search.' : 'No clients found.'}
+            {search || typeFilter !== 'all' ? 'No clients match your filters.' : 'No clients found.'}
           </p>
         ) : (
           filteredClients.map((client) => {

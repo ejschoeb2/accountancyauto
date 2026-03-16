@@ -17,7 +17,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Bell, BellOff, CheckCircle, Pencil, RotateCcw, Trash2, X, Loader2 } from 'lucide-react'
+import { ArrowLeft, Bell, BellOff, CheckCircle, FileText, Pencil, Plus, RotateCcw, Search, Trash2, X, Loader2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { CheckButton } from '@/components/ui/check-button'
 import {
   Select,
@@ -73,6 +74,15 @@ export default function EditSchedulePage() {
   const [docSettings, setDocSettings] = useState<Record<string, boolean>>({})
   const [docSettingsLoading, setDocSettingsLoading] = useState(false)
   const [docSettingsDirty, setDocSettingsDirty] = useState(false)
+
+  // Custom schedule document requirements
+  interface DocType { id: string; code: string; label: string; description: string }
+  interface CustomDocReq { document_type_id: string; is_mandatory: boolean }
+  const [allDocTypes, setAllDocTypes] = useState<DocType[]>([])
+  const [customDocReqs, setCustomDocReqs] = useState<CustomDocReq[]>([])
+  const [customDocsDirty, setCustomDocsDirty] = useState(false)
+  const [showDocModal, setShowDocModal] = useState(false)
+  const [docSearch, setDocSearch] = useState('')
 
   const VALID_FILING_TYPE_IDS: FilingTypeId[] = [
     'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return', 'self_assessment',
@@ -206,6 +216,19 @@ export default function EditSchedulePage() {
               })),
             } as FilingScheduleInput)
           }
+          // Load existing doc requirements for custom schedules
+          if (loadedType === 'custom') {
+            const docReqsRes = await fetch(`/api/schedules/${scheduleId}/document-requirements`)
+            if (docReqsRes.ok) {
+              setCustomDocReqs(await docReqsRes.json())
+            }
+          }
+        }
+
+        // Load all document types for custom schedule doc modal
+        const docTypesRes = await fetch('/api/document-types')
+        if (docTypesRes.ok) {
+          setAllDocTypes(await docTypesRes.json())
         }
 
         setLoading(false)
@@ -235,12 +258,12 @@ export default function EditSchedulePage() {
       .finally(() => setDocSettingsLoading(false))
   }, [currentFilingTypeId, scheduleType])
 
-  const isDocEnabled = (docTypeId: string): boolean => {
-    return docSettings[docTypeId] ?? true // default enabled
+  const isDocEnabled = (docTypeId: string, isMandatory: boolean): boolean => {
+    return docSettings[docTypeId] ?? isMandatory
   }
 
-  const toggleDocSetting = (docTypeId: string) => {
-    setDocSettings(prev => ({ ...prev, [docTypeId]: !(prev[docTypeId] ?? true) }))
+  const toggleDocSetting = (docTypeId: string, isMandatory: boolean) => {
+    setDocSettings(prev => ({ ...prev, [docTypeId]: !(prev[docTypeId] ?? isMandatory) }))
     setDocSettingsDirty(true)
   }
 
@@ -251,7 +274,7 @@ export default function EditSchedulePage() {
 
     const settings = docs.map(d => ({
       document_type_id: d.document_type_id,
-      is_enabled: docSettings[d.document_type_id] ?? true,
+      is_enabled: docSettings[d.document_type_id] ?? d.is_mandatory,
     }))
 
     await fetch(`/api/filing-types/${filingTypeId}/document-settings`, {
@@ -263,7 +286,7 @@ export default function EditSchedulePage() {
   }
 
   // Track unsaved changes
-  const hasUnsavedChanges = form.formState.isDirty || docSettingsDirty || (
+  const hasUnsavedChanges = form.formState.isDirty || docSettingsDirty || customDocsDirty || (
     isNew && scheduleType === 'custom' && (
       selectedClientIds.size !== initialClientIds.size ||
       Array.from(selectedClientIds).some(id => !initialClientIds.has(id))
@@ -327,9 +350,25 @@ export default function EditSchedulePage() {
         await saveDocSettings(data.filing_type_id as string)
       }
 
+      // Save document requirements for custom schedules
+      if (scheduleType === 'custom' && customDocsDirty) {
+        const targetId = isNew ? result.id : scheduleId
+        await fetch(`/api/schedules/${targetId}/document-requirements`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requirements: customDocReqs }),
+        })
+        setCustomDocsDirty(false)
+      }
+
       toast.success(isNew ? 'Deadline created!' : 'Deadline updated!')
       setShowUnsavedDialog(false)
-      router.push('/deadlines')
+      if (isNew) {
+        router.push(`/deadlines/${result.id}/edit`)
+      } else {
+        form.reset(data)
+        setDocSettingsDirty(false)
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Failed to ${isNew ? 'create' : 'update'} deadline`)
     } finally {
@@ -497,6 +536,39 @@ export default function EditSchedulePage() {
           </div>
         </div>
         <CardContent className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deadline Name</Label>
+          <Input
+            id="name"
+            placeholder={scheduleType === 'custom'
+              ? "e.g., Monthly Payroll Deadline"
+              : "e.g., Standard Corporation Tax Deadline"}
+            className="hover:border-foreground/20"
+            {...form.register('name')}
+          />
+          {form.formState.errors.name && (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.name.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="description" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</Label>
+          <Textarea
+            id="description"
+            rows={3}
+            placeholder="Internal notes about this deadline"
+            className="hover:border-foreground/20"
+            {...form.register('description')}
+          />
+          {form.formState.errors.description && (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.description.message}
+            </p>
+          )}
+        </div>
+
           {/* Schedule Type indicator (read-only for existing schedules) */}
           {!isNew && (
             <div className="space-y-2">
@@ -575,45 +647,22 @@ export default function EditSchedulePage() {
                     Loading...
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {mandatory.map(d => {
-                      const enabled = isDocEnabled(d.document_type_id)
+                  <div className="space-y-1">
+                    {[...mandatory, ...optional].map(d => {
+                      const enabled = isDocEnabled(d.document_type_id, d.is_mandatory)
                       return (
                         <div
                           key={d.document_type_id}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 border hover:bg-muted/50 cursor-pointer border-l-2 border-l-amber-400"
-                          onClick={() => toggleDocSetting(d.document_type_id)}
+                          className="flex items-center gap-3 rounded-md px-3 py-1.5 hover:bg-muted/50 cursor-pointer"
+                          onClick={() => toggleDocSetting(d.document_type_id, d.is_mandatory)}
                         >
                           <CheckButton
                             checked={enabled}
                             aria-label={`${enabled ? 'Disable' : 'Enable'} ${d.label}`}
                           />
-                          <span className={`text-sm font-medium flex-1 ${!enabled ? 'text-muted-foreground line-through' : ''}`}>
+                          <span className={`text-sm font-medium ${!enabled ? 'text-muted-foreground line-through' : ''}`}>
                             {d.label}
                           </span>
-                          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 shrink-0">
-                            <span className="size-1.5 rounded-full bg-amber-500" />
-                            Required
-                          </span>
-                        </div>
-                      )
-                    })}
-                    {optional.map(d => {
-                      const enabled = isDocEnabled(d.document_type_id)
-                      return (
-                        <div
-                          key={d.document_type_id}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 border hover:bg-muted/50 cursor-pointer"
-                          onClick={() => toggleDocSetting(d.document_type_id)}
-                        >
-                          <CheckButton
-                            checked={enabled}
-                            aria-label={`${enabled ? 'Disable' : 'Enable'} ${d.label}`}
-                          />
-                          <span className={`text-sm font-medium flex-1 ${!enabled ? 'text-muted-foreground line-through' : ''}`}>
-                            {d.label}
-                          </span>
-                          <span className="text-xs text-muted-foreground shrink-0">Optional</span>
                         </div>
                       )
                     })}
@@ -728,38 +777,48 @@ export default function EditSchedulePage() {
             </div>
           )}
 
-        <div className="space-y-2">
-          <Label htmlFor="name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deadline Name</Label>
-          <Input
-            id="name"
-            placeholder={scheduleType === 'custom'
-              ? "e.g., Monthly Payroll Deadline"
-              : "e.g., Standard Corporation Tax Deadline"}
-            className="hover:border-foreground/20"
-            {...form.register('name')}
-          />
-          {form.formState.errors.name && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.name.message}
-            </p>
+          {/* Document requirements for custom deadlines */}
+          {scheduleType === 'custom' && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documents to Collect</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setDocSearch(''); setShowDocModal(true) }}
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Manage Documents
+                </Button>
+              </div>
+              {customDocReqs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No documents configured. Click &ldquo;Manage Documents&rdquo; to add document requirements.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {customDocReqs.map((req) => {
+                    const dt = allDocTypes.find(d => d.id === req.document_type_id)
+                    return (
+                      <div
+                        key={req.document_type_id}
+                        className="flex items-center justify-between rounded-md px-3 py-1.5 hover:bg-muted/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">{dt?.label ?? req.document_type_id}</span>
+                        </div>
+                        <Badge variant={req.is_mandatory ? 'default' : 'secondary'} className="text-xs">
+                          {req.is_mandatory ? 'Required' : 'Optional'}
+                        </Badge>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="description" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</Label>
-          <Textarea
-            id="description"
-            rows={3}
-            placeholder="Internal notes about this deadline"
-            className="hover:border-foreground/20"
-            {...form.register('description')}
-          />
-          {form.formState.errors.description && (
-            <p className="text-sm text-destructive">
-              {form.formState.errors.description.message}
-            </p>
-          )}
-        </div>
         </CardContent>
       </Card>
 
@@ -840,6 +899,85 @@ export default function EditSchedulePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Document Requirements Modal for Custom Deadlines */}
+      <Dialog open={showDocModal} onOpenChange={setShowDocModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Document Requirements</DialogTitle>
+            <DialogDescription>
+              Select which documents clients need to provide for this deadline. Toggle between required and optional.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search documents..."
+                className="pl-9 hover:border-foreground/20"
+                value={docSearch}
+                onChange={(e) => setDocSearch(e.target.value)}
+              />
+            </div>
+            <div className="max-h-72 overflow-y-auto space-y-1 rounded-md border p-2">
+              {allDocTypes
+                .filter(dt => !docSearch.trim() || dt.label.toLowerCase().includes(docSearch.toLowerCase()))
+                .map((dt) => {
+                  const existing = customDocReqs.find(r => r.document_type_id === dt.id)
+                  const isAdded = !!existing
+                  return (
+                    <div
+                      key={dt.id}
+                      className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        if (isAdded) {
+                          setCustomDocReqs(prev => prev.filter(r => r.document_type_id !== dt.id))
+                        } else {
+                          setCustomDocReqs(prev => [...prev, { document_type_id: dt.id, is_mandatory: true }])
+                        }
+                        setCustomDocsDirty(true)
+                      }}
+                    >
+                      <CheckButton
+                        checked={isAdded}
+                        aria-label={`${isAdded ? 'Remove' : 'Add'} ${dt.label}`}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span className={`text-sm ${!isAdded ? 'text-muted-foreground' : 'font-medium'}`}>
+                          {dt.label}
+                        </span>
+                      </div>
+                      {isAdded && (
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-0.5 rounded-full border hover:bg-muted transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setCustomDocReqs(prev =>
+                              prev.map(r =>
+                                r.document_type_id === dt.id
+                                  ? { ...r, is_mandatory: !r.is_mandatory }
+                                  : r
+                              )
+                            )
+                            setCustomDocsDirty(true)
+                          }}
+                        >
+                          {existing?.is_mandatory ? 'Required' : 'Optional'}
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" onClick={() => setShowDocModal(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Unsaved Changes Dialog */}
       <Dialog open={showUnsavedDialog} onOpenChange={() => {}}>
