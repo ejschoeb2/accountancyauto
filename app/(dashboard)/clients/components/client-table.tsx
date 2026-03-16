@@ -81,9 +81,7 @@ export interface ClientStatusInfo {
   underlying_status?: string;
 }
 
-import { FILING_TYPE_LABELS, ALL_FILING_TYPE_IDS } from '@/lib/constants/filing-types';
-
-const ALL_FILING_TYPES = ALL_FILING_TYPE_IDS;
+import { FILING_TYPE_LABELS, ALL_FILING_TYPE_IDS, FILING_TYPES_BY_CLIENT_TYPE } from '@/lib/constants/filing-types';
 
 interface ClientTableProps {
   initialData: Client[];
@@ -142,6 +140,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   );
   type ViewMode = 'data' | 'status';
   const [viewMode, setViewMode] = useState<ViewMode>('data');
+  const [deadlineClientType, setDeadlineClientType] = useState<string>('Limited Company');
 
   // Initialize filters based on initialFilter parameter
   const getInitialStatusFilters = () => {
@@ -298,6 +297,10 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   // Filter and sort data based on tag filters + status filter + sort option
   const filteredData = useMemo(() => {
     let filtered = data.filter((client) => {
+      // In deadline view, filter by the selected client type
+      if (viewMode === 'status' && client.client_type !== deadlineClientType) {
+        return false;
+      }
       // Paused filter
       if (pausedFilter && !client.reminders_paused) {
         return false;
@@ -394,7 +397,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
     });
 
     return sorted;
-  }, [data, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, statusMap, sortBy, filingStatusMap, dateFrom, dateTo]);
+  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, statusMap, sortBy, filingStatusMap, dateFrom, dateTo]);
 
   // Get selected clients
   const selectedClients = useMemo(() => {
@@ -459,7 +462,13 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
   );
 
 
-  // Define status view columns
+  // Filing types for the selected client type in deadline view
+  const activeDeadlineFilingTypes = useMemo(
+    () => FILING_TYPES_BY_CLIENT_TYPE[deadlineClientType] || [],
+    [deadlineClientType]
+  );
+
+  // Define status view columns — only filing types applicable to selected client type
   const statusColumns = useMemo<ColumnDef<Client>[]>(
     () => [
       {
@@ -515,24 +524,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           );
         },
       },
-      {
-        accessorKey: "client_type",
-        header: () => (
-          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-            Client Type
-          </span>
-        ),
-        cell: ({ row }) => {
-          const client = row.original;
-          return (
-            <span className="text-sm text-muted-foreground transition-colors">
-              {client.client_type || '—'}
-            </span>
-          );
-        },
-      },
-      // Filing type status columns (one per filing type)
-      ...ALL_FILING_TYPES.map((filingTypeId) => ({
+      // Filing type status columns — only those applicable to selected client type
+      ...activeDeadlineFilingTypes.map((filingTypeId) => ({
         id: filingTypeId,
         header: () => (
           <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -550,7 +543,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           }
 
           if (isEditMode) {
-            // Show dropdown in edit mode
             return (
               <StatusDropdown
                 clientId={client.id}
@@ -563,7 +555,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             );
           }
 
-          // Show badge in view mode
           return (
             <FilingStatusBadge
               status={filingStatus.status}
@@ -575,7 +566,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
         enableSorting: false,
       })),
     ],
-    [filingStatusMap, isEditMode, handleStatusUpdate]
+    [activeDeadlineFilingTypes, filingStatusMap, isEditMode, handleStatusUpdate]
   );
 
   // Define columns
@@ -950,16 +941,32 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             </p>
           </div>
 
-          {/* View Toggle */}
-          <ToggleGroup
-            options={[
-              { value: 'data', label: 'Client Data' },
-              { value: 'status', label: 'Client Deadlines' },
-            ]}
-            value={viewMode}
-            onChange={setViewMode}
-            variant="muted"
-          />
+          {/* View Toggle + Client Type Dropdown */}
+          <div className="flex items-center gap-3">
+            {viewMode === 'status' && (
+              <Select value={deadlineClientType} onValueChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}>
+                <SelectTrigger className="h-9 min-w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CLIENT_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <ToggleGroup
+              options={[
+                { value: 'data', label: 'Client Data' },
+                { value: 'status', label: 'Client Deadlines' },
+              ]}
+              value={viewMode}
+              onChange={setViewMode}
+              variant="muted"
+            />
+          </div>
         </div>
 
       {/* Search Input and Controls */}

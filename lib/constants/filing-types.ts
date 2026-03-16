@@ -19,6 +19,26 @@ export const FILING_TYPE_LABELS: Record<FilingTypeId | string, string> = {
 
 export const ALL_FILING_TYPE_IDS = Object.keys(FILING_TYPE_LABELS) as FilingTypeId[];
 
+/** Filing types applicable to each client type (mirrors DB applicable_client_types) */
+export const FILING_TYPES_BY_CLIENT_TYPE: Record<string, FilingTypeId[]> = {
+  'Limited Company': [
+    'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return',
+    'confirmation_statement', 'p11d_filing', 'paye_monthly', 'cis_monthly_return', 'payroll_year_end',
+  ],
+  'LLP': [
+    'corporation_tax_payment', 'ct600_filing', 'companies_house', 'vat_return',
+    'confirmation_statement', 'p11d_filing', 'paye_monthly', 'cis_monthly_return', 'payroll_year_end',
+  ],
+  'Partnership': [
+    'self_assessment', 'vat_return', 'mtd_quarterly_update', 'p11d_filing',
+    'paye_monthly', 'cis_monthly_return', 'payroll_year_end', 'sa_payment_on_account', 'partnership_tax_return',
+  ],
+  'Individual': [
+    'self_assessment', 'vat_return', 'mtd_quarterly_update',
+    'paye_monthly', 'cis_monthly_return', 'payroll_year_end', 'sa_payment_on_account', 'trust_tax_return',
+  ],
+};
+
 export function getFilingTypeLabel(id: string | null | undefined): string {
   if (!id) return '—';
   return FILING_TYPE_LABELS[id] || id;
