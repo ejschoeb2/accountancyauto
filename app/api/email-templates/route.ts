@@ -14,18 +14,26 @@ import type { EmailTemplate } from "@/lib/types/database";
  */
 export async function GET() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const [templatesResult, stepsResult, schedulesResult] = await Promise.all([
     supabase
       .from("email_templates")
       .select("*")
+      .eq("owner_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
       .from("schedule_steps")
-      .select("email_template_id, schedule_id"),
+      .select("email_template_id, schedule_id")
+      .eq("owner_id", user.id),
     supabase
       .from("schedules")
       .select("id, filing_type_id")
+      .eq("owner_id", user.id)
       .not("filing_type_id", "is", null),
   ]);
 

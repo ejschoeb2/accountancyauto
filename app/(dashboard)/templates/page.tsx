@@ -23,12 +23,20 @@ function templateHasPortalLink(bodyJson: any): boolean {
 
 export default async function TemplatesPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const [{ data: templates }, { data: scheduleSteps }, { data: schedules }, portalEnabled] =
     await Promise.all([
-      supabase.from('email_templates').select('*').order('created_at', { ascending: false }),
-      supabase.from('schedule_steps').select('email_template_id, schedule_id'),
-      supabase.from('schedules').select('id, name'),
+      supabase
+        .from('email_templates')
+        .select('*')
+        .eq('owner_id', user!.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('schedule_steps')
+        .select('email_template_id, schedule_id')
+        .eq('owner_id', user!.id),
+      supabase.from('schedules').select('id, name').eq('owner_id', user!.id),
       getClientPortalEnabled(),
     ])
 
