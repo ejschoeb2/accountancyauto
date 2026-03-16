@@ -464,12 +464,18 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
 
 
   // Filing types for the selected client type, filtered to only those activated by the org
-  const activeDeadlineFilingTypes = useMemo(
-    () => (FILING_TYPES_BY_CLIENT_TYPE[deadlineClientType] || []).filter(
+  // AND that have at least one client assignment among the filtered rows
+  const activeDeadlineFilingTypes = useMemo(() => {
+    const orgActive = (FILING_TYPES_BY_CLIENT_TYPE[deadlineClientType] || []).filter(
       (ft) => activeFilingTypeIds.includes(ft)
-    ),
-    [deadlineClientType, activeFilingTypeIds]
-  );
+    );
+    // Only keep columns where at least one filtered client has a status for that filing type
+    return orgActive.filter((ft) =>
+      filteredData.some((client) =>
+        filingStatusMap[client.id]?.some((f) => f.filing_type_id === ft)
+      )
+    );
+  }, [deadlineClientType, activeFilingTypeIds, filteredData, filingStatusMap]);
 
   // Define status view columns — only filing types applicable to selected client type
   const statusColumns = useMemo<ColumnDef<Client>[]>(
