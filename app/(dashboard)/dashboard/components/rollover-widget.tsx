@@ -8,13 +8,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 
-const FILING_TYPE_LABELS: Record<string, string> = {
-  corporation_tax_payment: 'Corporation Tax',
-  ct600_filing: 'CT600 Filing',
-  companies_house: 'Companies House',
-  vat_return: 'VAT Return',
-  self_assessment: 'Self Assessment',
-};
+import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
 
 export function RolloverWidget() {
   const [summary, setSummary] = useState<Record<string, number>>({});

@@ -26,13 +26,7 @@ interface QueuedEmailPreviewModalProps {
   onNavigate: (direction: 'prev' | 'next') => void;
 }
 
-const FILING_TYPE_LABELS: Record<string, string> = {
-  corporation_tax_payment: "Corp Tax",
-  ct600_filing: "CT600",
-  companies_house: "Companies House",
-  vat_return: "VAT Return",
-  self_assessment: "Self Assessment",
-};
+import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   scheduled: { label: 'Scheduled', bg: 'bg-sky-500/10', text: 'text-sky-500' },

@@ -64,13 +64,7 @@ import { cn } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 20;
 
-const FILING_TYPE_LABELS: Record<string, string> = {
-  corporation_tax_payment: "Corp Tax",
-  ct600_filing: "CT600",
-  companies_house: "Companies House",
-  vat_return: "VAT Return",
-  self_assessment: "Self Assessment",
-};
+import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
 
 // Client type options
 const CLIENT_TYPE_OPTIONS = [

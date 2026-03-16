@@ -51,13 +51,7 @@ type ViewMode = 'sent' | 'queued';
 
 const ITEMS_PER_PAGE = 10;
 
-const FILING_TYPE_LABELS: Record<string, string> = {
-  corporation_tax_payment: "Corp Tax",
-  ct600_filing: "CT600",
-  companies_house: "Companies House",
-  vat_return: "VAT Return",
-  self_assessment: "Self Assessment",
-};
+import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
 
 export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('queued');

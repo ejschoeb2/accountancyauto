@@ -28,13 +28,7 @@ import { RefreshCw, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-const FILING_TYPE_LABELS: Record<string, string> = {
-  corporation_tax_payment: 'Corporation Tax Payment',
-  ct600_filing: 'CT600 Filing',
-  companies_house: 'Companies House',
-  vat_return: 'VAT Return',
-  self_assessment: 'Self Assessment',
-};
+import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
 
 export default function RolloverPage() {
   const router = useRouter();
