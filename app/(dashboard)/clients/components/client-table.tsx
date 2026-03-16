@@ -552,9 +552,9 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           }
 
           return (
-            <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
               {filingStatus.deadline_date && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
                 </span>
               )}
