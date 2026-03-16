@@ -26,6 +26,7 @@ export interface SetupDraft {
   rejectMismatchedUploads?: boolean;
   sendHour?: number;
   deadlineSelections?: string[];
+  joiningExistingOrg?: boolean;
   updatedAt: string;
   /** Injected by getSetupDraft() from user_organisations — not stored in DB */
   orgId?: string;

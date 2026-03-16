@@ -62,7 +62,15 @@ type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "deadlines" 
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
-function getAdminSteps(portalEnabled: boolean) {
+function getAdminSteps(portalEnabled: boolean, joiningExistingOrg = false) {
+  if (joiningExistingOrg) {
+    return [
+      { label: "Import Clients" },
+      { label: "Email Settings" },
+      { label: "Deadlines" },
+      { label: "Complete" },
+    ];
+  }
   const steps = [
     { label: "Verify Email" },
     { label: "Firm Details" },
@@ -80,7 +88,22 @@ function getAdminSteps(portalEnabled: boolean) {
   return steps;
 }
 
-function adminStepToIndex(step: AdminStep, portalEnabled: boolean): number {
+function adminStepToIndex(step: AdminStep, portalEnabled: boolean, joiningExistingOrg = false): number {
+  if (joiningExistingOrg) {
+    const map: Record<AdminStep, number> = {
+      account: -1,
+      firm: -1,
+      plan: -1,
+      import: 0,
+      email: 1,
+      deadlines: 2,
+      portal: -1,
+      storage: -1,
+      "upload-checks": -1,
+      complete: 3,
+    };
+    return map[step];
+  }
   if (portalEnabled) {
     const map: Record<AdminStep, number> = {
       account: 0,
@@ -197,6 +220,7 @@ export default function WizardPage() {
 
   // ── New-admin step ──────────────────────────────────────────────────────────
   const [adminStep, setAdminStep] = useState<AdminStep>("firm");
+  const [isJoiningExistingOrg, setIsJoiningExistingOrg] = useState(false);
 
   // ── Invited-member step (0=Import, 1=Config) ────────────────────────────────
   const [memberStep, setMemberStep] = useState(0);
@@ -285,6 +309,7 @@ export default function WizardPage() {
     if (draft.sendHour !== undefined) setSendHour(draft.sendHour);
     if (draft.emailSubStep) setEmailInitialSubStep(draft.emailSubStep as EmailSubStep);
     if (draft.deadlineSelections) setDeadlineSelections(draft.deadlineSelections);
+    if (draft.joiningExistingOrg) setIsJoiningExistingOrg(true);
     setOrgCreated(true);
   }
 
@@ -302,6 +327,7 @@ export default function WizardPage() {
       emailSubStep: emailInitialSubStep,
       sendHour: sendHour ?? undefined,
       deadlineSelections,
+      joiningExistingOrg: isJoiningExistingOrg || undefined,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -450,6 +476,8 @@ export default function WizardPage() {
             setUserType("new-admin");
             setOrgCreated(true);
             setOrgId(userOrg.org_id);
+            setIsJoiningExistingOrg(true);
+            setEmailInitialSubStep("settings");
 
             // No draft but org exists — start at import (they completed firm+plan)
             setAdminStep("import");
@@ -843,8 +871,8 @@ export default function WizardPage() {
   }
 
   // ── New-admin path ─────────────────────────────────────────────────────────
-  const adminSteps = getAdminSteps(clientPortalEnabled);
-  const currentStepIndex = adminStepToIndex(adminStep, clientPortalEnabled);
+  const adminSteps = getAdminSteps(clientPortalEnabled, isJoiningExistingOrg);
+  const currentStepIndex = adminStepToIndex(adminStep, clientPortalEnabled, isJoiningExistingOrg);
 
   return (
     <div className="space-y-12">
@@ -852,6 +880,11 @@ export default function WizardPage() {
         steps={adminSteps}
         currentStep={currentStepIndex}
         onStepClick={(index) => {
+          if (isJoiningExistingOrg) {
+            const stepNames: AdminStep[] = ["import", "email", "deadlines", "complete"];
+            advanceToStep(stepNames[index]);
+            return;
+          }
           // Verify Email step (0) is always locked — can't go back after auth
           if (index === 0) return;
           // Firm step (1) is locked once the org is created (slug already registered)
@@ -1112,13 +1145,14 @@ export default function WizardPage() {
           <DeadlineSelectionStep
             onComplete={(selectedIds) => {
               setDeadlineSelections(selectedIds);
+              const nextStep = isJoiningExistingOrg ? "complete" : "portal";
               saveSetupDraft({
                 ...collectCurrentState(),
-                step: "portal",
+                step: nextStep,
                 deadlineSelections: selectedIds,
                 updatedAt: new Date().toISOString(),
               }).catch((e) => console.warn("Draft save failed:", e));
-              setAdminStep("portal");
+              setAdminStep(nextStep);
             }}
             onBack={() => {
               setEmailInitialSubStep("settings");
@@ -1183,34 +1217,40 @@ export default function WizardPage() {
             <div className="rounded-2xl border bg-card shadow-sm p-8 space-y-6">
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold tracking-tight">
-                  Setup complete!
+                  {isJoiningExistingOrg ? "You\u2019re all set!" : "Setup complete!"}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  {isPaid
-                    ? "Your firm is configured. Complete your subscription to get started."
-                    : "Your firm is set up and ready to go. Start managing client deadlines and sending reminders from your dashboard."}
+                  {isJoiningExistingOrg
+                    ? "Your account is configured and ready to go. You can start managing client reminders from your dashboard."
+                    : isPaid
+                      ? "Your firm is configured. Complete your subscription to get started."
+                      : "Your firm is set up and ready to go. Start managing client deadlines and sending reminders from your dashboard."}
                 </p>
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Check className="size-4 text-green-600 shrink-0" />
-                  <span className="text-sm">Firm workspace created</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Check className="size-4 text-green-600 shrink-0" />
-                  <span className="text-sm">
-                    {planInfo ? `${planInfo.name} plan selected` : "Plan selected"}
-                    {planInfo && planInfo.price ? ` — £${planInfo.price}/mo` : ""}
-                  </span>
-                </div>
+                {!isJoiningExistingOrg && (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <Check className="size-4 text-green-600 shrink-0" />
+                      <span className="text-sm">Firm workspace created</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Check className="size-4 text-green-600 shrink-0" />
+                      <span className="text-sm">
+                        {planInfo ? `${planInfo.name} plan selected` : "Plan selected"}
+                        {planInfo && planInfo.price ? ` — £${planInfo.price}/mo` : ""}
+                      </span>
+                    </div>
+                  </>
+                )}
                 <div className="flex items-center gap-3">
                   <Check className="size-4 text-green-600 shrink-0" />
                   <span className="text-sm">Client data imported</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="size-4 text-green-600 shrink-0" />
-                  <span className="text-sm">Email sending configured</span>
+                  <span className="text-sm">Email settings configured</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Check className="size-4 text-green-600 shrink-0" />
@@ -1227,7 +1267,7 @@ export default function WizardPage() {
               <ButtonBase
                 variant="amber"
                 buttonType="icon-text"
-                onClick={() => advanceToStep(clientPortalEnabled ? "storage" : "portal")}
+                onClick={() => advanceToStep(isJoiningExistingOrg ? "deadlines" : clientPortalEnabled ? "storage" : "portal")}
                 disabled={isLeavingWizard}
               >
                 <ArrowLeft className="size-4" />
