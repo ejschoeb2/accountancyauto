@@ -941,32 +941,16 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
             </p>
           </div>
 
-          {/* View Toggle + Client Type Dropdown */}
-          <div className="flex items-center gap-3">
-            {viewMode === 'status' && (
-              <Select value={deadlineClientType} onValueChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}>
-                <SelectTrigger className="h-9 min-w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CLIENT_TYPE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <ToggleGroup
-              options={[
-                { value: 'data', label: 'Client Data' },
-                { value: 'status', label: 'Client Deadlines' },
-              ]}
-              value={viewMode}
-              onChange={setViewMode}
-              variant="muted"
-            />
-          </div>
+          {/* View Toggle */}
+          <ToggleGroup
+            options={[
+              { value: 'data', label: 'Client Data' },
+              { value: 'status', label: 'Client Deadlines' },
+            ]}
+            value={viewMode}
+            onChange={setViewMode}
+            variant="muted"
+          />
         </div>
 
       {/* Search Input and Controls */}
@@ -992,63 +976,95 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, initialFi
           )}
         </div>
 
-        {/* Controls toolbar - Add, Import, Edit, Filter, Sort */}
+        {/* Controls toolbar — swaps between data actions and deadline client type picker */}
         <div className="flex gap-2 sm:ml-auto items-center">
-          <IconButtonWithText
-            type="button"
-            variant="green"
-            onClick={() => setIsCreateDialogOpen(true)}
-            title={isAtLimit ? "Client limit reached — upgrade your plan" : "Add a new client"}
-            disabled={isAtLimit}
-          >
-            <Plus className="h-5 w-5" />
-            Add Client
-          </IconButtonWithText>
-          <IconButtonWithText
-            type="button"
-            variant="sky"
-            onClick={() => setIsCsvDialogOpen(true)}
-            title={isAtLimit ? "Client limit reached — upgrade your plan" : "Import clients from CSV"}
-            disabled={isAtLimit}
-          >
-            <Upload className="h-5 w-5" />
-            Import CSV
-          </IconButtonWithText>
-          <IconButtonWithText
-            type="button"
-            variant={isEditMode ? "amber" : "violet"}
-            onClick={() => setIsEditMode(!isEditMode)}
-            title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
-          >
-            {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-            {isEditMode ? "Done" : "Edit"}
-          </IconButtonWithText>
-          <IconButtonWithText
-            type="button"
-            variant={showFilters ? "amber" : "violet"}
-            onClick={() => setShowFilters((v) => !v)}
-            title={showFilters ? "Close filters" : "Open filters"}
-          >
-            <SlidersHorizontal className="h-5 w-5" />
-            {showFilters ? "Close Filters" : "Filter"}
-          </IconButtonWithText>
-          <div className="w-px h-6 bg-border mx-1" />
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="h-9 min-w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="most-urgent">Most Urgent</SelectItem>
-                <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                <SelectItem value="deadline-asc">Deadline (Earliest)</SelectItem>
-                <SelectItem value="deadline-desc">Deadline (Latest)</SelectItem>
-                <SelectItem value="type-asc">Type (A-Z)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {viewMode === 'data' ? (
+            <>
+              <IconButtonWithText
+                type="button"
+                variant="green"
+                onClick={() => setIsCreateDialogOpen(true)}
+                title={isAtLimit ? "Client limit reached — upgrade your plan" : "Add a new client"}
+                disabled={isAtLimit}
+              >
+                <Plus className="h-5 w-5" />
+                Add Client
+              </IconButtonWithText>
+              <IconButtonWithText
+                type="button"
+                variant="sky"
+                onClick={() => setIsCsvDialogOpen(true)}
+                title={isAtLimit ? "Client limit reached — upgrade your plan" : "Import clients from CSV"}
+                disabled={isAtLimit}
+              >
+                <Upload className="h-5 w-5" />
+                Import CSV
+              </IconButtonWithText>
+              <IconButtonWithText
+                type="button"
+                variant={isEditMode ? "amber" : "violet"}
+                onClick={() => setIsEditMode(!isEditMode)}
+                title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
+              >
+                {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                {isEditMode ? "Done" : "Edit"}
+              </IconButtonWithText>
+              <IconButtonWithText
+                type="button"
+                variant={showFilters ? "amber" : "violet"}
+                onClick={() => setShowFilters((v) => !v)}
+                title={showFilters ? "Close filters" : "Open filters"}
+              >
+                <SlidersHorizontal className="h-5 w-5" />
+                {showFilters ? "Close Filters" : "Filter"}
+              </IconButtonWithText>
+              <div className="w-px h-6 bg-border mx-1" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Sort by:</span>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-9 min-w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="most-urgent">Most Urgent</SelectItem>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="deadline-asc">Deadline (Earliest)</SelectItem>
+                    <SelectItem value="deadline-desc">Deadline (Latest)</SelectItem>
+                    <SelectItem value="type-asc">Type (A-Z)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          ) : (
+            <>
+              <IconButtonWithText
+                type="button"
+                variant={isEditMode ? "amber" : "violet"}
+                onClick={() => setIsEditMode(!isEditMode)}
+                title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
+              >
+                {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                {isEditMode ? "Done" : "Edit"}
+              </IconButtonWithText>
+              <div className="w-px h-6 bg-border mx-1" />
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Client type:</span>
+                <Select value={deadlineClientType} onValueChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}>
+                  <SelectTrigger className="h-9 min-w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CLIENT_TYPE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
