@@ -327,16 +327,16 @@ export function TemplatesView({
                 <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
                 </th>
                 <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
-                  Name
+                  <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Name</span>
                 </th>
-                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap w-full">
-                  Subject
-                </th>
-                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
-                  Used in
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap max-w-[40%]">
+                  <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Subject</span>
                 </th>
                 <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
-                  Type
+                  <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Used in</span>
+                </th>
+                <th className="text-muted-foreground h-12 px-3 text-left align-middle font-medium whitespace-nowrap">
+                  <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Type</span>
                 </th>
               </tr>
             </thead>
