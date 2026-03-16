@@ -28,14 +28,16 @@ import { PlaceholderDropdown } from "../../templates/components/placeholder-drop
 import { EditorToolbar } from "../../templates/components/template-editor-toolbar";
 import type { ScheduleInput } from "@/lib/validations/schedule";
 import type { TipTapDocument, EmailTemplate } from "@/lib/types/database";
+import { filterTemplatesByFilingType } from "@/lib/templates/filter";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 interface ScheduleStepEditorProps {
   form: UseFormReturn<ScheduleInput>;
   fieldArray: UseFieldArrayReturn<ScheduleInput, "steps">;
-  templates: Array<{ id: string; name: string }>;
+  templates: Array<{ id: string; name: string; is_custom?: boolean; filing_type_id?: string | null }>;
   scheduleType?: 'filing' | 'custom';
+  filingTypeId?: string;
 }
 
 export function ScheduleStepAddButton({ onAdd }: { onAdd: () => void }) {
@@ -161,7 +163,7 @@ interface TemplateData {
   body_json: TipTapDocument;
 }
 
-export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType }: ScheduleStepEditorProps) {
+export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType, filingTypeId }: ScheduleStepEditorProps) {
   const router = useRouter();
   const { fields, remove } = fieldArray;
   const [customDelayDays, setCustomDelayDays] = useState<Record<number, boolean>>({});
@@ -453,7 +455,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType }
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">No template</SelectItem>
-                          {templates.map((template) => (
+                          {filterTemplatesByFilingType(templates, filingTypeId).map((template) => (
                             <SelectItem key={template.id} value={template.id}>
                               {template.name}
                             </SelectItem>

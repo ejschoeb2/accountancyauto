@@ -165,7 +165,7 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>{isEditMode ? 'Edit Template' : 'Create Template'}</DialogTitle>
           </DialogHeader>

@@ -35,6 +35,7 @@ import { sendAdhocEmail, previewAdhocEmail } from "@/app/actions/send-adhoc-emai
 import { calculateDeadline } from "@/lib/deadlines/calculators";
 import { renderTipTapEmailSimple } from "@/lib/email/render-tiptap";
 import type { TipTapDocument } from "@/lib/types/database";
+import { filterTemplatesByFilingType } from "@/lib/templates/filter";
 
 type SendStep = 'compose' | 'confirm' | 'sending' | 'results';
 
@@ -49,6 +50,8 @@ interface EmailTemplate {
   name: string;
   subject: string;
   body_json: Record<string, any>;
+  is_custom?: boolean;
+  filing_type_id?: string | null;
 }
 
 interface SendResult {
@@ -136,6 +139,16 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         .catch(() => setIsLoadingFilingTypes(false));
     }
   }, [open, templates.length, filingTypes.length]);
+
+  // Clear selected template when filing type changes and template is no longer relevant
+  useEffect(() => {
+    if (selectedTemplateId && selectedTemplateId !== "no-template" && templates.length > 0) {
+      const filtered = filterTemplatesByFilingType(templates, selectedFilingTypeId || null);
+      if (!filtered.some((t) => t.id === selectedTemplateId)) {
+        setSelectedTemplateId("no-template");
+      }
+    }
+  }, [selectedFilingTypeId, templates]);
 
   // Update template content when selected template changes
   useEffect(() => {
@@ -461,7 +474,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                             <Loader2 className="size-4 animate-spin" />
                           </div>
                         ) : (
-                          templates.map((template) => (
+                          filterTemplatesByFilingType(templates, selectedFilingTypeId || null).map((template) => (
                             <SelectItem key={template.id} value={template.id}>
                               {template.name}
                             </SelectItem>

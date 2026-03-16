@@ -7,25 +7,61 @@ import type { EmailTemplate } from "@/lib/types/database";
 
 /**
  * GET /api/email-templates
- * Fetch all email templates ordered by created_at descending
+ * Fetch all email templates ordered by created_at descending.
+ * Enriches each template with the filing_type_id it is associated with
+ * (via schedule_steps → schedules), so consumers can filter dedicated
+ * templates by filing type.
  */
 export async function GET() {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("email_templates")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [templatesResult, stepsResult, schedulesResult] = await Promise.all([
+    supabase
+      .from("email_templates")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("schedule_steps")
+      .select("email_template_id, schedule_id"),
+    supabase
+      .from("schedules")
+      .select("id, filing_type_id")
+      .not("filing_type_id", "is", null),
+  ]);
 
-  if (error) {
-    console.error("Error fetching email templates:", error);
+  if (templatesResult.error) {
+    console.error("Error fetching email templates:", templatesResult.error);
     return NextResponse.json(
       { error: "Failed to fetch email templates" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json(data);
+  // Build template → filing_type_id mapping
+  const scheduleFilingMap = new Map<string, string>();
+  if (schedulesResult.data) {
+    for (const s of schedulesResult.data) {
+      if (s.filing_type_id) scheduleFilingMap.set(s.id, s.filing_type_id);
+    }
+  }
+
+  const templateFilingMap = new Map<string, string>();
+  if (stepsResult.data) {
+    for (const step of stepsResult.data) {
+      const filingTypeId = scheduleFilingMap.get(step.schedule_id);
+      if (filingTypeId && !templateFilingMap.has(step.email_template_id)) {
+        templateFilingMap.set(step.email_template_id, filingTypeId);
+      }
+    }
+  }
+
+  // Enrich templates with filing_type_id
+  const enriched = templatesResult.data.map((t: any) => ({
+    ...t,
+    filing_type_id: templateFilingMap.get(t.id) ?? null,
+  }));
+
+  return NextResponse.json(enriched);
 }
 
 /**

@@ -111,7 +111,7 @@ export const SubjectLineEditor = forwardRef<HTMLInputElement, SubjectLineEditorP
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             placeholder="Subject line..."
-            className={`flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:border-0 text-sm ${
+            className={`flex-1 bg-transparent text-sm hover:border-foreground/20 ${
               value ? 'text-transparent caret-black dark:caret-white' : ''
             }`}
           />

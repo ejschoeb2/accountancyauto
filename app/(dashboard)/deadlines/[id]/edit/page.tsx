@@ -84,7 +84,7 @@ export default function EditSchedulePage() {
   ) as FilingTypeId
 
   const [filingTypes, setFilingTypes] = useState<FilingType[]>([])
-  const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string }>>([])
+  const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; is_custom?: boolean; filing_type_id?: string | null }>>([])
 
   // Use separate schemas based on schedule type
   const currentSchema = scheduleType === 'custom' ? customScheduleSchema : filingScheduleSchema
@@ -136,8 +136,8 @@ export default function EditSchedulePage() {
         if (!templatesResponse.ok) {
           throw new Error('Failed to load email templates')
         }
-        const templatesData: EmailTemplate[] = await templatesResponse.json()
-        setEmailTemplates(templatesData.map(t => ({ id: t.id, name: t.name })))
+        const templatesData: (EmailTemplate & { filing_type_id?: string | null })[] = await templatesResponse.json()
+        setEmailTemplates(templatesData.map(t => ({ id: t.id, name: t.name, is_custom: t.is_custom, filing_type_id: t.filing_type_id })))
 
         // Load existing schedule if editing
         if (!isNew) {
@@ -488,6 +488,20 @@ export default function EditSchedulePage() {
             </div>
           )}
 
+          {/* Business types for the selected filing type */}
+          {scheduleType === 'filing' && (() => {
+            const selectedFilingTypeId = form.watch('filing_type_id')
+            const selectedFt = filingTypes.find(ft => ft.id === selectedFilingTypeId)
+            const types = selectedFt?.applicable_client_types ?? []
+            if (types.length === 0) return null
+            return (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Applies to business types</Label>
+                <p className="text-sm">{types.join(', ')}</p>
+              </div>
+            )
+          })()}
+
           {/* Document requirements for the selected filing type */}
           {scheduleType === 'filing' && (() => {
             const selectedFilingTypeId = form.watch('filing_type_id')
@@ -667,7 +681,7 @@ export default function EditSchedulePage() {
           </div>
         </div>
         <CardContent>
-          <ScheduleStepEditor form={form} fieldArray={stepsFieldArray} templates={emailTemplates} scheduleType={scheduleType} />
+          <ScheduleStepEditor form={form} fieldArray={stepsFieldArray} templates={emailTemplates} scheduleType={scheduleType} filingTypeId={scheduleType === 'filing' ? (form.watch('filing_type_id') as string) : undefined} />
         </CardContent>
       </Card>
 
@@ -711,13 +725,22 @@ export default function EditSchedulePage() {
               <div className="space-y-1">
                 <h2 className="text-2xl font-semibold">Applies To</h2>
                 <p className="text-sm text-muted-foreground">
-                  This deadline applies to all clients by default. Untick any clients to exclude them.
+                  {scheduleType === 'filing'
+                    ? 'This deadline applies to all matching clients by default. Untick any clients to exclude them.'
+                    : 'This deadline applies to all clients by default. Untick any clients to exclude them.'}
                 </p>
               </div>
             </div>
           </div>
           <CardContent>
-            <ClientExclusions scheduleId={scheduleId} />
+            <ClientExclusions
+              scheduleId={scheduleId}
+              applicableClientTypes={
+                scheduleType === 'filing'
+                  ? filingTypes.find(ft => ft.id === form.watch('filing_type_id'))?.applicable_client_types
+                  : undefined
+              }
+            />
           </CardContent>
         </Card>
       )}

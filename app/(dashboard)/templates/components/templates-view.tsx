@@ -146,7 +146,7 @@ export function TemplatesView({
   }, [templates, searchQuery, sortBy, typeFilter, usageFilter, templateUsageMap])
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-8">
       {/* Page header */}
       <div className="space-y-1">
         <h1>Email Templates</h1>
@@ -318,19 +318,19 @@ export function TemplatesView({
             <table className="w-full">
               <thead>
                 <tr className="border-b text-left">
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide w-full">
                     Subject
                   </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     Used in
                   </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     Type
                   </th>
-                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <th className="px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     Actions
                   </th>
                 </tr>
@@ -362,7 +362,7 @@ export function TemplatesView({
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-sm text-muted-foreground truncate max-w-[280px] block">
+                        <span className="text-sm text-muted-foreground block">
                           {template.subject}
                         </span>
                       </td>
@@ -376,8 +376,8 @@ export function TemplatesView({
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className={`px-2.5 py-1 rounded-md inline-flex items-center ${typeStyle.bg}`}>
-                          <span className={`text-xs font-medium ${typeStyle.text}`}>
+                        <div className={`px-3 py-2 rounded-md inline-flex items-center ${typeStyle.bg}`}>
+                          <span className={`text-sm font-medium ${typeStyle.text}`}>
                             {typeStyle.label}
                           </span>
                         </div>
