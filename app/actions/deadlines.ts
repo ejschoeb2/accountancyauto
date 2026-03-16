@@ -40,17 +40,36 @@ export async function getOrgFilingTypeSelections(): Promise<OrgFilingTypeSelecti
  */
 export async function getAllFilingTypes(): Promise<FilingType[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("filing_types")
-    .select("*")
-    .order("sort_order", { ascending: true });
+  const [{ data, error }, { data: requirements }] = await Promise.all([
+    supabase
+      .from("filing_types")
+      .select("*")
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("filing_document_requirements")
+      .select("filing_type_id, is_mandatory, document_types(id, label)"),
+  ]);
 
   if (error) {
     console.error("getAllFilingTypes error:", error);
     return [];
   }
 
-  return (data as FilingType[]) ?? [];
+  // Group document requirements by filing_type_id
+  const reqsByFilingType: Record<string, { document_type_id: string; label: string; is_mandatory: boolean }[]> = {};
+  for (const req of requirements ?? []) {
+    const ft = req.filing_type_id as string;
+    if (!reqsByFilingType[ft]) reqsByFilingType[ft] = [];
+    const dt = req.document_types as unknown as { id: string; label: string } | null;
+    if (dt) {
+      reqsByFilingType[ft].push({ document_type_id: dt.id, label: dt.label, is_mandatory: req.is_mandatory });
+    }
+  }
+
+  return (data ?? []).map(ft => ({
+    ...ft,
+    document_requirements: reqsByFilingType[ft.id] ?? [],
+  })) as FilingType[];
 }
 
 /**
@@ -113,6 +132,32 @@ export async function updateOrgFilingTypeSelections(
 
   if (upsertError) {
     return { error: upsertError.message };
+  }
+
+  // Deactivate client_filing_assignments for any filing types being turned off
+  const newlyDeactivated = [...previouslyActive].filter(
+    (id) => !activeTypeIds.includes(id)
+  );
+  if (newlyDeactivated.length > 0) {
+    const { error: deactivateError } = await admin
+      .from("client_filing_assignments")
+      .update({ is_active: false })
+      .eq("org_id", orgId)
+      .in("filing_type_id", newlyDeactivated);
+
+    if (deactivateError) {
+      console.error(
+        "[updateOrgFilingTypeSelections] Failed to deactivate client assignments:",
+        deactivateError
+      );
+    }
+
+    // Rebuild reminder queue to remove deactivated reminders
+    try {
+      await buildReminderQueue(admin, { id: orgId, name: "" });
+    } catch (e) {
+      console.error("[updateOrgFilingTypeSelections] Non-fatal: failed to rebuild queue after deactivation:", e);
+    }
   }
 
   // Auto-create default schedules for newly activated types

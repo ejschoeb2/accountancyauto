@@ -55,6 +55,17 @@ export async function GET(
       );
     }
 
+    // Fetch org-level active filing types to filter out deactivated ones
+    const { data: orgSelections } = await supabase
+      .from('org_filing_type_selections')
+      .select('filing_type_id, is_active');
+
+    const orgDeactivated = new Set(
+      (orgSelections ?? [])
+        .filter((s) => s.is_active === false)
+        .map((s) => s.filing_type_id)
+    );
+
     // Check if client has any filing assignments
     const { data: existingAssignments, error: assignmentsError } = await supabase
       .from('client_filing_assignments')
@@ -83,8 +94,10 @@ export async function GET(
         );
       }
 
-      // Filter applicable filing types based on client type
+      // Filter applicable filing types based on client type and org-level selections
       const applicableFilings = (filingTypes || []).filter((ft) => {
+        // Skip filing types deactivated at org level
+        if (orgDeactivated.has(ft.id)) return false;
         // Check if client type matches
         if (client.client_type && ft.applicable_client_types.includes(client.client_type)) {
           // For VAT, only assign if client is VAT registered
@@ -150,8 +163,13 @@ export async function GET(
       (overrides || []).map((o) => [o.filing_type_id, o])
     );
 
+    // Filter out filing types deactivated at org level
+    const activeAssignments = (assignments || []).filter(
+      (a) => !orgDeactivated.has(a.filing_type_id)
+    );
+
     // Build response with calculated deadlines
-    const filings: FilingAssignmentResponse[] = (assignments || []).map((assignment) => {
+    const filings: FilingAssignmentResponse[] = activeAssignments.map((assignment) => {
       const filingType = assignment.filing_types as unknown as FilingType;
 
       // Calculate deadline using calculator functions
