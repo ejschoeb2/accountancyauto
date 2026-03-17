@@ -52,6 +52,56 @@ export async function cancelScheduling(params: CancelSchedulingParams): Promise<
   }
 }
 
+export interface PauseSchedulingParams {
+  reminderIds: string[];
+}
+
+export interface PauseSchedulingResult {
+  success: boolean;
+  message: string;
+  pausedCount: number;
+}
+
+export async function pauseScheduling(params: PauseSchedulingParams): Promise<PauseSchedulingResult> {
+  const supabase = await createClient();
+  const { reminderIds } = params;
+
+  if (reminderIds.length === 0) {
+    return {
+      success: false,
+      message: 'No reminders selected',
+      pausedCount: 0,
+    };
+  }
+
+  try {
+    // Update status to 'paused' for scheduled/rescheduled reminders only
+    const { error, count } = await supabase
+      .from('reminder_queue')
+      .update({ status: 'paused' })
+      .in('id', reminderIds)
+      .in('status', ['scheduled', 'rescheduled']); // Only pause active reminders
+
+    if (error) {
+      console.error('Error pausing scheduling:', error);
+      throw error;
+    }
+
+    return {
+      success: true,
+      message: `Successfully paused ${count || 0} email(s)`,
+      pausedCount: count || 0,
+    };
+  } catch (error) {
+    console.error('Error in pauseScheduling:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      pausedCount: 0,
+    };
+  }
+}
+
 export interface UncancelSchedulingParams {
   reminderIds: string[];
 }

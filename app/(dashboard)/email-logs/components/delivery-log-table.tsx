@@ -38,7 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { getAuditLog, getQueuedReminders, type AuditEntry, type QueuedReminder } from '@/app/actions/audit-log';
-import { cancelScheduling, rescheduleToSpecificDate, rescheduleWithOffset } from '@/app/actions/email-queue';
+import { cancelScheduling, pauseScheduling, rescheduleToSpecificDate, rescheduleWithOffset } from '@/app/actions/email-queue';
 import { QueuedEmailPreviewModal } from './queued-email-preview-modal';
 import { SentEmailDetailModal } from './sent-email-detail-modal';
 import { format } from 'date-fns';
@@ -51,6 +51,7 @@ import {
   Check,
   CheckCircle,
   Clock,
+  Pause,
   XCircle,
   Send,
   Loader2,
@@ -408,6 +409,12 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
       text: 'text-amber-600',
       icon: <Loader2 className="h-4 w-4" />,
     },
+    paused: {
+      label: 'Paused',
+      bg: 'bg-status-neutral/10',
+      text: 'text-status-neutral',
+      icon: <Clock className="h-4 w-4" />,
+    },
   };
 
 
@@ -558,6 +565,31 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
   };
 
   // Handler functions
+  const handlePauseScheduling = async () => {
+    if (selectedRows.size === 0) return;
+
+    if (!confirm(`Are you sure you want to pause ${selectedRows.size} email(s)?`)) {
+      return;
+    }
+
+    try {
+      const selectedIds = Array.from(selectedRows);
+      const result = await pauseScheduling({ reminderIds: selectedIds });
+
+      if (result.success) {
+        alert(result.message);
+        await fetchData();
+        setSelectedRows(new Set());
+        setShowEditPanel(false);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error pausing scheduling:', error);
+      alert('An error occurred while pausing scheduling');
+    }
+  };
+
   const handleCancelScheduling = async () => {
     if (selectedRows.size === 0) return;
 
@@ -1142,6 +1174,15 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
                   >
                     <Calendar className="size-4" />
                     Reschedule Email
+                  </ButtonBase>
+
+                  <ButtonBase
+                    variant="muted"
+                    buttonType="icon-text"
+                    onClick={() => handlePauseScheduling()}
+                  >
+                    <Pause className="size-4" />
+                    Pause Email
                   </ButtonBase>
 
                   <ButtonBase

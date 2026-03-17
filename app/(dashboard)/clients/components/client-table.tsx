@@ -167,6 +167,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [isEditMode, setIsEditMode] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [filingToggleLoading, setFilingToggleLoading] = useState<Set<string>>(new Set());
 
   // Upgrade modal state
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -463,19 +464,57 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   );
 
 
+  // Handle filing assignment toggle (activate/deactivate a filing type for a client)
+  const handleFilingAssignmentToggle = useCallback(
+    async (clientId: string, filingTypeId: string, isActive: boolean) => {
+      const key = `${clientId}-${filingTypeId}`;
+      setFilingToggleLoading((prev) => new Set(prev).add(key));
+
+      try {
+        const response = await fetch(`/api/clients/${clientId}/filings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignments: [{ filing_type_id: filingTypeId, is_active: isActive }],
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to update filing assignment');
+        }
+
+        toast.success(isActive ? 'Filing activated' : 'Filing deactivated');
+        router.refresh();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to update');
+      } finally {
+        setFilingToggleLoading((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      }
+    },
+    [router]
+  );
+
   // Filing types for the selected client type, filtered to only those activated by the org
   // AND that have at least one client assignment among the filtered rows
   const activeDeadlineFilingTypes = useMemo(() => {
     const orgActive = (FILING_TYPES_BY_CLIENT_TYPE[deadlineClientType] || []).filter(
       (ft) => activeFilingTypeIds.includes(ft)
     );
+    // In edit mode, show all org-active filing types so users can activate new ones
+    if (isEditMode) {
+      return orgActive;
+    }
     // Only keep columns where at least one filtered client has a status for that filing type
     return orgActive.filter((ft) =>
       filteredData.some((client) =>
         filingStatusMap[client.id]?.some((f) => f.filing_type_id === ft)
       )
     );
-  }, [deadlineClientType, activeFilingTypeIds, filteredData, filingStatusMap]);
+  }, [deadlineClientType, activeFilingTypeIds, filteredData, filingStatusMap, isEditMode]);
 
   // Define status view columns — only filing types applicable to selected client type
   const statusColumns = useMemo<ColumnDef<Client>[]>(
@@ -546,6 +585,48 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           const filingStatus = filingStatusMap[client.id]?.find(
             (f) => f.filing_type_id === filingTypeId
           );
+          const hasActiveAssignment = !!filingStatus;
+          const toggleKey = `${client.id}-${filingTypeId}`;
+          const isToggleLoading = filingToggleLoading.has(toggleKey);
+
+          // Edit mode: show toggle checkbox
+          if (isEditMode) {
+            return (
+              <div className="flex items-center justify-center">
+                {isToggleLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                ) : (
+                  <CheckButton
+                    checked={hasActiveAssignment}
+                    onCheckedChange={(checked) => {
+                      handleFilingAssignmentToggle(client.id, filingTypeId, !!checked);
+                    }}
+                    variant={hasActiveAssignment ? "success" : "default"}
+                  />
+                )}
+              </div>
+            );
+          }
+
+          // Paused clients show deadline date + "Paused" badge
+          if (client.reminders_paused) {
+            if (!filingStatus) {
+              return <span className="text-muted-foreground">—</span>;
+            }
+
+            return (
+              <div className="flex items-center gap-2">
+                {filingStatus.deadline_date && (
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
+                    {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
+                  </span>
+                )}
+                <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
+                  <span className="text-sm font-medium text-status-neutral">Paused</span>
+                </div>
+              </div>
+            );
+          }
 
           if (!filingStatus) {
             return <span className="text-muted-foreground">—</span>;
@@ -554,7 +635,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           return (
             <div className="flex items-center gap-2">
               {filingStatus.deadline_date && (
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
                   {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
                 </span>
               )}
@@ -569,7 +650,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         enableSorting: false,
       })),
     ],
-    [activeDeadlineFilingTypes, filingStatusMap]
+    [activeDeadlineFilingTypes, filingStatusMap, isEditMode, filingToggleLoading, handleFilingAssignmentToggle]
   );
 
   // Define columns
@@ -843,8 +924,19 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           </span>
         ),
         cell: ({ row }) => {
-          const info = statusMap[row.original.id];
-          // No status info or grey (paused/no filings) — show dash
+          const client = row.original;
+          const info = statusMap[client.id];
+
+          // Paused clients show "Paused" badge
+          if (client.reminders_paused) {
+            return (
+              <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
+                <span className="text-sm font-medium text-status-neutral">Paused</span>
+              </div>
+            );
+          }
+
+          // No status info or grey (no filings) — show dash
           if (!info || info.status === 'grey') return <span className="text-muted-foreground">—</span>;
 
           const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
