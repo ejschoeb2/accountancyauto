@@ -589,20 +589,24 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           const toggleKey = `${client.id}-${filingTypeId}`;
           const isToggleLoading = filingToggleLoading.has(toggleKey);
 
-          // Edit mode: show toggle checkbox
+          // Edit mode: show toggle button
           if (isEditMode) {
             return (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center">
                 {isToggleLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 ) : (
-                  <CheckButton
-                    checked={hasActiveAssignment}
-                    onCheckedChange={(checked) => {
-                      handleFilingAssignmentToggle(client.id, filingTypeId, !!checked);
-                    }}
-                    variant={hasActiveAssignment ? "success" : "default"}
-                  />
+                  <button
+                    type="button"
+                    onClick={() => handleFilingAssignmentToggle(client.id, filingTypeId, !hasActiveAssignment)}
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      hasActiveAssignment
+                        ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    }`}
+                  >
+                    {hasActiveAssignment ? 'Deadline Active' : 'Deadline Inactive'}
+                  </button>
                 )}
               </div>
             );
