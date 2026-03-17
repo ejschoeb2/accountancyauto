@@ -29,7 +29,8 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
     supabase
       .from("org_filing_type_selections")
       .select("filing_type_id")
-      .eq("org_id", orgId),
+      .eq("org_id", orgId)
+      .eq("is_active", true),
   ]);
 
   // Build a lookup map: clientId -> { status, next_deadline, next_deadline_type, underlying_status }

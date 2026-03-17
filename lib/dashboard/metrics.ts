@@ -4,6 +4,7 @@ import { calculateClientStatus, calculateFilingTypeStatus, TrafficLightStatus } 
 import { calculateDeadline } from '@/lib/deadlines/calculators';
 import type { FilingTypeStatus, FilingTypeId } from '@/lib/types/database';
 import type { Client } from '@/app/actions/clients';
+import { ALL_FILING_TYPE_IDS } from '@/lib/constants/filing-types';
 
 export interface DashboardMetrics {
   overdueCount: number; // red
@@ -243,6 +244,13 @@ export async function getClientStatusList(
 
   if (clientsError) throw clientsError;
 
+  // Fetch org-level active filing types to exclude deactivated deadlines
+  const { data: orgActiveTypes } = await supabase
+    .from('org_filing_type_selections')
+    .select('filing_type_id')
+    .eq('is_active', true);
+  const orgActiveSet = new Set((orgActiveTypes ?? []).map(r => r.filing_type_id));
+
   // Fetch all active filing assignments
   const { data: assignments, error: assignmentsError } = await supabase
     .from('client_filing_assignments')
@@ -274,9 +282,9 @@ export async function getClientStatusList(
 
   // Build client status rows
   const statusRows: ClientStatusRow[] = (clients || []).map((client) => {
-    // Get client's active filings
+    // Get client's active filings, filtered by org-level active types
     const clientAssignments = (assignments || []).filter(
-      (a) => a.client_id === client.id
+      (a) => a.client_id === client.id && (orgActiveSet.size === 0 || orgActiveSet.has(a.filing_type_id))
     );
 
     // Build filings array using deadline calculators
@@ -374,14 +382,6 @@ export async function getClientStatusList(
   });
 }
 
-// All filing types
-const ALL_FILING_TYPES: FilingTypeId[] = [
-  'corporation_tax_payment',
-  'ct600_filing',
-  'companies_house',
-  'vat_return',
-  'self_assessment',
-];
 
 /**
  * Fetch client filing statuses for the status view
@@ -408,6 +408,13 @@ export async function getClientFilingStatuses(
 
   if (overridesError) throw new Error(overridesError.message);
 
+  // Fetch org-level active filing types
+  const { data: orgActiveFilingTypes } = await supabase
+    .from('org_filing_type_selections')
+    .select('filing_type_id')
+    .eq('is_active', true);
+  const orgActiveFilingSet = new Set((orgActiveFilingTypes ?? []).map(r => r.filing_type_id));
+
   // Fetch filing assignments to know which filing types are actually assigned to each client
   const { data: assignments, error: assignmentsError } = await supabase
     .from('client_filing_assignments')
@@ -416,14 +423,20 @@ export async function getClientFilingStatuses(
 
   if (assignmentsError) throw new Error(assignmentsError.message);
 
-  // Build a map of client -> assigned filing types
+  // Build a map of client -> assigned filing types (filtered by org-level active)
   const clientAssignments = new Map<string, Set<string>>();
   for (const assignment of assignments || []) {
+    if (orgActiveFilingSet.size > 0 && !orgActiveFilingSet.has(assignment.filing_type_id)) continue;
     if (!clientAssignments.has(assignment.client_id)) {
       clientAssignments.set(assignment.client_id, new Set());
     }
     clientAssignments.get(assignment.client_id)!.add(assignment.filing_type_id);
   }
+
+  // Only iterate filing types that are active at org level
+  const activeFilingTypes = orgActiveFilingSet.size > 0
+    ? ALL_FILING_TYPE_IDS.filter(id => orgActiveFilingSet.has(id))
+    : ALL_FILING_TYPE_IDS;
 
   // Build status map per client
   const filingStatuses: Record<string, FilingTypeStatus[]> = {};
@@ -431,7 +444,7 @@ export async function getClientFilingStatuses(
   for (const client of clients || []) {
     const assignedFilings = clientAssignments.get(client.id) || new Set();
 
-    const clientFilings = ALL_FILING_TYPES.map((filingTypeId) => {
+    const clientFilings = activeFilingTypes.map((filingTypeId) => {
       // Only process filing types that are assigned to this client OR have records received OR have manual override
       const override = overrides?.find(
         (o) => o.client_id === client.id && o.filing_type_id === filingTypeId
