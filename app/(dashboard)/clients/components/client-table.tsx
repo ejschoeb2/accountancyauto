@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition } from "react";
 import dynamic from "next/dynamic";
-import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle, CircleCheck, CircleMinus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -168,6 +168,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [isPending, startTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
   const [filingToggleLoading, setFilingToggleLoading] = useState<Set<string>>(new Set());
+  const [deactivateConfirm, setDeactivateConfirm] = useState<{ clientId: string; filingTypeId: string } | null>(null);
+  const [deactivateDontShowAgain, setDeactivateDontShowAgain] = useState(false);
 
   // Upgrade modal state
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -598,14 +600,30 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleFilingAssignmentToggle(client.id, filingTypeId, !hasActiveAssignment)}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    onClick={() => {
+                      if (hasActiveAssignment) {
+                        // Deactivating — check if we should show confirmation
+                        const skipConfirm = localStorage.getItem('skip-deactivate-filing-confirm') === 'true';
+                        if (skipConfirm) {
+                          handleFilingAssignmentToggle(client.id, filingTypeId, false);
+                        } else {
+                          setDeactivateConfirm({ clientId: client.id, filingTypeId });
+                        }
+                      } else {
+                        handleFilingAssignmentToggle(client.id, filingTypeId, true);
+                      }
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       hasActiveAssignment
                         ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20'
                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
                     }`}
                   >
-                    {hasActiveAssignment ? 'Deadline Active' : 'Deadline Inactive'}
+                    {hasActiveAssignment ? (
+                      <><CircleCheck className="h-4 w-4" />Deadline Active</>
+                    ) : (
+                      <><CircleMinus className="h-4 w-4" />Deadline Inactive</>
+                    )}
                   </button>
                 )}
               </div>
@@ -1446,6 +1464,53 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                   Delete
                 </>
               )}
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivate Filing Confirmation Dialog */}
+      <Dialog open={!!deactivateConfirm} onOpenChange={(open) => { if (!open) { setDeactivateConfirm(null); setDeactivateDontShowAgain(false); } }}>
+        <DialogContent className="sm:max-w-[460px]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Deactivate Deadline</DialogTitle>
+            <DialogDescription>
+              This will deactivate the deadline for this client. Any scheduled reminder emails for this deadline will be removed from the queue. Documents and deadline overrides will be preserved.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="flex items-center gap-2 cursor-pointer py-2">
+            <CheckButton
+              checked={deactivateDontShowAgain}
+              onCheckedChange={(checked) => setDeactivateDontShowAgain(!!checked)}
+            />
+            <span className="text-sm text-muted-foreground">Don&apos;t show this again</span>
+          </label>
+          <DialogFooter>
+            <IconButtonWithText
+              variant="violet"
+              onClick={() => {
+                setDeactivateConfirm(null);
+                setDeactivateDontShowAgain(false);
+              }}
+            >
+              <XIcon className="h-5 w-5" />
+              Cancel
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="destructive"
+              onClick={() => {
+                if (deactivateConfirm) {
+                  if (deactivateDontShowAgain) {
+                    localStorage.setItem('skip-deactivate-filing-confirm', 'true');
+                  }
+                  handleFilingAssignmentToggle(deactivateConfirm.clientId, deactivateConfirm.filingTypeId, false);
+                  setDeactivateConfirm(null);
+                  setDeactivateDontShowAgain(false);
+                }
+              }}
+            >
+              <CircleMinus className="h-5 w-5" />
+              Deactivate
             </IconButtonWithText>
           </DialogFooter>
         </DialogContent>
