@@ -4,13 +4,24 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ButtonBase } from '@/components/ui/button-base';
+import { CheckButton } from '@/components/ui/check-button';
 import { ButtonWithText } from '@/components/ui/button-with-text';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 import { usePageLoading } from '@/components/page-loading';
 import {
   Card,
   CardContent,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -27,6 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { getAuditLog, getQueuedReminders, type AuditEntry, type QueuedReminder } from '@/app/actions/audit-log';
+import { cancelScheduling, rescheduleToSpecificDate, rescheduleWithOffset } from '@/app/actions/email-queue';
 import { QueuedEmailPreviewModal } from './queued-email-preview-modal';
 import { SentEmailDetailModal } from './sent-email-detail-modal';
 import { format } from 'date-fns';
@@ -34,7 +46,9 @@ import {
   Search,
   X,
   SlidersHorizontal,
+  Pencil,
   Calendar,
+  Check,
   CheckCircle,
   Clock,
   XCircle,
@@ -43,6 +57,7 @@ import {
   AlertCircle,
   AlertTriangle
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -135,6 +150,13 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Selection state
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+
+  // Edit state
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [rescheduleMode, setRescheduleMode] = useState<'specific' | 'offset'>('specific');
 
   // Preview modal state
   const [previewReminderId, setPreviewReminderId] = useState<string | null>(null);
@@ -143,6 +165,8 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
   // Sent email detail modal state
   const [selectedSentEntry, setSelectedSentEntry] = useState<AuditEntry | null>(null);
   const [sentModalOpen, setSentModalOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [offsetDays, setOffsetDays] = useState(0);
 
   // Debounce client search
   useEffect(() => {
@@ -205,7 +229,17 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
     setActiveDeadlineTypeFilters(new Set());
     setActiveStatusFilters(new Set());
     setTemplateFilter('all');
+    // Close edit panel when switching views
+    setShowEditPanel(false);
+    setSelectedRows(new Set());
   }, [viewMode]);
+
+  // Auto-show edit panel when rows are selected in queued view
+  useEffect(() => {
+    if (viewMode === 'queued' && selectedRows.size > 0) {
+      setShowEditPanel(true);
+    }
+  }, [selectedRows, viewMode]);
 
   // Calculate pagination
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
@@ -451,11 +485,34 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
     setCurrentPage(1);
   }
 
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedRows.size === sortedData.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(sortedData.map((item) => item.id)));
+    }
+  };
+
+  const toggleSelectRow = (id: string) => {
+    const newSelection = new Set(selectedRows);
+    if (newSelection.has(id)) {
+      newSelection.delete(id);
+    } else {
+      newSelection.add(id);
+    }
+    setSelectedRows(newSelection);
+  };
+
+  const isAllSelected = sortedData.length > 0 && selectedRows.size === sortedData.length;
+  const isSomeSelected = selectedRows.size > 0 && selectedRows.size < sortedData.length;
+
   // Row click handler
   const handleRowClick = (e: React.MouseEvent, clientId: string, rowId: string) => {
     // Don't do anything if clicking on interactive elements
     const target = e.target as HTMLElement;
     if (
+      target.closest('[data-checkbox]') ||
       target.tagName === 'BUTTON' ||
       target.tagName === 'INPUT' ||
       target.tagName === 'SELECT' ||
@@ -464,7 +521,10 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
       return;
     }
 
-    if (viewMode === 'queued') {
+    // If edit mode is active (panel shown or rows selected), toggle row selection
+    if (viewMode === 'queued' && (showEditPanel || selectedRows.size > 0)) {
+      toggleSelectRow(rowId);
+    } else if (viewMode === 'queued') {
       // Open preview modal for queued emails
       setPreviewReminderId(rowId);
       setPreviewOpen(true);
@@ -497,6 +557,70 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
     }
   };
 
+  // Handler functions
+  const handleCancelScheduling = async () => {
+    if (selectedRows.size === 0) return;
+
+    if (!confirm(`Are you sure you want to cancel scheduling for ${selectedRows.size} email(s)?`)) {
+      return;
+    }
+
+    try {
+      const selectedIds = Array.from(selectedRows);
+      const result = await cancelScheduling({ reminderIds: selectedIds });
+
+      if (result.success) {
+        alert(result.message);
+        await fetchData();
+        setSelectedRows(new Set());
+        setShowEditPanel(false);
+      } else {
+        alert(`Error: ${result.message}`);
+      }
+    } catch (error) {
+      console.error('Error cancelling scheduling:', error);
+      alert('An error occurred while cancelling scheduling');
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (selectedRows.size === 0) return;
+
+    try {
+      const selectedIds = Array.from(selectedRows);
+      let result;
+
+      if (rescheduleMode === 'specific') {
+        result = await rescheduleToSpecificDate({
+          reminderIds: selectedIds,
+          newDate: rescheduleDate,
+        });
+      } else {
+        result = await rescheduleWithOffset({
+          reminderIds: selectedIds,
+          offsetDays: offsetDays,
+        });
+      }
+
+      if (result.success) {
+        alert(result.message);
+        await fetchData();
+        setSelectedRows(new Set());
+        setShowEditPanel(false);
+        setShowRescheduleModal(false);
+        setRescheduleDate('');
+        setOffsetDays(0);
+      } else {
+        const errorMsg = result.errors && result.errors.length > 0
+          ? `${result.message}\n\n${result.errors.join('\n')}`
+          : result.message;
+        alert(`Error: ${errorMsg}`);
+      }
+    } catch (error) {
+      console.error('Error rescheduling:', error);
+      alert('An error occurred while rescheduling');
+    }
+  };
 
   return (
     <div className="space-y-6 pb-0">
@@ -526,6 +650,17 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
 
           {/* Controls toolbar - Edit, Filter & Sort */}
           <div className="flex gap-2 sm:ml-auto items-center">
+            {viewMode === 'queued' && (
+              <IconButtonWithText
+                type="button"
+                variant="violet"
+                onClick={() => setShowEditPanel(true)}
+                title="Edit selected emails"
+              >
+                <Pencil className="h-5 w-5" />
+                Edit
+              </IconButtonWithText>
+            )}
             <IconButtonWithText
               type="button"
               variant={showFilters ? "amber" : "violet"}
@@ -719,6 +854,17 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
         <Table>
           <TableHeader>
             <TableRow>
+              {/* Checkbox column */}
+              <TableHead>
+                <div className="flex items-center justify-center">
+                  <CheckButton
+                    checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                </div>
+              </TableHead>
+
               {viewMode === 'sent' ? (
                 <>
                   {/* Client Name */}
@@ -838,6 +984,23 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
                   className="group cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={(e) => handleRowClick(e, entry.client_id, entry.id)}
                 >
+                  {/* Checkbox */}
+                  <TableCell>
+                    <div
+                      data-checkbox
+                      className="flex items-center justify-center cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectRow(entry.id);
+                      }}
+                    >
+                      <CheckButton
+                        checked={selectedRows.has(entry.id)}
+                        onCheckedChange={() => toggleSelectRow(entry.id)}
+                        aria-label="Select row"
+                      />
+                    </div>
+                  </TableCell>
                   {/* Client Name */}
                   <TableCell className="font-medium text-muted-foreground transition-colors">
                     {entry.client_name}
@@ -895,6 +1058,23 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
                   className="group cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={(e) => handleRowClick(e, reminder.client_id, reminder.id)}
                 >
+                  {/* Checkbox */}
+                  <TableCell>
+                    <div
+                      data-checkbox
+                      className="flex items-center justify-center cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectRow(reminder.id);
+                      }}
+                    >
+                      <CheckButton
+                        checked={selectedRows.has(reminder.id)}
+                        onCheckedChange={() => toggleSelectRow(reminder.id)}
+                        aria-label="Select row"
+                      />
+                    </div>
+                  </TableCell>
                   {/* Client Name */}
                   <TableCell className="font-medium text-muted-foreground transition-colors">
                     {reminder.client_name}
@@ -933,6 +1113,65 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
           </TableBody>
         </Table>
       </div>
+
+      {/* Edit Actions Toolbar - Fixed Bottom Popup */}
+      {viewMode === 'queued' && (
+        <div
+          className={cn(
+            "fixed bottom-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-in-out",
+            showEditPanel || selectedRows.size > 0
+              ? "translate-y-0 opacity-100"
+              : "translate-y-20 opacity-0 pointer-events-none"
+          )}
+        >
+          <div className="bg-background border shadow-lg rounded-lg px-4 py-3 flex items-center gap-4">
+            <span className="text-sm font-medium whitespace-nowrap">
+              {selectedRows.size === 0
+                ? 'Select emails to edit'
+                : `${selectedRows.size} email${selectedRows.size !== 1 ? 's' : ''} selected`
+              }
+            </span>
+
+            <div className="flex items-center gap-2">
+              {selectedRows.size > 0 && (
+                <>
+                  <ButtonBase
+                    variant="amber"
+                    buttonType="icon-text"
+                    onClick={() => setShowRescheduleModal(true)}
+                  >
+                    <Calendar className="size-4" />
+                    Reschedule Email
+                  </ButtonBase>
+
+                  <ButtonBase
+                    variant="destructive"
+                    buttonType="icon-text"
+                    onClick={() => handleCancelScheduling()}
+                  >
+                    <X className="size-4" />
+                    Cancel Email
+                  </ButtonBase>
+
+                  <div className="w-px h-6 bg-border" />
+                </>
+              )}
+
+              <ButtonBase
+                variant="destructive"
+                buttonType="icon-text"
+                onClick={() => {
+                  setShowEditPanel(false);
+                  setSelectedRows(new Set());
+                }}
+              >
+                <X className="size-4" />
+                Close
+              </ButtonBase>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pagination */}
       <div className="max-w-7xl mx-auto mt-16">
@@ -982,6 +1221,97 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
         onNavigate={handleSentNavigate}
       />
 
+      {/* Reschedule Modal */}
+      <Dialog open={showRescheduleModal} onOpenChange={setShowRescheduleModal}>
+        <DialogContent className="sm:max-w-[500px]" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Reschedule Emails</DialogTitle>
+            <DialogDescription>
+              Choose how to reschedule the selected {selectedRows.size} {selectedRows.size === 1 ? 'email' : 'emails'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Reschedule Mode Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Reschedule Method</Label>
+              <ToggleGroup
+                options={[
+                  { value: 'specific', label: 'Set Specific Date' },
+                  { value: 'offset', label: 'Add/Subtract Days' },
+                ]}
+                value={rescheduleMode}
+                onChange={setRescheduleMode}
+                variant="muted"
+              />
+            </div>
+
+            {/* Specific Date Input */}
+            {rescheduleMode === 'specific' && (
+              <div className="space-y-2">
+                <Label htmlFor="reschedule-date" className="text-sm font-medium">
+                  New Send Date
+                </Label>
+                <Input
+                  id="reschedule-date"
+                  type="date"
+                  value={rescheduleDate}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="hover:border-foreground/20"
+                />
+                <p className="text-xs text-muted-foreground">
+                  All selected emails will be rescheduled to this date
+                </p>
+              </div>
+            )}
+
+            {/* Offset Days Input */}
+            {rescheduleMode === 'offset' && (
+              <div className="space-y-2">
+                <Label htmlFor="offset-days" className="text-sm font-medium">
+                  Days to Add/Subtract
+                </Label>
+                <Input
+                  id="offset-days"
+                  type="number"
+                  value={offsetDays}
+                  onChange={(e) => setOffsetDays(parseInt(e.target.value) || 0)}
+                  placeholder="e.g., 7 or -3"
+                  className="hover:border-foreground/20"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use positive numbers to delay, negative to bring forward (e.g., 7 for one week later, -3 for three days earlier)
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <IconButtonWithText
+              variant="destructive"
+              onClick={() => {
+                setShowRescheduleModal(false);
+                setRescheduleDate('');
+                setOffsetDays(0);
+              }}
+            >
+              <X className="h-5 w-5" />
+              Cancel
+            </IconButtonWithText>
+            <IconButtonWithText
+              variant="green"
+              onClick={handleReschedule}
+              disabled={
+                (rescheduleMode === 'specific' && !rescheduleDate) ||
+                (rescheduleMode === 'offset' && offsetDays === 0)
+              }
+            >
+              <Check className="h-5 w-5" />
+              Apply
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
