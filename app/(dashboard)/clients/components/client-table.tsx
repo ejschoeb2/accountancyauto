@@ -1133,6 +1133,15 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             </>
           ) : (
             <>
+              <IconButtonWithText
+                type="button"
+                variant={isEditMode ? "amber" : "violet"}
+                onClick={() => setIsEditMode(!isEditMode)}
+                title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
+              >
+                {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                {isEditMode ? "Done" : "Edit"}
+              </IconButtonWithText>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">Client type:</span>
                 <Select value={deadlineClientType} onValueChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}>
