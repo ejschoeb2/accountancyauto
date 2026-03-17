@@ -611,6 +611,7 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
         reminderId={previewReminderId}
         allReminders={queuedData}
         onNavigate={handlePreviewNavigate}
+        onStatusChange={fetchData}
       />
       <SentEmailDetailModal
         open={sentPreviewOpen}
