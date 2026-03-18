@@ -47,7 +47,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
-import { calculateFilingTypeStatus } from "@/lib/dashboard/traffic-light";
+import { calculateFilingTypeStatus, calculateClientStatus } from "@/lib/dashboard/traffic-light";
 import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { SendEmailModal } from "./send-email-modal";
@@ -190,6 +190,43 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
 
   // Local filing status overrides — tracks changes made via edit progress mode
   const [localFilingStatusMap, setLocalFilingStatusMap] = useState<Record<string, FilingTypeStatus[]>>(filingStatusMap);
+
+  // Derive overall client status from localFilingStatusMap so data view stays in sync
+  const localStatusMap = useMemo<Record<string, ClientStatusInfo>>(() => {
+    const result: Record<string, ClientStatusInfo> = {};
+    for (const client of data) {
+      const filings = localFilingStatusMap[client.id] ?? [];
+      // Build records_received_for from local filing statuses
+      const recordsReceivedFor = filings
+        .filter(f => f.is_records_received)
+        .map(f => f.filing_type_id);
+      // Build filings input for calculateClientStatus
+      const filingsInput = filings
+        .filter(f => f.deadline_date)
+        .map(f => ({
+          filing_type_id: f.filing_type_id,
+          deadline_date: f.deadline_date!,
+          has_been_sent: false,
+        }));
+      const status = calculateClientStatus({
+        reminders_paused: client.reminders_paused || false,
+        records_received_for: recordsReceivedFor,
+        completed_for: [],
+        filings: filingsInput,
+      });
+      // Find earliest deadline for next_deadline info
+      const earliest = filingsInput.length > 0
+        ? filingsInput.reduce((e, f) => f.deadline_date < e.deadline_date ? f : e, filingsInput[0])
+        : null;
+      result[client.id] = {
+        status,
+        next_deadline: earliest?.deadline_date ?? statusMap[client.id]?.next_deadline ?? null,
+        next_deadline_type: earliest?.filing_type_id ?? statusMap[client.id]?.next_deadline_type ?? null,
+        underlying_status: statusMap[client.id]?.underlying_status,
+      };
+    }
+    return result;
+  }, [data, localFilingStatusMap, statusMap]);
 
   // Upgrade modal state
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -572,14 +609,14 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
       }
       // Traffic light status filter
       if (activeStatusFilters.size > 0) {
-        const clientStatus = statusMap[client.id]?.status as TrafficLightStatus | undefined;
+        const clientStatus = localStatusMap[client.id]?.status as TrafficLightStatus | undefined;
         if (!clientStatus || !activeStatusFilters.has(clientStatus)) {
           return false;
         }
       }
       // Date range filter for next deadline
       if (dateFrom || dateTo) {
-        const nextDeadline = statusMap[client.id]?.next_deadline;
+        const nextDeadline = localStatusMap[client.id]?.next_deadline;
         if (!nextDeadline) return false;
 
         const deadlineDate = nextDeadline.split('T')[0]; // Get just the date part
@@ -603,16 +640,16 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         case "name-desc":
           return (b.display_name || b.company_name).localeCompare(a.display_name || a.company_name);
         case "deadline-asc": {
-          const deadlineA = statusMap[a.id]?.next_deadline;
-          const deadlineB = statusMap[b.id]?.next_deadline;
+          const deadlineA = localStatusMap[a.id]?.next_deadline;
+          const deadlineB = localStatusMap[b.id]?.next_deadline;
           if (!deadlineA && !deadlineB) return 0;
           if (!deadlineA) return 1;
           if (!deadlineB) return -1;
           return deadlineA.localeCompare(deadlineB);
         }
         case "deadline-desc": {
-          const deadlineA = statusMap[a.id]?.next_deadline;
-          const deadlineB = statusMap[b.id]?.next_deadline;
+          const deadlineA = localStatusMap[a.id]?.next_deadline;
+          const deadlineB = localStatusMap[b.id]?.next_deadline;
           if (!deadlineA && !deadlineB) return 0;
           if (!deadlineA) return -1;
           if (!deadlineB) return 1;
@@ -645,7 +682,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
     });
 
     return sorted;
-  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, statusMap, sortBy, localFilingStatusMap, dateFrom, dateTo]);
+  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, localStatusMap, sortBy, localFilingStatusMap, dateFrom, dateTo]);
 
   // Get selected clients
   const selectedClients = useMemo(() => {
@@ -1123,7 +1160,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           </span>
         ),
         cell: ({ row }) => {
-          const info = statusMap[row.original.id];
+          const info = localStatusMap[row.original.id];
           if (!info?.next_deadline) return <span className="text-muted-foreground">—</span>;
           return (
             <span className="text-sm text-muted-foreground transition-colors">
@@ -1132,8 +1169,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           );
         },
         sortingFn: (rowA, rowB) => {
-          const a = statusMap[rowA.original.id]?.next_deadline;
-          const b = statusMap[rowB.original.id]?.next_deadline;
+          const a = localStatusMap[rowA.original.id]?.next_deadline;
+          const b = localStatusMap[rowB.original.id]?.next_deadline;
           if (!a && !b) return 0;
           if (!a) return 1;
           if (!b) return -1;
@@ -1148,7 +1185,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           </span>
         ),
         cell: ({ row }) => {
-          const info = statusMap[row.original.id];
+          const info = localStatusMap[row.original.id];
           const typeId = info?.next_deadline_type;
           if (!typeId) return <span className="text-muted-foreground">—</span>;
           return (
@@ -1168,7 +1205,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }) => {
           const client = row.original;
-          const info = statusMap[client.id];
+          const info = localStatusMap[client.id];
 
           // View mode
           if (!isEditMode) {
@@ -1231,7 +1268,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }) => {
           const client = row.original;
-          const info = statusMap[client.id];
+          const info = localStatusMap[client.id];
 
           // Paused clients show "Paused" badge
           if (client.reminders_paused) {
@@ -1292,7 +1329,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         enableSorting: false,
       },
     ],
-    [handleCellEdit, statusMap, isEditMode]
+    [handleCellEdit, localStatusMap, isEditMode]
   );
 
   const table = useReactTable({
