@@ -383,6 +383,25 @@ export async function markOnboardingComplete(): Promise<{ error?: string }> {
   return {};
 }
 
+// --- Progress Review ---
+
+export async function markProgressReviewed(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  await requireWriteAccess(orgId);
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { org_id: orgId, user_id: null, key: "progress_reviewed", value: "true" },
+      { onConflict: "org_id,user_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  revalidatePath("/clients");
+  revalidatePath("/dashboard");
+  return {};
+}
+
 // --- Member Setup Wizard Completion ---
 
 export async function getMemberSetupComplete(): Promise<boolean> {

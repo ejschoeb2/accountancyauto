@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, UserPlus, FileText, Send, ExternalLink, Rocket } from 'lucide-react';
+import { Check, UserPlus, FileText, Send, ExternalLink, Rocket, ClipboardCheck, AlertTriangle } from 'lucide-react';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
 import { markOnboardingComplete } from '@/app/actions/settings';
 import Link from 'next/link';
@@ -49,14 +49,18 @@ const steps = [
   },
 ];
 
+const allStepKeys = ['hasReviewedProgress', ...steps.map((s) => s.key)] as const;
+
 const STORAGE_KEY = 'onboarding-progress';
 
 export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
   const router = useRouter();
   const hasShownToasts = useRef(false);
   const [dismissing, setDismissing] = useState(false);
-  const completedCount = steps.filter((s) => progress[s.key]).length;
-  const allComplete = completedCount === steps.length;
+  const completedCount =
+    steps.filter((s) => progress[s.key]).length + (progress.hasReviewedProgress ? 1 : 0);
+  const totalCount = steps.length + 1;
+  const allComplete = completedCount === totalCount;
 
   async function handleDismiss() {
     setDismissing(true);
@@ -81,12 +85,27 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
         (s) => progress[s.key] && !prev[s.key]
       );
 
-      const current: Record<string, boolean> = {};
+      // Check if progress review was newly completed
+      const progressReviewNewlyComplete =
+        progress.hasReviewedProgress && !prev.hasReviewedProgress;
+
+      const current: Record<string, boolean> = {
+        hasReviewedProgress: progress.hasReviewedProgress,
+      };
       for (const s of steps) current[s.key] = progress[s.key];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
 
-      for (const step of newlyCompleted) {
-        const nowComplete = steps.every((s) => current[s.key]);
+      const allNewlyCompleted = [
+        ...(progressReviewNewlyComplete
+          ? [{ label: 'Review client progress' }]
+          : []),
+        ...newlyCompleted,
+      ];
+
+      for (const step of allNewlyCompleted) {
+        const nowComplete = allStepKeys.every(
+          (k) => current[k]
+        );
 
         if (nowComplete) {
           toast.success('All steps complete!', {
@@ -97,7 +116,7 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
         }
 
         toast.success(`Step complete: ${step.label}`, {
-          description: `${completedCount}/${steps.length} steps done`,
+          description: `${completedCount}/${totalCount} steps done`,
           duration: 5000,
           action: {
             label: 'Back to dashboard',
@@ -108,7 +127,9 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
     } catch {
       // localStorage unavailable — skip
     }
-  }, [progress, completedCount, router]);
+  }, [progress, completedCount, totalCount, router]);
+
+  const progressReviewDone = progress.hasReviewedProgress;
 
   return (
     <Card className="py-5">
@@ -119,7 +140,7 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
               Getting Started
             </p>
             <p className="text-sm font-medium text-muted-foreground mt-1.5">
-              {completedCount}/{steps.length} complete
+              {completedCount}/{totalCount} complete
             </p>
           </div>
           {allComplete ? (
@@ -138,42 +159,88 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {steps.map((step) => {
-            const done = progress[step.key];
-
-            return (
-              <Link key={step.key} href={step.href}>
-                <div
-                  className={`group/step rounded-lg border p-4 transition-all duration-200 cursor-pointer h-full ${
-                    done
-                      ? 'bg-muted/30 hover:bg-muted/50'
-                      : 'hover:bg-muted/30'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1 pr-3">
-                      <p
-                        className={`text-sm font-semibold leading-tight ${
-                          done ? 'text-muted-foreground' : 'text-foreground'
-                        }`}
-                      >
-                        {step.label}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                        {step.description}
+        <div className="space-y-4">
+          {/* Review client progress — full width */}
+          <Link href="/clients?view=deadlines&editProgress=true">
+            <div
+              className={`group/step rounded-lg border p-4 transition-all duration-200 cursor-pointer ${
+                progressReviewDone
+                  ? 'bg-muted/30 hover:bg-muted/50'
+                  : 'hover:bg-muted/30'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="min-w-0 flex-1 pr-3">
+                  <p
+                    className={`text-sm font-semibold leading-tight ${
+                      progressReviewDone ? 'text-muted-foreground' : 'text-foreground'
+                    }`}
+                  >
+                    Review client progress
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                    Check each client&apos;s deadline status and mark any documents already received before sending reminders
+                  </p>
+                  {!progressReviewDone && (
+                    <div className="flex items-center gap-2 mt-3 text-amber-600">
+                      <AlertTriangle className="size-3.5 shrink-0" />
+                      <p className="text-xs font-medium">
+                        Review client progress before sending reminders to avoid incorrect notifications
                       </p>
                     </div>
-                    {done && (
-                      <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-green-500/10">
-                        <Check className="size-5 text-green-600" strokeWidth={2.5} />
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-              </Link>
-            );
-          })}
+                {progressReviewDone ? (
+                  <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-green-500/10">
+                    <Check className="size-5 text-green-600" strokeWidth={2.5} />
+                  </div>
+                ) : (
+                  <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-amber-500/10">
+                    <ClipboardCheck className="size-5 text-amber-600" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </Link>
+
+          {/* Other steps — 2x2 grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {steps.map((step) => {
+              const done = progress[step.key];
+
+              return (
+                <Link key={step.key} href={step.href}>
+                  <div
+                    className={`group/step rounded-lg border p-4 transition-all duration-200 cursor-pointer h-full ${
+                      done
+                        ? 'bg-muted/30 hover:bg-muted/50'
+                        : 'hover:bg-muted/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1 pr-3">
+                        <p
+                          className={`text-sm font-semibold leading-tight ${
+                            done ? 'text-muted-foreground' : 'text-foreground'
+                          }`}
+                        >
+                          {step.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                          {step.description}
+                        </p>
+                      </div>
+                      {done && (
+                        <div className="size-10 rounded-lg flex items-center justify-center shrink-0 bg-green-500/10">
+                          <Check className="size-5 text-green-600" strokeWidth={2.5} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </CardContent>
     </Card>

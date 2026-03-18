@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback, useTransition } from "react";
+import { useState, useMemo, useCallback, useTransition, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle, CircleCheck, CircleMinus } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle, CircleCheck, CircleMinus, ClipboardCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -45,6 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { createClient } from "@/lib/supabase/client";
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
@@ -72,6 +73,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { UpgradeModal } from "@/components/upgrade-modal";
+import { markProgressReviewed } from "@/app/actions/settings";
 import type { PlanTier } from "@/lib/stripe/plans";
 
 export interface ClientStatusInfo {
@@ -83,6 +85,9 @@ export interface ClientStatusInfo {
 
 import { FILING_TYPE_LABELS, ALL_FILING_TYPE_IDS, FILING_TYPES_BY_CLIENT_TYPE } from '@/lib/constants/filing-types';
 
+type ViewMode = 'data' | 'status';
+type DeadlineEditMode = 'status' | 'progress' | null;
+
 interface ClientTableProps {
   initialData: Client[];
   statusMap: Record<string, ClientStatusInfo>;
@@ -90,7 +95,10 @@ interface ClientTableProps {
   activeFilingTypeIds: string[];
   initialFilter?: string;
   initialSort?: string;
+  initialView?: ViewMode;
+  initialEditProgress?: boolean;
   clientLimit: number | null;
+  progressReviewed: boolean;
 }
 
 // Client type options
@@ -129,7 +137,7 @@ const SORT_LABELS: Record<string, string> = {
   "type-asc": "Type (A-Z)",
 };
 
-export function ClientTable({ initialData, statusMap, filingStatusMap, activeFilingTypeIds, initialFilter, initialSort, clientLimit }: ClientTableProps) {
+export function ClientTable({ initialData, statusMap, filingStatusMap, activeFilingTypeIds, initialFilter, initialSort, initialView, initialEditProgress, clientLimit, progressReviewed }: ClientTableProps) {
   const router = useRouter();
   const [data, setData] = useState<Client[]>(initialData);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -139,8 +147,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [sortBy, setSortBy] = useState<string>(
     initialSort && validSorts.includes(initialSort) ? initialSort : "most-urgent"
   );
-  type ViewMode = 'data' | 'status';
-  const [viewMode, setViewMode] = useState<ViewMode>('data');
+  const [viewMode, setViewMode] = useState<ViewMode>(initialView ?? 'data');
+  const [isProgressReviewed, setIsProgressReviewed] = useState(progressReviewed);
   const [deadlineClientType, setDeadlineClientType] = useState<string>('Limited Company');
 
   // Initialize filters based on initialFilter parameter
@@ -171,12 +179,144 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [deactivateConfirm, setDeactivateConfirm] = useState<{ clientId: string; filingTypeId: string } | null>(null);
   const [deactivateDontShowAgain, setDeactivateDontShowAgain] = useState(false);
 
+  // Deadline edit mode (status view only): 'status' for filing toggles, 'progress' for document checkboxes
+  const [deadlineEditMode, setDeadlineEditMode] = useState<DeadlineEditMode>(initialEditProgress ? 'progress' : null);
+
+  // Document progress edit mode state
+  const [docRequirements, setDocRequirements] = useState<Record<string, Array<{ document_type_id: string; label: string; is_mandatory: boolean }>>>({});
+  const [manuallyReceivedMap, setManuallyReceivedMap] = useState<Record<string, Set<string>>>({});
+  const orgIdRef = useRef<string | null>(null);
+
   // Upgrade modal state
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeLimitData, setUpgradeLimitData] = useState<{
     currentCount: number;
     limit: number;
   } | null>(null);
+
+  // Fetch document requirements and manually received state when entering progress edit mode
+  useEffect(() => {
+    if (deadlineEditMode !== 'progress') return;
+
+    const supabase = createClient();
+
+    const fetchProgressData = async () => {
+      // Fetch org_id if not already cached
+      if (!orgIdRef.current) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const id = user.app_metadata?.org_id;
+        if (id) {
+          orgIdRef.current = id;
+        } else {
+          const { data: membership } = await supabase
+            .from('user_organisations')
+            .select('org_id')
+            .eq('user_id', user.id)
+            .limit(1)
+            .single();
+          if (membership?.org_id) orgIdRef.current = membership.org_id;
+        }
+      }
+
+      // Fetch mandatory document requirements for all filing types (with labels)
+      const { data: reqs } = await supabase
+        .from('filing_document_requirements')
+        .select('filing_type_id, document_type_id, is_mandatory, document_types(label)')
+        .eq('is_mandatory', true);
+
+      const reqMap: Record<string, Array<{ document_type_id: string; label: string; is_mandatory: boolean }>> = {};
+      for (const req of reqs ?? []) {
+        if (!reqMap[req.filing_type_id]) reqMap[req.filing_type_id] = [];
+        const docTypes = req.document_types as { label: string } | { label: string }[] | null;
+        const label = Array.isArray(docTypes)
+          ? docTypes[0]?.label ?? req.document_type_id
+          : docTypes?.label ?? req.document_type_id;
+        reqMap[req.filing_type_id].push({
+          document_type_id: req.document_type_id,
+          label,
+          is_mandatory: req.is_mandatory,
+        });
+      }
+      setDocRequirements(reqMap);
+
+      // Fetch all manually_received customisations
+      const { data: manualRows } = await supabase
+        .from('client_document_checklist_customisations')
+        .select('client_id, filing_type_id, document_type_id')
+        .eq('manually_received', true);
+
+      // Also fetch uploaded documents (high/medium confidence)
+      const { data: docRows } = await supabase
+        .from('client_documents')
+        .select('client_id, filing_type_id, document_type_id')
+        .in('classification_confidence', ['high', 'medium']);
+
+      const map: Record<string, Set<string>> = {};
+      for (const row of [...(manualRows ?? []), ...(docRows ?? [])]) {
+        if (!row.filing_type_id || !row.document_type_id) continue;
+        const key = `${row.client_id}-${row.filing_type_id}`;
+        if (!map[key]) map[key] = new Set();
+        map[key].add(row.document_type_id);
+      }
+      setManuallyReceivedMap(map);
+    };
+
+    fetchProgressData();
+  }, [deadlineEditMode]);
+
+  // Handle document toggle in progress edit mode
+  const handleDocumentToggle = useCallback(async (clientId: string, filingTypeId: string, documentTypeId: string, currentlyReceived: boolean) => {
+    const key = `${clientId}-${filingTypeId}`;
+    const newValue = !currentlyReceived;
+
+    // Optimistic update
+    setManuallyReceivedMap(prev => {
+      const next = { ...prev };
+      const set = new Set(next[key] ?? []);
+      if (newValue) {
+        set.add(documentTypeId);
+      } else {
+        set.delete(documentTypeId);
+      }
+      next[key] = set;
+      return next;
+    });
+
+    const supabase = createClient();
+    const orgId = orgIdRef.current;
+    if (!orgId) {
+      toast.error('Organisation not found');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('client_document_checklist_customisations')
+      .upsert(
+        {
+          org_id: orgId,
+          client_id: clientId,
+          filing_type_id: filingTypeId,
+          document_type_id: documentTypeId,
+          is_enabled: true,
+          is_ad_hoc: false,
+          manually_received: newValue,
+        },
+        { onConflict: 'client_id,filing_type_id,document_type_id' }
+      );
+
+    if (error) {
+      toast.error('Failed to update document status');
+      // Revert optimistic update
+      setManuallyReceivedMap(prev => {
+        const next = { ...prev };
+        const set = new Set(next[key] ?? []);
+        if (!newValue) set.add(documentTypeId); else set.delete(documentTypeId);
+        next[key] = set;
+        return next;
+      });
+    }
+  }, []);
 
   // Client limit alerts
   const clientCount = data.length;
@@ -506,8 +646,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
     const orgActive = (FILING_TYPES_BY_CLIENT_TYPE[deadlineClientType] || []).filter(
       (ft) => activeFilingTypeIds.includes(ft)
     );
-    // In edit mode, show all org-active filing types so users can activate new ones
-    if (isEditMode) {
+    // In edit modes, show all org-active filing types
+    if (deadlineEditMode !== null) {
       return orgActive;
     }
     // Only keep columns where at least one filtered client has a status for that filing type
@@ -516,12 +656,13 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         filingStatusMap[client.id]?.some((f) => f.filing_type_id === ft)
       )
     );
-  }, [deadlineClientType, activeFilingTypeIds, filteredData, filingStatusMap, isEditMode]);
+  }, [deadlineClientType, activeFilingTypeIds, filteredData, filingStatusMap, deadlineEditMode]);
 
   // Define status view columns — only filing types applicable to selected client type
   const statusColumns = useMemo<ColumnDef<Client>[]>(
     () => [
-      {
+      // Only show select column in status edit mode (for bulk actions)
+      ...(deadlineEditMode === 'status' ? [{
         id: "select",
         header: ({ table }) => (
           <div className="flex items-center justify-center">
@@ -557,7 +698,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         enableSorting: false,
         enableHiding: false,
-      },
+      }] as ColumnDef<Client>[] : []),
       {
         accessorKey: "display_name",
         header: () => (
@@ -591,8 +732,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           const toggleKey = `${client.id}-${filingTypeId}`;
           const isToggleLoading = filingToggleLoading.has(toggleKey);
 
-          // Edit mode: show toggle button
-          if (isEditMode) {
+          // Edit Status mode: show toggle button
+          if (deadlineEditMode === 'status') {
             return (
               <div className="flex items-center">
                 {isToggleLoading ? (
@@ -626,6 +767,38 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                     )}
                   </button>
                 )}
+              </div>
+            );
+          }
+
+          // Edit Progress mode: show document checkboxes
+          if (deadlineEditMode === 'progress') {
+            if (!hasActiveAssignment) {
+              return <span className="text-muted-foreground">—</span>;
+            }
+            const requirements = docRequirements[filingTypeId] ?? [];
+            if (requirements.length === 0) {
+              return <span className="text-muted-foreground text-xs">No docs required</span>;
+            }
+            const key = `${client.id}-${filingTypeId}`;
+            const receivedSet = manuallyReceivedMap[key] ?? new Set();
+
+            return (
+              <div className="flex flex-col gap-1">
+                {requirements.map((req) => {
+                  const isReceived = receivedSet.has(req.document_type_id);
+                  return (
+                    <label key={req.document_type_id} className="flex items-center gap-2 cursor-pointer group">
+                      <CheckButton
+                        checked={isReceived}
+                        onCheckedChange={() => handleDocumentToggle(client.id, filingTypeId, req.document_type_id, isReceived)}
+                      />
+                      <span className={`text-xs ${isReceived ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                        {req.label}
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             );
           }
@@ -679,7 +852,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         enableSorting: false,
       })),
     ],
-    [activeDeadlineFilingTypes, filingStatusMap, isEditMode, filingToggleLoading, handleFilingAssignmentToggle]
+    [activeDeadlineFilingTypes, filingStatusMap, deadlineEditMode, filingToggleLoading, handleFilingAssignmentToggle, docRequirements, manuallyReceivedMap, handleDocumentToggle]
   );
 
   // Define columns
@@ -1077,6 +1250,16 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           />
         </div>
 
+      {/* Progress review alert — deadlines view only */}
+      {viewMode === 'status' && !isProgressReviewed && (
+        <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-xl">
+          <AlertTriangle className="size-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-600">
+            Review client progress before sending reminders to avoid incorrect notifications
+          </p>
+        </div>
+      )}
+
       {/* Search Input and Controls */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         {/* Search Input */}
@@ -1101,7 +1284,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         </div>
 
         {/* Controls toolbar — swaps between data actions and deadline client type picker */}
-        <div className="flex gap-2 sm:ml-auto items-center">
+        <div className="flex gap-2 sm:ml-auto items-start">
           {viewMode === 'data' ? (
             <>
               <IconButtonWithText
@@ -1164,13 +1347,33 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             <>
               <IconButtonWithText
                 type="button"
-                variant={isEditMode ? "amber" : "violet"}
-                onClick={() => setIsEditMode(!isEditMode)}
-                title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
+                variant={deadlineEditMode === 'status' ? "amber" : "violet"}
+                onClick={() => setDeadlineEditMode(deadlineEditMode === 'status' ? null : 'status')}
+                title={deadlineEditMode === 'status' ? "Exit edit status mode" : "Edit deadline status"}
               >
-                {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-                {isEditMode ? "Done" : "Edit"}
+                {deadlineEditMode === 'status' ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
+                {deadlineEditMode === 'status' ? "Done" : "Edit Status"}
               </IconButtonWithText>
+              <IconButtonWithText
+                type="button"
+                variant={deadlineEditMode === 'progress' ? "amber" : "violet"}
+                onClick={async () => {
+                  if (deadlineEditMode === 'progress') {
+                    setDeadlineEditMode(null);
+                    if (!isProgressReviewed) {
+                      await markProgressReviewed();
+                      setIsProgressReviewed(true);
+                    }
+                  } else {
+                    setDeadlineEditMode('progress');
+                  }
+                }}
+                title={deadlineEditMode === 'progress' ? "Exit edit progress mode" : "Edit document progress"}
+              >
+                {deadlineEditMode === 'progress' ? <XIcon className="h-5 w-5" /> : <ClipboardCheck className="h-5 w-5" />}
+                {deadlineEditMode === 'progress' ? "Done" : "Edit Progress"}
+              </IconButtonWithText>
+              <div className="w-px h-6 bg-border mx-1" />
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">Client type:</span>
                 <Select value={deadlineClientType} onValueChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}>
@@ -1379,7 +1582,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                   className="group cursor-pointer hover:bg-muted/50 transition-colors"
                   onClick={(e) => {
                     // Don't navigate if in edit mode
-                    if (isEditMode) {
+                    if (isEditMode || deadlineEditMode !== null) {
                       return;
                     }
                     // Don't navigate if clicking on checkbox/button, input, select, or button elements

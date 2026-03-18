@@ -5,20 +5,22 @@ import { getOrgId } from "@/lib/auth/org-context";
 import { ClientTable } from "./components/client-table";
 
 interface ClientsPageProps {
-  searchParams: Promise<{ filter?: string; sort?: string }>;
+  searchParams: Promise<{ filter?: string; sort?: string; view?: string; editProgress?: string }>;
 }
 
 export default async function ClientsPage({ searchParams }: ClientsPageProps) {
   const params = await searchParams;
   const filterParam = params.filter;
   const sortParam = params.sort;
+  const viewParam = params.view;
+  const editProgressParam = params.editProgress;
 
   const [clients, supabase, orgId] = await Promise.all([
     getClients(),
     createClient(),
     getOrgId(),
   ]);
-  const [clientStatusList, filingStatusesData, orgData, activeFilingTypesData] = await Promise.all([
+  const [clientStatusList, filingStatusesData, orgData, activeFilingTypesData, progressReviewedData] = await Promise.all([
     getClientStatusList(supabase),
     getClientFilingStatuses(supabase),
     supabase
@@ -31,6 +33,13 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
       .select("filing_type_id")
       .eq("org_id", orgId)
       .eq("is_active", true),
+    supabase
+      .from("app_settings")
+      .select("value")
+      .eq("org_id", orgId)
+      .is("user_id", null)
+      .eq("key", "progress_reviewed")
+      .maybeSingle(),
   ]);
 
   // Build a lookup map: clientId -> { status, next_deadline, next_deadline_type, underlying_status }
@@ -46,6 +55,7 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
 
   const clientLimit = orgData.data?.client_count_limit ?? null;
   const activeFilingTypeIds = (activeFilingTypesData.data || []).map((r) => r.filing_type_id);
+  const progressReviewed = progressReviewedData.data?.value === "true";
 
   return (
     <ClientTable
@@ -55,7 +65,10 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
       activeFilingTypeIds={activeFilingTypeIds}
       initialFilter={filterParam}
       initialSort={sortParam}
+      initialView={viewParam === "deadlines" || editProgressParam === "true" ? "status" : undefined}
+      initialEditProgress={editProgressParam === "true"}
       clientLimit={clientLimit}
+      progressReviewed={progressReviewed}
     />
   );
 }
