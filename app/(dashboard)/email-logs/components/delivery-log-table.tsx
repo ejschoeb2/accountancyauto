@@ -1084,10 +1084,12 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
                 </TableRow>
               ))
             ) : (
-              (sortedData as QueuedReminder[]).map((reminder) => (
+              (sortedData as QueuedReminder[]).map((reminder) => {
+                const isCancelled = reminder.status === 'cancelled' || reminder.status === 'records_received';
+                return (
                 <TableRow
                   key={reminder.id}
-                  className="group cursor-pointer hover:bg-muted/50 transition-colors"
+                  className={`group cursor-pointer hover:bg-muted/50 transition-colors ${isCancelled ? 'opacity-50' : ''}`}
                   onClick={(e) => handleRowClick(e, reminder.client_id, reminder.id)}
                 >
                   {/* Checkbox */}
@@ -1108,27 +1110,27 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
                     </div>
                   </TableCell>
                   {/* Client Name */}
-                  <TableCell className="font-medium text-muted-foreground transition-colors">
+                  <TableCell className={`font-medium text-muted-foreground transition-colors ${isCancelled ? 'line-through' : ''}`}>
                     {reminder.client_name}
                   </TableCell>
                   {/* Client Type */}
-                  <TableCell className="text-muted-foreground transition-colors">
+                  <TableCell className={`text-muted-foreground transition-colors ${isCancelled ? 'line-through' : ''}`}>
                     {reminder.client_type || '—'}
                   </TableCell>
                   {/* Send Date */}
-                  <TableCell className="text-muted-foreground transition-colors">
+                  <TableCell className={`text-muted-foreground transition-colors ${isCancelled ? 'line-through' : ''}`}>
                     {format(new Date(reminder.send_date), 'dd MMM yyyy')}
                   </TableCell>
                   {/* Deadline Date */}
-                  <TableCell className="text-muted-foreground transition-colors">
+                  <TableCell className={`text-muted-foreground transition-colors ${isCancelled ? 'line-through' : ''}`}>
                     {format(new Date(reminder.deadline_date), 'dd MMM yyyy')}
                   </TableCell>
                   {/* Deadline Type */}
-                  <TableCell className="text-muted-foreground transition-colors">
+                  <TableCell className={`text-muted-foreground transition-colors ${isCancelled ? 'line-through' : ''}`}>
                     {reminder.filing_type_id ? (FILING_TYPE_LABELS[reminder.filing_type_id] || reminder.filing_type_name) : '—'}
                   </TableCell>
                   {/* Template Name */}
-                  <TableCell className="text-muted-foreground transition-colors">
+                  <TableCell className={`text-muted-foreground transition-colors ${isCancelled ? 'line-through' : ''}`}>
                     {reminder.template_name || '—'}
                   </TableCell>
                   {/* Status */}
@@ -1140,7 +1142,8 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

@@ -437,6 +437,14 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           .eq('id', clientId)
           .eq('org_id', orgId);
       }
+
+      // Cancel queued emails for this client+filing since records are now received
+      await supabase
+        .from('reminder_queue')
+        .update({ status: 'records_received' })
+        .eq('client_id', clientId)
+        .eq('filing_type_id', filingTypeId)
+        .in('status', ['scheduled', 'rescheduled']);
     } else {
       // If unchecking made it no longer all received, remove from records_received_for
       const { data: clientRow } = await supabase
@@ -452,6 +460,16 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           .update({ records_received_for: currentArray.filter(id => id !== filingTypeId) })
           .eq('id', clientId)
           .eq('org_id', orgId);
+
+        // Restore queued emails that were cancelled due to records_received
+        const todayStr = new Date().toISOString().split('T')[0];
+        await supabase
+          .from('reminder_queue')
+          .update({ status: 'scheduled' })
+          .eq('client_id', clientId)
+          .eq('filing_type_id', filingTypeId)
+          .eq('status', 'records_received')
+          .gte('send_date', todayStr);
 
         // Also revert the local status
         setLocalFilingStatusMap(prev => {
