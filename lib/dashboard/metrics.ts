@@ -423,27 +423,55 @@ export async function getClientFilingStatuses(
 
   if (assignmentsError) throw new Error(assignmentsError.message);
 
-  // Fetch mandatory document requirement counts per filing type (global reference data)
+  // Fetch mandatory document requirements per filing type (global reference data)
   const { data: reqRows } = await supabase
     .from('filing_document_requirements')
-    .select('filing_type_id')
+    .select('filing_type_id, document_type_id')
     .eq('is_mandatory', true);
 
-  const docRequirementCounts = new Map<string, number>();
+  // Map: filing_type_id -> Set of mandatory document_type_ids
+  const mandatoryDocTypes = new Map<string, Set<string>>();
   for (const row of reqRows ?? []) {
-    docRequirementCounts.set(row.filing_type_id, (docRequirementCounts.get(row.filing_type_id) ?? 0) + 1);
+    if (!mandatoryDocTypes.has(row.filing_type_id)) {
+      mandatoryDocTypes.set(row.filing_type_id, new Set());
+    }
+    mandatoryDocTypes.get(row.filing_type_id)!.add(row.document_type_id);
   }
 
-  // Fetch received document counts per client + filing type (batch for all clients)
+  // Fetch uploaded documents per client + filing type + document type (batch)
   const { data: docRows } = await supabase
     .from('client_documents')
-    .select('client_id, filing_type_id');
+    .select('client_id, filing_type_id, document_type_id');
 
-  const docReceivedCounts = new Map<string, number>();
+  // Track which mandatory doc types are satisfied per client+filing via uploads
+  // Key: `${client_id}-${filing_type_id}`, Value: Set of satisfied document_type_ids
+  const satisfiedDocTypes = new Map<string, Set<string>>();
   for (const row of docRows ?? []) {
-    if (!row.filing_type_id) continue;
+    if (!row.filing_type_id || !row.document_type_id) continue;
+    const mandatorySet = mandatoryDocTypes.get(row.filing_type_id);
+    if (!mandatorySet?.has(row.document_type_id)) continue; // Only count mandatory docs
     const key = `${row.client_id}-${row.filing_type_id}`;
-    docReceivedCounts.set(key, (docReceivedCounts.get(key) ?? 0) + 1);
+    if (!satisfiedDocTypes.has(key)) {
+      satisfiedDocTypes.set(key, new Set());
+    }
+    satisfiedDocTypes.get(key)!.add(row.document_type_id);
+  }
+
+  // Fetch manually received checklist customisations (batch)
+  const { data: manualRows } = await supabase
+    .from('client_document_checklist_customisations')
+    .select('client_id, filing_type_id, document_type_id')
+    .eq('manually_received', true);
+
+  for (const row of manualRows ?? []) {
+    if (!row.filing_type_id || !row.document_type_id) continue;
+    const mandatorySet = mandatoryDocTypes.get(row.filing_type_id);
+    if (!mandatorySet?.has(row.document_type_id)) continue;
+    const key = `${row.client_id}-${row.filing_type_id}`;
+    if (!satisfiedDocTypes.has(key)) {
+      satisfiedDocTypes.set(key, new Set());
+    }
+    satisfiedDocTypes.get(key)!.add(row.document_type_id);
   }
 
   // Build a map of client -> assigned filing types (filtered by org-level active)
@@ -502,8 +530,8 @@ export async function getClientFilingStatuses(
         is_override: !!override,
         is_records_received: isRecordsReceived,
         deadline_date: deadlineDate,
-        doc_required_count: docRequirementCounts.get(filingTypeId) ?? 0,
-        doc_received_count: docReceivedCounts.get(`${client.id}-${filingTypeId}`) ?? 0,
+        doc_required_count: mandatoryDocTypes.get(filingTypeId)?.size ?? 0,
+        doc_received_count: satisfiedDocTypes.get(`${client.id}-${filingTypeId}`)?.size ?? 0,
       };
     }).filter((filing): filing is FilingTypeStatus => filing !== null);
 

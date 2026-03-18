@@ -656,23 +656,21 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
 
           return (
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                {filingStatus.deadline_date && (
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
-                  </span>
-                )}
-                <FilingStatusBadge
-                  status={filingStatus.status}
-                  isRecordsReceived={filingStatus.is_records_received}
-                  isOverride={filingStatus.is_override}
-                />
-              </div>
-              {filingStatus.doc_required_count > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  {filingStatus.doc_received_count}/{filingStatus.doc_required_count} docs received
+              {filingStatus.deadline_date && (
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
                 </span>
               )}
+              {filingStatus.doc_required_count > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {filingStatus.doc_received_count}/{filingStatus.doc_required_count} received
+                </span>
+              )}
+              <FilingStatusBadge
+                status={filingStatus.status}
+                isRecordsReceived={filingStatus.is_records_received}
+                isOverride={filingStatus.is_override}
+              />
             </div>
           );
         },
