@@ -423,6 +423,28 @@ export async function getClientFilingStatuses(
 
   if (assignmentsError) throw new Error(assignmentsError.message);
 
+  // Fetch document requirement counts per filing type (global reference data)
+  const { data: reqRows } = await supabase
+    .from('filing_document_requirements')
+    .select('filing_type_id');
+
+  const docRequirementCounts = new Map<string, number>();
+  for (const row of reqRows ?? []) {
+    docRequirementCounts.set(row.filing_type_id, (docRequirementCounts.get(row.filing_type_id) ?? 0) + 1);
+  }
+
+  // Fetch received document counts per client + filing type (batch for all clients)
+  const { data: docRows } = await supabase
+    .from('client_documents')
+    .select('client_id, filing_type_id');
+
+  const docReceivedCounts = new Map<string, number>();
+  for (const row of docRows ?? []) {
+    if (!row.filing_type_id) continue;
+    const key = `${row.client_id}-${row.filing_type_id}`;
+    docReceivedCounts.set(key, (docReceivedCounts.get(key) ?? 0) + 1);
+  }
+
   // Build a map of client -> assigned filing types (filtered by org-level active)
   const clientAssignments = new Map<string, Set<string>>();
   for (const assignment of assignments || []) {
@@ -479,6 +501,8 @@ export async function getClientFilingStatuses(
         is_override: !!override,
         is_records_received: isRecordsReceived,
         deadline_date: deadlineDate,
+        doc_required_count: docRequirementCounts.get(filingTypeId) ?? 0,
+        doc_received_count: docReceivedCounts.get(`${client.id}-${filingTypeId}`) ?? 0,
       };
     }).filter((filing): filing is FilingTypeStatus => filing !== null);
 

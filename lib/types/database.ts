@@ -89,6 +89,8 @@ export interface FilingTypeStatus {
   is_override: boolean; // true if manually set, false if calculated
   is_records_received: boolean; // true if in records_received_for array
   deadline_date: string | null;
+  doc_received_count: number;
+  doc_required_count: number;
 }
 
 // ============================================================================
