@@ -19,9 +19,7 @@ import { WizardStepper } from "@/components/wizard-stepper";
 import { CsvImportStep, type EditableRow } from "./components/csv-import-step";
 import { ConfigStep } from "./components/config-step";
 import { EmailSetupStep, type StepState as EmailSubStep } from "./components/email-setup-step";
-import { StorageSetupStep } from "./components/storage-setup-step";
-import { ClientPortalStep } from "./components/client-portal-step";
-import { UploadChecksStep } from "./components/upload-checks-step";
+import { PortalSetupStep } from "./components/portal-setup-step";
 import { AccountSetupStep } from "./components/account-setup-step";
 import { DeadlineSelectionStep } from "./components/deadline-selection-step";
 import { createClient } from "@/lib/supabase/client";
@@ -58,81 +56,56 @@ import {
 type UserType = "new-admin" | "invited-member" | null;
 
 // New-admin step names (index matches ADMIN_STEPS position)
-type AdminStep = "account" | "firm" | "plan" | "import" | "email" | "deadlines" | "portal" | "storage" | "upload-checks" | "complete";
+type AdminStep = "account" | "firm" | "plan" | "deadlines" | "import" | "email" | "portal" | "complete";
 
 // ─── Step arrays ──────────────────────────────────────────────────────────────
 
-function getAdminSteps(portalEnabled: boolean, joiningExistingOrg = false) {
+function getAdminSteps(joiningExistingOrg = false) {
   if (joiningExistingOrg) {
     return [
+      { label: "Deadlines" },
       { label: "Import Clients" },
       { label: "Email Settings" },
-      { label: "Deadlines" },
       { label: "Complete" },
     ];
   }
-  const steps = [
+  return [
     { label: "Verify Email" },
     { label: "Firm Details" },
     { label: "Plan" },
+    { label: "Deadlines" },
     { label: "Import Clients" },
     { label: "Email Setup" },
-    { label: "Deadlines" },
     { label: "Client Portal" },
+    { label: "Complete" },
   ];
-  if (portalEnabled) {
-    steps.push({ label: "Storage" });
-    steps.push({ label: "Upload Checks" });
-  }
-  steps.push({ label: "Complete" });
-  return steps;
 }
 
-function adminStepToIndex(step: AdminStep, portalEnabled: boolean, joiningExistingOrg = false): number {
+function adminStepToIndex(step: AdminStep, joiningExistingOrg = false): number {
   if (joiningExistingOrg) {
     const map: Record<AdminStep, number> = {
       account: -1,
       firm: -1,
       plan: -1,
-      import: 0,
-      email: 1,
-      deadlines: 2,
+      deadlines: 0,
+      import: 1,
+      email: 2,
       portal: -1,
-      storage: -1,
-      "upload-checks": -1,
       complete: 3,
     };
     return map[step];
   }
-  if (portalEnabled) {
-    const map: Record<AdminStep, number> = {
-      account: 0,
-      firm: 1,
-      plan: 2,
-      import: 3,
-      email: 4,
-      deadlines: 5,
-      portal: 6,
-      storage: 7,
-      "upload-checks": 8,
-      complete: 9,
-    };
-    return map[step];
-  } else {
-    const map: Record<AdminStep, number> = {
-      account: 0,
-      firm: 1,
-      plan: 2,
-      import: 3,
-      email: 4,
-      deadlines: 5,
-      portal: 6,
-      "upload-checks": -1,
-      storage: -1,
-      complete: 7,
-    };
-    return map[step];
-  }
+  const map: Record<AdminStep, number> = {
+    account: 0,
+    firm: 1,
+    plan: 2,
+    deadlines: 3,
+    import: 4,
+    email: 5,
+    portal: 6,
+    complete: 7,
+  };
+  return map[step];
 }
 
 const MEMBER_STEPS = [
@@ -403,10 +376,10 @@ export default function WizardPage() {
         const draft = await getSetupDraft();
         setUserType("new-admin");
         if (draft) {
-          hydrateFromDraft(draft, "import");
+          hydrateFromDraft(draft, "deadlines");
         } else {
-          // Draft missing — force import step
-          setAdminStep("import");
+          // Draft missing — force deadlines step
+          setAdminStep("deadlines");
           setOrgCreated(true);
           const fallbackOrgId = await getWizardOrgId();
           if (fallbackOrgId) setOrgId(fallbackOrgId);
@@ -422,10 +395,10 @@ export default function WizardPage() {
         const draft = await getSetupDraft();
         setUserType("new-admin");
         if (draft) {
-          hydrateFromDraft(draft, "storage");
+          hydrateFromDraft(draft, "portal");
         } else {
-          // Draft missing (save may have been cancelled) — force storage step
-          setAdminStep("storage");
+          // Draft missing (save may have been cancelled) — force portal step
+          setAdminStep("portal");
           setOrgCreated(true);
           const fallbackOrgId = await getWizardOrgId();
           if (fallbackOrgId) setOrgId(fallbackOrgId);
@@ -452,7 +425,7 @@ export default function WizardPage() {
           if (draftClients && draftClients.length > 0) {
             setSavedImportRows(draftClients);
           }
-          if (["import", "email", "deadlines", "portal", "upload-checks", "storage", "complete"].includes(draft.step)) {
+          if (["deadlines", "import", "email", "portal", "complete"].includes(draft.step)) {
             prefetchConfigDefaults();
           }
           if (draft.step === "complete") {
@@ -479,8 +452,8 @@ export default function WizardPage() {
             setIsJoiningExistingOrg(true);
             setEmailInitialSubStep("settings");
 
-            // No draft but org exists — start at import (they completed firm+plan)
-            setAdminStep("import");
+            // No draft but org exists — start at deadlines (they completed firm+plan)
+            setAdminStep("deadlines");
             prefetchConfigDefaults();
           } else {
             // Invited member → 2-step flow, start at import
@@ -577,10 +550,10 @@ export default function WizardPage() {
       prefetchConfigDefaults();
       setOrgCreated(true);
       setIsCreatingOrg(false);
-      setAdminStep("import");
+      setAdminStep("deadlines");
       // Save draft in background — step already advanced so user isn't blocked
       saveSetupDraft({
-        step: "import",
+        step: "deadlines",
         firmName,
         firmSlug: slug,
         selectedTier: tier,
@@ -610,7 +583,7 @@ export default function WizardPage() {
       try {
         await updateOrgPlanTier(selectedTier);
         setIsCreatingOrg(false);
-        advanceToStep("import");
+        advanceToStep("deadlines");
       } catch (err) {
         setPlanError(
           err instanceof Error
@@ -675,36 +648,14 @@ export default function WizardPage() {
     setDashboardUrl(url);
     setIsCompleting(false);
 
-    // Advance to the deadlines step (admin) or complete step (member)
+    // Advance to the portal step (admin) or complete step (member)
     if (userType === "new-admin") {
-      advanceToStep("deadlines");
+      advanceToStep("portal");
     } else {
       setMemberStep(2);
     }
   };
 
-  const handlePortalComplete = (enabled: boolean) => {
-    setClientPortalEnabled(enabled);
-    setPortalSelection(enabled ? "yes" : "no");
-    if (enabled) {
-      advanceToStep("storage");
-    } else {
-      // Portal disabled — skip to complete (don't save draft for "complete" step)
-      setAdminStep("complete");
-    }
-  };
-
-  const handleUploadChecksComplete = (mode: UploadCheckMode, autoReceive: boolean, rejectMismatched: boolean) => {
-    setUploadCheckSelection(mode);
-    setAutoReceiveSelection(autoReceive);
-    setRejectMismatchedSelection(rejectMismatched);
-    // Don't save draft for "complete" step (Pitfall 4: race with markOrgSetupComplete)
-    setAdminStep("complete");
-  };
-
-  const handleStorageComplete = () => {
-    advanceToStep("upload-checks");
-  };
 
   const handleGoToDashboard = async () => {
     setIsLeavingWizard(true);
@@ -871,8 +822,8 @@ export default function WizardPage() {
   }
 
   // ── New-admin path ─────────────────────────────────────────────────────────
-  const adminSteps = getAdminSteps(clientPortalEnabled, isJoiningExistingOrg);
-  const currentStepIndex = adminStepToIndex(adminStep, clientPortalEnabled, isJoiningExistingOrg);
+  const adminSteps = getAdminSteps(isJoiningExistingOrg);
+  const currentStepIndex = adminStepToIndex(adminStep, isJoiningExistingOrg);
 
   return (
     <div className="space-y-12">
@@ -881,7 +832,7 @@ export default function WizardPage() {
         currentStep={currentStepIndex}
         onStepClick={(index) => {
           if (isJoiningExistingOrg) {
-            const stepNames: AdminStep[] = ["import", "email", "deadlines", "complete"];
+            const stepNames: AdminStep[] = ["deadlines", "import", "email", "complete"];
             advanceToStep(stepNames[index]);
             return;
           }
@@ -889,9 +840,7 @@ export default function WizardPage() {
           if (index === 0) return;
           // Firm step (1) is locked once the org is created (slug already registered)
           if (index === 1 && orgCreated) return;
-          const stepNames: AdminStep[] = clientPortalEnabled
-            ? ["account", "firm", "plan", "import", "email", "deadlines", "portal", "storage", "upload-checks", "complete"]
-            : ["account", "firm", "plan", "import", "email", "deadlines", "portal", "complete"];
+          const stepNames: AdminStep[] = ["account", "firm", "plan", "deadlines", "import", "email", "portal", "complete"];
           advanceToStep(stepNames[index]);
         }}
       />
@@ -1105,7 +1054,7 @@ export default function WizardPage() {
         <div className="min-h-[520px]">
           <CsvImportStep
             onComplete={handleImportComplete}
-            onBack={() => advanceToStep("plan")}
+            onBack={() => advanceToStep("deadlines")}
             initialRows={savedImportRows ?? undefined}
             onRowsChange={(rows) => {
               setSavedImportRows(rows);
@@ -1145,7 +1094,7 @@ export default function WizardPage() {
           <DeadlineSelectionStep
             onComplete={(selectedIds) => {
               setDeadlineSelections(selectedIds);
-              const nextStep = isJoiningExistingOrg ? "complete" : "portal";
+              const nextStep = "import";
               saveSetupDraft({
                 ...collectCurrentState(),
                 step: nextStep,
@@ -1155,53 +1104,34 @@ export default function WizardPage() {
               setAdminStep(nextStep);
             }}
             onBack={() => {
-              setEmailInitialSubStep("settings");
-              prefetchConfigDefaults();
-              advanceToStep("email");
+              if (isJoiningExistingOrg) return; // No back for first step
+              advanceToStep("plan");
             }}
             initialSelection={deadlineSelections}
           />
         </div>
       )}
 
-      {/* ── Step 7: Client Portal ── */}
+      {/* ── Step 7: Client Portal (includes storage + upload checks internally) ── */}
       {adminStep === "portal" && (
         <div className="min-h-[520px]">
-          <ClientPortalStep
-            onComplete={handlePortalComplete}
-            initialSelection={portalSelection}
-            onBack={() => advanceToStep("deadlines")}
-          />
-        </div>
-      )}
-
-      {/* ── Step 5c: Upload Checks ── */}
-      {adminStep === "upload-checks" && (
-        <div className="min-h-[520px]">
-          <UploadChecksStep
-            onComplete={handleUploadChecksComplete}
-            onBack={() => advanceToStep("storage")}
-            initialSelection={uploadCheckSelection}
+          <PortalSetupStep
+            onComplete={(enabled) => {
+              setClientPortalEnabled(enabled);
+              setPortalSelection(enabled ? "yes" : "no");
+              setAdminStep("complete");
+            }}
+            onBack={() => advanceToStep("email")}
+            initialPortalSelection={portalSelection}
+            initialUploadCheckMode={uploadCheckSelection}
             initialAutoReceive={autoReceiveSelection}
             initialRejectMismatched={rejectMismatchedSelection}
-          />
-        </div>
-      )}
-
-      {/* ── Step 5d: Storage Setup ── */}
-      {adminStep === "storage" && (
-        <div className="min-h-[520px]">
-          <StorageSetupStep
             storageConnected={storageConnected}
             storageError={storageError}
-            onComplete={handleStorageComplete}
-            onBack={() => advanceToStep("portal")}
-            onBeforeProviderConnect={async () => {
+            onBeforeStorageConnect={async () => {
               isNavigatingAway.current = true;
-              // Save draft before leaving for OAuth — must await to ensure
-              // the save completes before the browser navigates away
               const draft = collectCurrentState();
-              draft.step = "storage";
+              draft.step = "portal";
               await saveSetupDraft(draft);
             }}
           />
@@ -1267,7 +1197,7 @@ export default function WizardPage() {
               <ButtonBase
                 variant="amber"
                 buttonType="icon-text"
-                onClick={() => advanceToStep(isJoiningExistingOrg ? "deadlines" : clientPortalEnabled ? "storage" : "portal")}
+                onClick={() => advanceToStep(isJoiningExistingOrg ? "email" : "portal")}
                 disabled={isLeavingWizard}
               >
                 <ArrowLeft className="size-4" />
