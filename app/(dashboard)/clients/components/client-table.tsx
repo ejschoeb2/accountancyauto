@@ -191,33 +191,54 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   // Local filing status overrides — tracks changes made via edit progress mode
   const [localFilingStatusMap, setLocalFilingStatusMap] = useState<Record<string, FilingTypeStatus[]>>(filingStatusMap);
 
-  // Derive overall client status from localFilingStatusMap so data view stays in sync
+  // Derive overall client status from localFilingStatusMap so data view stays in sync.
+  // Logic: if any filing is urgent (red/orange/amber), show the worst urgency.
+  // If no urgency issues, check completion: all completed → green, all received → violet,
+  // any received (nearest deadline) → violet, otherwise → blue (scheduled).
   const localStatusMap = useMemo<Record<string, ClientStatusInfo>>(() => {
     const result: Record<string, ClientStatusInfo> = {};
     for (const client of data) {
       const filings = localFilingStatusMap[client.id] ?? [];
-      // Build records_received_for from local filing statuses
-      const recordsReceivedFor = filings
-        .filter(f => f.is_records_received)
-        .map(f => f.filing_type_id);
-      // Build filings input for calculateClientStatus
-      const filingsInput = filings
-        .filter(f => f.deadline_date)
-        .map(f => ({
-          filing_type_id: f.filing_type_id,
-          deadline_date: f.deadline_date!,
-          has_been_sent: false,
-        }));
-      const status = calculateClientStatus({
-        reminders_paused: client.reminders_paused || false,
-        records_received_for: recordsReceivedFor,
-        completed_for: [],
-        filings: filingsInput,
-      });
-      // Find earliest deadline for next_deadline info
-      const earliest = filingsInput.length > 0
-        ? filingsInput.reduce((e, f) => f.deadline_date < e.deadline_date ? f : e, filingsInput[0])
+
+      if (client.reminders_paused || filings.length === 0) {
+        result[client.id] = {
+          status: client.reminders_paused ? 'grey' : (statusMap[client.id]?.status ?? 'grey'),
+          next_deadline: statusMap[client.id]?.next_deadline ?? null,
+          next_deadline_type: statusMap[client.id]?.next_deadline_type ?? null,
+          underlying_status: statusMap[client.id]?.underlying_status,
+        };
+        continue;
+      }
+
+      const filingsWithDeadlines = filings.filter(f => f.deadline_date);
+      const earliest = filingsWithDeadlines.length > 0
+        ? filingsWithDeadlines.reduce((e, f) => f.deadline_date! < e.deadline_date! ? f : e, filingsWithDeadlines[0])
         : null;
+
+      // Check for urgent statuses (red > orange > amber)
+      const urgencyOrder = ['red', 'orange', 'amber'] as const;
+      let urgentStatus: string | null = null;
+      for (const level of urgencyOrder) {
+        if (filings.some(f => f.status === level)) {
+          urgentStatus = level;
+          break;
+        }
+      }
+
+      let status: string;
+      if (urgentStatus) {
+        status = urgentStatus;
+      } else if (filings.every(f => f.status === 'green')) {
+        status = 'green';
+      } else if (filings.every(f => f.is_records_received)) {
+        status = 'violet';
+      } else if (earliest && filings.find(f => f.filing_type_id === earliest.filing_type_id)?.is_records_received) {
+        // Nearest deadline has records received — show violet
+        status = 'violet';
+      } else {
+        status = 'blue';
+      }
+
       result[client.id] = {
         status,
         next_deadline: earliest?.deadline_date ?? statusMap[client.id]?.next_deadline ?? null,

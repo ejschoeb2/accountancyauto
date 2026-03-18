@@ -238,6 +238,7 @@ export async function getClientStatusList(
       company_name,
       reminders_paused,
       records_received_for,
+      completed_for,
       year_end_date,
       vat_stagger_group
     `);
@@ -308,11 +309,12 @@ export async function getClientStatusList(
     const recordsReceived = Array.isArray(client.records_received_for)
       ? client.records_received_for
       : [];
+    const completedFor: string[] = Array.isArray(client.completed_for) ? client.completed_for : [];
 
-    const status = calculateClientStatus({
+    const aggregateStatus = calculateClientStatus({
       reminders_paused: client.reminders_paused || false,
       records_received_for: recordsReceived,
-      completed_for: [], // TODO: Add when migration is applied
+      completed_for: completedFor,
       filings,
     });
 
@@ -321,7 +323,7 @@ export async function getClientStatusList(
       ? calculateClientStatus({
           reminders_paused: false,
           records_received_for: recordsReceived,
-          completed_for: [],
+          completed_for: completedFor,
           filings,
         })
       : undefined;
@@ -332,6 +334,42 @@ export async function getClientStatusList(
       : null;
     const next_deadline = earliestFiling?.deadline_date ?? null;
     const next_deadline_type = earliestFiling?.filing_type_id ?? null;
+
+    // Refine status: if the aggregate says blue/scheduled but the nearest deadline
+    // has records received, show violet instead (matches the "Next Deadline" column).
+    let status = aggregateStatus;
+    if (!client.reminders_paused && filings.length > 0) {
+      // Compute per-filing statuses
+      const perFilingStatuses = filings.map(f => {
+        const isReceived = recordsReceived.includes(f.filing_type_id);
+        const isCompleted = completedFor.includes(f.filing_type_id);
+        return {
+          filing_type_id: f.filing_type_id,
+          status: calculateFilingTypeStatus({
+            filing_type_id: f.filing_type_id,
+            deadline_date: f.deadline_date,
+            is_records_received: isReceived,
+            is_completed: isCompleted,
+            override_status: null,
+          }),
+          is_records_received: isReceived,
+        };
+      });
+
+      // Check for urgent statuses
+      const hasUrgent = perFilingStatuses.some(f =>
+        f.status === 'red' || f.status === 'orange' || f.status === 'amber'
+      );
+
+      if (!hasUrgent && earliestFiling) {
+        const nearestStatus = perFilingStatuses.find(
+          f => f.filing_type_id === earliestFiling.filing_type_id
+        );
+        if (nearestStatus?.is_records_received) {
+          status = 'violet';
+        }
+      }
+    }
 
     // Calculate days until deadline
     let days_until_deadline: number | null = null;
