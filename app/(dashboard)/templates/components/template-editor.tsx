@@ -9,6 +9,61 @@ import type { TipTapDocument } from '@/lib/types/database'
 import { useEffect, forwardRef, useImperativeHandle } from 'react'
 import type { Editor } from '@tiptap/react'
 
+const PLACEHOLDER_LABELS: Record<string, string> = {
+  client_name: 'Client Name',
+  filing_type: 'Filing Type',
+  deadline: 'Deadline',
+  deadline_short: 'Deadline',
+  days_until_deadline: 'Days Until Deadline',
+  accountant_name: 'Accountant Name',
+  documents_required: 'Documents Required',
+  portal_link: 'Portal Link',
+}
+
+/**
+ * Normalizes TipTap JSON content by converting {{variable}} text nodes
+ * into proper placeholder nodes so they render as badges in the editor.
+ */
+function normalizePlaceholders(doc: TipTapDocument): TipTapDocument {
+  const PATTERN = /\{\{(\w+)\}\}/g
+
+  function processContent(nodes: any[]): any[] {
+    const result: any[] = []
+    for (const node of nodes) {
+      if (node.type === 'text' && typeof node.text === 'string' && PATTERN.test(node.text)) {
+        // Split text around {{variable}} patterns
+        PATTERN.lastIndex = 0
+        let lastIndex = 0
+        let match: RegExpExecArray | null
+        while ((match = PATTERN.exec(node.text)) !== null) {
+          const before = node.text.slice(lastIndex, match.index)
+          if (before) {
+            result.push({ ...node, text: before })
+          }
+          const varName = match[1]
+          result.push({
+            type: 'placeholder',
+            attrs: { id: varName, label: PLACEHOLDER_LABELS[varName] || varName },
+          })
+          lastIndex = match.index + match[0].length
+        }
+        const after = node.text.slice(lastIndex)
+        if (after) {
+          result.push({ ...node, text: after })
+        }
+      } else if (node.content && Array.isArray(node.content)) {
+        result.push({ ...node, content: processContent(node.content) })
+      } else {
+        result.push(node)
+      }
+    }
+    return result
+  }
+
+  if (!doc.content) return doc
+  return { ...doc, content: processContent(doc.content) }
+}
+
 interface TemplateEditorProps {
   initialContent?: TipTapDocument | null
   onUpdate?: (json: TipTapDocument) => void
@@ -45,7 +100,7 @@ export const TemplateEditor = forwardRef<TemplateEditorHandle, TemplateEditorPro
         PasteHandler,
       ],
 
-      content: initialContent || {
+      content: initialContent ? normalizePlaceholders(initialContent) : {
         type: 'doc',
         content: [{ type: 'paragraph' }],
       },

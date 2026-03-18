@@ -83,6 +83,7 @@ interface DeadlinesViewProps {
   scheduleMap: Record<string, ScheduleWithSteps | null>
   deadlineDescriptions: Record<FilingTypeId, string>
   customSchedules: CustomScheduleDisplay[]
+  clientCountsByFilingType: Record<string, number>
 }
 
 export function DeadlinesView({
@@ -91,6 +92,7 @@ export function DeadlinesView({
   scheduleMap,
   deadlineDescriptions,
   customSchedules,
+  clientCountsByFilingType,
 }: DeadlinesViewProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -98,7 +100,7 @@ export function DeadlinesView({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
   const [typeFilters, setTypeFilters] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState('name-asc')
+  const [sortBy, setSortBy] = useState('clients-desc')
   const [isPending, startTransition] = useTransition()
   const [activatingFilingType, setActivatingFilingType] = useState<FilingType | null>(null)
 
@@ -150,6 +152,10 @@ export function DeadlinesView({
           return b.name.localeCompare(a.name)
         case 'type-asc':
           return (a.applicable_client_types[0] ?? '').localeCompare(b.applicable_client_types[0] ?? '')
+        case 'clients-desc':
+          return (clientCountsByFilingType[b.id] ?? 0) - (clientCountsByFilingType[a.id] ?? 0)
+        case 'clients-asc':
+          return (clientCountsByFilingType[a.id] ?? 0) - (clientCountsByFilingType[b.id] ?? 0)
         default:
           return (a.sort_order ?? 99) - (b.sort_order ?? 99)
       }
@@ -295,10 +301,12 @@ export function DeadlinesView({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">Default Order</SelectItem>
+                <SelectItem value="clients-desc">Clients (Most)</SelectItem>
+                <SelectItem value="clients-asc">Clients (Least)</SelectItem>
                 <SelectItem value="name-asc">Name (A-Z)</SelectItem>
                 <SelectItem value="name-desc">Name (Z-A)</SelectItem>
                 <SelectItem value="type-asc">Client Type (A-Z)</SelectItem>
+                <SelectItem value="default">Default Order</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -400,51 +408,43 @@ export function DeadlinesView({
                     </div>
                   </CardHeader>
 
-                  <CardContent className="space-y-4 flex-1 flex flex-col">
-                    {/* Client types & deadline rule */}
+                  <CardContent className="flex-1 flex flex-col">
+                    {/* Client types, deadline rule & reminder steps */}
                     <div className="space-y-2 text-sm">
                       <div className="text-muted-foreground">
                         <span className="font-medium text-foreground">Applies to:</span>{' '}
                         {ft.applicable_client_types.join(', ')}
+                        {' '}
+                        <span className="text-muted-foreground">({clientCountsByFilingType[ft.id] ?? 0} clients)</span>
                       </div>
                       <div className="text-muted-foreground">
                         <span className="font-medium text-foreground">Deadline rule:</span>{' '}
                         {deadlineDescriptions[ft.id]}
                       </div>
+                      {isActive && schedule ? (
+                        <div className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Reminders:</span>
+                          {schedule.steps.length > 0 ? (
+                            <ol className="mt-1 space-y-0.5 ml-1">
+                              {schedule.steps.map((step, idx) => (
+                                <li key={step.step_number}>
+                                  {idx + 1}. {step.template_name} ({step.delay_days}d before)
+                                </li>
+                              ))}
+                            </ol>
+                          ) : ' None configured'}
+                        </div>
+                      ) : isActive ? (
+                        <div className="text-muted-foreground">
+                          <span className="font-medium text-foreground">Reminders:</span>{' '}
+                          No reminders configured
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground">
+                          Activate this deadline to configure reminders
+                        </div>
+                      )}
                     </div>
-
-                    <hr />
-
-                    {/* Schedule section — only for active types */}
-                    {isActive && schedule ? (
-                      <div className="space-y-3 flex-1 flex flex-col">
-                        <p className="text-base font-bold">
-                          Reminder Steps:
-                        </p>
-                        {schedule.steps.length > 0 && (
-                          <ol className="space-y-2 text-sm">
-                            {schedule.steps.map((step) => (
-                              <li key={step.step_number} className="flex items-start gap-2">
-                                <span className="text-muted-foreground w-5 text-right shrink-0">
-                                  {step.step_number}.
-                                </span>
-                                <span className="min-w-0">
-                                  {step.template_name} <span className="text-muted-foreground">— {step.delay_days}d before</span>
-                                </span>
-                              </li>
-                            ))}
-                          </ol>
-                        )}
-                      </div>
-                    ) : isActive ? (
-                      <div className="text-center flex-1 flex items-center justify-center">
-                        <p className="text-sm font-medium text-muted-foreground">No reminders configured</p>
-                      </div>
-                    ) : (
-                      <div className="text-center flex-1 flex items-center justify-center">
-                        <p className="text-sm text-muted-foreground">Activate this deadline to configure reminders</p>
-                      </div>
-                    )}
                   </CardContent>
 
                   {isActive && !schedule && (
@@ -499,36 +499,25 @@ export function DeadlinesView({
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4 flex-1 flex flex-col">
-                {/* Date info */}
-                <div className="text-sm text-muted-foreground">
-                  {formatDateInfo(schedule)}
+              <CardContent className="flex-1 flex flex-col">
+                <div className="space-y-2 text-sm">
+                  <div className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Date:</span>{' '}
+                    {formatDateInfo(schedule)}
+                  </div>
+                  <div className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Reminders:</span>
+                    {schedule.steps.length > 0 ? (
+                      <ol className="mt-1 space-y-0.5 ml-1">
+                        {schedule.steps.map((step, idx) => (
+                          <li key={step.step_number}>
+                            {idx + 1}. {step.template_name} ({step.delay_days}d before)
+                          </li>
+                        ))}
+                      </ol>
+                    ) : ' No steps configured'}
+                  </div>
                 </div>
-
-                <hr />
-
-                {/* Steps section */}
-                {schedule.steps.length > 0 ? (
-                  <div className="space-y-3 flex-1 flex flex-col">
-                    <p className="text-base font-bold">Schedule:</p>
-                    <ol className="space-y-2 text-sm">
-                      {schedule.steps.map((step) => (
-                        <li key={step.step_number} className="flex items-start gap-2">
-                          <span className="text-muted-foreground w-5 text-right shrink-0">
-                            {step.step_number}.
-                          </span>
-                          <span className="min-w-0">
-                            {step.template_name} <span className="text-muted-foreground">&mdash; {step.delay_days}d before</span>
-                          </span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                ) : (
-                  <div className="text-center flex-1 flex items-center justify-center">
-                    <p className="text-sm text-muted-foreground">No steps configured</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </Link>

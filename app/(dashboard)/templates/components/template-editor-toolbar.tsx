@@ -1,7 +1,7 @@
 'use client'
 
 import { ButtonBase } from '@/components/ui/button-base'
-import { Bold, Italic, List, ListOrdered, Link2, Unlink } from 'lucide-react'
+import { Bold, Italic, List, ListOrdered } from 'lucide-react'
 import type { Editor } from '@tiptap/react'
 
 interface EditorToolbarProps {
@@ -11,25 +11,6 @@ interface EditorToolbarProps {
 export function EditorToolbar({ editor }: EditorToolbarProps) {
   if (!editor) {
     return null
-  }
-
-  const handleSetLink = () => {
-    const previousUrl = editor.getAttributes('link').href
-    const url = window.prompt('Enter URL:', previousUrl)
-
-    // Cancelled
-    if (url === null) {
-      return
-    }
-
-    // Empty string unsets the link
-    if (url === '') {
-      editor.chain().focus().unsetLink().run()
-      return
-    }
-
-    // Update link
-    editor.chain().focus().setLink({ href: url }).run()
   }
 
   return (
@@ -81,31 +62,6 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
       >
         <ListOrdered className="h-4 w-4" />
       </ButtonBase>
-
-      {/* Link */}
-      {editor.isActive('link') ? (
-        <ButtonBase
-          type="button"
-          variant="muted"
-          buttonType="icon-only"
-          isSelected={true}
-          onClick={() => editor.chain().focus().unsetLink().run()}
-          title="Remove Link"
-        >
-          <Unlink className="h-4 w-4" />
-        </ButtonBase>
-      ) : (
-        <ButtonBase
-          type="button"
-          variant="muted"
-          buttonType="icon-only"
-          isSelected={false}
-          onClick={handleSetLink}
-          title="Add Link"
-        >
-          <Link2 className="h-4 w-4" />
-        </ButtonBase>
-      )}
 
     </div>
   )

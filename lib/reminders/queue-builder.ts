@@ -853,7 +853,25 @@ export async function restoreRemindersForUnreceivedRecords(
 }
 
 /**
- * Handle client unpause: skip missed reminders, resume from next due step
+ * Handle client pause: mark all scheduled/rescheduled reminders as "paused"
+ */
+export async function handlePauseClient(
+  supabase: SupabaseClient,
+  clientId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('reminder_queue')
+    .update({ status: 'paused' })
+    .eq('client_id', clientId)
+    .in('status', ['scheduled', 'rescheduled']);
+
+  if (error) {
+    throw new Error(`Failed to pause reminders: ${error.message}`);
+  }
+}
+
+/**
+ * Handle client unpause: restore paused reminders, cancel any that were missed
  */
 export async function handleUnpauseClient(
   supabase: SupabaseClient,
@@ -861,15 +879,27 @@ export async function handleUnpauseClient(
 ): Promise<void> {
   const today = format(new UTCDate(), 'yyyy-MM-dd');
 
-  // Find all 'scheduled' reminders for this client where send_date < today
-  const { error } = await supabase
+  // Cancel paused reminders whose send_date has passed
+  const { error: cancelError } = await supabase
     .from('reminder_queue')
     .update({ status: 'cancelled' })
     .eq('client_id', clientId)
-    .eq('status', 'scheduled')
+    .eq('status', 'paused')
     .lt('send_date', today);
 
-  if (error) {
-    throw new Error(`Failed to cancel missed reminders: ${error.message}`);
+  if (cancelError) {
+    throw new Error(`Failed to cancel missed reminders: ${cancelError.message}`);
+  }
+
+  // Restore paused reminders whose send_date is still in the future back to scheduled
+  const { error: restoreError } = await supabase
+    .from('reminder_queue')
+    .update({ status: 'scheduled' })
+    .eq('client_id', clientId)
+    .eq('status', 'paused')
+    .gte('send_date', today);
+
+  if (restoreError) {
+    throw new Error(`Failed to restore paused reminders: ${restoreError.message}`);
   }
 }

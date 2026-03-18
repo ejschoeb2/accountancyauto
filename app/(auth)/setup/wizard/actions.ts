@@ -1202,6 +1202,92 @@ export async function saveOrgFilingTypeSelections(
   return {};
 }
 
+// ─── Document requirements for wizard ───────────────────────────────────────
+
+export interface DocumentRequirement {
+  document_type_id: string;
+  label: string;
+  description: string | null;
+  is_mandatory: boolean;
+}
+
+/**
+ * Fetch document requirements for the given filing type IDs.
+ * Returns a map of filing_type_id → array of document requirements.
+ * Payment-only types (no documents) will simply have empty arrays.
+ */
+export async function getDocumentRequirementsForWizard(
+  filingTypeIds: string[]
+): Promise<Record<string, DocumentRequirement[]>> {
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from("filing_document_requirements")
+    .select("filing_type_id, document_type_id, is_mandatory, document_types(id, label, description)")
+    .in("filing_type_id", filingTypeIds);
+
+  if (error) {
+    console.error("[getDocumentRequirementsForWizard] Failed:", error);
+    return {};
+  }
+
+  const result: Record<string, DocumentRequirement[]> = {};
+  for (const row of data ?? []) {
+    if (!result[row.filing_type_id]) result[row.filing_type_id] = [];
+    const dt = row.document_types as { id: string; label: string; description: string | null } | { id: string; label: string; description: string | null }[] | null;
+    const doc = Array.isArray(dt) ? dt[0] : dt;
+    result[row.filing_type_id].push({
+      document_type_id: row.document_type_id,
+      label: doc?.label ?? row.document_type_id,
+      description: doc?.description ?? null,
+      is_mandatory: row.is_mandatory,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Save org-level document settings from the wizard.
+ * Only saves disabled document types — enabled is the default when no row exists.
+ */
+export async function saveOrgDocumentSettings(
+  settings: Array<{ filing_type_id: string; document_type_id: string; is_enabled: boolean }>
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const admin = createAdminClient();
+
+  const { data: membership } = await admin
+    .from("user_organisations")
+    .select("org_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!membership?.org_id) return { error: "No organisation found." };
+
+  // Only upsert disabled items (enabled is the default)
+  const disabledSettings = settings.filter(s => !s.is_enabled);
+
+  if (disabledSettings.length === 0) return {};
+
+  const rows = disabledSettings.map(s => ({
+    org_id: membership.org_id,
+    filing_type_id: s.filing_type_id,
+    document_type_id: s.document_type_id,
+    is_enabled: false,
+  }));
+
+  const { error } = await admin
+    .from("org_filing_document_settings")
+    .upsert(rows, { onConflict: "org_id,filing_type_id,document_type_id" });
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 /**
  * Build the initial reminder queue after wizard completion.
  *

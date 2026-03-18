@@ -194,7 +194,7 @@ export interface QueuedReminder {
   template_name: string | null;
   send_date: string;
   deadline_date: string;
-  status: 'scheduled' | 'rescheduled' | 'sent' | 'cancelled' | 'failed' | 'records_received';
+  status: 'scheduled' | 'rescheduled' | 'sent' | 'cancelled' | 'failed' | 'records_received' | 'paused';
   subject: string | null;
   step_index: number;
   created_at: string;

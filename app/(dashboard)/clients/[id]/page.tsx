@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, CheckCircle, X, Mail, Ban, Check, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit2, CheckCircle, X, Mail, Pause, Play, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Input } from '@/components/ui/input';
@@ -143,7 +143,8 @@ export default function ClientPage() {
       const updated = result.data || result;
       setClient(updated);
       setFormData(updated);
-      toast.success(client!.reminders_paused ? 'Client set to active' : 'Client set to inactive');
+      toast.success(client!.reminders_paused ? 'Reminders resumed' : 'Reminders paused');
+      triggerRefresh(); // Refresh email log to reflect paused/resumed status
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to update reminders');
     }
@@ -211,13 +212,6 @@ export default function ClientPage() {
           <h1 className="text-4xl font-bold tracking-tight">
             {client.display_name || client.company_name}
           </h1>
-          {client.reminders_paused && (
-            <div className="mt-2">
-              <Badge variant="outline" className="border-status-warning text-status-warning">
-                Inactive
-              </Badge>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <Link href="/clients">
@@ -229,13 +223,13 @@ export default function ClientPage() {
           <Separator orientation="vertical" className="h-8" />
           {client.reminders_paused ? (
             <IconButtonWithText variant="green" onClick={handleToggleReminders}>
-              <Check className="size-4" />
-              Set Active
+              <Play className="size-4" />
+              Resume Reminders
             </IconButtonWithText>
           ) : (
             <IconButtonWithText variant="amber" onClick={handleToggleReminders}>
-              <Ban className="size-4" />
-              Set Inactive
+              <Pause className="size-4" />
+              Pause Reminders
             </IconButtonWithText>
           )}
           <IconButtonWithText variant="destructive" onClick={() => setShowDeleteDialog(true)}>
@@ -445,13 +439,18 @@ export default function ClientPage() {
       {/* Email Log */}
       <Card className="gap-1.5">
         <div className="px-8">
-          <div className="mb-6">
+          <div className="mb-6 flex items-start justify-between gap-4">
             <div className="space-y-1">
               <h2 className="text-2xl font-semibold">Email Log</h2>
               <p className="text-sm text-muted-foreground">
                 View all sent and queued reminder emails for this client. You can reschedule or cancel upcoming emails.
               </p>
             </div>
+            {client.reminders_paused && (
+              <Badge variant="outline" className="border-status-warning text-status-warning shrink-0">
+                Paused Reminders
+              </Badge>
+            )}
           </div>
         </div>
         <CardContent>

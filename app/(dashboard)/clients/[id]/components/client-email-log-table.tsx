@@ -173,6 +173,12 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
       text: 'text-amber-600',
       icon: <Loader2 className="h-4 w-4" />,
     },
+    paused: {
+      label: 'Paused',
+      bg: 'bg-status-neutral/10',
+      text: 'text-status-neutral',
+      icon: <Clock className="h-4 w-4" />,
+    },
   };
 
   // Filter data based on "show only scheduled" checkbox

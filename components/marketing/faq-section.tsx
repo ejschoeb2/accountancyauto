@@ -7,7 +7,7 @@ import { Plus } from "lucide-react";
 const FAQS = [
   {
     q: "What deadlines does Prompt track?",
-    a: "Prompt tracks all major UK filing deadlines: Corporation Tax payments, CT600 returns, Companies House confirmation statements, VAT returns (all three HMRC stagger groups), and Self Assessment. Deadlines are calculated automatically from each client's accounting year-end and VAT stagger group — you never enter a date manually.",
+    a: "Prompt tracks all major UK filing deadlines: Corporation Tax payments, CT600 returns, Companies House confirmation statements, VAT returns, and Self Assessment. Deadlines are calculated automatically from each client's accounting year-end and VAT stagger group — you never enter a date manually.",
   },
   {
     q: "How does the free plan work?",

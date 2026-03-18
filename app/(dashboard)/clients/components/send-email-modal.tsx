@@ -412,9 +412,11 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                     )] as string[];
                     const filteredFilingTypes = clientTypes.length === 0
                       ? filingTypes
-                      : filingTypes.filter(ft =>
-                          clientTypes.every(ct => (ft.applicable_client_types ?? []).includes(ct))
-                        );
+                      : filingTypes.filter(ft => {
+                          const applicable = ft.applicable_client_types ?? [];
+                          if (applicable.length === 0) return true;
+                          return clientTypes.some(ct => applicable.includes(ct));
+                        });
                     return (
                       <div className="space-y-2">
                         <div>

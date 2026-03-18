@@ -114,7 +114,17 @@
       "Bash(python:*)",
       "Skill(gsd:plan-phase)",
       "Bash(mv:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && mv \"app/\\(dashboard\\)/schedules\" \"app/\\(dashboard\\)/deadlines\")",
+      "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && ls \"app/\\(dashboard\\)/schedules/\")",
+      "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && cp -r \"app/\\(dashboard\\)/schedules\" \"app/\\(dashboard\\)/deadlines\")",
+      "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && ls -R \"app/\\(dashboard\\)/deadlines/\")",
+      "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && rm -rf \"app/\\(dashboard\\)/schedules\")",
+      "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && rm \"app/\\(dashboard\\)/templates/components/template-card.tsx\")",
+      "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && rm -rf \"app/\\(dashboard\\)/templates/new\" \"app/\\(dashboard\\)/templates/[id]\")",
+      "Bash(gh repo:*)",
+      "Bash(claude mcp:*)",
+      "mcp__svgmaker__svgmaker_generate"
     ]
   },
   "enableAllProjectMcpServers": true,

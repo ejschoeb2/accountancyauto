@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Brain, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { PromptLogo } from "@/components/prompt-logo";
 import { FooterParticles } from "@/components/marketing/footer-particles";
 import { motion, useScroll, useTransform } from "framer-motion";
 
@@ -75,7 +76,7 @@ export const FooterSection = () => {
           {/* Logo + copyright — same line, centered */}
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-2">
-              <Brain className="text-violet-400" size={20} />
+              <PromptLogo size={20} className="text-violet-400" />
               <span className="font-bold text-white">Prompt</span>
             </a>
             <span className="text-white/40">·</span>

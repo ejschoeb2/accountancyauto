@@ -89,6 +89,27 @@ export default async function SchedulesPage() {
     steps: stepsBySchedule[s.id] ?? [],
   }))
 
+  // Fetch client counts by client_type for the "applies to" display
+  const { data: clients } = await supabase
+    .from('clients')
+    .select('client_type')
+
+  const clientCountByType: Record<string, number> = {}
+  for (const c of (clients ?? [])) {
+    if (c.client_type) {
+      clientCountByType[c.client_type] = (clientCountByType[c.client_type] ?? 0) + 1
+    }
+  }
+
+  // Build a map of filing_type_id → number of matching clients
+  const clientCountsByFilingType: Record<string, number> = {}
+  for (const ft of allFilingTypes) {
+    clientCountsByFilingType[ft.id] = ft.applicable_client_types.reduce(
+      (sum, ct) => sum + (clientCountByType[ct] ?? 0),
+      0
+    )
+  }
+
   return (
     <DeadlinesView
       allFilingTypes={allFilingTypes as FilingType[]}
@@ -96,6 +117,7 @@ export default async function SchedulesPage() {
       scheduleMap={scheduleMap}
       deadlineDescriptions={DEADLINE_DESCRIPTIONS}
       customSchedules={customScheduleDisplays}
+      clientCountsByFilingType={clientCountsByFilingType}
     />
   )
 }

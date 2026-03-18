@@ -3,7 +3,7 @@ import { updateClientMetadataSchema } from "@/lib/validations/client";
 import { updateClientMetadata } from "@/app/actions/clients";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { handleUnpauseClient, cancelRemindersForReceivedRecords, restoreRemindersForUnreceivedRecords, rebuildQueueForClient } from "@/lib/reminders/queue-builder";
+import { handlePauseClient, handleUnpauseClient, cancelRemindersForReceivedRecords, restoreRemindersForUnreceivedRecords, rebuildQueueForClient } from "@/lib/reminders/queue-builder";
 import { getOrgId } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 
@@ -121,10 +121,12 @@ export async function PATCH(
       const wasPaused = currentClient.reminders_paused;
       const isPaused = body.reminders_paused;
 
-      // If unpausing (was paused, now not paused)
-      if (wasPaused && !isPaused) {
+      if (!wasPaused && isPaused) {
+        // Pausing: mark scheduled/rescheduled reminders as "paused"
+        await handlePauseClient(adminClient, id);
+      } else if (wasPaused && !isPaused) {
+        // Unpausing: restore paused reminders and rebuild queue
         await handleUnpauseClient(adminClient, id);
-        // Rebuild queue to generate future entries for the unpaused client
         try {
           await rebuildQueueForClient(adminClient, id);
         } catch (rebuildErr) {

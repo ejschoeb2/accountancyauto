@@ -31,15 +31,13 @@ const TEMPLATES = [
               type: "text",
             },
             {
-              text: "{{filing_type}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "filing_type", label: "Filing Type" },
             },
             { text: " deadline is on ", type: "text" },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: " (", type: "text" },
             {
@@ -114,15 +112,13 @@ const TEMPLATES = [
               type: "text",
             },
             {
-              text: "{{filing_type}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "filing_type", label: "Filing Type" },
             },
             { text: " which is due on ", type: "text" },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: ". This is now just ", type: "text" },
             {
@@ -225,23 +221,20 @@ const TEMPLATES = [
             },
             { text: " that your ", type: "text" },
             {
-              text: "{{filing_type}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "filing_type", label: "Filing Type" },
             },
             { text: " deadline is on ", type: "text" },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: " — only ", type: "text" },
             {
-              text: "{{days_until_deadline}} days away",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
             },
-            { text: ".", type: "text" },
+            { text: " days away.", type: "text" },
           ],
         },
         { type: "paragraph" },
@@ -321,9 +314,8 @@ const TEMPLATES = [
             },
             { text: " are due for filing by ", type: "text" },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: ". There are ", type: "text" },
             {
@@ -405,9 +397,8 @@ const TEMPLATES = [
               type: "text",
             },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: ". We have ", type: "text" },
             {
@@ -513,9 +504,8 @@ const TEMPLATES = [
               type: "text",
             },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: " (", type: "text" },
             {
@@ -617,9 +607,8 @@ const TEMPLATES = [
               type: "text",
             },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: " (", type: "text" },
             {
@@ -715,15 +704,13 @@ const TEMPLATES = [
           content: [
             { text: "Your ", type: "text" },
             {
-              text: "{{filing_type}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "filing_type", label: "Filing Type" },
             },
             { text: " deadline is ", type: "text" },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: " (", type: "text" },
             {
@@ -791,9 +778,8 @@ const TEMPLATES = [
             },
             { text: " is due by ", type: "text" },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: " (", type: "text" },
             {
@@ -889,9 +875,8 @@ const TEMPLATES = [
             },
             { text: " deadline of ", type: "text" },
             {
-              text: "{{deadline}}",
-              type: "text",
-              marks: [{ type: "bold" }],
+              type: "placeholder",
+              attrs: { id: "deadline", label: "Deadline" },
             },
             { text: " is approaching. You have ", type: "text" },
             {

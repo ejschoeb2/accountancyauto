@@ -6,7 +6,7 @@ import { CheckCircle2, XCircle, ArrowRight } from "lucide-react";
 const ROWS: { oldWay: string; withPrompt: string }[] = [
   {
     oldWay:      "Manually track 12 deadlines per client in a spreadsheet",
-    withPrompt:  "Prompt calculates every deadline automatically — Corp Tax, VAT, CT600, Companies House, Self Assessment",
+    withPrompt:  "Prompt calculates every deadline automatically — Corporation Tax payments, CT600s, VAT, Companies House, Self Assessment",
   },
   {
     oldWay:      "Chase clients by email when records are overdue",
@@ -18,7 +18,7 @@ const ROWS: { oldWay: string; withPrompt: string }[] = [
   },
   {
     oldWay:      "Guess which VAT stagger group a client is in",
-    withPrompt:  "Just set the stagger group — all three HMRC groups supported",
+    withPrompt:  "Just set the stagger group and Prompt handles the rest",
   },
   {
     oldWay:      "Manually check every document — wrong tax year, wrong form, wrong client",

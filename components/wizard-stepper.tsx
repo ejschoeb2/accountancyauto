@@ -57,7 +57,7 @@ export function WizardStepper({ steps, currentStep, onStepClick }: WizardStepper
               {index < steps.length - 1 && (
                 <div
                   className={cn(
-                    "h-px w-6 sm:w-12 md:w-20 mx-1 sm:mx-2 mt-3.5 sm:mt-[18px] flex-shrink-0 transition-colors duration-200",
+                    "h-px w-4 sm:w-8 md:w-12 mx-0.5 sm:mx-1 mt-3.5 sm:mt-[18px] flex-shrink-0 transition-colors duration-200",
                     index < currentStep ? "bg-green-500" : "bg-border"
                   )}
                 />

@@ -19,7 +19,7 @@ const features: {
   {
     number:      "01",
     title:       "Deadline Tracking",
-    description: "Every UK filing deadline tracked automatically — Corporation Tax, CT600, VAT returns, Self Assessment, and Companies House. Prompt knows what's due for every client and when, so you never have to.",
+    description: "Every UK filing deadline tracked automatically — corporation tax returns, VAT returns, Self Assessment, and Companies House. Prompt knows what's due for every client and when, so you never have to.",
     Illustration: DeadlineTrackingIllustration,
   },
   {
@@ -30,7 +30,7 @@ const features: {
   },
   {
     number:      "03",
-    title:       "Client Upload Portal",
+    title:       "Client Upload Portal (Optional)",
     description: "Clients receive a secure, no-login link and upload their records against a filing-specific checklist. Documents go straight to your Google Drive, OneDrive, or Dropbox — Prompt never stores your clients' files on its own servers. GDPR compliant by design.",
     Illustration: ClientUploadPortalIllustration,
   },
