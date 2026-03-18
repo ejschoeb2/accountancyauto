@@ -280,6 +280,14 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     (clients || []).map((c: { id: string; company_name: string; client_type: string | null }) => [c.id, { company_name: c.company_name, client_type: c.client_type }])
   );
 
+  // Auto-cancel any queued/rescheduled reminders with send_date before today
+  const today = new Date().toISOString().split('T')[0];
+  await supabase
+    .from('reminder_queue')
+    .update({ status: 'cancelled' })
+    .in('status', ['scheduled', 'rescheduled'])
+    .lt('send_date', today);
+
   // Build the query - no embedded joins, fetch base table only
   let query = supabase
     .from('reminder_queue')
