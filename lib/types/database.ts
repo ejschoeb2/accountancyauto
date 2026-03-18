@@ -85,7 +85,7 @@ export interface ClientFilingStatusOverride {
 
 export interface FilingTypeStatus {
   filing_type_id: FilingTypeId;
-  status: 'green' | 'amber' | 'red' | 'grey';
+  status: 'green' | 'violet' | 'blue' | 'amber' | 'orange' | 'red' | 'grey';
   is_override: boolean; // true if manually set, false if calculated
   is_records_received: boolean; // true if in records_received_for array
   deadline_date: string | null;

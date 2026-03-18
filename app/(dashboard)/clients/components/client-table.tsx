@@ -47,6 +47,7 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
+import { calculateFilingTypeStatus } from "@/lib/dashboard/traffic-light";
 import { EditableCell } from "./editable-cell";
 import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { SendEmailModal } from "./send-email-modal";
@@ -187,6 +188,9 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [manuallyReceivedMap, setManuallyReceivedMap] = useState<Record<string, Set<string>>>({});
   const orgIdRef = useRef<string | null>(null);
 
+  // Local filing status overrides — tracks changes made via edit progress mode
+  const [localFilingStatusMap, setLocalFilingStatusMap] = useState<Record<string, FilingTypeStatus[]>>(filingStatusMap);
+
   // Upgrade modal state
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [upgradeLimitData, setUpgradeLimitData] = useState<{
@@ -315,8 +319,108 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         next[key] = set;
         return next;
       });
+      return;
     }
-  }, []);
+
+    // After successful toggle, check if all required docs for this filing type are now received
+    // and update the local filing status accordingly
+    const requirements = docRequirements[filingTypeId] ?? [];
+    if (requirements.length === 0) return;
+
+    // Build updated received set for this client+filing
+    const updatedReceivedSet = new Set(manuallyReceivedMap[key] ?? []);
+    if (newValue) {
+      updatedReceivedSet.add(documentTypeId);
+    } else {
+      updatedReceivedSet.delete(documentTypeId);
+    }
+
+    const allDocsReceived = requirements.every(req => updatedReceivedSet.has(req.document_type_id));
+    const newDocReceivedCount = requirements.filter(req => updatedReceivedSet.has(req.document_type_id)).length;
+
+    // Update doc_received_count and status in local filing status map
+    setLocalFilingStatusMap(prev => {
+      const next = { ...prev };
+      const clientStatuses = [...(next[clientId] ?? [])];
+      const idx = clientStatuses.findIndex(f => f.filing_type_id === filingTypeId);
+      if (idx >= 0) {
+        const existing = clientStatuses[idx];
+        const newStatus = calculateFilingTypeStatus({
+          filing_type_id: filingTypeId,
+          deadline_date: existing.deadline_date,
+          is_records_received: allDocsReceived || existing.is_records_received,
+          is_completed: false,
+          override_status: existing.is_override ? existing.status as TrafficLightStatus : null,
+        });
+        clientStatuses[idx] = {
+          ...existing,
+          doc_received_count: newDocReceivedCount,
+          is_records_received: allDocsReceived || existing.is_records_received,
+          status: newStatus,
+        };
+        next[clientId] = clientStatuses;
+      }
+      return next;
+    });
+
+    // If all docs now received, update records_received_for on server
+    if (allDocsReceived) {
+      const { data: clientRow } = await supabase
+        .from('clients')
+        .select('records_received_for')
+        .eq('id', clientId)
+        .single();
+
+      const currentArray: string[] = clientRow?.records_received_for ?? [];
+      if (!currentArray.includes(filingTypeId)) {
+        await supabase
+          .from('clients')
+          .update({ records_received_for: [...currentArray, filingTypeId] })
+          .eq('id', clientId)
+          .eq('org_id', orgId);
+      }
+    } else {
+      // If unchecking made it no longer all received, remove from records_received_for
+      const { data: clientRow } = await supabase
+        .from('clients')
+        .select('records_received_for')
+        .eq('id', clientId)
+        .single();
+
+      const currentArray: string[] = clientRow?.records_received_for ?? [];
+      if (currentArray.includes(filingTypeId)) {
+        await supabase
+          .from('clients')
+          .update({ records_received_for: currentArray.filter(id => id !== filingTypeId) })
+          .eq('id', clientId)
+          .eq('org_id', orgId);
+
+        // Also revert the local status
+        setLocalFilingStatusMap(prev => {
+          const next = { ...prev };
+          const clientStatuses = [...(next[clientId] ?? [])];
+          const idx = clientStatuses.findIndex(f => f.filing_type_id === filingTypeId);
+          if (idx >= 0) {
+            const existing = clientStatuses[idx];
+            const newStatus = calculateFilingTypeStatus({
+              filing_type_id: filingTypeId,
+              deadline_date: existing.deadline_date,
+              is_records_received: false,
+              is_completed: false,
+              override_status: existing.is_override ? existing.status as TrafficLightStatus : null,
+            });
+            clientStatuses[idx] = {
+              ...existing,
+              is_records_received: false,
+              status: newStatus,
+            };
+            next[clientId] = clientStatuses;
+          }
+          return next;
+        });
+      }
+    }
+  }, [docRequirements, manuallyReceivedMap]);
 
   // Client limit alerts
   const clientCount = data.length;
@@ -516,8 +620,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         }
         case "most-urgent": {
           // Count overdue and waiting statuses for each client
-          const filingsA = filingStatusMap[a.id] || [];
-          const filingsB = filingStatusMap[b.id] || [];
+          const filingsA = localFilingStatusMap[a.id] || [];
+          const filingsB = localFilingStatusMap[b.id] || [];
 
           const overdueCountA = filingsA.filter(f => !f.is_records_received && f.status === 'red').length;
           const overdueCountB = filingsB.filter(f => !f.is_records_received && f.status === 'red').length;
@@ -541,7 +645,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
     });
 
     return sorted;
-  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, statusMap, sortBy, filingStatusMap, dateFrom, dateTo]);
+  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, statusMap, sortBy, localFilingStatusMap, dateFrom, dateTo]);
 
   // Get selected clients
   const selectedClients = useMemo(() => {
@@ -653,10 +757,10 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
     // Only keep columns where at least one filtered client has a status for that filing type
     return orgActive.filter((ft) =>
       filteredData.some((client) =>
-        filingStatusMap[client.id]?.some((f) => f.filing_type_id === ft)
+        localFilingStatusMap[client.id]?.some((f) => f.filing_type_id === ft)
       )
     );
-  }, [deadlineClientType, activeFilingTypeIds, filteredData, filingStatusMap, deadlineEditMode]);
+  }, [deadlineClientType, activeFilingTypeIds, filteredData, localFilingStatusMap, deadlineEditMode]);
 
   // Define status view columns — only filing types applicable to selected client type
   const statusColumns = useMemo<ColumnDef<Client>[]>(
@@ -725,7 +829,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }: { row: Row<Client> }) => {
           const client = row.original;
-          const filingStatus = filingStatusMap[client.id]?.find(
+          const filingStatus = localFilingStatusMap[client.id]?.find(
             (f) => f.filing_type_id === filingTypeId
           );
           const hasActiveAssignment = !!filingStatus;
@@ -852,7 +956,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         enableSorting: false,
       })),
     ],
-    [activeDeadlineFilingTypes, filingStatusMap, deadlineEditMode, filingToggleLoading, handleFilingAssignmentToggle, docRequirements, manuallyReceivedMap, handleDocumentToggle]
+    [activeDeadlineFilingTypes, localFilingStatusMap, deadlineEditMode, filingToggleLoading, handleFilingAssignmentToggle, docRequirements, manuallyReceivedMap, handleDocumentToggle]
   );
 
   // Define columns
@@ -1579,7 +1683,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="group cursor-pointer hover:bg-muted/50 transition-colors"
+                  className={`group ${isEditMode || deadlineEditMode !== null ? 'cursor-default' : 'cursor-pointer'} hover:bg-muted/50 transition-colors`}
                   onClick={(e) => {
                     // Don't navigate if in edit mode
                     if (isEditMode || deadlineEditMode !== null) {
