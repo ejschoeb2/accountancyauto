@@ -236,6 +236,8 @@ export default function WizardPage() {
 
   // ── Deadline selections ─────────────────────────────────────────────────
   const [deadlineSelections, setDeadlineSelections] = useState<string[] | undefined>(undefined);
+  const [selectedClientTypes, setSelectedClientTypes] = useState<string[] | undefined>(undefined);
+  const [disabledDocuments, setDisabledDocuments] = useState<string[] | undefined>(undefined);
 
   // ── Upload checks step ─────────────────────────────────────────────────
   const [uploadCheckSelection, setUploadCheckSelection] = useState<UploadCheckMode | undefined>(undefined);
@@ -282,6 +284,8 @@ export default function WizardPage() {
     if (draft.sendHour !== undefined) setSendHour(draft.sendHour);
     if (draft.emailSubStep) setEmailInitialSubStep(draft.emailSubStep as EmailSubStep);
     if (draft.deadlineSelections) setDeadlineSelections(draft.deadlineSelections);
+    if (draft.selectedClientTypes) setSelectedClientTypes(draft.selectedClientTypes);
+    if (draft.disabledDocuments) setDisabledDocuments(draft.disabledDocuments);
     if (draft.joiningExistingOrg) setIsJoiningExistingOrg(true);
     setOrgCreated(true);
   }
@@ -300,6 +304,8 @@ export default function WizardPage() {
       emailSubStep: emailInitialSubStep,
       sendHour: sendHour ?? undefined,
       deadlineSelections,
+      selectedClientTypes,
+      disabledDocuments,
       joiningExistingOrg: isJoiningExistingOrg || undefined,
       updatedAt: new Date().toISOString(),
     };
@@ -1092,13 +1098,17 @@ export default function WizardPage() {
       {adminStep === "deadlines" && (
         <div className="min-h-[520px]">
           <DeadlineSelectionStep
-            onComplete={(selectedIds) => {
+            onComplete={(selectedIds, clientTypes, disabledDocs) => {
               setDeadlineSelections(selectedIds);
+              setSelectedClientTypes(clientTypes);
+              setDisabledDocuments(disabledDocs);
               const nextStep = "import";
               saveSetupDraft({
                 ...collectCurrentState(),
                 step: nextStep,
                 deadlineSelections: selectedIds,
+                selectedClientTypes: clientTypes,
+                disabledDocuments: disabledDocs,
                 updatedAt: new Date().toISOString(),
               }).catch((e) => console.warn("Draft save failed:", e));
               setAdminStep(nextStep);
@@ -1108,6 +1118,8 @@ export default function WizardPage() {
               advanceToStep("plan");
             }}
             initialSelection={deadlineSelections}
+            initialClientTypes={selectedClientTypes}
+            initialDisabledDocuments={disabledDocuments}
           />
         </div>
       )}

@@ -118,6 +118,7 @@ export default async function SchedulesPage() {
       deadlineDescriptions={DEADLINE_DESCRIPTIONS}
       customSchedules={customScheduleDisplays}
       clientCountsByFilingType={clientCountsByFilingType}
+      clientCountByType={clientCountByType}
     />
   )
 }

@@ -77,6 +77,13 @@ interface ParsedCsvData {
   sampleRows: Record<string, string>[]; // First 3 rows for preview
 }
 
+// Normalize legacy "Sole Trader" to "Individual" (enum was renamed in migration)
+function normalizeClientType(value: string | undefined): string | undefined {
+  if (!value) return value;
+  if (value.toLowerCase().trim() === "sole trader") return "Individual";
+  return value;
+}
+
 export interface EditableRow {
   id: string; // UUID for React key
   company_name: string; // Required, readonly
@@ -526,7 +533,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
           id: crypto.randomUUID(),
           company_name: mappedData.company_name || "",
           primary_email: mappedData.primary_email || null,
-          client_type: mappedData.client_type || null,
+          client_type: normalizeClientType(mappedData.client_type) || null,
           year_end_date: rolledDate,
           vat_registered: mappedData.vat_registered
             ? ["yes", "true", "1"].includes(mappedData.vat_registered.toLowerCase())

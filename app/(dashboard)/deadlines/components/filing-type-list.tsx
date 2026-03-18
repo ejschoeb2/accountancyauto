@@ -84,6 +84,7 @@ interface DeadlinesViewProps {
   deadlineDescriptions: Record<FilingTypeId, string>
   customSchedules: CustomScheduleDisplay[]
   clientCountsByFilingType: Record<string, number>
+  clientCountByType: Record<string, number>
 }
 
 export function DeadlinesView({
@@ -93,6 +94,7 @@ export function DeadlinesView({
   deadlineDescriptions,
   customSchedules,
   clientCountsByFilingType,
+  clientCountByType,
 }: DeadlinesViewProps) {
   const router = useRouter()
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -412,27 +414,22 @@ export function DeadlinesView({
                     {/* Client types, deadline rule & reminder steps */}
                     <div className="space-y-2 text-sm">
                       <div className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Applies to:</span>{' '}
-                        {ft.applicable_client_types.join(', ')}
-                        {' '}
-                        <span className="text-muted-foreground">({clientCountsByFilingType[ft.id] ?? 0} clients)</span>
-                      </div>
-                      <div className="text-muted-foreground">
                         <span className="font-medium text-foreground">Deadline rule:</span>{' '}
                         {deadlineDescriptions[ft.id]}
                       </div>
                       {isActive && schedule ? (
                         <div className="text-muted-foreground">
-                          <span className="font-medium text-foreground">Reminders:</span>
                           {schedule.steps.length > 0 ? (
-                            <ol className="mt-1 space-y-0.5 ml-1">
-                              {schedule.steps.map((step, idx) => (
-                                <li key={step.step_number}>
-                                  {idx + 1}. {step.template_name} ({step.delay_days}d before)
-                                </li>
+                            <div className="grid grid-cols-[auto_1fr] gap-x-1.5">
+                              <span className="font-medium text-foreground">Reminders:</span>
+                              <span>1. {schedule.steps[0].template_name} ({schedule.steps[0].delay_days}d before)</span>
+                              {schedule.steps.slice(1).map((step, idx) => (
+                                <><span key={`label-${step.step_number}`} /><span key={step.step_number}>{idx + 2}. {step.template_name} ({step.delay_days}d before)</span></>
                               ))}
-                            </ol>
-                          ) : ' None configured'}
+                            </div>
+                          ) : (
+                            <><span className="font-medium text-foreground">Reminders:</span> None configured</>
+                          )}
                         </div>
                       ) : isActive ? (
                         <div className="text-muted-foreground">

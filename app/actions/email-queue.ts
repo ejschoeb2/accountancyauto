@@ -1,6 +1,9 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { sendRichEmailForOrg } from '@/lib/email/sender';
+import { previewQueuedEmail } from '@/app/actions/audit-log';
 
 export interface CancelSchedulingParams {
   reminderIds: string[];
@@ -258,6 +261,117 @@ export async function rescheduleToSpecificDate(params: RescheduleSpecificParams)
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred',
       rescheduledCount: 0,
+    };
+  }
+}
+
+export interface SendNowParams {
+  reminderId: string;
+}
+
+export interface SendNowResult {
+  success: boolean;
+  message: string;
+}
+
+export async function sendNow(params: SendNowParams): Promise<SendNowResult> {
+  const supabase = await createClient();
+  const { reminderId } = params;
+
+  if (!reminderId) {
+    return { success: false, message: 'No reminder specified' };
+  }
+
+  try {
+    // Fetch reminder with client info (RLS scopes to user's org)
+    const { data: reminder, error: fetchError } = await supabase
+      .from('reminder_queue')
+      .select('*, clients!inner(company_name, primary_email, owner_id)')
+      .eq('id', reminderId)
+      .in('status', ['scheduled', 'rescheduled'])
+      .single();
+
+    if (fetchError || !reminder) {
+      return { success: false, message: 'Reminder not found or not eligible for sending' };
+    }
+
+    const client = reminder.clients as { company_name: string; primary_email: string; owner_id: string };
+
+    if (!client.primary_email) {
+      return { success: false, message: 'Client has no email address' };
+    }
+
+    // Get org's Postmark token
+    const { data: org } = await supabase
+      .from('organisations')
+      .select('id, postmark_server_token')
+      .eq('id', reminder.org_id)
+      .single();
+
+    if (!org?.postmark_server_token) {
+      return { success: false, message: 'No email configuration found for your organisation' };
+    }
+
+    // Get email content — use pre-resolved if available, otherwise generate on the fly
+    let subject: string;
+    let html: string;
+    let text: string;
+
+    if (reminder.html_body && reminder.resolved_subject && reminder.resolved_body) {
+      subject = reminder.resolved_subject;
+      html = reminder.html_body;
+      text = reminder.resolved_body;
+    } else {
+      const preview = await previewQueuedEmail(reminderId);
+      if ('error' in preview) {
+        return { success: false, message: `Failed to resolve email content: ${preview.error}` };
+      }
+      subject = preview.subject;
+      html = preview.html;
+      text = preview.text;
+    }
+
+    // Send via org's Postmark (admin client needed for app_settings reads)
+    const adminClient = createAdminClient();
+
+    const sendResult = await sendRichEmailForOrg({
+      to: client.primary_email,
+      subject,
+      html,
+      text,
+      clientId: reminder.client_id,
+      orgPostmarkToken: org.postmark_server_token,
+      supabase: adminClient,
+      orgId: org.id,
+      userId: client.owner_id,
+    });
+
+    // Update reminder status to sent
+    await supabase
+      .from('reminder_queue')
+      .update({ status: 'sent', sent_at: new Date().toISOString() })
+      .eq('id', reminderId);
+
+    // Log to email_log
+    await adminClient
+      .from('email_log')
+      .insert({
+        org_id: org.id,
+        reminder_queue_id: reminderId,
+        client_id: reminder.client_id,
+        filing_type_id: reminder.filing_type_id,
+        postmark_message_id: sendResult.messageId,
+        recipient_email: client.primary_email,
+        subject,
+        delivery_status: 'sent',
+      });
+
+    return { success: true, message: `Email sent to ${client.primary_email}` };
+  } catch (error) {
+    console.error('Error in sendNow:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to send email',
     };
   }
 }

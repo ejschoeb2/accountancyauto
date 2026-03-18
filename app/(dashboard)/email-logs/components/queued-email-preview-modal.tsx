@@ -9,7 +9,7 @@ import { ButtonBase } from '@/components/ui/button-base';
 import { Input } from '@/components/ui/input';
 import { previewQueuedEmail } from '@/app/actions/audit-log';
 import type { QueuedReminder } from '@/app/actions/audit-log';
-import { cancelScheduling, uncancelScheduling, rescheduleToSpecificDate } from '@/app/actions/email-queue';
+import { cancelScheduling, uncancelScheduling, rescheduleToSpecificDate, sendNow } from '@/app/actions/email-queue';
 import {
   X,
   ChevronLeft,
@@ -19,6 +19,7 @@ import {
   Ban,
   RotateCcw,
   Calendar,
+  Send,
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
@@ -58,6 +59,7 @@ export function QueuedEmailPreviewModal({
   const [actionLoading, setActionLoading] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
+  const [confirmSendNow, setConfirmSendNow] = useState(false);
 
   // Load preview when reminderId changes
   useEffect(() => {
@@ -68,6 +70,7 @@ export function QueuedEmailPreviewModal({
     setError(null);
     setShowReschedule(false);
     setRescheduleDate('');
+    setConfirmSendNow(false);
 
     previewQueuedEmail(reminderId)
       .then((result) => {
@@ -126,6 +129,26 @@ export function QueuedEmailPreviewModal({
   const isCancelled = reminder.status === 'cancelled';
   const canCancel = reminder.status === 'scheduled' || reminder.status === 'rescheduled';
   const canReschedule = reminder.status === 'scheduled' || reminder.status === 'rescheduled';
+  const canSendNow = reminder.status === 'scheduled' || reminder.status === 'rescheduled';
+
+  const handleSendNow = async () => {
+    if (!reminderId) return;
+    setActionLoading(true);
+    try {
+      const result = await sendNow({ reminderId });
+      if (result.success) {
+        toast.success(result.message);
+        setConfirmSendNow(false);
+        onStatusChange?.();
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('An error occurred while sending');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleCancelOrRestore = async () => {
     if (!reminderId) return;
@@ -224,6 +247,81 @@ export function QueuedEmailPreviewModal({
             {/* Header */}
             <h3 className="text-lg font-semibold">Email Preview</h3>
 
+            {/* Actions */}
+            {(canCancel || isCancelled || canReschedule || canSendNow) && (
+              <div className="flex gap-2 flex-wrap">
+                {canSendNow && !confirmSendNow && (
+                  <ButtonBase
+                    variant="green"
+                    buttonType="icon-text"
+                    onClick={() => setConfirmSendNow(true)}
+                    disabled={actionLoading}
+                  >
+                    <Send className="h-4 w-4" />
+                    Send Now
+                  </ButtonBase>
+                )}
+                {(canCancel || isCancelled) && (
+                  <ButtonBase
+                    variant={isCancelled ? 'green' : 'destructive'}
+                    buttonType="icon-text"
+                    onClick={handleCancelOrRestore}
+                    disabled={actionLoading}
+                  >
+                    {isCancelled ? (
+                      <>
+                        <RotateCcw className="h-4 w-4" />
+                        {actionLoading ? 'Restoring...' : 'Restore'}
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="h-4 w-4" />
+                        {actionLoading ? 'Cancelling...' : 'Cancel'}
+                      </>
+                    )}
+                  </ButtonBase>
+                )}
+                {canReschedule && !showReschedule && (
+                  <ButtonBase
+                    variant="amber"
+                    buttonType="icon-text"
+                    onClick={() => setShowReschedule(true)}
+                    disabled={actionLoading}
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Reschedule
+                  </ButtonBase>
+                )}
+              </div>
+            )}
+
+            {/* Send Now confirmation */}
+            {confirmSendNow && (
+              <div className="space-y-3 p-4 border rounded-lg bg-amber-500/5 border-amber-500/20">
+                <p className="text-sm text-foreground">
+                  Send this email to <span className="font-medium">{reminder.client_name}</span> right now?
+                </p>
+                <div className="flex gap-2">
+                  <ButtonBase
+                    variant="green"
+                    buttonType="icon-text"
+                    onClick={handleSendNow}
+                    disabled={actionLoading}
+                  >
+                    <Send className="h-4 w-4" />
+                    {actionLoading ? 'Sending...' : 'Confirm Send'}
+                  </ButtonBase>
+                  <ButtonBase
+                    variant="muted"
+                    buttonType="text-only"
+                    onClick={() => setConfirmSendNow(false)}
+                  >
+                    Cancel
+                  </ButtonBase>
+                </div>
+              </div>
+            )}
+
             {/* Metadata */}
             <div className="space-y-3">
               <div>
@@ -309,48 +407,6 @@ export function QueuedEmailPreviewModal({
                   >
                     Cancel
                   </ButtonBase>
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            {(canCancel || isCancelled || canReschedule) && (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Actions
-                </p>
-                <div className="flex gap-2">
-                  {(canCancel || isCancelled) && (
-                    <ButtonBase
-                      variant={isCancelled ? 'green' : 'destructive'}
-                      buttonType="icon-text"
-                      onClick={handleCancelOrRestore}
-                      disabled={actionLoading}
-                    >
-                      {isCancelled ? (
-                        <>
-                          <RotateCcw className="h-4 w-4" />
-                          {actionLoading ? 'Restoring...' : 'Restore'}
-                        </>
-                      ) : (
-                        <>
-                          <Ban className="h-4 w-4" />
-                          {actionLoading ? 'Cancelling...' : 'Cancel'}
-                        </>
-                      )}
-                    </ButtonBase>
-                  )}
-                  {canReschedule && !showReschedule && (
-                    <ButtonBase
-                      variant="amber"
-                      buttonType="icon-text"
-                      onClick={() => setShowReschedule(true)}
-                      disabled={actionLoading}
-                    >
-                      <Calendar className="h-4 w-4" />
-                      Reschedule
-                    </ButtonBase>
-                  )}
                 </div>
               </div>
             )}

@@ -6,24 +6,10 @@ import type { ClientStatusRow } from '@/lib/dashboard/metrics';
 import { CalendarClock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { getFilingTypeLabel } from '@/lib/constants/filing-types';
 
 interface UpcomingDeadlinesProps {
   clients: ClientStatusRow[];
-}
-
-// Map filing type IDs to short display names
-function getFilingTypeLabel(filingTypeId: string | null): string {
-  if (!filingTypeId) return '';
-
-  const labels: Record<string, string> = {
-    corporation_tax_payment: 'Corp Tax',
-    ct600_filing: 'CT600',
-    companies_house: 'Companies House',
-    vat_return: 'VAT Return',
-    self_assessment: 'Self Assessment',
-  };
-
-  return labels[filingTypeId] || filingTypeId;
 }
 
 export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {

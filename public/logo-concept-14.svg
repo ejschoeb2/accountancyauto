@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Concept 14: "Stopwatch Check" — Stopwatch with checkmark as the dial -->
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <!-- Top bar (winding button) -->
+  <line x1="10" y1="2" x2="14" y2="2"/>
+  <!-- Button stem -->
+  <line x1="12" y1="2" x2="12" y2="4.5"/>
+  <!-- Small side button at 2 o'clock position -->
+  <path d="M19.4 7.2 21 5.6"/>
+  <!-- Main circle body -->
+  <circle cx="12" cy="14" r="8"/>
+  <!-- Inner ring for depth -->
+  <circle cx="12" cy="14" r="5.5" stroke-width="1" opacity="0.3"/>
+  <!-- Checkmark as the central dial indicator — confirms deadline met -->
+  <polyline points="9 14 11.5 16.5 16 11" stroke-width="2.5"/>
+  <!-- Subtle tick marks around the face — 12, 3, 6, 9 positions -->
+  <line x1="12" y1="6.5" x2="12" y2="8" stroke-width="1.5"/>
+  <line x1="19.5" y1="14" x2="18" y2="14" stroke-width="1.5"/>
+  <line x1="12" y1="21.5" x2="12" y2="20" stroke-width="1.5"/>
+  <line x1="4.5" y1="14" x2="6" y2="14" stroke-width="1.5"/>
+</svg>

@@ -26,6 +26,8 @@ export interface SetupDraft {
   rejectMismatchedUploads?: boolean;
   sendHour?: number;
   deadlineSelections?: string[];
+  selectedClientTypes?: string[];
+  disabledDocuments?: string[]; // Array of "filingTypeId::documentTypeId" keys
   joiningExistingOrg?: boolean;
   updatedAt: string;
   /** Injected by getSetupDraft() from user_organisations — not stored in DB */
@@ -294,7 +296,7 @@ export async function migrateDraftClients(): Promise<{ error?: string; created: 
       active: true,
       reminders_paused: false,
       primary_email: d.primary_email || null,
-      client_type: d.client_type || null,
+      client_type: (d.client_type?.toLowerCase().trim() === "sole trader" ? "Individual" : d.client_type) || null,
       year_end_date: d.year_end_date || null,
       vat_registered: d.vat_registered ?? false,
       vat_stagger_group: d.vat_stagger_group ?? null,
@@ -816,16 +818,6 @@ export async function createOrgAndJoinAsAdmin(
   if (memberError) {
     throw new Error(`Failed to join organisation: ${memberError.message}`);
   }
-
-  await admin.from("app_settings").upsert(
-    {
-      org_id: org.id,
-      user_id: null,
-      key: "onboarding_complete",
-      value: "true",
-    },
-    { onConflict: "org_id,user_id,key" }
-  );
 
   return { orgId: org.id, slug: org.slug };
 }
@@ -1407,7 +1399,7 @@ export async function finaliseWizardSetup(
             active: true,
             reminders_paused: false,
             primary_email: d.primary_email || null,
-            client_type: d.client_type || null,
+            client_type: (d.client_type?.toLowerCase().trim() === "sole trader" ? "Individual" : d.client_type) || null,
             year_end_date: d.year_end_date || null,
             vat_registered: d.vat_registered ?? false,
             vat_stagger_group: d.vat_stagger_group ?? null,

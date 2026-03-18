@@ -45,6 +45,7 @@ export async function getDashboardMetrics(
         id,
         reminders_paused,
         records_received_for,
+        completed_for,
         year_end_date,
         vat_stagger_group
       `);
@@ -122,7 +123,9 @@ export async function getDashboardMetrics(
       records_received_for: Array.isArray(client.records_received_for)
         ? client.records_received_for
         : [],
-      completed_for: [], // TODO: Add when migration is applied
+      completed_for: Array.isArray(client.completed_for)
+        ? client.completed_for
+        : [],
       filings,
     });
 

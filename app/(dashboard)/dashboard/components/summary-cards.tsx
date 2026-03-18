@@ -61,7 +61,7 @@ export function SummaryCards({ metrics }: SummaryCardsProps) {
                   Records Received
                 </p>
                 <p className="text-4xl font-bold mt-3">
-                  {metrics.violetCount}
+                  {metrics.violetCount + metrics.completedCount}
                 </p>
               </div>
               <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">

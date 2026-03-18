@@ -8,6 +8,7 @@ import { ScheduleStepEditor, ScheduleStepAddButton } from '../../components/sche
 import { ClientExclusions } from '../../components/client-exclusions'
 import { ClientSelector } from '../../components/client-selector'
 import { Button } from '@/components/ui/button'
+import { ButtonBase } from '@/components/ui/button-base'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading'
 import {
@@ -99,6 +100,7 @@ export default function EditSchedulePage() {
 
   const [filingTypes, setFilingTypes] = useState<FilingType[]>([])
   const [emailTemplates, setEmailTemplates] = useState<Array<{ id: string; name: string; is_custom?: boolean; filing_type_id?: string | null }>>([])
+  const [clientCountByType, setClientCountByType] = useState<Record<string, number>>({})
 
   // Use separate schemas based on schedule type
   const currentSchema = scheduleType === 'custom' ? customScheduleSchema : filingScheduleSchema
@@ -144,6 +146,12 @@ export default function EditSchedulePage() {
         }
         const filingTypesData: FilingType[] = await filingTypesResponse.json()
         setFilingTypes(filingTypesData)
+
+        // Load client counts by type
+        const clientCountsResponse = await fetch('/api/clients/counts-by-type')
+        if (clientCountsResponse.ok) {
+          setClientCountByType(await clientCountsResponse.json())
+        }
 
         // Load email templates
         const templatesResponse = await fetch('/api/email-templates')
@@ -621,8 +629,15 @@ export default function EditSchedulePage() {
             if (types.length === 0) return null
             return (
               <div className="space-y-2">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Applies to business types</Label>
-                <p className="text-sm">{types.join(', ')}</p>
+                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Applies to</Label>
+                <p className="text-sm text-muted-foreground">
+                  {types
+                    .map(ct => {
+                      const count = clientCountByType[ct] ?? 0
+                      return `${count} ${count === 1 ? ct : ct === 'Limited Company' ? 'Limited Companies' : ct === 'Individual' ? 'Individuals' : ct === 'Partnership' ? 'Partnerships' : `${ct}s`}`
+                    })
+                    .join(', ')}
+                </p>
               </div>
             )
           })()}
@@ -782,15 +797,14 @@ export default function EditSchedulePage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documents to Collect</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <ButtonBase
+                  variant="violet"
+                  buttonType="icon-text"
                   onClick={() => { setDocSearch(''); setShowDocModal(true) }}
                 >
-                  <Plus className="h-4 w-4 mr-1.5" />
+                  <Pencil className="size-4" />
                   Manage Documents
-                </Button>
+                </ButtonBase>
               </div>
               {customDocReqs.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
@@ -902,7 +916,7 @@ export default function EditSchedulePage() {
 
       {/* Document Requirements Modal for Custom Deadlines */}
       <Dialog open={showDocModal} onOpenChange={setShowDocModal}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Manage Document Requirements</DialogTitle>
             <DialogDescription>
@@ -919,7 +933,7 @@ export default function EditSchedulePage() {
                 onChange={(e) => setDocSearch(e.target.value)}
               />
             </div>
-            <div className="max-h-72 overflow-y-auto space-y-1 rounded-md border p-2">
+            <div className="max-h-72 overflow-y-auto space-y-1 rounded-md border bg-background p-2">
               {allDocTypes
                 .filter(dt => !docSearch.trim() || dt.label.toLowerCase().includes(docSearch.toLowerCase()))
                 .map((dt) => {
@@ -972,9 +986,10 @@ export default function EditSchedulePage() {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" onClick={() => setShowDocModal(false)}>
-              Done
-            </Button>
+            <ButtonBase variant="blue" buttonType="icon-text" onClick={() => setShowDocModal(false)}>
+              <X className="size-4" />
+              Close
+            </ButtonBase>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -6,6 +6,7 @@ export interface OnboardingProgress {
   hasEmailSent: boolean;
   hasPortalLink: boolean;
   hasReviewedProgress: boolean;
+  hasCheckedQueue: boolean;
   dismissed: boolean;
 }
 
@@ -23,7 +24,7 @@ export interface GoFurtherProgress {
 export async function getOnboardingProgress(
   supabase: SupabaseClient
 ): Promise<OnboardingProgress> {
-  const [clientRes, templateRes, emailRes, portalRes, dismissedRes, progressReviewedRes] =
+  const [clientRes, templateRes, emailRes, portalRes, dismissedRes, progressReviewedRes, queueRes] =
     await Promise.all([
       // 1. Has at least one active client
       supabase
@@ -67,6 +68,12 @@ export async function getOnboardingProgress(
         .eq('key', 'progress_reviewed')
         .is('user_id', null)
         .maybeSingle(),
+
+      // 6. Has queued emails to check
+      supabase
+        .from('reminder_queue')
+        .select('id', { count: 'exact', head: true })
+        .limit(1),
     ]);
 
   return {
@@ -75,6 +82,7 @@ export async function getOnboardingProgress(
     hasEmailSent: (emailRes.count ?? 0) > 0,
     hasPortalLink: (portalRes.count ?? 0) > 0,
     hasReviewedProgress: progressReviewedRes.data?.value === 'true',
+    hasCheckedQueue: (queueRes.count ?? 0) > 0,
     dismissed: dismissedRes.data?.value === 'true',
   };
 }
