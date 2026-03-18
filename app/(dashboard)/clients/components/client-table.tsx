@@ -669,7 +669,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                 />
               </div>
               {filingStatus.doc_required_count > 0 && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   {filingStatus.doc_received_count}/{filingStatus.doc_required_count} docs received
                 </span>
               )}

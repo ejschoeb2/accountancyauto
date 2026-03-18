@@ -423,10 +423,11 @@ export async function getClientFilingStatuses(
 
   if (assignmentsError) throw new Error(assignmentsError.message);
 
-  // Fetch document requirement counts per filing type (global reference data)
+  // Fetch mandatory document requirement counts per filing type (global reference data)
   const { data: reqRows } = await supabase
     .from('filing_document_requirements')
-    .select('filing_type_id');
+    .select('filing_type_id')
+    .eq('is_mandatory', true);
 
   const docRequirementCounts = new Map<string, number>();
   for (const row of reqRows ?? []) {
