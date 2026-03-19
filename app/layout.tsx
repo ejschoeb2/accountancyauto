@@ -17,6 +17,17 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Prompt",
   description: "Client reminder system",
+  openGraph: {
+    title: "Prompt",
+    description: "Client reminder system",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Prompt",
+    description: "Client reminder system",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
