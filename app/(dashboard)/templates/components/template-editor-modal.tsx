@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-import { CheckCircle, X, Link, AlertCircle, Trash2 } from 'lucide-react'
+import { CheckCircle, X, Link, AlertCircle, Trash2, Send } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -29,9 +29,11 @@ interface TemplateEditorModalProps {
   onOpenChange: (open: boolean) => void
   /** Null = create mode, string = edit mode */
   templateId: string | null
+  /** Schedule names this template is used in */
+  usedInSchedules?: string[]
 }
 
-export function TemplateEditorModal({ open, onOpenChange, templateId }: TemplateEditorModalProps) {
+export function TemplateEditorModal({ open, onOpenChange, templateId, usedInSchedules = [] }: TemplateEditorModalProps) {
   const router = useRouter()
   const isEditMode = !!templateId
 
@@ -165,6 +167,15 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
         <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>{isEditMode ? 'Edit Template' : 'Create Template'}</DialogTitle>
+            {isEditMode && (
+              <DialogDescription className="flex items-center gap-3 pt-1">
+                <span className="text-muted-foreground">
+                  Used in: {usedInSchedules.length > 0
+                    ? usedInSchedules.join(', ')
+                    : 'Not used in any schedules'}
+                </span>
+              </DialogDescription>
+            )}
           </DialogHeader>
 
           {loading ? (
@@ -233,7 +244,7 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
 
               {/* Action buttons */}
               <div className="flex items-center justify-between pt-2">
-                <div>
+                <div className="flex items-center gap-2">
                   {isEditMode && (
                     <IconButtonWithText
                       variant="destructive"
@@ -242,6 +253,19 @@ export function TemplateEditorModal({ open, onOpenChange, templateId }: Template
                     >
                       <Trash2 className="h-5 w-5" />
                       Delete
+                    </IconButtonWithText>
+                  )}
+                  {isEditMode && (
+                    <IconButtonWithText
+                      variant="green"
+                      onClick={() => {
+                        onOpenChange(false)
+                        router.push('/clients')
+                      }}
+                      title="Go to clients to send this template"
+                    >
+                      <Send className="h-5 w-5" />
+                      Send Email
                     </IconButtonWithText>
                   )}
                 </div>

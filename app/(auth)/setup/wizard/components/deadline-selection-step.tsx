@@ -447,7 +447,7 @@ function DocumentRequirementsPart({
           <h1 className="text-2xl font-bold tracking-tight">Document requirements</h1>
           <p className="text-sm text-muted-foreground">
             Choose which documents you require from clients for each deadline. These form the
-            checklist clients see in their portal. You can customise per-client later.
+            checklist that clients see on their reminder emails and the upload portal (optional). You can customise per-client later.
           </p>
         </div>
 

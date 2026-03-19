@@ -6,7 +6,7 @@ export const FILING_TYPE_LABELS: Record<FilingTypeId | string, string> = {
   companies_house: 'Companies House',
   vat_return: 'VAT Return',
   self_assessment: 'Self Assessment',
-  mtd_quarterly_update: 'MTD Quarterly',
+  mtd_quarterly_update: 'MTD Quarterly Return',
   confirmation_statement: 'Confirmation Statement',
   p11d_filing: 'P11D',
   paye_monthly: 'PAYE Monthly',
@@ -30,12 +30,10 @@ export const FILING_TYPES_BY_CLIENT_TYPE: Record<string, FilingTypeId[]> = {
     'confirmation_statement', 'p11d_filing', 'paye_monthly', 'cis_monthly_return', 'payroll_year_end',
   ],
   'Partnership': [
-    'self_assessment', 'vat_return', 'mtd_quarterly_update', 'p11d_filing',
-    'paye_monthly', 'cis_monthly_return', 'payroll_year_end', 'sa_payment_on_account', 'partnership_tax_return',
+    'partnership_tax_return', 'vat_return',
   ],
   'Individual': [
-    'self_assessment', 'vat_return', 'mtd_quarterly_update',
-    'paye_monthly', 'cis_monthly_return', 'payroll_year_end', 'sa_payment_on_account', 'trust_tax_return',
+    'self_assessment', 'mtd_quarterly_update', 'sa_payment_on_account', 'trust_tax_return',
   ],
 };
 

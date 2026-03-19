@@ -37,7 +37,7 @@ function tiptapJsonToHtml(node: Record<string, any>): string {
       return renderChildren(node);
     case 'paragraph': {
       const inner = renderChildren(node);
-      return `<p>${inner || '<br>'}</p>`;
+      return `<p style="margin:0 0 1em 0;">${inner || '<br>'}</p>`;
     }
     case 'text': {
       let text = (node.text ?? '')

@@ -40,7 +40,7 @@ export function BulkActionsToolbar({
             onClick={onSendEmail}
           >
             <Mail className="size-4" />
-            Send Bulk Email
+            Send Email
           </ButtonBase>
 
           <ButtonBase

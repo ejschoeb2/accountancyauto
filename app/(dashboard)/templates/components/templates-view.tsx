@@ -435,6 +435,7 @@ export function TemplatesView({
         open={modalOpen}
         onOpenChange={setModalOpen}
         templateId={editingTemplateId}
+        usedInSchedules={editingTemplateId ? templateUsageMap[editingTemplateId] || [] : []}
       />
     </div>
   )

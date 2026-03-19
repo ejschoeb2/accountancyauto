@@ -61,19 +61,28 @@ export function UploadChecksStep({ onComplete, onBack, initialSelection, initial
         <div className="space-y-1">
           <h2 className="text-2xl font-bold tracking-tight">Upload Checks</h2>
           <p className="text-sm text-muted-foreground">
-            Choose what processing Prompt runs when clients upload documents through the portal.
-            Upload checks can be tested in the sandbox — you can change this at any time from Settings.
+            When a client uploads a document through the portal, Prompt can automatically check it
+            for you &mdash; for example, catching a P60 with the wrong tax year or reading key
+            details like a PAYE reference. Choose below how much processing you&apos;d like. You can
+            try it out with a test upload in the sandbox (a safe testing area where nothing
+            is sent to real clients) and change this at any time from Settings.
           </p>
         </div>
 
         <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-500/10">
           <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-blue-600">
-            <strong className="font-medium">Your data stays private.</strong> Upload checks run
-            entirely in memory &mdash; Prompt scans each file briefly to extract metadata or flag
-            mismatches, then discards the content. No document text, images, or sensitive data is
-            stored by Prompt. Only lightweight metadata (e.g. tax year, PAYE reference) is saved.
-          </p>
+          <div className="text-sm text-blue-600 space-y-1">
+            <p>
+              <strong className="font-medium">Your clients&apos; data stays private.</strong> When
+              Prompt checks a document, it reads the file briefly in memory, pulls out the details
+              it needs (like a tax year or reference number), and then immediately discards the
+              original content.
+            </p>
+            <p>
+              No document text, images, or sensitive information is ever stored by Prompt &mdash;
+              only the small pieces of metadata it extracted are saved alongside the upload record.
+            </p>
+          </div>
         </div>
 
         {/* Mode highlights */}

@@ -472,9 +472,9 @@ const TEMPLATES = [
   },
 
   {
-    name: "MTD Quarterly Update Reminder",
+    name: "MTD Quarterly Return Reminder",
     subject:
-      "MTD Quarterly Update due {{deadline_short}} — {{client_name}}",
+      "MTD Quarterly Return due {{deadline_short}} — {{client_name}}",
     body_json: {
       type: "doc",
       content: [
@@ -495,7 +495,7 @@ const TEMPLATES = [
           content: [
             { text: "Your ", type: "text" },
             {
-              text: "MTD Quarterly Update",
+              text: "MTD Quarterly Return",
               type: "text",
               marks: [{ type: "bold" }],
             },
@@ -1058,11 +1058,11 @@ export const DEFAULT_SCHEDULES: Array<{
     ],
   },
   {
-    name: "MTD Quarterly Update Reminders",
+    name: "MTD Quarterly Return Reminders",
     description: "Automated reminders for MTD for Income Tax quarterly submissions.",
     filing_type_id: "mtd_quarterly_update",
     steps: [
-      ["MTD Quarterly Update Reminder", 14],
+      ["MTD Quarterly Return Reminder", 14],
       ["Urgent Final Notice", 5],
     ],
   },
