@@ -224,7 +224,51 @@ export function calculateCISMonthlyDeadline(fromDate: Date = new Date()): Date {
 // ============================================================================
 
 /**
- * Dispatcher function to calculate deadline based on filing type
+ * Year-end-based annual filing types whose deadlines are derived from year_end_date.
+ * These need the "loop forward" logic to find the next upcoming deadline.
+ */
+const YEAR_END_ANNUAL_TYPES = ['corporation_tax_payment', 'ct600_filing', 'companies_house'] as const;
+
+type YearEndCalculator = (yearEnd: Date) => Date;
+
+const YEAR_END_CALCULATORS: Record<string, YearEndCalculator> = {
+  corporation_tax_payment: calculateCorporationTaxPayment,
+  ct600_filing: calculateCT600Filing,
+  companies_house: calculateCompaniesHouseAccounts,
+};
+
+/**
+ * Find the next upcoming deadline for a year-end-based annual filing.
+ * Starts from 2 years before the stored year_end_date and advances year by year
+ * until the computed deadline is in the future. This ensures each filing type
+ * independently finds its own next deadline, regardless of whether year_end_date
+ * was prematurely advanced by another filing's rollover.
+ */
+function findNextAnnualDeadline(calculator: YearEndCalculator, yearEndDate: string): Date | null {
+  const today = new UTCDate();
+  // Start 2 years before stored year end to catch deadlines from earlier periods
+  // that may still be upcoming (e.g. CT600 is YE+12m, so it extends further)
+  let yearEnd = addYears(new UTCDate(yearEndDate), -2);
+
+  for (let i = 0; i < 10; i++) {
+    const deadline = calculator(yearEnd);
+    if (deadline > today) return deadline;
+    yearEnd = addYears(yearEnd, 1);
+  }
+
+  return null;
+}
+
+/**
+ * Dispatcher function to calculate the next upcoming deadline for a filing type.
+ *
+ * For year-end-based annual filings (Corp Tax, CT600, Companies House), this
+ * loops forward from the stored year_end_date to find the first deadline that
+ * hasn't passed yet. This means each filing type independently finds its own
+ * next deadline — rolling over one filing never skips another's deadline.
+ *
+ * For all other filing types (VAT, Self Assessment, monthly, etc.), the existing
+ * logic already finds the next upcoming deadline naturally.
  */
 export function calculateDeadline(
   filingTypeId: string,
@@ -236,19 +280,14 @@ export function calculateDeadline(
 ): Date | null {
   const { year_end_date, vat_stagger_group, incorporation_date } = clientMetadata;
 
+  // Year-end-based annual filings: loop forward to find next upcoming
+  const calculator = YEAR_END_CALCULATORS[filingTypeId];
+  if (calculator) {
+    if (!year_end_date) return null;
+    return findNextAnnualDeadline(calculator, year_end_date);
+  }
+
   switch (filingTypeId) {
-    case 'corporation_tax_payment':
-      if (!year_end_date) return null;
-      return calculateCorporationTaxPayment(new Date(year_end_date));
-
-    case 'ct600_filing':
-      if (!year_end_date) return null;
-      return calculateCT600Filing(new Date(year_end_date));
-
-    case 'companies_house':
-      if (!year_end_date) return null;
-      return calculateCompaniesHouseAccounts(new Date(year_end_date));
-
     case 'vat_return': {
       if (!vat_stagger_group) return null;
       const nextQuarterEnd = getNextQuarterEnd(vat_stagger_group as VatStaggerGroup, new Date());
@@ -294,5 +333,40 @@ export function calculateDeadline(
 
     default:
       return null;
+  }
+}
+
+/**
+ * Calculate the deadline for the CURRENT period only (no looping forward).
+ * Returns the deadline derived directly from the stored year_end_date,
+ * which may be in the past. Used by the rollover detector to check
+ * whether a filing's current-period deadline has passed.
+ */
+export function calculateDeadlineForCurrentPeriod(
+  filingTypeId: string,
+  clientMetadata: {
+    year_end_date?: string;
+    vat_stagger_group?: number;
+    incorporation_date?: string;
+  }
+): Date | null {
+  const { year_end_date, vat_stagger_group, incorporation_date } = clientMetadata;
+
+  switch (filingTypeId) {
+    case 'corporation_tax_payment':
+      if (!year_end_date) return null;
+      return calculateCorporationTaxPayment(new Date(year_end_date));
+
+    case 'ct600_filing':
+      if (!year_end_date) return null;
+      return calculateCT600Filing(new Date(year_end_date));
+
+    case 'companies_house':
+      if (!year_end_date) return null;
+      return calculateCompaniesHouseAccounts(new Date(year_end_date));
+
+    default:
+      // Non-annual types: delegate to the standard dispatcher
+      return calculateDeadline(filingTypeId, { year_end_date, vat_stagger_group, incorporation_date });
   }
 }

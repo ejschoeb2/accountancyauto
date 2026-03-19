@@ -429,21 +429,10 @@ export async function processRemindersForUser(
             new Date(deadline.deadline_date)
           );
 
-          // Update client's year_end_date if applicable (for annual filings)
-          if (client.year_end_date && ['corporation_tax_payment', 'ct600_filing', 'companies_house'].includes(deadline.filing_type_id)) {
-            // For annual filings, advance the year_end_date by 1 year
-            const nextYearEnd = new UTCDate(client.year_end_date);
-            nextYearEnd.setUTCFullYear(nextYearEnd.getUTCFullYear() + 1);
-
-            const { error: updateClientError } = await supabase
-              .from('clients')
-              .update({ year_end_date: format(nextYearEnd, 'yyyy-MM-dd') })
-              .eq('id', client.id);
-
-            if (updateClientError) {
-              result.errors.push(`[${org.name}:${userId}] Failed to update client year_end_date: ${updateClientError.message}`);
-            }
-          }
+          // Note: year_end_date is NOT advanced here. calculateDeadline's
+          // loop-forward logic independently finds the next upcoming deadline
+          // for each filing type, preventing one filing's rollover from
+          // skipping another's still-upcoming deadline.
 
           result.rolled_over++;
         } catch (error) {

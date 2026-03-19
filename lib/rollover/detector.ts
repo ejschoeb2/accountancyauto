@@ -1,5 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { calculateDeadline } from '@/lib/deadlines/calculators';
+import { calculateDeadlineForCurrentPeriod } from '@/lib/deadlines/calculators';
 import { format, differenceInDays } from 'date-fns';
 import { UTCDate } from '@date-fns/utc';
 
@@ -79,8 +79,9 @@ export async function getRolloverCandidates(
 
       if (!hasAssignment) continue;
 
-      // Calculate deadline for this filing type
-      const deadline = calculateDeadline(filingTypeId, {
+      // Calculate deadline for the CURRENT period (not next upcoming)
+      // so we can detect when it has passed and the filing is ready for rollover
+      const deadline = calculateDeadlineForCurrentPeriod(filingTypeId, {
         year_end_date: client.year_end_date || undefined,
         vat_stagger_group: client.vat_stagger_group || undefined,
       });

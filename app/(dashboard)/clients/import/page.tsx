@@ -46,7 +46,7 @@ import {
   X,
   Info,
 } from "lucide-react";
-import { CSV_COLUMNS, rollYearEndToFuture } from "@/lib/utils/csv-template";
+import { CSV_COLUMNS } from "@/lib/utils/csv-template";
 import { importClientMetadata, type CsvImportResult } from "@/app/actions/csv";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -183,9 +183,6 @@ export default function ClientImportPage() {
   const [clientLimit, setClientLimit] = useState<number | null>(null);
   const [currentClientCount, setCurrentClientCount] = useState(0);
 
-  // Rollover tracking
-  const [rolledOverCount, setRolledOverCount] = useState(0);
-
   // Cache parsed data across React StrictMode double-invoke (mount→unmount→remount)
   const importDataCacheRef = useRef<ParsedCsvData | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -292,7 +289,6 @@ export default function ClientImportPage() {
 
     setError(null);
 
-    let rolloverCount = 0;
     const transformed = parsedData.rows
       .map((row) => {
         const mappedData: Record<string, string> = {};
@@ -300,18 +296,12 @@ export default function ClientImportPage() {
           if (csvColumn) mappedData[systemField] = row[csvColumn] || "";
         });
 
-        const parsedDate = parseDate(mappedData.year_end_date || "");
-        const rolledDate = rollYearEndToFuture(parsedDate);
-        if (parsedDate && rolledDate && parsedDate !== rolledDate) {
-          rolloverCount++;
-        }
-
         return {
           id: crypto.randomUUID(),
           company_name: mappedData.company_name || "",
           primary_email: mappedData.primary_email || null,
           client_type: mappedData.client_type || null,
-          year_end_date: rolledDate,
+          year_end_date: parseDate(mappedData.year_end_date || ""),
           vat_registered: mappedData.vat_registered
             ? ["yes", "true", "1"].includes(
                 mappedData.vat_registered.toLowerCase()
@@ -325,7 +315,6 @@ export default function ClientImportPage() {
       })
       .filter((row) => row.company_name.trim() !== "");
 
-    setRolledOverCount(rolloverCount);
     setEditableRows(transformed);
     setStepState("edit-data");
   }, [parsedData, columnMapping, validateMapping]);
@@ -766,17 +755,6 @@ export default function ClientImportPage() {
                       <strong>{incompleteRows.length} {incompleteRows.length === 1 ? "row is" : "rows are"}</strong>{" "}
                       missing required fields. Fill in <strong>Email</strong>, <strong>Client Type</strong> and{" "}
                       <strong>Year End Date</strong> for every row before importing.
-                    </p>
-                  </div>
-                )}
-
-                {rolledOverCount > 0 && (
-                  <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-xl">
-                    <Info className="size-5 text-blue-600 shrink-0 mt-0.5" />
-                    <p className="text-sm text-blue-600">
-                      <strong>{rolledOverCount} {rolledOverCount === 1 ? "client has" : "clients have"}</strong>{" "}
-                      a year end date that has already passed, so {rolledOverCount === 1 ? "it has" : "they have"} been
-                      rolled forward to the next tax year. You can adjust individual dates in the table below.
                     </p>
                   </div>
                 )}
