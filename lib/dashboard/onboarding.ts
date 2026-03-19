@@ -1,12 +1,10 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface OnboardingProgress {
-  hasClient: boolean;
-  hasEmailTemplate: boolean;
-  hasEmailSent: boolean;
-  hasPortalLink: boolean;
   hasReviewedProgress: boolean;
+  hasCheckedTemplates: boolean;
   hasCheckedQueue: boolean;
+  hasEmailSent: boolean;
   dismissed: boolean;
 }
 
@@ -24,33 +22,13 @@ export interface GoFurtherProgress {
 export async function getOnboardingProgress(
   supabase: SupabaseClient
 ): Promise<OnboardingProgress> {
-  const [clientRes, templateRes, emailRes, portalRes, dismissedRes, progressReviewedRes, queueRes] =
+  const [emailRes, dismissedRes, progressReviewedRes, templatesVisitedRes, activityVisitedRes] =
     await Promise.all([
-      // 1. Has at least one active client
-      supabase
-        .from('clients')
-        .select('id', { count: 'exact', head: true })
-        .eq('active', true)
-        .limit(1),
-
-      // 2. Has at least one custom email template
-      supabase
-        .from('email_templates')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_custom', true)
-        .limit(1),
-
-      // 3. Has sent at least one email
+      // Step 4: Has sent at least one email (data-derived)
       supabase
         .from('email_log')
         .select('id', { count: 'exact', head: true })
         .not('sent_at', 'is', null)
-        .limit(1),
-
-      // 4. Has created at least one portal link
-      supabase
-        .from('upload_portal_tokens')
-        .select('id', { count: 'exact', head: true })
         .limit(1),
 
       // Check if dismissed
@@ -61,7 +39,7 @@ export async function getOnboardingProgress(
         .is('user_id', null)
         .maybeSingle(),
 
-      // 5. Has reviewed client progress
+      // Step 1: Has reviewed client progress (explicit)
       supabase
         .from('app_settings')
         .select('value')
@@ -69,20 +47,28 @@ export async function getOnboardingProgress(
         .is('user_id', null)
         .maybeSingle(),
 
-      // 6. Has queued emails to check
+      // Step 2: Has visited templates page (explicit)
       supabase
-        .from('reminder_queue')
-        .select('id', { count: 'exact', head: true })
-        .limit(1),
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'templates_visited')
+        .is('user_id', null)
+        .maybeSingle(),
+
+      // Step 3: Has visited activity page (explicit)
+      supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'activity_visited')
+        .is('user_id', null)
+        .maybeSingle(),
     ]);
 
   return {
-    hasClient: (clientRes.count ?? 0) > 0,
-    hasEmailTemplate: (templateRes.count ?? 0) > 0,
-    hasEmailSent: (emailRes.count ?? 0) > 0,
-    hasPortalLink: (portalRes.count ?? 0) > 0,
     hasReviewedProgress: progressReviewedRes.data?.value === 'true',
-    hasCheckedQueue: (queueRes.count ?? 0) > 0,
+    hasCheckedTemplates: templatesVisitedRes.data?.value === 'true',
+    hasCheckedQueue: activityVisitedRes.data?.value === 'true',
+    hasEmailSent: (emailRes.count ?? 0) > 0,
     dismissed: dismissedRes.data?.value === 'true',
   };
 }

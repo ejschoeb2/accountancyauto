@@ -147,9 +147,9 @@ export const FeaturesSection = () => (
 
 export const DocumentCollectionSection = () => (
   <FeatureGroup
-    label="Collect Records, Not Excuses"
+    label="Optional Power Features"
     heading={<>Documents in.<br className="hidden lg:block" /> Chasing over.</>}
-    subtitle="Turn every reminder into a collection point. Clients upload directly, documents are verified automatically, and follow-ups know exactly what's still missing."
+    subtitle="Already running smoothly? Take it further. These advanced features turn reminders into a full document collection pipeline — enable them when you're ready, or never. Your call."
     features={documentFeatures}
   />
 );

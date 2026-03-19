@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { TemplatesView } from './components/templates-view'
-import { getClientPortalEnabled } from '@/app/actions/settings'
+import { getClientPortalEnabled, markTemplatesVisited } from '@/app/actions/settings'
 import type { EmailTemplate } from '@/lib/types/database'
 import type { Metadata } from 'next'
 
@@ -24,6 +24,9 @@ function templateHasPortalLink(bodyJson: any): boolean {
 export default async function TemplatesPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Mark templates as visited for onboarding tracking (fire-and-forget)
+  markTemplatesVisited().catch(() => {});
 
   const [{ data: templates }, { data: scheduleSteps }, { data: schedules }, portalEnabled] =
     await Promise.all([

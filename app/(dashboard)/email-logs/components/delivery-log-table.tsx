@@ -38,7 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { getAuditLog, getQueuedReminders, type AuditEntry, type QueuedReminder } from '@/app/actions/audit-log';
-import { cancelScheduling, pauseScheduling, rescheduleToSpecificDate, rescheduleWithOffset } from '@/app/actions/email-queue';
+import { cancelScheduling, sendNow, rescheduleToSpecificDate, rescheduleWithOffset } from '@/app/actions/email-queue';
 import { QueuedEmailPreviewModal } from './queued-email-preview-modal';
 import { SentEmailDetailModal } from './sent-email-detail-modal';
 import { format } from 'date-fns';
@@ -51,7 +51,6 @@ import {
   Check,
   CheckCircle,
   Clock,
-  Pause,
   XCircle,
   Send,
   Loader2,
@@ -565,28 +564,39 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
   };
 
   // Handler functions
-  const handlePauseScheduling = async () => {
+  const handleBulkSendNow = async () => {
     if (selectedRows.size === 0) return;
 
-    if (!confirm(`Are you sure you want to pause ${selectedRows.size} email(s)?`)) {
+    if (!confirm(`Are you sure you want to send ${selectedRows.size} email(s) immediately?`)) {
       return;
     }
 
     try {
       const selectedIds = Array.from(selectedRows);
-      const result = await pauseScheduling({ reminderIds: selectedIds });
+      let successCount = 0;
+      let failCount = 0;
 
-      if (result.success) {
-        alert(result.message);
-        await fetchData();
-        setSelectedRows(new Set());
-        setShowEditPanel(false);
-      } else {
-        alert(`Error: ${result.message}`);
+      for (const id of selectedIds) {
+        const result = await sendNow({ reminderId: id });
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
       }
+
+      if (failCount === 0) {
+        alert(`Successfully sent ${successCount} email(s)`);
+      } else {
+        alert(`Sent ${successCount} email(s), ${failCount} failed`);
+      }
+
+      await fetchData();
+      setSelectedRows(new Set());
+      setShowEditPanel(false);
     } catch (error) {
-      console.error('Error pausing scheduling:', error);
-      alert('An error occurred while pausing scheduling');
+      console.error('Error sending emails:', error);
+      alert('An error occurred while sending emails');
     }
   };
 
@@ -1171,6 +1181,15 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
               {selectedRows.size > 0 && (
                 <>
                   <ButtonBase
+                    variant="green"
+                    buttonType="icon-text"
+                    onClick={() => handleBulkSendNow()}
+                  >
+                    <Send className="size-4" />
+                    Send Now
+                  </ButtonBase>
+
+                  <ButtonBase
                     variant="amber"
                     buttonType="icon-text"
                     onClick={() => setShowRescheduleModal(true)}
@@ -1180,21 +1199,12 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
                   </ButtonBase>
 
                   <ButtonBase
-                    variant="muted"
-                    buttonType="icon-text"
-                    onClick={() => handlePauseScheduling()}
-                  >
-                    <Pause className="size-4" />
-                    Pause Email
-                  </ButtonBase>
-
-                  <ButtonBase
                     variant="destructive"
                     buttonType="icon-text"
                     onClick={() => handleCancelScheduling()}
                   >
                     <X className="size-4" />
-                    Cancel Email
+                    Remove Email
                   </ButtonBase>
 
                   <div className="w-px h-6 bg-border" />

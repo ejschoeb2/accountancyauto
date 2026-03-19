@@ -148,7 +148,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [sortBy, setSortBy] = useState<string>(
     initialSort && validSorts.includes(initialSort) ? initialSort : "most-urgent"
   );
-  const [viewMode, setViewMode] = useState<ViewMode>(initialView ?? 'data');
+  const [viewMode, setViewMode] = useState<ViewMode>(initialView ?? 'status');
   const [isProgressReviewed, setIsProgressReviewed] = useState(progressReviewed);
   const [deadlineClientType, setDeadlineClientType] = useState<string>('Limited Company');
 
@@ -890,8 +890,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   // Define status view columns — only filing types applicable to selected client type
   const statusColumns = useMemo<ColumnDef<Client>[]>(
     () => [
-      // Only show select column in status edit mode (for bulk actions)
-      ...(deadlineEditMode === 'status' ? [{
+      {
         id: "select",
         header: ({ table }) => (
           <div className="flex items-center justify-center">
@@ -927,7 +926,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         enableSorting: false,
         enableHiding: false,
-      }] as ColumnDef<Client>[] : []),
+      },
       {
         accessorKey: "display_name",
         header: () => (
@@ -1540,15 +1539,25 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           </div>
 
           {/* View Toggle */}
-          <ToggleGroup
-            options={[
-              { value: 'data', label: 'Client Data' },
-              { value: 'status', label: 'Client Deadlines' },
-            ]}
-            value={viewMode}
-            onChange={setViewMode}
-            variant="muted"
-          />
+          <div className="flex flex-col items-end gap-4">
+            <ToggleGroup
+              options={[
+                { value: 'data', label: 'Client Data' },
+                { value: 'status', label: 'Client Deadlines' },
+              ]}
+              value={viewMode}
+              onChange={setViewMode}
+              variant="muted"
+            />
+            {viewMode === 'status' && (
+              <ToggleGroup
+                options={CLIENT_TYPE_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+                value={deadlineClientType}
+                onChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}
+                variant="muted"
+              />
+            )}
+          </div>
         </div>
 
       {/* Progress review alert — deadlines view only */}
@@ -1674,22 +1683,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                 {deadlineEditMode === 'progress' ? <XIcon className="h-5 w-5" /> : <ClipboardCheck className="h-5 w-5" />}
                 {deadlineEditMode === 'progress' ? "Done" : "Edit Progress"}
               </IconButtonWithText>
-              <div className="w-px h-6 bg-border mx-1" />
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">Client type:</span>
-                <Select value={deadlineClientType} onValueChange={(v) => { setDeadlineClientType(v); setRowSelection({}); }}>
-                  <SelectTrigger className="h-9 min-w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CLIENT_TYPE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="w-px h-6 bg-border mx-1" />
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">Sort by:</span>

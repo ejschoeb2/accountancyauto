@@ -1,12 +1,13 @@
 'use client';
 
-import { Suspense, useState, useEffect, Component, type ReactNode } from 'react';
+import { Suspense, useState, useEffect, useRef, Component, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { DeliveryLogTable } from '@/app/(dashboard)/email-logs/components/delivery-log-table';
 import { UploadsTable } from '@/app/(dashboard)/email-logs/components/uploads-table';
 import { ToggleGroup } from '@/components/ui/toggle-group';
 import { AlertCircle } from 'lucide-react';
+import { markActivityVisited } from '@/app/actions/settings';
 
 type DirectionMode = 'outbound' | 'uploads';
 type ViewMode = 'sent' | 'queued';
@@ -54,6 +55,14 @@ function ActivityContent() {
 
   const [directionMode, setDirectionMode] = useState<DirectionMode>(initialDirection);
   const [viewMode, setViewMode] = useState<ViewMode>(initialView);
+  const hasMarkedVisited = useRef(false);
+
+  // Mark activity page as visited for onboarding tracking
+  useEffect(() => {
+    if (hasMarkedVisited.current) return;
+    hasMarkedVisited.current = true;
+    markActivityVisited().catch(() => {});
+  }, []);
 
   // Sync state when URL params change (e.g. navigating from dashboard cards)
   useEffect(() => {

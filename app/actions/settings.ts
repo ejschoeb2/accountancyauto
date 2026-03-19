@@ -383,6 +383,38 @@ export async function markOnboardingComplete(): Promise<{ error?: string }> {
   return {};
 }
 
+// --- Onboarding Step Tracking ---
+
+export async function markTemplatesVisited(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { org_id: orgId, user_id: null, key: "templates_visited", value: "true" },
+      { onConflict: "org_id,user_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function markActivityVisited(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { org_id: orgId, user_id: null, key: "activity_visited", value: "true" },
+      { onConflict: "org_id,user_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
 // --- Progress Review ---
 
 export async function markProgressReviewed(): Promise<{ error?: string }> {

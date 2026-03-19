@@ -378,7 +378,7 @@ export function DeadlinesView({
                       <div className="flex items-center gap-2 shrink-0 pointer-events-auto">
                         {isActive && (
                           <ButtonBase
-                            variant="amber"
+                            variant="destructive"
                             buttonType="icon-text"
                             disabled={isPending}
                             onClick={(e) => {

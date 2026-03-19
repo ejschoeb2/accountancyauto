@@ -106,7 +106,7 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
         ) : (
           <>
             {/* Stacked bar */}
-            <div className="flex h-2.5 rounded-full overflow-hidden gap-px">
+            <div className="flex h-4 rounded-full overflow-hidden gap-px">
               {visibleSegments.map((item) => (
                 <Link
                   key={item.filterValue}
