@@ -895,6 +895,69 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           );
         },
       },
+      // Reminders column
+      {
+        id: "reminders_paused_status",
+        header: () => (
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+            Reminders
+          </span>
+        ),
+        cell: ({ row }: { row: Row<Client> }) => {
+          const client = row.original;
+
+          // Edit status mode: show editable dropdown
+          if (deadlineEditMode === 'status') {
+            return (
+              <EditableCell
+                value={client.reminders_paused ? "true" : "false"}
+                type="select"
+                options={[
+                  { value: "false", label: "Active" },
+                  { value: "true", label: "Paused" },
+                ]}
+                isEditMode={true}
+                onSave={async (value) => {
+                  const newPaused = value === "true";
+                  const previousData = [...data];
+                  setData((prev) =>
+                    prev.map((c) =>
+                      c.id === client.id ? { ...c, reminders_paused: newPaused } : c
+                    )
+                  );
+                  try {
+                    const response = await fetch(`/api/clients/${client.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ reminders_paused: newPaused }),
+                    });
+                    if (!response.ok) throw new Error('Failed to update reminders status');
+                    toast.success(newPaused ? 'Reminders paused' : 'Reminders resumed');
+                  } catch (error) {
+                    setData(previousData);
+                    toast.error(error instanceof Error ? error.message : 'Failed to update');
+                  }
+                }}
+              />
+            );
+          }
+
+          // View mode
+          if (!client.reminders_paused) {
+            return (
+              <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center">
+                <span className="text-sm font-medium text-green-600">Active</span>
+              </div>
+            );
+          }
+          return (
+            <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
+              <span className="text-sm font-medium text-status-neutral">Paused</span>
+            </div>
+          );
+        },
+        enableSorting: false,
+      },
       // Filing type status columns — only those applicable to selected client type
       ...activeDeadlineFilingTypes.map((filingTypeId) => ({
         id: filingTypeId,
@@ -912,17 +975,19 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           const toggleKey = `${client.id}-${filingTypeId}`;
           const isToggleLoading = filingToggleLoading.has(toggleKey);
 
-          // Edit Status mode: show toggle button
+          // Edit Status mode: show dropdown
           if (deadlineEditMode === 'status') {
             return (
               <div className="flex items-center">
                 {isToggleLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (hasActiveAssignment) {
+                  <Select
+                    value={hasActiveAssignment ? "active" : "inactive"}
+                    onValueChange={(value) => {
+                      const newActive = value === "active";
+                      if (newActive === hasActiveAssignment) return;
+                      if (!newActive) {
                         // Deactivating — check if we should show confirmation
                         const skipConfirm = localStorage.getItem('skip-deactivate-filing-confirm') === 'true';
                         if (skipConfirm) {
@@ -934,18 +999,25 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                         handleFilingAssignmentToggle(client.id, filingTypeId, true);
                       }
                     }}
-                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      hasActiveAssignment
-                        ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20'
-                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                    }`}
                   >
-                    {hasActiveAssignment ? (
-                      <><CircleCheck className="h-4 w-4" />Deadline Active</>
-                    ) : (
-                      <><CircleMinus className="h-4 w-4" />Deadline Inactive</>
-                    )}
-                  </button>
+                    <SelectTrigger className="h-9 min-w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">
+                        <span className="flex items-center gap-1.5">
+                          <CircleCheck className="h-4 w-4 text-green-600" />
+                          Deadline Active
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="inactive">
+                        <span className="flex items-center gap-1.5">
+                          <CircleMinus className="h-4 w-4 text-muted-foreground" />
+                          Deadline Inactive
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
             );
@@ -1032,7 +1104,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         enableSorting: false,
       })),
     ],
-    [activeDeadlineFilingTypes, localFilingStatusMap, deadlineEditMode, filingToggleLoading, handleFilingAssignmentToggle, docRequirements, manuallyReceivedMap, handleDocumentToggle]
+    [activeDeadlineFilingTypes, localFilingStatusMap, deadlineEditMode, filingToggleLoading, handleFilingAssignmentToggle, docRequirements, manuallyReceivedMap, handleDocumentToggle, data]
   );
 
   // Define columns
