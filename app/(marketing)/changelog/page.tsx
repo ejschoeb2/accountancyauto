@@ -14,10 +14,33 @@ interface ChangelogEntry {
 
 const ENTRIES: ChangelogEntry[] = [
   {
+    version: "v2.0",
+    date: "March 2026",
+    heading: "Getting started wizard, document progress, and smart email cancellation",
+    isLatest: true,
+    changes: [
+      "Getting started wizard redesigned: guided setup flow with client type selection, filing activation, and a review step to check document progress before going live.",
+      "Document collection progress visible in the Client Deadlines table — see at a glance how many mandatory documents each client has submitted per filing.",
+      "Smart email cancellation: queued reminders are automatically cancelled when a client's records are marked as received, and visual line-through styling marks cancelled emails clearly.",
+      "Edit progress mode: toggle inline editing on the deadlines table to update document status and filing assignments without leaving the page.",
+      "Open Graph metadata and new favicon for polished link previews when sharing Prompt.",
+    ],
+  },
+  {
+    version: "v1.9",
+    date: "March 2026",
+    heading: "Bulk actions, filing toggles, and deadline overrides",
+    changes: [
+      "Bulk edit toolbar: select multiple clients and pause, cancel, or reschedule reminders in a single action from the client table.",
+      "Filing type toggles with icons: activate or deactivate individual filing types per client with a clear on/off control and deactivation confirmation.",
+      "Deadline overrides API: per-client deadline customisation now available, allowing practices to set bespoke dates where HMRC defaults don't apply.",
+      "Client type filtering on document requirements: configure which documents are required based on whether a client is a limited company, sole trader, or partnership.",
+    ],
+  },
+  {
     version: "v1.8",
     date: "February 2026",
     heading: "VAT stagger groups, Firm plan, and comparison page",
-    isLatest: true,
     changes: [
       "VAT stagger group support: deadlines now calculated automatically for all three HMRC VAT stagger groups — no more manual quarter tracking.",
       "Firm plan: new pricing tier for practices beyond 300 clients, scaling at £0.60 per additional client with no upper ceiling.",
@@ -136,27 +159,29 @@ export default function ChangelogPage() {
                 >
 
                   {/* Left column: version + date */}
-                  <div className="lg:w-48 lg:pr-10 lg:pt-0.5 flex-shrink-0 flex flex-row lg:flex-col items-center lg:items-end gap-3 lg:gap-1.5">
+                  <div className="lg:w-48 lg:pr-10 lg:pt-0.5 flex-shrink-0 flex flex-row items-baseline lg:items-end lg:flex-col gap-2 lg:gap-1">
 
-                    {/* Version badge */}
-                    <span
-                      className={[
-                        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold tracking-wide",
-                        entry.isLatest
-                          ? "bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300"
-                          : "bg-muted text-muted-foreground",
-                      ].join(" ")}
-                    >
-                      {entry.version}
+                    {/* Version + date inline on mobile, stacked on desktop */}
+                    <div className="flex items-baseline gap-2">
+                      <span
+                        className={[
+                          "text-sm font-bold",
+                          entry.isLatest
+                            ? "text-violet-600 dark:text-violet-400"
+                            : "text-foreground",
+                        ].join(" ")}
+                      >
+                        {entry.version}
+                      </span>
                       {entry.isLatest && (
-                        <span className="ml-1.5 text-violet-500 dark:text-violet-400 font-semibold text-[10px]">
+                        <span className="rounded-full bg-violet-100 dark:bg-violet-950 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
                           Latest
                         </span>
                       )}
-                    </span>
+                    </div>
 
                     {/* Date */}
-                    <span className="text-[12px] text-muted-foreground/60 font-medium whitespace-nowrap">
+                    <span className="text-[12px] text-muted-foreground/60 font-medium whitespace-nowrap lg:text-right">
                       {entry.date}
                     </span>
                   </div>
@@ -219,7 +244,7 @@ export default function ChangelogPage() {
           >
             Have a feature request?{" "}
             <a
-              href="mailto:hello@phasetwo.uk"
+              href="mailto:info@prompt.accountants"
               className="text-violet-500 hover:text-violet-400 transition-colors"
             >
               Let us know.

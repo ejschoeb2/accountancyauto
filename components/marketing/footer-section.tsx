@@ -73,11 +73,15 @@ export const FooterSection = () => {
             <a href="/terms" className="hover:text-white/70 transition-colors">Terms of Service</a>
           </nav>
 
-          {/* Logo + copyright — same line, centered */}
+          {/* Logo + copyright + contact — same line, centered */}
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-2">
               <PromptLogo size={20} className="text-violet-400" />
               <span className="font-bold text-white">Prompt</span>
+            </a>
+            <span className="text-white/40">·</span>
+            <a href="mailto:info@prompt.accountants" className="text-sm text-white/70 hover:text-white transition-colors">
+              info@prompt.accountants
             </a>
             <span className="text-white/40">·</span>
             <p className="text-sm text-white">&copy; 2026 Prompt. All rights reserved.</p>

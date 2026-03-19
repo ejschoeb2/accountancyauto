@@ -10,6 +10,51 @@ export interface Article {
 
 export const articles: Article[] = [
   {
+    slug: "mtd-income-tax-what-your-practice-needs-to-know",
+    category: "Industry",
+    date: "March 2026",
+    author: "The Prompt Team",
+    headline: "MTD for Income Tax: what your practice needs to know before April 2026",
+    excerpt:
+      "Making Tax Digital for Income Tax Self Assessment is arriving for the first wave of taxpayers. Here's what's changing, who's affected, and how to prepare your practice.",
+    body: [
+      "Making Tax Digital for Income Tax Self Assessment (MTD for ITSA) represents the most significant change to UK tax reporting since Self Assessment itself. From April 2026, sole traders and landlords with qualifying income above £50,000 will be required to keep digital records and submit quarterly updates to HMRC through MTD-compatible software. The threshold drops to £30,000 from April 2027. For accounting practices, this isn't a distant concern — it's an operational shift that needs planning now.",
+      "The quarterly submission requirement is the headline change. Instead of a single annual Self Assessment return, affected clients will submit summary updates to HMRC four times a year, followed by a final declaration that replaces the traditional return. Each quarterly update covers a three-month period and must be filed by the deadline — typically one month after the quarter ends. For a practice managing 200 sole trader clients, that's potentially 800 additional filing touchpoints per year. The administrative overhead of tracking and chasing these submissions manually is, frankly, unworkable at scale.",
+      "The practical challenge for most practices isn't the software — it's the client communication. Many sole traders and landlords have spent decades filing once a year. Shifting them to quarterly digital record-keeping requires education, repeated reminders, and a reliable system for collecting records four times as often. Practices that already have automated reminder pipelines are significantly better positioned: the infrastructure for chasing clients on a schedule already exists, and extending it to quarterly MTD submissions is a configuration change rather than a process overhaul.",
+      "Prompt is built around exactly this kind of deadline complexity. Each client's filing obligations — whether annual Corporation Tax, quarterly VAT, or the new quarterly MTD for ITSA submissions — are tracked individually with deadlines calculated from their specific periods. As MTD for ITSA rolls out, practices using Prompt can configure reminder sequences for quarterly submissions alongside existing annual obligations, ensuring clients receive timely, filing-specific prompts for every deadline without the practice having to manage the calendar manually. The shift to quarterly reporting is significant, but with the right infrastructure it doesn't have to mean four times the admin.",
+    ],
+  },
+  {
+    slug: "hidden-cost-missed-companies-house-confirmation-statements",
+    category: "Guide",
+    date: "March 2026",
+    author: "The Prompt Team",
+    headline: "The hidden cost of missed Companies House confirmation statements",
+    excerpt:
+      "A missed confirmation statement doesn't just mean a fine — it can trigger a strike-off that dissolves your client's company entirely. Here's why this deadline deserves more attention.",
+    body: [
+      "Of all the UK filing deadlines an accounting practice tracks, the Companies House confirmation statement is the one most likely to be overlooked — and the one with the most disproportionate consequences when it is. Unlike Corporation Tax or VAT, where a missed deadline results in a financial penalty, a missed confirmation statement can lead to Companies House initiating proceedings to strike the company off the register. Once struck off, the company ceases to exist as a legal entity. Its assets vest in the Crown. Its bank accounts are frozen. Directors can face personal liability for debts. Restoration is possible but expensive, time-consuming, and entirely avoidable.",
+      "The confirmation statement itself is straightforward. Every company must confirm that the information Companies House holds — registered office, directors, shareholders, SIC codes, and persons with significant control — is accurate, at least once every 12 months from the date of incorporation or the last confirmation statement. The filing fee is £34 for online submissions. The form takes minutes to complete if the information hasn't changed. Yet practices consistently report that this is one of the most commonly missed deadlines, precisely because it seems so routine. It falls through the cracks not because it's complex, but because it's easy to deprioritise.",
+      "The strike-off process adds a deceptive buffer that makes the problem worse. Companies House sends two gazette notices before dissolving a company, and the process typically takes around three months from the first notice. This delay creates a false sense of security — practices that spot a missed confirmation statement after the first gazette notice assume they have time, and sometimes they do. But the gazette notice damages the company's credit profile immediately, and lenders, suppliers, and clients who run routine checks may see a company 'proposed for strike-off' and draw their own conclusions. The reputational cost arrives long before the legal one.",
+      "Automated tracking eliminates this risk entirely. Prompt calculates each company's confirmation statement deadline from its incorporation date or last filing, and fires reminder sequences on the practice's schedule — typically starting 60 days before the due date. The practice doesn't need to maintain a spreadsheet of incorporation dates or manually check Companies House for each client. The system knows what's due and when, and it chases accordingly. For a deadline that costs £34 to file and potentially tens of thousands to fix if missed, automated reminders aren't a convenience — they're basic risk management.",
+    ],
+  },
+  {
+    slug: "uk-accounting-software-market-2026-automation",
+    category: "Industry",
+    date: "March 2026",
+    author: "The Prompt Team",
+    headline: "UK accounting software in 2026: where compliance automation is headed",
+    excerpt:
+      "The tools accountants use are changing fast. From MTD mandates to AI-powered document processing, here's where the UK accounting software market is heading — and what it means for your practice.",
+    body: [
+      "The UK accounting software market has undergone more change in the past three years than in the previous decade. Making Tax Digital drove the first wave — practices that had relied on desktop software and manual HMRC submissions were forced onto cloud platforms capable of digital filing. That transition is largely complete. The next wave is different: it's not about digitising what practices already do, but about automating the administrative work that sits around the compliance itself. Filing a VAT return takes minutes. Chasing the client for records, tracking the deadline, sending reminders, following up, and logging the communication takes hours. The software market is shifting its focus from the filing to everything that happens before it.",
+      "Practice management platforms — the traditional hub of client and deadline tracking — are responding by adding automation features, but they're doing so within systems designed primarily for time recording, billing, and workflow management. The result is often a compromise: reminder functionality bolted onto a platform optimised for something else. Dedicated compliance automation tools like Prompt take the opposite approach, building from the deadline outward. Every feature — reminder sequences, document collection, client portals, email tracking — exists to serve a single goal: ensuring the right client is chased for the right filing at the right time, with minimal manual effort from the practice.",
+      "Document collection is emerging as the next frontier. The bottleneck in most compliance workflows isn't the filing itself — it's getting the records from the client. Practices report spending more time chasing documents than preparing returns. The market is responding with client portals, automated document requests, and increasingly, AI-powered document classification that can identify what a client has uploaded, verify it against what's needed, and flag discrepancies before the accountant opens the file. This shifts the practice's role from administrative coordinator to quality reviewer — a fundamentally more efficient and more valuable use of professional time.",
+      "The MTD for Income Tax rollout from April 2026 will accelerate all of these trends. Quarterly submissions mean four times the filing touchpoints, four times the client communication, and four times the document collection cycles. Practices that are already stretched managing annual deadlines manually will find quarterly obligations unmanageable without automation. The practices that invested early in compliance automation infrastructure — automated reminders, client self-service portals, intelligent document handling — will absorb the MTD transition with minimal disruption. Those that didn't will face a choice: invest now, or accept that a growing share of their professional time is spent on admin that software could handle.",
+    ],
+  },
+  {
     slug: "how-uk-accountants-lose-hours-to-manual-deadline-chasing",
     category: "Guide",
     date: "February 2026",

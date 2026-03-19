@@ -191,6 +191,11 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   // Local filing status overrides — tracks changes made via edit progress mode
   const [localFilingStatusMap, setLocalFilingStatusMap] = useState<Record<string, FilingTypeStatus[]>>(filingStatusMap);
 
+  // Sync localFilingStatusMap when filingStatusMap prop changes (e.g. after router.refresh())
+  useEffect(() => {
+    setLocalFilingStatusMap(prev => prev === filingStatusMap ? prev : filingStatusMap);
+  }, [filingStatusMap]);
+
   // Derive overall client status from localFilingStatusMap so data view stays in sync.
   // Logic: if any filing is urgent (red/orange/amber), show the worst urgency.
   // If no urgency issues, check completion: all completed → green, all received → violet,
@@ -792,6 +797,35 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
       const key = `${clientId}-${filingTypeId}`;
       setFilingToggleLoading((prev) => new Set(prev).add(key));
 
+      // Optimistic update: add or remove the filing from localFilingStatusMap
+      // Uses functional updater so we don't need localFilingStatusMap in the dep array
+      let removedEntry: FilingTypeStatus | null = null;
+      setLocalFilingStatusMap(prev => {
+        const next = { ...prev };
+        const clientStatuses = [...(next[clientId] ?? [])];
+        if (isActive) {
+          if (!clientStatuses.some(f => f.filing_type_id === filingTypeId)) {
+            clientStatuses.push({
+              filing_type_id: filingTypeId as FilingTypeStatus['filing_type_id'],
+              status: 'blue',
+              is_override: false,
+              is_records_received: false,
+              deadline_date: null,
+              doc_received_count: 0,
+              doc_required_count: 0,
+            });
+          }
+        } else {
+          const idx = clientStatuses.findIndex(f => f.filing_type_id === filingTypeId);
+          if (idx >= 0) {
+            removedEntry = clientStatuses[idx];
+            clientStatuses.splice(idx, 1);
+          }
+        }
+        next[clientId] = clientStatuses;
+        return next;
+      });
+
       try {
         const response = await fetch(`/api/clients/${clientId}/filings`, {
           method: 'PUT',
@@ -808,6 +842,21 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         toast.success(isActive ? 'Filing activated' : 'Filing deactivated');
         router.refresh();
       } catch (error) {
+        // Revert: apply the inverse operation instead of restoring a snapshot
+        setLocalFilingStatusMap(prev => {
+          const next = { ...prev };
+          const clientStatuses = [...(next[clientId] ?? [])];
+          if (isActive) {
+            // Was activated optimistically — remove it
+            const idx = clientStatuses.findIndex(f => f.filing_type_id === filingTypeId);
+            if (idx >= 0) clientStatuses.splice(idx, 1);
+          } else if (removedEntry) {
+            // Was deactivated optimistically — re-add the removed entry
+            clientStatuses.push(removedEntry);
+          }
+          next[clientId] = clientStatuses;
+          return next;
+        });
         toast.error(error instanceof Error ? error.message : 'Failed to update');
       } finally {
         setFilingToggleLoading((prev) => {

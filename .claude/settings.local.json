@@ -124,7 +124,9 @@
       "Bash(cd \"/c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting\" && rm -rf \"app/\\(dashboard\\)/templates/new\" \"app/\\(dashboard\\)/templates/[id]\")",
       "Bash(gh repo:*)",
       "Bash(claude mcp:*)",
-      "mcp__svgmaker__svgmaker_generate"
+      "mcp__svgmaker__svgmaker_generate",
+      "mcp__lucide-icons__search_icons",
+      "mcp__lucide-icons__fuzzy_search_icons"
     ]
   },
   "enableAllProjectMcpServers": true,
