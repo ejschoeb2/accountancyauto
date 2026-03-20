@@ -611,7 +611,7 @@ export function EmailSetupStep({
                 placeholder="you@yourfirm.co.uk"
                 disabled={isSaving || isCompleting}
               />
-              <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+              <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl mt-2">
                 <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-amber-600">Make sure this is your email address</p>
