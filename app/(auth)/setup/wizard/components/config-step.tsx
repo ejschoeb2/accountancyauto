@@ -137,47 +137,52 @@ export function ConfigStep({
         </div>
 
         {/* Email Identity */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label htmlFor="wizard-sender-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Sender Name
-            </label>
+        <div className="space-y-1.5">
+          <label htmlFor="wizard-sender-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Sender Name
+          </label>
+          <p className="text-xs text-muted-foreground">
+            The name that appears in your client&apos;s inbox when they receive a reminder email.
+          </p>
+          <Input
+            id="wizard-sender-name"
+            type="text"
+            value={senderName}
+            onChange={(e) => {
+              setSenderName(e.target.value);
+              setError(null);
+            }}
+            disabled={isPending}
+            placeholder="John Smith"
+            autoComplete="off"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="wizard-sender-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Sender Email
+          </label>
+          <p className="text-xs text-muted-foreground">
+            The email address reminder emails are sent from. Clients will see this as the &quot;from&quot; address.
+          </p>
+          <div className="flex items-center gap-0">
             <Input
-              id="wizard-sender-name"
+              id="wizard-sender-local"
               type="text"
-              value={senderName}
+              value={senderLocalPart}
               onChange={(e) => {
-                setSenderName(e.target.value);
+                // Only allow valid local part characters
+                const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
+                setSenderLocalPart(value);
                 setError(null);
               }}
               disabled={isPending}
-              placeholder="John Smith"
+              placeholder="john"
+              className="rounded-r-none"
               autoComplete="off"
             />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="wizard-sender-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Sender Email
-            </label>
-            <div className="flex items-center gap-0">
-              <Input
-                id="wizard-sender-local"
-                type="text"
-                value={senderLocalPart}
-                onChange={(e) => {
-                  // Only allow valid local part characters
-                  const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
-                  setSenderLocalPart(value);
-                  setError(null);
-                }}
-                disabled={isPending}
-                placeholder="john"
-                className="rounded-r-none"
-                autoComplete="off"
-              />
-              <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
-                @{senderDomain}
-              </div>
+            <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+              @{senderDomain}
             </div>
           </div>
         </div>
@@ -242,7 +247,7 @@ export function ConfigStep({
           variant="green"
           buttonType="icon-text"
           onClick={handleSave}
-          disabled={isPending || isCompleting}
+          disabled={isPending || isCompleting || !senderName.trim() || !senderLocalPart.trim()}
         >
           {isPending ? (
             <><Loader2 className="size-4 animate-spin" /> Saving...</>

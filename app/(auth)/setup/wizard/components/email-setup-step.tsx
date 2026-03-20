@@ -557,42 +557,47 @@ export function EmailSetupStep({
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label htmlFor="identity-sender-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Sender Name
-                </label>
+            <div className="space-y-1.5">
+              <label htmlFor="identity-sender-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Sender Name
+              </label>
+              <p className="text-xs text-muted-foreground">
+                The name that appears in your client&apos;s inbox when they receive a reminder email.
+              </p>
+              <Input
+                id="identity-sender-name"
+                type="text"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="John Smith"
+                disabled={isSaving || isCompleting}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="identity-sender-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Sender Email
+              </label>
+              <p className="text-xs text-muted-foreground">
+                The email address reminder emails are sent from. Clients will see this as the &quot;from&quot; address.
+              </p>
+              <div className="flex items-center gap-0">
                 <Input
-                  id="identity-sender-name"
+                  id="identity-sender-local"
                   type="text"
-                  value={senderName}
-                  onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="John Smith"
+                  value={senderLocalPart}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
+                    setSenderLocalPart(value);
+                  }}
+                  placeholder="reminders"
+                  className="rounded-r-none"
                   disabled={isSaving || isCompleting}
                   autoComplete="off"
                 />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="identity-sender-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Sender Email
-                </label>
-                <div className="flex items-center gap-0">
-                  <Input
-                    id="identity-sender-local"
-                    type="text"
-                    value={senderLocalPart}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
-                      setSenderLocalPart(value);
-                    }}
-                    placeholder="reminders"
-                    className="rounded-r-none"
-                    disabled={isSaving || isCompleting}
-                    autoComplete="off"
-                  />
-                  <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
-                    @{senderDomain}
-                  </div>
+                <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
+                  @{senderDomain}
                 </div>
               </div>
             </div>
