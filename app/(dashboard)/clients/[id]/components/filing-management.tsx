@@ -574,8 +574,8 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                       </span>
                     )}
                     {showStatusBadge && (
-                      <div className={`px-2.5 py-1 rounded-md ${badgeConfig.bg} inline-flex items-center shrink-0`}>
-                        <span className={`text-xs font-medium ${badgeConfig.text}`}>
+                      <div className={`px-3 py-2 rounded-md ${badgeConfig.bg} inline-flex items-center shrink-0`}>
+                        <span className={`text-sm font-medium ${badgeConfig.text}`}>
                           {badgeConfig.label}
                         </span>
                       </div>
@@ -654,118 +654,116 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                   </div>
                 )}
 
-                {/* Row 2: Action buttons */}
+                {/* Row 2: Documents/Emails toggle (left) + action buttons (right) */}
                 {filing.is_active && (
-                  <div className="flex items-center justify-end gap-3 mt-4">
-                    {/* Generate Upload Link */}
-                    <IconButtonWithText
-                      variant="violet"
-                      onClick={() => handleGeneratePortalLink(filing.filing_type.id)}
-                      disabled={
-                        portalStates[filing.filing_type.id]?.generating ||
-                        (effectiveCounts[filing.filing_type.id] !== undefined &&
-                          effectiveCounts[filing.filing_type.id].total === 0)
-                      }
-                    >
-                      {portalStates[filing.filing_type.id]?.generating ? (
-                        <Loader2 className="size-4 animate-spin" />
-                      ) : (
-                        <Link2 className="size-4" />
-                      )}
-                      {portalStates[filing.filing_type.id]?.generating ? 'Generating...' : (
+                  <div className="flex items-center justify-between gap-3 mt-4">
+                    <ToggleGroup
+                      options={[
+                        { value: 'documents' as const, label: 'Documents' },
+                        { value: 'emails' as const, label: 'Emails' },
+                      ]}
+                      value={getCardViewMode(filing.filing_type.id)}
+                      onChange={(mode) => setCardViewMode(filing.filing_type.id, mode)}
+                    />
+
+                    <div className="flex items-center gap-3">
+                      {/* Generate Upload Link */}
+                      <IconButtonWithText
+                        variant="violet"
+                        onClick={() => handleGeneratePortalLink(filing.filing_type.id)}
+                        disabled={
+                          portalStates[filing.filing_type.id]?.generating ||
+                          (effectiveCounts[filing.filing_type.id] !== undefined &&
+                            effectiveCounts[filing.filing_type.id].total === 0)
+                        }
+                      >
+                        {portalStates[filing.filing_type.id]?.generating ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Link2 className="size-4" />
+                        )}
+                        {portalStates[filing.filing_type.id]?.generating ? 'Generating...' : (
+                          <>
+                            <span className="hidden sm:inline">Generate Upload Link</span>
+                            <span className="sm:hidden">Upload</span>
+                          </>
+                        )}
+                      </IconButtonWithText>
+
+                      {/* Deadline action button */}
+                      {filing.calculated_deadline && (
                         <>
-                          <span className="hidden sm:inline">Generate Upload Link</span>
-                          <span className="sm:hidden">Upload</span>
+                          {isReceived && isCompleted ? (
+                            <IconButtonWithText variant="green" onClick={() => handleOpenRolloverDialog(filing.filing_type.id)}>
+                              <RefreshCw className="h-4 w-4" />
+                              Roll Over
+                            </IconButtonWithText>
+                          ) : isReceived && !isCompleted ? (
+                            (() => {
+                              const portal = getFilingPortal(filing.filing_type.name);
+                              return (
+                                <IconButtonWithText
+                                  variant="blue"
+                                  onClick={() => {
+                                    window.open(portal.url, '_blank', 'noopener,noreferrer');
+                                    toast.success('Opening filing portal in new tab');
+                                  }}
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                  {portal.label}
+                                </IconButtonWithText>
+                              );
+                            })()
+                          ) : hasOverride ? (
+                            <IconButtonWithText variant="destructive" onClick={() => handleRemoveOverride(filing.filing_type.id)}>
+                              <X className="h-4 w-4" />
+                              Remove Override
+                            </IconButtonWithText>
+                          ) : (
+                            <IconButtonWithText variant="amber" onClick={() => handleOpenOverrideDialog(filing.filing_type.id)}>
+                              <Calendar className="h-4 w-4" />
+                              Override Deadline
+                            </IconButtonWithText>
+                          )}
                         </>
                       )}
-                    </IconButtonWithText>
-
-                    {/* Deadline action button */}
-                    {filing.calculated_deadline && (
-                      <>
-                        {isReceived && isCompleted ? (
-                          <IconButtonWithText variant="green" onClick={() => handleOpenRolloverDialog(filing.filing_type.id)}>
-                            <RefreshCw className="h-4 w-4" />
-                            Roll Over
-                          </IconButtonWithText>
-                        ) : isReceived && !isCompleted ? (
-                          (() => {
-                            const portal = getFilingPortal(filing.filing_type.name);
-                            return (
-                              <IconButtonWithText
-                                variant="blue"
-                                onClick={() => {
-                                  window.open(portal.url, '_blank', 'noopener,noreferrer');
-                                  toast.success('Opening filing portal in new tab');
-                                }}
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                                {portal.label}
-                              </IconButtonWithText>
-                            );
-                          })()
-                        ) : hasOverride ? (
-                          <IconButtonWithText variant="destructive" onClick={() => handleRemoveOverride(filing.filing_type.id)}>
-                            <X className="h-4 w-4" />
-                            Remove Override
-                          </IconButtonWithText>
-                        ) : (
-                          <IconButtonWithText variant="amber" onClick={() => handleOpenOverrideDialog(filing.filing_type.id)}>
-                            <Calendar className="h-4 w-4" />
-                            Override Deadline
-                          </IconButtonWithText>
-                        )}
-                      </>
-                    )}
+                    </div>
                   </div>
                 )}
 
-                {/* Documents / Emails toggle + content */}
+                {/* Content area */}
                 {filing.is_active && (
-                  <>
-                    <div className="mt-4">
-                      <ToggleGroup
-                        options={[
-                          { value: 'documents' as const, label: 'Documents' },
-                          { value: 'emails' as const, label: 'Emails' },
-                        ]}
-                        value={getCardViewMode(filing.filing_type.id)}
-                        onChange={(mode) => setCardViewMode(filing.filing_type.id, mode)}
+                  <div className="mt-4 -mx-6 -mb-6">
+                    {getCardViewMode(filing.filing_type.id) === 'documents' ? (
+                      <DocumentCard
+                        clientId={clientId}
+                        filingTypeId={filing.filing_type.id}
+                        filingTypeName={filing.filing_type.name}
+                        docCount={filing.doc_count ?? 0}
+                        lastReceivedAt={filing.last_received_at ?? null}
+                        portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
+                        portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
+                        onActionsReady={(actions) => {
+                          documentCardActionsRef.current[filing.filing_type.id] = actions;
+                        }}
+                        onReceivedCountChange={(received, total) => {
+                          setEffectiveCounts(prev => {
+                            const existing = prev[filing.filing_type.id];
+                            if (existing?.received === received && existing?.total === total) return prev;
+                            return { ...prev, [filing.filing_type.id]: { received, total } };
+                          });
+                        }}
+                        onRequiredAllReceivedChange={(allReceived) =>
+                          handleRequiredDocsAllReceived(filing.filing_type.id, allReceived)
+                        }
                       />
-                    </div>
-
-                    <div className="mt-4 -mx-6 -mb-6">
-                      {getCardViewMode(filing.filing_type.id) === 'documents' ? (
-                        <DocumentCard
-                          clientId={clientId}
-                          filingTypeId={filing.filing_type.id}
-                          filingTypeName={filing.filing_type.name}
-                          docCount={filing.doc_count ?? 0}
-                          lastReceivedAt={filing.last_received_at ?? null}
-                          portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
-                          portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
-                          onActionsReady={(actions) => {
-                            documentCardActionsRef.current[filing.filing_type.id] = actions;
-                          }}
-                          onReceivedCountChange={(received, total) => {
-                            setEffectiveCounts(prev => {
-                              const existing = prev[filing.filing_type.id];
-                              if (existing?.received === received && existing?.total === total) return prev;
-                              return { ...prev, [filing.filing_type.id]: { received, total } };
-                            });
-                          }}
-                          onRequiredAllReceivedChange={(allReceived) =>
-                            handleRequiredDocsAllReceived(filing.filing_type.id, allReceived)
-                          }
-                        />
-                      ) : (
-                        <FilingEmailTable
-                          clientId={clientId}
-                          filingTypeId={filing.filing_type.id}
-                        />
-                      )}
-                    </div>
-                  </>
+                    ) : (
+                      <FilingEmailTable
+                        clientId={clientId}
+                        filingTypeId={filing.filing_type.id}
+                      />
+                    )}
+                  </div>
                 )}
               </div>
             );
