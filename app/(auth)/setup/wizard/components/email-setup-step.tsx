@@ -138,8 +138,7 @@ export function EmailSetupStep({
   const [senderName, setSenderName] = useState(defaultEmailSettings.senderName);
   const defaultLocalPart = defaultEmailSettings.senderAddress.split("@")[0] ?? "reminders";
   const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
-  const defaultReplyToLocalPart = defaultEmailSettings.replyTo.split("@")[0] ?? "hello";
-  const [replyToLocalPart, setReplyToLocalPart] = useState(defaultReplyToLocalPart);
+  const [replyTo, setReplyTo] = useState(defaultEmailSettings.replyTo);
 
   // ── Send settings state ─────────────────────────────────────────────────
   const [sendHour, setSendHour] = useState(String(defaultSendHour));
@@ -224,7 +223,7 @@ export function EmailSetupStep({
       const emailResult = await updateUserEmailSettings({
         senderName: senderName.trim(),
         senderAddress: currentAddress,
-        replyTo: `${replyToLocalPart}@${senderDomain}`,
+        replyTo: replyTo.trim(),
       }, { skipBillingCheck: true });
       if (emailResult.error) {
         setSaveError(emailResult.error);
@@ -602,20 +601,21 @@ export function EmailSetupStep({
                 Reply-To Address
               </label>
               <p className="text-xs text-muted-foreground">
-                When a client replies to a reminder email, their reply is sent to this address. If you leave it as the default, replies go straight to your normal inbox. You can also set a different address here if you&apos;d prefer to keep client responses in a separate inbox.
+                When a client replies to a reminder email, their reply is sent to this address.
               </p>
-              <div className="flex items-center gap-0">
-                <Input
-                  id="settings-reply-to"
-                  type="text"
-                  value={replyToLocalPart}
-                  onChange={(e) => setReplyToLocalPart(e.target.value.replace(/[^a-zA-Z0-9._+-]/g, ""))}
-                  placeholder="hello"
-                  className="rounded-r-none"
-                  disabled={isSaving || isCompleting}
-                />
-                <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
-                  @{senderDomain}
+              <Input
+                id="settings-reply-to"
+                type="email"
+                value={replyTo}
+                onChange={(e) => setReplyTo(e.target.value)}
+                placeholder="you@yourfirm.co.uk"
+                disabled={isSaving || isCompleting}
+              />
+              <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-amber-600">Make sure this is your email address</p>
+                  <p className="text-sm text-amber-600/80">Prompt sends reminders on your behalf. When a client hits reply, their response goes to whatever address you enter here. If you leave this as a Prompt address, you won&apos;t receive their replies.</p>
                 </div>
               </div>
             </div>

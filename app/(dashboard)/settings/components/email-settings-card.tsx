@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Mail } from "lucide-react";
+import { Mail, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ButtonBase } from "@/components/ui/button-base";
@@ -21,20 +21,18 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
   // Only store/edit the local part (before @)
   const defaultLocalPart = defaultSettings.senderAddress.split("@")[0] ?? "reminders";
   const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
-  const defaultReplyToLocalPart = defaultSettings.replyTo.split("@")[0] ?? "hello";
-  const [replyToLocalPart, setReplyToLocalPart] = useState(defaultReplyToLocalPart);
+  const [replyTo, setReplyTo] = useState(defaultSettings.replyTo);
 
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const currentAddress = `${senderLocalPart}@${senderDomain}`;
-  const currentReplyTo = `${replyToLocalPart}@${senderDomain}`;
 
   const isDirty =
     senderName !== defaultSettings.senderName ||
     currentAddress !== defaultSettings.senderAddress ||
-    currentReplyTo !== defaultSettings.replyTo;
+    replyTo !== defaultSettings.replyTo;
 
   function handleSave() {
     setSaved(false);
@@ -44,7 +42,7 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
       const result = await updateEmailSettings({
         senderName: senderName.trim(),
         senderAddress: currentAddress,
-        replyTo: currentReplyTo,
+        replyTo: replyTo.trim(),
       });
 
       if (result.error) {
@@ -128,28 +126,25 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
             >
               Reply-To Address
             </label>
-            <div className="flex items-center gap-0">
-              <Input
-                id="settings-reply-to"
-                type="text"
-                value={replyToLocalPart}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
-                  setReplyToLocalPart(value);
-                  setSaved(false);
-                  setError(null);
-                }}
-                disabled={isPending}
-                placeholder="hello"
-                className="rounded-r-none"
-              />
-              <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
-                @{senderDomain}
+            <Input
+              id="settings-reply-to"
+              type="email"
+              value={replyTo}
+              onChange={(e) => {
+                setReplyTo(e.target.value);
+                setSaved(false);
+                setError(null);
+              }}
+              disabled={isPending}
+              placeholder="you@yourfirm.co.uk"
+            />
+            <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+              <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-amber-600">Make sure this is your email address</p>
+                <p className="text-sm text-amber-600/80">Prompt sends reminders on your behalf. When a client hits reply, their response goes to whatever address you enter here. If you leave this as a Prompt address, you won&apos;t receive their replies.</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
-            </p>
           </div>
 
           <div className="flex items-center gap-3">

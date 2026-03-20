@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ButtonBase } from "@/components/ui/button-base";
-import { Loader2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -58,8 +58,7 @@ export function ConfigStep({
   // Use org's configured domain if available, otherwise fall back to the stored default
   const senderDomain = orgDomain ?? defaultEmailSettings.senderAddress.split("@")[1] ?? "prompt.accountants";
 
-  const defaultReplyToLocalPart = defaultEmailSettings.replyTo.split("@")[0] ?? "hello";
-  const [replyToLocalPart, setReplyToLocalPart] = useState(defaultReplyToLocalPart);
+  const [replyTo, setReplyTo] = useState(defaultEmailSettings.replyTo);
 
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -81,7 +80,7 @@ export function ConfigStep({
       const emailResult = await updateUserEmailSettings({
         senderName: senderName.trim(),
         senderAddress: currentAddress,
-        replyTo: `${replyToLocalPart}@${senderDomain}`,
+        replyTo: replyTo.trim(),
       });
       if (emailResult.error) {
         setError(emailResult.error);
@@ -186,23 +185,24 @@ export function ConfigStep({
             Reply-To Address
           </label>
           <p className="text-xs text-muted-foreground">
-            When a client replies to a reminder email, their reply goes to this address. Set it to your own inbox so replies come straight to you.
+            When a client replies to a reminder email, their reply goes to this address.
           </p>
-          <div className="flex items-center gap-0">
-            <Input
-              id="wizard-reply-to"
-              type="text"
-              value={replyToLocalPart}
-              onChange={(e) => {
-                setReplyToLocalPart(e.target.value.replace(/[^a-zA-Z0-9._+-]/g, ""));
-                setError(null);
-              }}
-              placeholder="hello"
-              className="rounded-r-none"
-              disabled={isPending}
-            />
-            <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
-              @{senderDomain}
+          <Input
+            id="wizard-reply-to"
+            type="email"
+            value={replyTo}
+            onChange={(e) => {
+              setReplyTo(e.target.value);
+              setError(null);
+            }}
+            placeholder="you@yourfirm.co.uk"
+            disabled={isPending}
+          />
+          <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl">
+            <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-amber-600">Make sure this is your email address</p>
+              <p className="text-sm text-amber-600/80">Prompt sends reminders on your behalf. When a client hits reply, their response goes to whatever address you enter here. If you leave this as a Prompt address, you won&apos;t receive their replies.</p>
             </div>
           </div>
         </div>
