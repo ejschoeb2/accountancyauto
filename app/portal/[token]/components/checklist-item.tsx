@@ -57,6 +57,7 @@ export function ChecklistItem({
   const [error, setError] = useState<string | null>(null);
 
   const label = item.document_types?.label ?? 'Document';
+  const clientDescription = item.document_types?.client_description ?? null;
   const hasSessionUpload = uploaded.length > 0;
   const hasExistingNonRejected = existingDocs.some(d => !d.rejected);
   const isUploaded = hasSessionUpload || hasExistingNonRejected;
@@ -93,8 +94,11 @@ export function ChecklistItem({
     <div className="bg-white rounded-xl border shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div>
             <span className="text-sm font-medium truncate">{label}</span>
+            {clientDescription && (
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{clientDescription}</p>
+            )}
           </div>
 
           {/* Existing documents from previous sessions */}

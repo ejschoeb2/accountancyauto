@@ -257,6 +257,11 @@ function ClientPortal() {
       <Body>
         Each filing type has a default set of required documents. You can customise this per client — add extra items specific to that client, remove items that don't apply, or add ad hoc items with custom labels. Changes only affect the individual client and don't alter the global defaults.
       </Body>
+
+      <SubHeading>Document guide for clients</SubHeading>
+      <Body>
+        Prompt provides a <a href="/help/documents" className="text-violet-600 hover:text-violet-700 underline underline-offset-2 font-medium">document guide</a> that explains every document type in plain language — what it is, where to find it, and why you need it. You can share this link with clients who are unsure what to upload. The guide is grouped by filing type and covers Self Assessment, Corporation Tax, VAT, Companies House, and all other supported filings.
+      </Body>
     </>
   );
 }

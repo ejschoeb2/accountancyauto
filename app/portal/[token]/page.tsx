@@ -17,6 +17,7 @@ export interface ChecklistItem {
     id?: string | null;
     code?: string | null;
     label: string;
+    client_description?: string | null;
     expected_mime_types?: string[] | null;
   };
 }
@@ -60,7 +61,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
   // Fetch checklist and org/client names server-side
   const [requirementsResult, customisationsResult, clientResult, filingTypeResult, existingDocsResult] = await Promise.all([
     supabase.from('filing_document_requirements')
-      .select('id, document_type_id, is_mandatory, document_types(id, code, label, expected_mime_types)')
+      .select('id, document_type_id, is_mandatory, document_types(id, code, label, client_description, expected_mime_types)')
       .eq('filing_type_id', portalToken.filing_type_id),
     supabase.from('client_document_checklist_customisations')
       .select('document_type_id, is_enabled, is_ad_hoc, ad_hoc_label')
