@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ButtonWithText } from '@/components/ui/button-with-text';
-import { ToggleGroup } from '@/components/ui/toggle-group';
 import {
   Table,
   TableBody,
@@ -30,9 +29,8 @@ import { SentEmailDetailModal } from '@/app/(dashboard)/email-logs/components/se
 interface FilingEmailTableProps {
   clientId: string;
   filingTypeId: string;
+  viewMode: 'queued' | 'sent';
 }
-
-type ViewMode = 'queued' | 'sent';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -99,8 +97,7 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
   },
 };
 
-export function FilingEmailTable({ clientId, filingTypeId }: FilingEmailTableProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('queued');
+export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEmailTableProps) {
   const [sentData, setSentData] = useState<AuditEntry[]>([]);
   const [queuedData, setQueuedData] = useState<QueuedReminder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -179,22 +176,9 @@ export function FilingEmailTable({ clientId, filingTypeId }: FilingEmailTablePro
   };
 
   return (
-    <div className="px-6 py-4 space-y-4">
-      {/* Queued/Sent toggle — right-aligned */}
-      <div className="flex items-center justify-end">
-        <ToggleGroup
-          options={[
-            { value: 'queued' as const, label: 'Queued' },
-            { value: 'sent' as const, label: 'Sent' },
-          ]}
-          value={viewMode}
-          onChange={setViewMode}
-        />
-      </div>
-
-      {/* Table */}
-      <div className="border rounded-lg bg-white shadow-sm">
-        <Table>
+    <div className="space-y-4">
+      {/* Table — flush with card edges */}
+      <Table>
           <TableHeader>
             <TableRow>
               <TableHead>
@@ -298,11 +282,10 @@ export function FilingEmailTable({ clientId, filingTypeId }: FilingEmailTablePro
             )}
           </TableBody>
         </Table>
-      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-sm px-6 pb-4">
           <div className="text-muted-foreground">
             Page {currentPage} of {totalPages} ({totalCount} total)
           </div>

@@ -78,12 +78,19 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
   const [portalStates, setPortalStates] = useState<Record<string, { generating: boolean; url: string | null; expiresAt: string | null }>>({});
 
   const [cardViewModes, setCardViewModes] = useState<Record<string, 'documents' | 'emails'>>({});
+  const [emailViewModes, setEmailViewModes] = useState<Record<string, 'queued' | 'sent'>>({});
 
   const getCardViewMode = (filingTypeId: string): 'documents' | 'emails' =>
     cardViewModes[filingTypeId] || 'documents';
 
   const setCardViewMode = (filingTypeId: string, mode: 'documents' | 'emails') =>
     setCardViewModes(prev => ({ ...prev, [filingTypeId]: mode }));
+
+  const getEmailViewMode = (filingTypeId: string): 'queued' | 'sent' =>
+    emailViewModes[filingTypeId] || 'queued';
+
+  const setEmailViewMode = (filingTypeId: string, mode: 'queued' | 'sent') =>
+    setEmailViewModes(prev => ({ ...prev, [filingTypeId]: mode }));
 
   const [showRolloverDialog, setShowRolloverDialog] = useState(false);
   const [rolloverFilingType, setRolloverFilingType] = useState<string | null>(null);
@@ -657,14 +664,26 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                 {/* Row 2: Documents/Emails toggle (left) + action buttons (right) */}
                 {filing.is_active && (
                   <div className="flex items-center justify-between gap-3 mt-4">
-                    <ToggleGroup
-                      options={[
-                        { value: 'documents' as const, label: 'Documents' },
-                        { value: 'emails' as const, label: 'Emails' },
-                      ]}
-                      value={getCardViewMode(filing.filing_type.id)}
-                      onChange={(mode) => setCardViewMode(filing.filing_type.id, mode)}
-                    />
+                    <div className="flex items-center gap-3">
+                      <ToggleGroup
+                        options={[
+                          { value: 'documents' as const, label: 'Documents' },
+                          { value: 'emails' as const, label: 'Emails' },
+                        ]}
+                        value={getCardViewMode(filing.filing_type.id)}
+                        onChange={(mode) => setCardViewMode(filing.filing_type.id, mode)}
+                      />
+                      {getCardViewMode(filing.filing_type.id) === 'emails' && (
+                        <ToggleGroup
+                          options={[
+                            { value: 'queued' as const, label: 'Queued' },
+                            { value: 'sent' as const, label: 'Sent' },
+                          ]}
+                          value={getEmailViewMode(filing.filing_type.id)}
+                          onChange={(mode) => setEmailViewMode(filing.filing_type.id, mode)}
+                        />
+                      )}
+                    </div>
 
                     <div className="flex items-center gap-3">
                       {/* Generate Upload Link */}
@@ -761,6 +780,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                       <FilingEmailTable
                         clientId={clientId}
                         filingTypeId={filing.filing_type.id}
+                        viewMode={getEmailViewMode(filing.filing_type.id)}
                       />
                     )}
                   </div>
