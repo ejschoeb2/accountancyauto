@@ -188,7 +188,7 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
               </TableHead>
               <TableHead>
                 <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Deadline
+                  Subject
                 </span>
               </TableHead>
               <TableHead>
@@ -229,8 +229,8 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
                   <TableCell className="text-muted-foreground">
                     {format(new Date(entry.sent_at), 'dd MMM yyyy')}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {entry.deadline_date ? format(new Date(entry.deadline_date), 'dd MMM yyyy') : '\u2014'}
+                  <TableCell className="text-muted-foreground truncate max-w-[300px]">
+                    {entry.subject || '\u2014'}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {entry.template_name || '\u2014'}
@@ -263,8 +263,8 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
                     <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
                       {format(new Date(reminder.send_date), 'dd MMM yyyy')}
                     </TableCell>
-                    <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
-                      {format(new Date(reminder.deadline_date), 'dd MMM yyyy')}
+                    <TableCell className={cn('text-muted-foreground truncate max-w-[300px]', isCancelled && 'line-through')}>
+                      {reminder.subject || '\u2014'}
                     </TableCell>
                     <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
                       {reminder.template_name || '\u2014'}

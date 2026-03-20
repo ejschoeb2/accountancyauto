@@ -591,18 +591,27 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
 
                   {/* Right: checkboxes */}
                   <div className="flex items-center gap-3 shrink-0">
-                    {/* Received count */}
+                    {/* Received count — clickable to toggle all documents received */}
                     {filing.is_active && effectiveCounts[filing.filing_type.id] && effectiveCounts[filing.filing_type.id].total > 0 && (
                       <div className="flex items-center gap-2">
                         <CheckButton
                           checked={effectiveCounts[filing.filing_type.id].received === effectiveCounts[filing.filing_type.id].total}
                           variant={effectiveCounts[filing.filing_type.id].received === effectiveCounts[filing.filing_type.id].total ? "success" : "default"}
-                          disabled
-                          className="pointer-events-none"
+                          onCheckedChange={(checked) => handleRecordsReceivedToggle(filing.filing_type.id, checked as boolean)}
+                          disabled={isUpdating}
+                          aria-label={`Mark all ${filing.filing_type.name} documents as received`}
                         />
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        <label
+                          className="text-sm text-muted-foreground whitespace-nowrap cursor-pointer"
+                          onClick={() => {
+                            if (!isUpdating) {
+                              const allReceived = effectiveCounts[filing.filing_type.id].received === effectiveCounts[filing.filing_type.id].total;
+                              handleRecordsReceivedToggle(filing.filing_type.id, !allReceived);
+                            }
+                          }}
+                        >
                           {effectiveCounts[filing.filing_type.id].received} of {effectiveCounts[filing.filing_type.id].total} required received
-                        </span>
+                        </label>
                       </div>
                     )}
 
