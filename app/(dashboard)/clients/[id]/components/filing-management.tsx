@@ -570,7 +570,7 @@ export function FilingManagement({ clientId, onUpdate, highlightFiling }: Filing
               <div
                 key={filing.filing_type.id}
                 id={`filing-${filing.filing_type.id}`}
-                className={`rounded-xl border bg-card p-6 shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 ${!filing.is_active ? 'opacity-60' : ''} ${highlightedId === filing.filing_type.id ? 'ring-2 ring-sky-500 border-sky-500' : ''}`}
+                className={`rounded-xl border bg-card p-6 shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 ${!filing.is_active ? 'opacity-60' : ''} ${highlightedId === filing.filing_type.id ? 'ring-2 ring-violet-500 border-violet-500' : ''}`}
               >
                 {/* Row 1: Filing name + due date (left) | Received count + checkboxes (right) */}
                 <div className="flex items-center justify-between gap-6">

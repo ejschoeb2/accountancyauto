@@ -1899,7 +1899,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={`group ${isEditMode || deadlineEditMode !== null ? 'cursor-default' : 'cursor-pointer'} hover:bg-muted/50 transition-colors`}
+                  className={`group ${isEditMode || deadlineEditMode !== null ? 'cursor-default' : 'cursor-pointer'} ${viewMode === 'status' ? '[&>td]:hover:bg-muted/50' : 'hover:bg-muted/50'} transition-colors`}
                   onClick={(e) => {
                     // Don't navigate if in edit mode
                     if (isEditMode || deadlineEditMode !== null) {

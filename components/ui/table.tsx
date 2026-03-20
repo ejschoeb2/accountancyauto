@@ -20,10 +20,29 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+  const ref = React.useRef<HTMLTableSectionElement>(null)
+  const [isStuck, setIsStuck] = React.useState(false)
+
+  React.useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsStuck(entry.intersectionRatio < 1),
+      { threshold: [1], rootMargin: "-1px 0px 0px 0px" }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <thead
+      ref={ref}
       data-slot="table-header"
-      className={cn("sticky top-0 z-10 bg-white [&_tr]:border-b", className)}
+      className={cn(
+        "sticky top-0 z-10 bg-white [&_tr]:border-b transition-shadow duration-200",
+        isStuck && "shadow-[0_2px_4px_-1px_rgba(0,0,0,0.1)]",
+        className
+      )}
       {...props}
     />
   )
