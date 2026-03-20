@@ -1114,20 +1114,22 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
               <div className="flex flex-col gap-1.5">
                 {filingStatus.deadline_date && (
                   <div className="text-sm whitespace-nowrap">
-                    <span className="text-muted-foreground/60">Deadline: </span>
-                    <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}</span>
+                    <span className="text-muted-foreground">Deadline: </span>
+                    <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd/MM/yyyy")}</span>
                   </div>
                 )}
                 {filingStatus.doc_required_count > 0 && (
                   <div className="text-sm whitespace-nowrap">
-                    <span className="text-muted-foreground/60">Documents: </span>
+                    <span className="text-muted-foreground">Documents: </span>
                     <span className="text-muted-foreground">{filingStatus.doc_received_count}/{filingStatus.doc_required_count} received</span>
                   </div>
                 )}
-                <div className="text-sm whitespace-nowrap">
-                  <span className="text-muted-foreground/60">Next Email: </span>
-                  <span className="text-muted-foreground">Paused</span>
-                </div>
+                {!filingStatus.is_records_received && (
+                  <div className="text-sm whitespace-nowrap">
+                    <span className="text-muted-foreground">Next Email: </span>
+                    <span className="text-muted-foreground">Paused</span>
+                  </div>
+                )}
                 <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
                   <span className="text-sm font-medium text-status-neutral">Paused</span>
                 </div>
@@ -1143,24 +1145,26 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             <div className="flex flex-col gap-1.5">
               {filingStatus.deadline_date && (
                 <div className="text-sm whitespace-nowrap">
-                  <span className="text-muted-foreground/60">Deadline: </span>
-                  <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}</span>
+                  <span className="text-muted-foreground">Deadline: </span>
+                  <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd/MM/yyyy")}</span>
                 </div>
               )}
               {filingStatus.doc_required_count > 0 && (
                 <div className="text-sm whitespace-nowrap">
-                  <span className="text-muted-foreground/60">Documents: </span>
+                  <span className="text-muted-foreground">Documents: </span>
                   <span className="text-muted-foreground">{filingStatus.doc_received_count}/{filingStatus.doc_required_count} received</span>
                 </div>
               )}
-              <div className="text-sm whitespace-nowrap">
-                <span className="text-muted-foreground/60">Next Email: </span>
-                <span className="text-muted-foreground">
-                  {filingStatus.next_email_date
-                    ? format(new Date(filingStatus.next_email_date), "dd MMM yyyy")
-                    : "None scheduled"}
-                </span>
-              </div>
+              {!filingStatus.is_records_received && (
+                <div className="text-sm whitespace-nowrap">
+                  <span className="text-muted-foreground">Next Email: </span>
+                  <span className="text-muted-foreground">
+                    {filingStatus.next_email_date
+                      ? format(new Date(filingStatus.next_email_date), "dd/MM/yyyy")
+                      : "None scheduled"}
+                  </span>
+                </div>
+              )}
               <div>
                 <FilingStatusBadge
                   status={filingStatus.status}
