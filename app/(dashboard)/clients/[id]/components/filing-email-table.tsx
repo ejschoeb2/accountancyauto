@@ -129,6 +129,7 @@ export function FilingEmailTable({ clientId, filingTypeId }: FilingEmailTablePro
         const result = await getQueuedReminders({
           clientId,
           filingTypeId,
+          statusFilter: ['scheduled', 'rescheduled', 'pending'],
           offset,
           limit: ITEMS_PER_PAGE,
         });

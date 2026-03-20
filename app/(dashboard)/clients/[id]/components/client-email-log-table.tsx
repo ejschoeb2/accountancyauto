@@ -89,6 +89,7 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
       } else {
         const result = await getQueuedReminders({
           clientId,
+          statusFilter: ['scheduled', 'rescheduled', 'pending'],
           offset,
           limit: ITEMS_PER_PAGE,
         });
