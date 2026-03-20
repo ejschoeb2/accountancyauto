@@ -1069,6 +1069,7 @@ export default function WizardPage() {
               }
             }}
             planClientLimit={selectedTier ? PLAN_TIERS.find((p) => p.key === selectedTier)?.clientLimit ?? null : null}
+            selectedClientTypes={selectedClientTypes}
           />
         </div>
       )}

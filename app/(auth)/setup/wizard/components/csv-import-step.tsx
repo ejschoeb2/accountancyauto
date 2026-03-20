@@ -63,6 +63,8 @@ interface CsvImportStepProps {
   onStartOver?: () => void;
   /** Plan client limit passed from parent (avoids unreliable DB fetch) */
   planClientLimit?: number | null;
+  /** Client types selected in the deadline-selection step (for mismatch detection) */
+  selectedClientTypes?: string[];
 }
 
 type StepState = "upload" | "mapping" | "edit-data";
@@ -101,7 +103,7 @@ export interface EditableRow {
  * using Card-based layout instead of a Dialog wrapper.
  * The existing CsvImportDialog on the /clients page is NOT modified.
  */
-export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, onStartOver, planClientLimit }: CsvImportStepProps) {
+export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, onStartOver, planClientLimit, selectedClientTypes }: CsvImportStepProps) {
   const [stepState, setStepState] = useState<StepState>(
     initialRows && initialRows.length > 0 ? "edit-data" : "upload"
   );
@@ -1025,6 +1027,26 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
                     </p>
                   </div>
                 )}
+
+                {(() => {
+                  if (!selectedClientTypes || selectedClientTypes.length === 0) return null;
+                  const selectedSet = new Set(selectedClientTypes);
+                  const mismatchedTypes = [...new Set(
+                    editableRows
+                      .map((r) => r.client_type)
+                      .filter((t): t is string => !!t && !selectedSet.has(t))
+                  )];
+                  if (mismatchedTypes.length === 0) return null;
+                  return (
+                    <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-xl">
+                      <Info className="size-5 text-blue-500 shrink-0 mt-0.5" />
+                      <p className="text-sm text-blue-500">
+                        Some clients are listed as <strong>{mismatchedTypes.join(", ")}</strong> — a type you didn&apos;t select in the previous step.
+                        They&apos;ll still be imported and you can update their type or your deadline settings later.
+                      </p>
+                    </div>
+                  );
+                })()}
 
                 {/* Editable data table — bleeds to layout edges like client table */}
                 <div ref={tableContainerRef} className="-mx-8 max-h-[min(420px,50vh)] overflow-y-auto border-y shadow-sm hover:shadow-lg transition-shadow duration-300 bg-white">
