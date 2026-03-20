@@ -670,10 +670,10 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                   </div>
                 )}
 
-                {/* Row 2: Documents/Emails toggle (left) + action buttons (right) */}
+                {/* Row 2: Documents/Emails toggle + action buttons */}
                 {filing.is_active && (
-                  <div className="flex items-center justify-between gap-3 mt-4">
-                    <div className="flex flex-col items-start gap-3">
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
                       <ToggleGroup
                         options={[
                           { value: 'documents' as const, label: 'Documents' },
@@ -682,19 +682,8 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                         value={getCardViewMode(filing.filing_type.id)}
                         onChange={(mode) => setCardViewMode(filing.filing_type.id, mode)}
                       />
-                      {getCardViewMode(filing.filing_type.id) === 'emails' && (
-                        <ToggleGroup
-                          options={[
-                            { value: 'queued' as const, label: 'Queued' },
-                            { value: 'sent' as const, label: 'Sent' },
-                          ]}
-                          value={getEmailViewMode(filing.filing_type.id)}
-                          onChange={(mode) => setEmailViewMode(filing.filing_type.id, mode)}
-                        />
-                      )}
-                    </div>
 
-                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3">
                       {/* Generate Upload Link */}
                       <IconButtonWithText
                         variant="violet"
@@ -755,7 +744,18 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                           )}
                         </>
                       )}
+                      </div>
                     </div>
+                    {getCardViewMode(filing.filing_type.id) === 'emails' && (
+                      <ToggleGroup
+                        options={[
+                          { value: 'queued' as const, label: 'Queued' },
+                          { value: 'sent' as const, label: 'Sent' },
+                        ]}
+                        value={getEmailViewMode(filing.filing_type.id)}
+                        onChange={(mode) => setEmailViewMode(filing.filing_type.id, mode)}
+                      />
+                    )}
                   </div>
                 )}
 

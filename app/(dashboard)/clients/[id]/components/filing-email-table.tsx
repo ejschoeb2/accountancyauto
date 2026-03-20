@@ -126,7 +126,6 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
         const result = await getQueuedReminders({
           clientId,
           filingTypeId,
-          statusFilter: ['scheduled', 'rescheduled', 'pending'],
           offset,
           limit: ITEMS_PER_PAGE,
         });
@@ -188,12 +187,12 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
               </TableHead>
               <TableHead>
                 <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Subject
+                  Template
                 </span>
               </TableHead>
-              <TableHead>
+              <TableHead className="w-[40%]">
                 <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                  Template
+                  Subject
                 </span>
               </TableHead>
               <TableHead>
@@ -229,11 +228,11 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
                   <TableCell className="text-muted-foreground">
                     {format(new Date(entry.sent_at), 'dd MMM yyyy')}
                   </TableCell>
-                  <TableCell className="text-muted-foreground truncate max-w-[300px]">
-                    {entry.subject || '\u2014'}
-                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {entry.template_name || '\u2014'}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground truncate">
+                    {entry.subject || '\u2014'}
                   </TableCell>
                   <TableCell>
                     <div className={`px-3 py-2 rounded-md ${statusConfig[entry.delivery_status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
@@ -263,11 +262,11 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
                     <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
                       {format(new Date(reminder.send_date), 'dd MMM yyyy')}
                     </TableCell>
-                    <TableCell className={cn('text-muted-foreground truncate max-w-[300px]', isCancelled && 'line-through')}>
-                      {reminder.subject || '\u2014'}
-                    </TableCell>
                     <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
                       {reminder.template_name || '\u2014'}
+                    </TableCell>
+                    <TableCell className={cn('text-muted-foreground truncate', isCancelled && 'line-through')}>
+                      {reminder.subject || '\u2014'}
                     </TableCell>
                     <TableCell>
                       <div className={`px-3 py-2 rounded-md ${statusConfig[reminder.status]?.bg || 'bg-gray-500/10'} inline-flex items-center`}>
