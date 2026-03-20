@@ -57,13 +57,15 @@ interface FilingAssignment {
 interface FilingManagementProps {
   clientId: string;
   onUpdate?: () => void;
+  highlightFiling?: string | null;
 }
 
-export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) {
+export function FilingManagement({ clientId, onUpdate, highlightFiling }: FilingManagementProps) {
   const [filings, setFilings] = useState<FilingAssignment[]>([]);
   const [recordsReceived, setRecordsReceived] = useState<string[]>([]);
   const [completedFor, setCompletedFor] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [highlightedId, setHighlightedId] = useState<string | null>(highlightFiling ?? null);
 
   usePageLoading('filing-management', loading);
 
@@ -126,6 +128,21 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
 
     fetchData();
   }, [clientId]);
+
+  // Scroll to highlighted filing after data loads
+  useEffect(() => {
+    if (!loading && highlightedId) {
+      const el = document.getElementById(`filing-${highlightedId}`);
+      if (el) {
+        // Delay slightly to ensure layout is complete
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Remove highlight after animation
+          setTimeout(() => setHighlightedId(null), 2000);
+        }, 100);
+      }
+    }
+  }, [loading, highlightedId]);
 
   // Toggle filing assignment
   const handleToggle = async (filingTypeId: string, currentActive: boolean) => {
@@ -552,7 +569,8 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
             return (
               <div
                 key={filing.filing_type.id}
-                className={`rounded-xl border bg-card p-6 shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 ${!filing.is_active ? 'opacity-60' : ''}`}
+                id={`filing-${filing.filing_type.id}`}
+                className={`rounded-xl border bg-card p-6 shadow-sm hover:shadow-lg hover:border-primary/20 transition-all duration-300 ${!filing.is_active ? 'opacity-60' : ''} ${highlightedId === filing.filing_type.id ? 'ring-2 ring-sky-500 border-sky-500' : ''}`}
               >
                 {/* Row 1: Filing name + due date (left) | Received count + checkboxes (right) */}
                 <div className="flex items-center justify-between gap-6">

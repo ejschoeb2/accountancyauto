@@ -50,7 +50,7 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
               {upcomingClients.map((client, index) => (
                 <Link
                   key={client.id}
-                  href={`/clients/${client.id}`}
+                  href={`/clients/${client.id}${client.next_deadline_type ? `?filing=${client.next_deadline_type}` : ''}`}
                   onClick={(e) => e.stopPropagation()}
                   className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
                 >

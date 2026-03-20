@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Edit2, CheckCircle, X, Mail, Pause, Play, Trash2 } from 'lucide-react';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
@@ -42,7 +42,9 @@ type VATScheme = 'Standard' | 'Flat Rate' | 'Cash Accounting';
 export default function ClientPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const highlightFiling = searchParams.get('filing');
 
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
@@ -432,7 +434,7 @@ export default function ClientPage() {
       </Card>
 
       {/* Filing Management */}
-      <FilingManagement key={refreshKey} clientId={id} onUpdate={triggerRefresh} />
+      <FilingManagement key={refreshKey} clientId={id} onUpdate={triggerRefresh} highlightFiling={highlightFiling} />
 
       {/* Compliance */}
       <Card className="gap-1.5 pb-2">

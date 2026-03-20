@@ -1111,7 +1111,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             }
 
             return (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1.5" data-filing-type={filingTypeId}>
                 {filingStatus.deadline_date && (
                   <div className="text-sm whitespace-nowrap">
                     <span className="text-muted-foreground">Deadline: </span>
@@ -1142,7 +1142,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           }
 
           return (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5" data-filing-type={filingTypeId}>
               {filingStatus.deadline_date && (
                 <div className="text-sm whitespace-nowrap">
                   <span className="text-muted-foreground">Deadline: </span>
@@ -1596,6 +1596,24 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         </div>
       )}
 
+      {/* Client limit alerts */}
+      {isAtLimit && (
+        <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
+          <XCircle className="size-5 text-red-500 shrink-0" />
+          <p className="text-sm text-red-500">
+            You&apos;ve reached your plan limit of {clientLimit} clients. <a href="/settings?tab=billing" className="underline font-medium hover:text-red-600">Upgrade your plan</a> to add more.
+          </p>
+        </div>
+      )}
+      {isNearLimit && (
+        <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-xl">
+          <AlertTriangle className="size-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-600">
+            You&apos;re using {clientCount} of {clientLimit} clients on your plan. <a href="/settings?tab=billing" className="underline font-medium hover:text-amber-700">Upgrade</a> to add more capacity.
+          </p>
+        </div>
+      )}
+
       {/* Search Input and Controls */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         {/* Search Input */}
@@ -1850,24 +1868,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         </Card>
       )}
 
-      {/* Client limit alerts */}
-      {isAtLimit && (
-        <div className="flex items-center gap-3 p-4 bg-red-500/10 rounded-xl">
-          <XCircle className="size-5 text-red-500 shrink-0" />
-          <p className="text-sm text-red-500">
-            You&apos;ve reached your plan limit of {clientLimit} clients. <a href="/settings?tab=billing" className="underline font-medium hover:text-red-600">Upgrade your plan</a> to add more.
-          </p>
-        </div>
-      )}
-      {isNearLimit && (
-        <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-xl">
-          <AlertTriangle className="size-5 text-amber-600 shrink-0" />
-          <p className="text-sm text-amber-600">
-            You&apos;re using {clientCount} of {clientLimit} clients on your plan. <a href="/settings?tab=billing" className="underline font-medium hover:text-amber-700">Upgrade</a> to add more capacity.
-          </p>
-        </div>
-      )}
-
       {/* Results count */}
       <div className="text-sm font-medium text-foreground/70">
         Showing <span className="font-semibold text-foreground">{table.getRowModel().rows.length}</span> of <span className="font-semibold text-foreground">{data.length}</span> clients
@@ -1916,7 +1916,9 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                     ) {
                       return;
                     }
-                    router.push(`/clients/${row.original.id}`);
+                    const filingCell = target.closest('[data-filing-type]');
+                    const filingParam = filingCell ? `?filing=${filingCell.getAttribute('data-filing-type')}` : '';
+                    router.push(`/clients/${row.original.id}${filingParam}`);
                   }}
                 >
                   {row.getVisibleCells().map((cell) => (
