@@ -1215,8 +1215,9 @@ export async function getDocumentRequirementsForWizard(
 
   const { data, error } = await admin
     .from("filing_document_requirements")
-    .select("filing_type_id, document_type_id, is_mandatory, document_types(id, label, description)")
-    .in("filing_type_id", filingTypeIds);
+    .select("filing_type_id, document_type_id, is_mandatory, sort_order, description_override, document_types(id, label, description)")
+    .in("filing_type_id", filingTypeIds)
+    .order("sort_order", { ascending: true });
 
   if (error) {
     console.error("[getDocumentRequirementsForWizard] Failed:", error);
@@ -1231,7 +1232,7 @@ export async function getDocumentRequirementsForWizard(
     result[row.filing_type_id].push({
       document_type_id: row.document_type_id,
       label: doc?.label ?? row.document_type_id,
-      description: doc?.description ?? null,
+      description: (row as Record<string, unknown>).description_override as string | null ?? doc?.description ?? null,
       is_mandatory: row.is_mandatory,
     });
   }
