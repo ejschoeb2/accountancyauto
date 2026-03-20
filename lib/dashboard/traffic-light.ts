@@ -8,7 +8,7 @@
  * - RED: Deadline passed without records (Overdue)
  * - ORANGE: < 1 week until deadline (Critical)
  * - AMBER: 1-4 weeks until deadline (Approaching)
- * - BLUE: > 4 weeks until deadline (Scheduled)
+ * - BLUE: > 4 weeks until deadline (On Track)
  */
 
 export type TrafficLightStatus = 'green' | 'violet' | 'blue' | 'amber' | 'orange' | 'red' | 'grey';
@@ -33,7 +33,7 @@ export interface ClientStatusInput {
  * RED: ANY filing where deadline_date < today AND filing_type_id NOT in records_received_for (Overdue)
  * ORANGE: ANY filing where deadline is < 1 week away AND no records (Critical)
  * AMBER: ANY filing where deadline is 1-4 weeks away AND no records (Approaching)
- * BLUE: All remaining filings > 4 weeks away (Scheduled)
+ * BLUE: All remaining filings > 4 weeks away (On Track)
  *
  * Priority order: grey > green > violet > red > orange > amber > blue (check in this order, first match wins)
  */
@@ -114,7 +114,7 @@ export function calculateClientStatus(input: ClientStatusInput): TrafficLightSta
   }
 
   // BLUE: All remaining filings > 4 weeks away
-  return 'blue'; // Scheduled (> 4 weeks)
+  return 'blue'; // On Track (> 4 weeks)
 }
 
 /**
@@ -178,6 +178,6 @@ export function calculateFilingTypeStatus(input: FilingStatusInput): TrafficLigh
   } else if (deadline < fourWeeksFromNow) {
     return 'amber'; // Approaching (1-4 weeks)
   } else {
-    return 'blue'; // Scheduled (> 4 weeks)
+    return 'blue'; // On Track (> 4 weeks)
   }
 }

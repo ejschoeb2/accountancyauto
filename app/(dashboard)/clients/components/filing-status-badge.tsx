@@ -26,7 +26,7 @@ const STATUS_CONFIG: Record<TrafficLightStatus, { bg: string; text: string; labe
   blue: {
     bg: 'bg-status-info/10',
     text: 'text-status-info',
-    label: 'Scheduled',
+    label: 'On Track',
   },
   violet: {
     bg: 'bg-violet-500/10',

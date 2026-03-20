@@ -135,7 +135,7 @@ function ClientsAndDeadlines() {
 
       <SubHeading>The traffic-light status system</SubHeading>
       <Body>
-        Every filing deadline is colour-coded by urgency on the dashboard and client detail pages. <strong>Red</strong> — overdue (past the deadline date). <strong>Orange</strong> — critical (7 days or fewer remaining). <strong>Amber</strong> — approaching (8–28 days remaining). <strong>Blue</strong> — scheduled (more than 28 days remaining). <strong>Green</strong> — complete (all required documents received). <strong>Grey</strong> — paused or inactive.
+        Every filing deadline is colour-coded by urgency on the dashboard and client detail pages. <strong>Red</strong> — overdue (past the deadline date). <strong>Orange</strong> — critical (7 days or fewer remaining). <strong>Amber</strong> — approaching (8–28 days remaining). <strong>Blue</strong> — on track (more than 28 days remaining). <strong>Green</strong> — complete (all required documents received). <strong>Grey</strong> — paused or inactive.
       </Body>
 
       <SubHeading>Editing clients</SubHeading>

@@ -18,7 +18,7 @@ const STATUS_OPTIONS = [
   { value: "red", label: "Overdue" },
   { value: "orange", label: "Critical" },
   { value: "amber", label: "Approaching" },
-  { value: "blue", label: "Scheduled" },
+  { value: "blue", label: "On Track" },
   { value: "green", label: "Records Received" },
 ];
 

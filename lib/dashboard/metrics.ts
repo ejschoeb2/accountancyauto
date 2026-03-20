@@ -11,7 +11,7 @@ export interface DashboardMetrics {
   criticalCount: number; // orange (< 1 week)
   approachingCount: number; // amber (1-4 weeks) - no reminder sent yet
   approachingSentCount: number; // amber (1-4 weeks) - reminder already sent
-  scheduledCount: number; // blue (> 4 weeks)
+  scheduledCount: number; // blue — on track (> 4 weeks)
   completedCount: number; // green (records received)
   violetCount: number; // violet (records received, awaiting submission)
   inactiveCount: number; // grey (paused)
@@ -515,6 +515,22 @@ export async function getClientFilingStatuses(
     satisfiedDocTypes.get(key)!.add(row.document_type_id);
   }
 
+  // Fetch next scheduled email date per client+filing from reminder_queue
+  const { data: nextEmailRows } = await supabase
+    .from('reminder_queue')
+    .select('client_id, filing_type_id, send_date')
+    .in('status', ['scheduled', 'rescheduled'])
+    .order('send_date', { ascending: true });
+
+  // Map: "clientId-filingTypeId" -> earliest send_date
+  const nextEmailMap = new Map<string, string>();
+  for (const row of nextEmailRows ?? []) {
+    const key = `${row.client_id}-${row.filing_type_id}`;
+    if (!nextEmailMap.has(key)) {
+      nextEmailMap.set(key, row.send_date);
+    }
+  }
+
   // Build a map of client -> assigned filing types (filtered by org-level active)
   const clientAssignments = new Map<string, Set<string>>();
   for (const assignment of assignments || []) {
@@ -573,6 +589,7 @@ export async function getClientFilingStatuses(
         deadline_date: deadlineDate,
         doc_required_count: mandatoryDocTypes.get(filingTypeId)?.size ?? 0,
         doc_received_count: satisfiedDocTypes.get(`${client.id}-${filingTypeId}`)?.size ?? 0,
+        next_email_date: nextEmailMap.get(`${client.id}-${filingTypeId}`) ?? null,
       };
     }).filter((filing): filing is FilingTypeStatus => filing !== null);
 

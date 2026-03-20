@@ -26,7 +26,7 @@ const STATUS_CONFIG: Record<
     text: 'text-status-warning',
   },
   blue: {
-    label: 'Scheduled',
+    label: 'On Track',
     bg: 'bg-status-info/10',
     text: 'text-status-info',
   },

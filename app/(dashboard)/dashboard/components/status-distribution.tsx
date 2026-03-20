@@ -49,7 +49,7 @@ export function StatusDistribution({ clients }: StatusDistributionProps) {
       filterValue: 'amber',
     },
     {
-      label: 'Scheduled',
+      label: 'On Track',
       count: statusCounts.blue,
       percentage: total > 0 ? (statusCounts.blue / total) * 100 : 0,
       color: '#3b82f6',

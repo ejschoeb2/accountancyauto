@@ -122,7 +122,7 @@ const STATUS_LABELS: Record<TrafficLightStatus, string> = {
   red: "Overdue",
   orange: "Critical",
   amber: "Approaching",
-  blue: "Scheduled",
+  blue: "On Track",
   violet: "Records Received",
   green: "Completed",
   grey: "Inactive",
@@ -813,6 +813,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
               deadline_date: null,
               doc_received_count: 0,
               doc_required_count: 0,
+              next_email_date: null,
             });
           }
         } else {
@@ -1103,19 +1104,30 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             );
           }
 
-          // Paused clients show deadline date + "Paused" badge
+          // Paused clients show deadline info + "Paused" badge
           if (client.reminders_paused) {
             if (!filingStatus) {
               return <span className="text-muted-foreground">—</span>;
             }
 
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-1.5">
                 {filingStatus.deadline_date && (
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
-                  </span>
+                  <div className="text-sm whitespace-nowrap">
+                    <span className="text-muted-foreground/60">Deadline: </span>
+                    <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}</span>
+                  </div>
                 )}
+                {filingStatus.doc_required_count > 0 && (
+                  <div className="text-sm whitespace-nowrap">
+                    <span className="text-muted-foreground/60">Documents: </span>
+                    <span className="text-muted-foreground">{filingStatus.doc_received_count}/{filingStatus.doc_required_count} received</span>
+                  </div>
+                )}
+                <div className="text-sm whitespace-nowrap">
+                  <span className="text-muted-foreground/60">Next Email: </span>
+                  <span className="text-muted-foreground">Paused</span>
+                </div>
                 <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
                   <span className="text-sm font-medium text-status-neutral">Paused</span>
                 </div>
@@ -1128,17 +1140,27 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           }
 
           return (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               {filingStatus.deadline_date && (
-                <div className="text-sm text-muted-foreground whitespace-nowrap">
-                  {format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}
+                <div className="text-sm whitespace-nowrap">
+                  <span className="text-muted-foreground/60">Deadline: </span>
+                  <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd MMM yyyy")}</span>
                 </div>
               )}
               {filingStatus.doc_required_count > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  {filingStatus.doc_received_count}/{filingStatus.doc_required_count} received
+                <div className="text-sm whitespace-nowrap">
+                  <span className="text-muted-foreground/60">Documents: </span>
+                  <span className="text-muted-foreground">{filingStatus.doc_received_count}/{filingStatus.doc_required_count} received</span>
                 </div>
               )}
+              <div className="text-sm whitespace-nowrap">
+                <span className="text-muted-foreground/60">Next Email: </span>
+                <span className="text-muted-foreground">
+                  {filingStatus.next_email_date
+                    ? format(new Date(filingStatus.next_email_date), "dd MMM yyyy")
+                    : "None scheduled"}
+                </span>
+              </div>
               <div>
                 <FilingStatusBadge
                   status={filingStatus.status}
@@ -1460,7 +1482,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             blue: {
               bg: 'bg-status-info/10',
               text: 'text-status-info',
-              label: 'Scheduled',
+              label: 'On Track',
             },
             violet: {
               bg: 'bg-violet-500/10',

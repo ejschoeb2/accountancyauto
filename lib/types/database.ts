@@ -91,6 +91,7 @@ export interface FilingTypeStatus {
   deadline_date: string | null;
   doc_received_count: number;
   doc_required_count: number;
+  next_email_date: string | null; // earliest scheduled/rescheduled send_date from reminder_queue
 }
 
 // ============================================================================
