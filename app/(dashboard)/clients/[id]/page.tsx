@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Edit2, CheckCircle, X, Mail, Pause, Play, Trash2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,7 +30,6 @@ import { Separator } from '@/components/ui/separator';
 import { PageLoadingProvider } from '@/components/page-loading';
 import { LoadingScreen } from '@/components/loading-screen';
 import { FilingManagement } from './components/filing-management';
-import { ClientEmailHistoryTable } from './components/client-email-log-table';
 import { DsarExportButton } from './components/dsar-export-button';
 import { SendEmailModal } from '../components/send-email-modal';
 import { createClient } from '@/lib/supabase/client';
@@ -435,29 +433,6 @@ export default function ClientPage() {
 
       {/* Filing Management */}
       <FilingManagement key={refreshKey} clientId={id} onUpdate={triggerRefresh} />
-
-      {/* Email Log */}
-      <Card className="gap-1.5">
-        <div className="px-8">
-          <div className="mb-6 flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <h2 className="text-2xl font-semibold">Email Log</h2>
-              <p className="text-sm text-muted-foreground">
-                View all sent and queued reminder emails for this client. You can reschedule or cancel upcoming emails.
-              </p>
-            </div>
-            {client.reminders_paused && (
-              <Badge variant="outline" className="border-status-warning text-status-warning shrink-0">
-                Paused Reminders
-              </Badge>
-            )}
-          </div>
-        </div>
-        <CardContent>
-          <ClientEmailHistoryTable key={refreshKey} clientId={id} />
-        </CardContent>
-      </Card>
-
 
       {/* Compliance */}
       <Card className="gap-1.5 pb-2">

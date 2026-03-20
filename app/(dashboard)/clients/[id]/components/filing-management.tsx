@@ -30,6 +30,8 @@ import { CheckButton } from '@/components/ui/check-button';
 import { Separator } from '@/components/ui/separator';
 import type { FilingType } from '@/lib/types/database';
 import { DocumentCard, type DocumentCardActions } from './document-card';
+import { FilingEmailTable } from './filing-email-table';
+import { ToggleGroup } from '@/components/ui/toggle-group';
 
 interface FilingAssignment {
   filing_type: FilingType;
@@ -63,6 +65,14 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
   const documentCardActionsRef = useRef<Record<string, DocumentCardActions>>({});
   const [effectiveCounts, setEffectiveCounts] = useState<Record<string, { received: number; total: number }>>({});
   const [portalStates, setPortalStates] = useState<Record<string, { generating: boolean; url: string | null; expiresAt: string | null }>>({});
+
+  const [cardViewModes, setCardViewModes] = useState<Record<string, 'documents' | 'emails'>>({});
+
+  const getCardViewMode = (filingTypeId: string): 'documents' | 'emails' =>
+    cardViewModes[filingTypeId] || 'documents';
+
+  const setCardViewMode = (filingTypeId: string, mode: 'documents' | 'emails') =>
+    setCardViewModes(prev => ({ ...prev, [filingTypeId]: mode }));
 
   const [showRolloverDialog, setShowRolloverDialog] = useState(false);
   const [rolloverFilingType, setRolloverFilingType] = useState<string | null>(null);
@@ -681,32 +691,52 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                   </div>
                 )}
 
-                {/* Document table — full width, breaks out of p-6 padding */}
+                {/* Documents / Emails toggle + content */}
                 {filing.is_active && (
-                  <div className="mt-4 -mx-6 -mb-6">
-                    <DocumentCard
-                      clientId={clientId}
-                      filingTypeId={filing.filing_type.id}
-                      filingTypeName={filing.filing_type.name}
-                      docCount={filing.doc_count ?? 0}
-                      lastReceivedAt={filing.last_received_at ?? null}
-                      portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
-                      portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
-                      onActionsReady={(actions) => {
-                        documentCardActionsRef.current[filing.filing_type.id] = actions;
-                      }}
-                      onReceivedCountChange={(received, total) => {
-                        setEffectiveCounts(prev => {
-                          const existing = prev[filing.filing_type.id];
-                          if (existing?.received === received && existing?.total === total) return prev;
-                          return { ...prev, [filing.filing_type.id]: { received, total } };
-                        });
-                      }}
-                      onRequiredAllReceivedChange={(allReceived) =>
-                        handleRequiredDocsAllReceived(filing.filing_type.id, allReceived)
-                      }
-                    />
-                  </div>
+                  <>
+                    <div className="mt-4">
+                      <ToggleGroup
+                        options={[
+                          { value: 'documents' as const, label: 'Documents' },
+                          { value: 'emails' as const, label: 'Emails' },
+                        ]}
+                        value={getCardViewMode(filing.filing_type.id)}
+                        onChange={(mode) => setCardViewMode(filing.filing_type.id, mode)}
+                      />
+                    </div>
+
+                    <div className="mt-4 -mx-6 -mb-6">
+                      {getCardViewMode(filing.filing_type.id) === 'documents' ? (
+                        <DocumentCard
+                          clientId={clientId}
+                          filingTypeId={filing.filing_type.id}
+                          filingTypeName={filing.filing_type.name}
+                          docCount={filing.doc_count ?? 0}
+                          lastReceivedAt={filing.last_received_at ?? null}
+                          portalUrl={portalStates[filing.filing_type.id]?.url ?? null}
+                          portalExpiresAt={portalStates[filing.filing_type.id]?.expiresAt ?? null}
+                          onActionsReady={(actions) => {
+                            documentCardActionsRef.current[filing.filing_type.id] = actions;
+                          }}
+                          onReceivedCountChange={(received, total) => {
+                            setEffectiveCounts(prev => {
+                              const existing = prev[filing.filing_type.id];
+                              if (existing?.received === received && existing?.total === total) return prev;
+                              return { ...prev, [filing.filing_type.id]: { received, total } };
+                            });
+                          }}
+                          onRequiredAllReceivedChange={(allReceived) =>
+                            handleRequiredDocsAllReceived(filing.filing_type.id, allReceived)
+                          }
+                        />
+                      ) : (
+                        <FilingEmailTable
+                          clientId={clientId}
+                          filingTypeId={filing.filing_type.id}
+                        />
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             );

@@ -26,6 +26,7 @@ export interface AuditLogParams {
   dateFrom?: string;
   dateTo?: string;
   clientId?: string;
+  filingTypeId?: string;
   offset: number;
   limit: number;
 }
@@ -37,7 +38,7 @@ export interface AuditLogResult {
 
 export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResult> {
   const supabase = await createClient();
-  const { clientSearch: rawClientSearch, dateFrom, dateTo, clientId, offset, limit } = params;
+  const { clientSearch: rawClientSearch, dateFrom, dateTo, clientId, filingTypeId, offset, limit } = params;
   const clientSearch = rawClientSearch?.slice(0, 200);
 
   // Fetch filing types lookup (small reference table)
@@ -115,6 +116,10 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
   // Apply filters
   if (clientId) {
     query = query.eq('client_id', clientId);
+  }
+
+  if (filingTypeId) {
+    query = query.eq('filing_type_id', filingTypeId);
   }
 
   // Apply client search filter by client IDs
@@ -205,6 +210,7 @@ export interface QueuedRemindersParams {
   dateFrom?: string;
   dateTo?: string;
   clientId?: string;
+  filingTypeId?: string;
   statusFilter?: string[];
   offset: number;
   limit: number;
@@ -217,7 +223,7 @@ export interface QueuedRemindersResult {
 
 export async function getQueuedReminders(params: QueuedRemindersParams): Promise<QueuedRemindersResult> {
   const supabase = await createClient();
-  const { clientSearch: rawClientSearch, dateFrom, dateTo, clientId, statusFilter, offset, limit } = params;
+  const { clientSearch: rawClientSearch, dateFrom, dateTo, clientId, filingTypeId, statusFilter, offset, limit } = params;
   const clientSearch = rawClientSearch?.slice(0, 200);
 
   // If client search is provided, find matching client IDs first
@@ -296,6 +302,10 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
   // Apply filters
   if (clientId) {
     query = query.eq('client_id', clientId);
+  }
+
+  if (filingTypeId) {
+    query = query.eq('filing_type_id', filingTypeId);
   }
 
   // Apply client search filter by client IDs
