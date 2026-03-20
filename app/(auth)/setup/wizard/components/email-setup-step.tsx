@@ -134,11 +134,10 @@ export function EmailSetupStep({
     returnPathVerified: null,
   });
 
-  // ── Email identity state ────────────────────────────────────────────────
-  const [senderName, setSenderName] = useState(defaultEmailSettings.senderName);
-  const defaultLocalPart = defaultEmailSettings.senderAddress.split("@")[0] ?? "reminders";
-  const [senderLocalPart, setSenderLocalPart] = useState(defaultLocalPart);
-  const [replyTo, setReplyTo] = useState(defaultEmailSettings.replyTo);
+  // ── Email identity state (blank by default so user must fill them in) ───
+  const [senderName, setSenderName] = useState("");
+  const [senderLocalPart, setSenderLocalPart] = useState("");
+  const [replyTo, setReplyTo] = useState("");
 
   // ── Send settings state ─────────────────────────────────────────────────
   const [sendHour, setSendHour] = useState(String(defaultSendHour));
@@ -560,7 +559,7 @@ export function EmailSetupStep({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label htmlFor="identity-sender-name" className="text-sm font-medium">
+                <label htmlFor="identity-sender-name" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Sender Name
                 </label>
                 <Input
@@ -570,10 +569,11 @@ export function EmailSetupStep({
                   onChange={(e) => setSenderName(e.target.value)}
                   placeholder="John Smith"
                   disabled={isSaving || isCompleting}
+                  autoComplete="off"
                 />
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="identity-sender-local" className="text-sm font-medium">
+                <label htmlFor="identity-sender-local" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   Sender Email
                 </label>
                 <div className="flex items-center gap-0">
@@ -585,9 +585,10 @@ export function EmailSetupStep({
                       const value = e.target.value.replace(/[^a-zA-Z0-9._+-]/g, "");
                       setSenderLocalPart(value);
                     }}
-                    placeholder="hello"
+                    placeholder="reminders"
                     className="rounded-r-none"
                     disabled={isSaving || isCompleting}
+                    autoComplete="off"
                   />
                   <div className="flex items-center h-9 px-3 border border-l-0 rounded-r-md bg-muted text-muted-foreground text-sm whitespace-nowrap">
                     @{senderDomain}
@@ -597,7 +598,7 @@ export function EmailSetupStep({
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="settings-reply-to" className="text-sm font-medium">
+              <label htmlFor="settings-reply-to" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Reply-To Address
               </label>
               <p className="text-xs text-muted-foreground">
@@ -610,6 +611,7 @@ export function EmailSetupStep({
                 onChange={(e) => setReplyTo(e.target.value)}
                 placeholder="you@yourfirm.co.uk"
                 disabled={isSaving || isCompleting}
+                autoComplete="off"
               />
               <div className="flex items-start gap-3 p-4 bg-amber-500/10 rounded-xl mt-2">
                 <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
@@ -621,7 +623,7 @@ export function EmailSetupStep({
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="settings-send-hour" className="text-sm font-medium">
+              <label htmlFor="settings-send-hour" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Send Hour (UK time)
               </label>
               <p className="text-xs text-muted-foreground">
@@ -667,7 +669,7 @@ export function EmailSetupStep({
               variant="green"
               buttonType="icon-text"
               onClick={handleSettingsSave}
-              disabled={isSaving || isCompleting}
+              disabled={isSaving || isCompleting || !senderName.trim() || !senderLocalPart.trim() || !replyTo.trim()}
             >
               {isSaving ? (
                 <><Loader2 className="size-4 animate-spin" /> Saving...</>
