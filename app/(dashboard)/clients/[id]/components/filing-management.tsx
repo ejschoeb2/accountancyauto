@@ -664,7 +664,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                 {/* Row 2: Documents/Emails toggle (left) + action buttons (right) */}
                 {filing.is_active && (
                   <div className="flex items-center justify-between gap-3 mt-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col items-start gap-3">
                       <ToggleGroup
                         options={[
                           { value: 'documents' as const, label: 'Documents' },
