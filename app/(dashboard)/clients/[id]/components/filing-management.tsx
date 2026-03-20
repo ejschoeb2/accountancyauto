@@ -29,9 +29,20 @@ import { Label } from '@/components/ui/label';
 import { CheckButton } from '@/components/ui/check-button';
 import { Separator } from '@/components/ui/separator';
 import type { FilingType } from '@/lib/types/database';
+import { calculateFilingTypeStatus, type TrafficLightStatus } from '@/lib/dashboard/traffic-light';
 import { DocumentCard, type DocumentCardActions } from './document-card';
 import { FilingEmailTable } from './filing-email-table';
 import { ToggleGroup } from '@/components/ui/toggle-group';
+
+const STATUS_BADGE_CONFIG: Record<TrafficLightStatus, { bg: string; text: string; label: string }> = {
+  red: { bg: 'bg-status-danger/10', text: 'text-status-danger', label: 'Overdue' },
+  orange: { bg: 'bg-status-critical/10', text: 'text-status-critical', label: 'Critical' },
+  amber: { bg: 'bg-status-warning/10', text: 'text-status-warning', label: 'Approaching' },
+  blue: { bg: 'bg-status-info/10', text: 'text-status-info', label: 'On Track' },
+  violet: { bg: 'bg-violet-500/10', text: 'text-violet-600', label: 'Records Received' },
+  green: { bg: 'bg-green-500/10', text: 'text-green-600', label: 'Completed' },
+  grey: { bg: 'bg-status-neutral/10', text: 'text-status-neutral', label: 'Inactive' },
+};
 
 interface FilingAssignment {
   filing_type: FilingType;
@@ -520,6 +531,17 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
             const deadlinePassed = isDeadlinePassed(filing);
             const canRollover = isReceived && isCompleted && deadlinePassed && filing.is_active;
 
+            // Compute reactive traffic-light status
+            const filingStatus = calculateFilingTypeStatus({
+              filing_type_id: filing.filing_type.id,
+              deadline_date: filing.override_deadline || filing.calculated_deadline,
+              is_records_received: isReceived,
+              is_completed: isCompleted,
+              override_status: null,
+            });
+            const showStatusBadge = filing.is_active && filingStatus !== 'violet' && filingStatus !== 'green';
+            const badgeConfig = STATUS_BADGE_CONFIG[filingStatus];
+
             return (
               <div
                 key={filing.filing_type.id}
@@ -527,7 +549,7 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
               >
                 {/* Row 1: Filing name + due date (left) | Received count + checkboxes (right) */}
                 <div className="flex items-center justify-between gap-6">
-                  <div className="flex items-baseline gap-3 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     <span className="font-semibold text-lg">{filing.filing_type.name}</span>
                     {filing.is_active && (
                       <span className="text-sm text-muted-foreground shrink-0">
@@ -550,6 +572,13 @@ export function FilingManagement({ clientId, onUpdate }: FilingManagementProps) 
                           </span>
                         )}
                       </span>
+                    )}
+                    {showStatusBadge && (
+                      <div className={`px-2.5 py-1 rounded-md ${badgeConfig.bg} inline-flex items-center shrink-0`}>
+                        <span className={`text-xs font-medium ${badgeConfig.text}`}>
+                          {badgeConfig.label}
+                        </span>
+                      </div>
                     )}
                   </div>
 

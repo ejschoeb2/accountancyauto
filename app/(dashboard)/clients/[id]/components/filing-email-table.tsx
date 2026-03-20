@@ -83,8 +83,8 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
   },
   records_received: {
     label: 'Records Received',
-    bg: 'bg-green-500/10',
-    text: 'text-green-600',
+    bg: 'bg-violet-500/10',
+    text: 'text-violet-600',
     icon: <CheckCircle className="h-4 w-4" />,
   },
   scheduled: {
@@ -438,13 +438,15 @@ export function FilingEmailTable({ clientId, filingTypeId }: FilingEmailTablePro
                 const currentStatus = isEditMode ? (editedStatuses[reminder.id] ?? reminder.status) : reminder.status;
                 const currentDate = isEditMode ? (editedDates[reminder.id] ?? reminder.send_date) : reminder.send_date;
                 const canEdit = isStatusEditable(reminder.status);
+                const isCancelled = reminder.status === 'cancelled' || reminder.status === 'records_received';
 
                 return (
                   <TableRow
                     key={reminder.id}
                     className={cn(
                       'group hover:bg-muted/50 transition-colors',
-                      !isEditMode && 'cursor-pointer'
+                      !isEditMode && 'cursor-pointer',
+                      isCancelled && 'opacity-50'
                     )}
                     onClick={() => {
                       if (!isEditMode) {
@@ -453,7 +455,7 @@ export function FilingEmailTable({ clientId, filingTypeId }: FilingEmailTablePro
                       }
                     }}
                   >
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
                       {isEditMode && canEdit ? (
                         <Input
                           type="date"
@@ -465,10 +467,10 @@ export function FilingEmailTable({ clientId, filingTypeId }: FilingEmailTablePro
                         format(new Date(reminder.send_date), 'dd MMM yyyy')
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
                       {format(new Date(reminder.deadline_date), 'dd MMM yyyy')}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className={cn('text-muted-foreground', isCancelled && 'line-through')}>
                       {reminder.template_name || '\u2014'}
                     </TableCell>
                     <TableCell>
