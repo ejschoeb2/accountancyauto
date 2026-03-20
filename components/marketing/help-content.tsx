@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
 import { MarketingNav } from "./nav";
 
 // ---------------------------------------------------------------------------
@@ -13,6 +14,7 @@ const SECTIONS = [
   { id: "reminders",       label: "Reminders & schedules" },
   { id: "templates",       label: "Email templates" },
   { id: "portal",          label: "Client portal" },
+  { id: "documents",       label: "Document guide" },
   { id: "verdicts",        label: "Document verdicts" },
   { id: "storage",         label: "Storage integration" },
   { id: "team",            label: "Team & settings" },
@@ -258,10 +260,6 @@ function ClientPortal() {
         Each filing type has a default set of required documents. You can customise this per client — add extra items specific to that client, remove items that don't apply, or add ad hoc items with custom labels. Changes only affect the individual client and don't alter the global defaults.
       </Body>
 
-      <SubHeading>Document guide for clients</SubHeading>
-      <Body>
-        Prompt provides a <a href="/help/documents" className="text-violet-600 hover:text-violet-700 underline underline-offset-2 font-medium">document guide</a> that explains every document type in plain language — what it is, where to find it, and why you need it. You can share this link with clients who are unsure what to upload. The guide is grouped by filing type and covers Self Assessment, Corporation Tax, VAT, Companies House, and all other supported filings.
-      </Body>
     </>
   );
 }
@@ -435,15 +433,87 @@ function GoFurther() {
 }
 
 // ---------------------------------------------------------------------------
+// Document guide (data-driven section)
+// ---------------------------------------------------------------------------
+
+export interface DocumentInfo {
+  code: string;
+  label: string;
+  description: string;
+}
+
+export interface DocumentSection {
+  id: string;
+  label: string;
+  documents: DocumentInfo[];
+}
+
+function DocumentGuide({ sections }: { sections: DocumentSection[] }) {
+  const [activeType, setActiveType] = useState(sections[0]?.id ?? "");
+  const activeSection = sections.find((s) => s.id === activeType);
+
+  return (
+    <>
+      <SectionHeading>Document guide</SectionHeading>
+      <Body>
+        This section explains every document your practice may request from clients — what it is, where to find it, and why it&apos;s needed. Share the link <strong>/help#documents</strong> with clients who are unsure what to upload.
+      </Body>
+
+      {/* Filing type tabs */}
+      <div className="overflow-x-auto mb-6">
+        <div className="flex gap-1 min-w-max">
+          {sections.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setActiveType(s.id)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                activeType === s.id
+                  ? "bg-violet-600 text-white"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeSection && (
+        <div className="space-y-3">
+          {activeSection.documents.map((doc) => (
+            <div key={doc.code} className="rounded-xl border bg-card p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex items-center justify-center size-8 rounded-lg bg-violet-500/10 shrink-0 mt-0.5">
+                  <FileText className="size-4 text-violet-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{doc.label}</p>
+                  {doc.description && (
+                    <p className="text-[13.5px] text-muted-foreground leading-relaxed mt-1">
+                      {doc.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Section map
 // ---------------------------------------------------------------------------
 
-const SECTION_CONTENT: Record<SectionId, React.ComponentType> = {
+const SECTION_CONTENT: Record<SectionId, React.ComponentType<{ documentSections?: DocumentSection[] }>> = {
   "getting-started": GettingStarted,
   "clients":         ClientsAndDeadlines,
   "reminders":       RemindersAndSchedules,
   "templates":       EmailTemplates,
   "portal":          ClientPortal,
+  "documents":       ({ documentSections }) => <DocumentGuide sections={documentSections ?? []} />,
   "verdicts":        DocumentVerdicts,
   "storage":         StorageIntegration,
   "team":            TeamAndSettings,
@@ -454,7 +524,11 @@ const SECTION_CONTENT: Record<SectionId, React.ComponentType> = {
 // Main component
 // ---------------------------------------------------------------------------
 
-export const HelpContent = () => {
+interface HelpContentProps {
+  documentSections?: DocumentSection[];
+}
+
+export const HelpContent = ({ documentSections }: HelpContentProps) => {
   const [active, setActive] = useState<SectionId>("getting-started");
 
   // Read hash on mount for deep-link support (/help#go-further etc.)
@@ -530,7 +604,7 @@ export const HelpContent = () => {
 
         {/* Content */}
         <main className="flex-1 min-w-0 pb-24">
-          <ActiveContent />
+          <ActiveContent documentSections={documentSections} />
         </main>
 
       </div>
