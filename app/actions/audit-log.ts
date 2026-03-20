@@ -263,7 +263,7 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     .select('schedule_id, step_number, email_template_id');
   const { data: emailTemplates } = await supabase
     .from('email_templates')
-    .select('id, name');
+    .select('id, name, subject');
   const emailTemplateNameMap = new Map(
     (emailTemplates || []).map((t: { id: string; name: string }) => [t.id, t.name])
   );
@@ -271,6 +271,16 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
     (scheduleSteps || []).map((s: { schedule_id: string; step_number: number; email_template_id: string }) => [
       `${s.schedule_id}:${s.step_number}`,
       emailTemplateNameMap.get(s.email_template_id) || null,
+    ])
+  );
+  // Build step-level template subject lookup: (schedule_id:step_number) → email template subject
+  const emailTemplateSubjectMap = new Map(
+    (emailTemplates || []).map((t: { id: string; name: string; subject?: string }) => [t.id, (t as any).subject || null])
+  );
+  const stepTemplateSubjectMap = new Map(
+    (scheduleSteps || []).map((s: { schedule_id: string; step_number: number; email_template_id: string }) => [
+      `${s.schedule_id}:${s.step_number}`,
+      emailTemplateSubjectMap.get(s.email_template_id) || null,
     ])
   );
   // Also build schedule_id lookup from filing_type_id
@@ -361,7 +371,26 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
       send_date: row.send_date,
       deadline_date: row.deadline_date,
       status: row.status,
-      subject: row.resolved_subject,
+      subject: row.resolved_subject || (() => {
+        const scheduleId = row.filing_type_id ? filingTypeToScheduleId.get(row.filing_type_id) : row.template_id;
+        if (scheduleId && row.step_index != null) {
+          const templateSubject = stepTemplateSubjectMap.get(`${scheduleId}:${row.step_index}`);
+          if (templateSubject) {
+            // Resolve placeholders with available data
+            const filingTypeName = row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || '') : '';
+            const deadlineFormatted = row.deadline_date
+              ? new Date(row.deadline_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+              : '';
+            return templateSubject
+              .replace(/\{\{client_name\}\}/g, client?.company_name || '')
+              .replace(/\{\{filing_type\}\}/g, filingTypeName)
+              .replace(/\{\{deadline\}\}/g, deadlineFormatted)
+              .replace(/\{\{accountant_name\}\}/g, '');
+          }
+          return null;
+        }
+        return null;
+      })(),
       step_index: row.step_index,
       created_at: row.created_at,
     };
