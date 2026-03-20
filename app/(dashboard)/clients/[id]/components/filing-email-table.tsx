@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ButtonWithText } from '@/components/ui/button-with-text';
 import {
   Table,
   TableBody,
@@ -32,7 +31,7 @@ interface FilingEmailTableProps {
   viewMode: 'queued' | 'sent';
 }
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 100;
 
 const statusConfig: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode }> = {
   delivered: {
@@ -102,7 +101,6 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
   const [queuedData, setQueuedData] = useState<QueuedReminder[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewReminderId, setPreviewReminderId] = useState<string | null>(null);
   const [sentPreviewOpen, setSentPreviewOpen] = useState(false);
@@ -111,7 +109,7 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+      const offset = 0;
 
       if (viewMode === 'sent') {
         const result = await getAuditLog({
@@ -137,20 +135,11 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
     } finally {
       setLoading(false);
     }
-  }, [clientId, filingTypeId, viewMode, currentPage]);
+  }, [clientId, filingTypeId, viewMode]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Reset page on view switch
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [viewMode]);
-
-  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
-  const hasNextPage = currentPage < totalPages;
-  const hasPrevPage = currentPage > 1;
 
   const data = viewMode === 'sent' ? sentData : queuedData;
 
@@ -281,31 +270,6 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
             )}
           </TableBody>
         </Table>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm px-6 pb-4">
-          <div className="text-muted-foreground">
-            Page {currentPage} of {totalPages} ({totalCount} total)
-          </div>
-          <div className="flex gap-2">
-            <ButtonWithText
-              onClick={() => setCurrentPage((p) => p - 1)}
-              disabled={!hasPrevPage || loading}
-              variant="muted"
-            >
-              Previous
-            </ButtonWithText>
-            <ButtonWithText
-              onClick={() => setCurrentPage((p) => p + 1)}
-              disabled={!hasNextPage || loading}
-              variant="muted"
-            >
-              Next
-            </ButtonWithText>
-          </div>
-        </div>
-      )}
 
       {/* Email Preview Modals */}
       <QueuedEmailPreviewModal
