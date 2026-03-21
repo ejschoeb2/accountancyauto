@@ -9,7 +9,6 @@ import { buttonBaseVariants } from '@/components/ui/button-base';
 import { EyeOff, Rocket, Zap } from 'lucide-react';
 import { SummaryCards } from './components/summary-cards';
 import { UpcomingDeadlines } from './components/upcoming-deadlines';
-import { AlertFeed } from './components/alert-feed';
 import { WorkloadForecast } from './components/workload-forecast';
 import { TodoBox } from './components/todo-box';
 import { GettingStarted } from './components/getting-started';
@@ -153,9 +152,6 @@ function DashboardContent() {
 
       {/* Workload Forecast - full width */}
       <WorkloadForecast />
-
-      {/* Activity feed */}
-      <AlertFeed />
     </div>
   );
 }

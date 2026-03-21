@@ -91,8 +91,8 @@ export function TodoBox({ metrics, clients }: TodoBoxProps) {
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
             To Do
           </p>
-          <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
-            <ClipboardCheck className="size-6 text-violet-500" />
+          <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-green-500/20">
+            <ClipboardCheck className="size-6 text-green-600" />
           </div>
         </div>
 

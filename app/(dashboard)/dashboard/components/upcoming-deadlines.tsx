@@ -44,8 +44,8 @@ export function UpcomingDeadlines({ clients }: UpcomingDeadlinesProps) {
               Upcoming Deadlines
             </p>
           </div>
-          <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
-            <CalendarClock className="size-6 text-violet-500" />
+          <div className="size-10 rounded-lg bg-sky-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-sky-500/20">
+            <CalendarClock className="size-6 text-sky-500" />
           </div>
         </div>
         <div className="-mx-5 flex-1">

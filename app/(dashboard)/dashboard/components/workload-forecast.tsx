@@ -229,17 +229,15 @@ export function WorkloadForecast() {
                           const barTopY = mounted
                             ? paddingTop + usableHeight - totalBarHeight
                             : paddingTop + usableHeight;
-                          const borderRadius = Math.min(6, barWidth / 3);
+                          const r = Math.min(6, barWidth / 3);
+                          // Path with rounded top corners only, flat bottom
+                          const clipPathD = `M ${x},${barTopY + totalBarHeight} L ${x},${barTopY + r} Q ${x},${barTopY} ${x + r},${barTopY} L ${x + barWidth - r},${barTopY} Q ${x + barWidth},${barTopY} ${x + barWidth},${barTopY + r} L ${x + barWidth},${barTopY + totalBarHeight} Z`;
                           return (
                             <>
                               <defs>
                                 <clipPath id={clipId}>
-                                  <rect
-                                    x={x}
-                                    y={barTopY}
-                                    width={barWidth}
-                                    height={totalBarHeight}
-                                    rx={borderRadius}
+                                  <path
+                                    d={clipPathD}
                                     className="transition-all duration-500 ease-out"
                                   />
                                 </clipPath>
