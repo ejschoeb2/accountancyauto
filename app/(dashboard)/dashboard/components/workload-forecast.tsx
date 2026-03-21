@@ -128,14 +128,7 @@ export function WorkloadForecast() {
   // Tooltip content
   const hoveredBar = hoveredIndex !== null ? bars[hoveredIndex] : null;
 
-  // Legend — only show statuses that appear in the data
-  const activeStatuses = new Set<StatusKey>();
-  for (const bucket of data) {
-    for (const key of STATUS_KEYS) {
-      if (bucket.breakdown[key] > 0) activeStatuses.add(key);
-    }
-  }
-  // Display legend in urgency order: red first
+  // Legend order: urgency first
   const legendOrder: StatusKey[] = ['red', 'orange', 'amber', 'blue', 'violet', 'green'];
 
   return (
@@ -227,24 +220,51 @@ export function WorkloadForecast() {
                           />
                         )}
 
-                        {/* Stacked segments */}
-                        {segments.map((seg, si) => {
-                          const isTopSegment = si === segments.length - 1;
+                        {/* Stacked segments — clipped to a rounded bar shape */}
+                        {segments.length > 0 && (() => {
+                          const clipId = `bar-clip-${index}`;
+                          const totalBarHeight = mounted
+                            ? segments.reduce((sum, s) => sum + s.height, 0)
+                            : 0;
+                          const barTopY = mounted
+                            ? paddingTop + usableHeight - totalBarHeight
+                            : paddingTop + usableHeight;
+                          const borderRadius = Math.min(6, barWidth / 3);
                           return (
-                            <rect
-                              key={seg.key}
-                              x={seg.x}
-                              y={mounted ? seg.y : paddingTop + usableHeight}
-                              width={seg.width}
-                              height={mounted ? seg.height : 0}
-                              rx={isTopSegment ? Math.min(4, barWidth / 4) : 0}
-                              fill={seg.color}
-                              opacity={isHovered ? 1 : 0.85}
-                              className="transition-all duration-500 ease-out"
-                              style={{ transitionDelay: `${index * 40}ms` }}
-                            />
+                            <>
+                              <defs>
+                                <clipPath id={clipId}>
+                                  <rect
+                                    x={x}
+                                    y={barTopY}
+                                    width={barWidth}
+                                    height={totalBarHeight}
+                                    rx={borderRadius}
+                                    className="transition-all duration-500 ease-out"
+                                  />
+                                </clipPath>
+                              </defs>
+                              <g
+                                clipPath={`url(#${clipId})`}
+                                opacity={isHovered ? 1 : 0.85}
+                                className="transition-opacity duration-200"
+                              >
+                                {segments.map((seg) => (
+                                  <rect
+                                    key={seg.key}
+                                    x={seg.x}
+                                    y={mounted ? seg.y : paddingTop + usableHeight}
+                                    width={seg.width}
+                                    height={mounted ? seg.height : 0}
+                                    fill={seg.color}
+                                    className="transition-all duration-500 ease-out"
+                                    style={{ transitionDelay: `${index * 40}ms` }}
+                                  />
+                                ))}
+                              </g>
+                            </>
                           );
-                        })}
+                        })()}
 
                         {/* Invisible hover target */}
                         <rect
@@ -278,10 +298,11 @@ export function WorkloadForecast() {
 
                   {/* Hover tooltip */}
                   {hoveredBar && hoveredBar.bucket.total > 0 && (() => {
-                    const tooltipWidth = 140;
-                    const tooltipLineHeight = 16;
-                    const activeLines = legendOrder.filter(k => hoveredBar.bucket.breakdown[k] > 0);
-                    const tooltipHeight = 30 + activeLines.length * tooltipLineHeight + 20;
+                    const tooltipWidth = 170;
+                    const tooltipLineHeight = 20;
+                    const tooltipPadY = 14;
+                    const lineCount = legendOrder.length;
+                    const tooltipHeight = tooltipPadY + lineCount * tooltipLineHeight + 12 + tooltipLineHeight + tooltipPadY;
                     const barCenterX = hoveredBar.x + barWidth / 2;
                     // Keep tooltip within bounds
                     let tooltipX = barCenterX - tooltipWidth / 2;
@@ -296,60 +317,54 @@ export function WorkloadForecast() {
                           y={tooltipY}
                           width={tooltipWidth}
                           height={tooltipHeight}
-                          rx={8}
+                          rx={10}
                           className="fill-foreground"
                           opacity={0.95}
                         />
-                        <text
-                          x={tooltipX + 12}
-                          y={tooltipY + 18}
-                          fontSize="11"
-                          fontWeight="600"
-                          className="fill-background"
-                        >
-                          {hoveredBar.bucket.label}
-                        </text>
-                        {activeLines.map((key, li) => (
-                          <g key={key}>
-                            <circle
-                              cx={tooltipX + 16}
-                              cy={tooltipY + 34 + li * tooltipLineHeight}
-                              r={4}
-                              fill={STATUS_CONFIG[key].color}
-                            />
-                            <text
-                              x={tooltipX + 26}
-                              y={tooltipY + 38 + li * tooltipLineHeight}
-                              fontSize="10"
-                              className="fill-background"
-                            >
-                              {STATUS_CONFIG[key].label}
-                            </text>
-                            <text
-                              x={tooltipX + tooltipWidth - 12}
-                              y={tooltipY + 38 + li * tooltipLineHeight}
-                              fontSize="10"
-                              fontWeight="600"
-                              textAnchor="end"
-                              className="fill-background"
-                            >
-                              {hoveredBar.bucket.breakdown[key]}
-                            </text>
-                          </g>
-                        ))}
+                        {legendOrder.map((key, li) => {
+                          const count = hoveredBar.bucket.breakdown[key];
+                          return (
+                            <g key={key} opacity={count > 0 ? 1 : 0.35}>
+                              <circle
+                                cx={tooltipX + 18}
+                                cy={tooltipY + tooltipPadY + li * tooltipLineHeight + 8}
+                                r={4.5}
+                                fill={STATUS_CONFIG[key].color}
+                              />
+                              <text
+                                x={tooltipX + 30}
+                                y={tooltipY + tooltipPadY + li * tooltipLineHeight + 12}
+                                fontSize="11"
+                                className="fill-background"
+                              >
+                                {STATUS_CONFIG[key].label}
+                              </text>
+                              <text
+                                x={tooltipX + tooltipWidth - 14}
+                                y={tooltipY + tooltipPadY + li * tooltipLineHeight + 12}
+                                fontSize="11"
+                                fontWeight="600"
+                                textAnchor="end"
+                                className="fill-background"
+                              >
+                                {count}
+                              </text>
+                            </g>
+                          );
+                        })}
                         <line
-                          x1={tooltipX + 10}
-                          y1={tooltipY + 34 + activeLines.length * tooltipLineHeight + 4}
-                          x2={tooltipX + tooltipWidth - 10}
-                          y2={tooltipY + 34 + activeLines.length * tooltipLineHeight + 4}
+                          x1={tooltipX + 12}
+                          y1={tooltipY + tooltipPadY + lineCount * tooltipLineHeight + 4}
+                          x2={tooltipX + tooltipWidth - 12}
+                          y2={tooltipY + tooltipPadY + lineCount * tooltipLineHeight + 4}
                           stroke="currentColor"
                           className="text-background"
-                          opacity={0.3}
+                          opacity={0.2}
                         />
                         <text
-                          x={tooltipX + tooltipWidth - 12}
-                          y={tooltipY + 34 + activeLines.length * tooltipLineHeight + 18}
-                          fontSize="10"
+                          x={tooltipX + tooltipWidth - 14}
+                          y={tooltipY + tooltipPadY + lineCount * tooltipLineHeight + 22}
+                          fontSize="11"
                           fontWeight="600"
                           textAnchor="end"
                           className="fill-background"
@@ -363,22 +378,20 @@ export function WorkloadForecast() {
           ) : null}
         </div>
 
-        {/* Legend */}
-        {data.length > 0 && !data.every(d => d.total === 0) && (
-          <div className="flex flex-wrap gap-x-5 gap-y-2 mt-2">
-            {legendOrder.filter(k => activeStatuses.has(k)).map((key) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <div
-                  className="size-3 rounded-sm flex-shrink-0"
-                  style={{ backgroundColor: STATUS_CONFIG[key].color }}
-                />
-                <span className="text-sm text-muted-foreground">
-                  {STATUS_CONFIG[key].label}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Legend — always show all statuses */}
+        <div className="flex flex-wrap gap-x-5 gap-y-2 mt-2">
+          {legendOrder.map((key) => (
+            <div key={key} className="flex items-center gap-1.5">
+              <div
+                className="size-3 rounded-sm flex-shrink-0"
+                style={{ backgroundColor: STATUS_CONFIG[key].color }}
+              />
+              <span className="text-sm text-muted-foreground">
+                {STATUS_CONFIG[key].label}
+              </span>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

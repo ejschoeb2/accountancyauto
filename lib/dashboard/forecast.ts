@@ -301,7 +301,11 @@ export async function getWorkloadForecast(
 
   // Build buckets
   const buckets = buildBuckets(timeframe);
-  const rangeStart = buckets[0].start;
+  // Use today as the effective start so we don't include past deadlines
+  // (e.g. CIS on Mar 19 when today is Mar 21 — that deadline already passed)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const rangeStart = today > buckets[0].start ? today : buckets[0].start;
   const rangeEnd = buckets[buckets.length - 1].end;
 
   // Init breakdown per bucket
