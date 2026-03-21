@@ -1,84 +1,65 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  ClipboardCheck,
-  CheckCircle2,
-  Send,
-  FileSearch,
-  MailX,
-  AlertTriangle,
-} from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { TrafficLightBadge } from './traffic-light-badge';
+import { ClipboardCheck, CheckCircle2 } from 'lucide-react';
 import type { DashboardMetrics, ClientStatusRow } from '@/lib/dashboard/metrics';
+import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
 
 interface TodoBoxProps {
   metrics: DashboardMetrics;
   clients: ClientStatusRow[];
 }
 
+interface TodoItem {
+  id: string;
+  clientName: string;
+  clientId: string;
+  status: TrafficLightStatus;
+  docReceived: number;
+  docRequired: number;
+}
+
+const CHECKBOX_VARIANT: Record<TrafficLightStatus, 'violet' | 'destructive' | 'amber' | 'green' | 'blue' | 'neutral'> = {
+  violet: 'violet',
+  red: 'destructive',
+  orange: 'destructive',
+  amber: 'amber',
+  blue: 'blue',
+  green: 'green',
+  grey: 'neutral',
+};
+
 export function TodoBox({ metrics, clients }: TodoBoxProps) {
-  // Count violet/overdue from clientStatusList so it matches the upcoming deadlines view
-  const violetCount = clients.filter(c => c.status === 'violet').length;
-  const overdueCount = clients.filter(c => c.status === 'red').length;
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
-  const todoItems: {
-    label: string;
-    count: number;
-    href: string;
-    icon: React.ReactNode;
-    color: string;
-  }[] = [];
+  // Build individual to-do rows from clients that need action
+  // Priority: red (overdue) > violet (ready to submit)
+  const actionableStatuses: TrafficLightStatus[] = ['red', 'violet'];
 
-  if (violetCount > 0) {
-    todoItems.push({
-      label: 'Ready to submit',
-      count: violetCount,
-      href: '/clients?filter=violet',
-      icon: <Send className="size-4" />,
-      color: 'text-violet-600',
-    });
-  }
+  const todoItems: TodoItem[] = clients
+    .filter(c => actionableStatuses.includes(c.status))
+    .sort((a, b) => {
+      const priority: Record<string, number> = { red: 0, violet: 1 };
+      return (priority[a.status] ?? 99) - (priority[b.status] ?? 99);
+    })
+    .map(c => ({
+      id: c.id,
+      clientName: c.company_name,
+      clientId: c.id,
+      status: c.status,
+      docReceived: c.total_doc_received,
+      docRequired: c.total_doc_required,
+    }));
 
-  if (metrics.docsNeedingReviewCount > 0) {
-    todoItems.push({
-      label: 'Documents to verify',
-      count: metrics.docsNeedingReviewCount,
-      href: '/clients?view=deadlines&editProgress=true',
-      icon: <FileSearch className="size-4" />,
-      color: 'text-amber-600',
-    });
-  }
+  const visibleItems = todoItems.filter(item => !dismissed.has(item.id));
 
-  if (metrics.failedDeliveryCount > 0) {
-    todoItems.push({
-      label: 'Failed deliveries',
-      count: metrics.failedDeliveryCount,
-      href: '/activity?tab=outbound&view=queued&status=failed',
-      icon: <MailX className="size-4" />,
-      color: 'text-status-danger',
-    });
-  }
-
-  if (overdueCount > 0) {
-    todoItems.push({
-      label: 'Overdue clients to chase',
-      count: overdueCount,
-      href: '/clients?filter=red',
-      icon: <AlertTriangle className="size-4" />,
-      color: 'text-status-danger',
-    });
-  }
-
-  if (metrics.approachingCount > 0) {
-    todoItems.push({
-      label: 'Approaching — no reminder sent',
-      count: metrics.approachingCount,
-      href: '/clients?filter=amber',
-      icon: <Send className="size-4" />,
-      color: 'text-status-warning',
-    });
-  }
+  const handleDismiss = (id: string) => {
+    setDismissed(prev => new Set(prev).add(id));
+  };
 
   return (
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200 h-full">
@@ -92,32 +73,44 @@ export function TodoBox({ metrics, clients }: TodoBoxProps) {
           </div>
         </div>
 
-        {todoItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center flex-1 gap-2">
-            <CheckCircle2 className="size-8 text-green-500" />
-            <p className="text-sm text-muted-foreground">
-              All caught up — nothing to do right now
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-1 flex-1">
-            {todoItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors"
-              >
-                <span className={item.color}>{item.icon}</span>
-                <span className="text-sm text-foreground flex-1">
-                  {item.label}
-                </span>
-                <span className={`text-sm font-semibold ${item.color}`}>
-                  {item.count}
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
+        <div className="-mx-5 flex-1">
+          {visibleItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-2 px-5">
+              <CheckCircle2 className="size-8 text-green-500" />
+              <p className="text-sm text-muted-foreground">
+                All caught up — nothing to do right now
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {visibleItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
+                >
+                  <Checkbox
+                    variant={CHECKBOX_VARIANT[item.status]}
+                    size="sm"
+                    onCheckedChange={() => handleDismiss(item.id)}
+                  />
+                  <Link
+                    href={`/clients/${item.clientId}`}
+                    className="flex items-center justify-between flex-1 min-w-0 gap-2"
+                  >
+                    <span className="font-medium text-sm truncate">
+                      {item.clientName}
+                    </span>
+                    <TrafficLightBadge
+                      status={item.status}
+                      docReceived={item.docReceived}
+                      docRequired={item.docRequired}
+                    />
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
