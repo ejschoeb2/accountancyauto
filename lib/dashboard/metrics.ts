@@ -671,3 +671,162 @@ export async function getClientFilingStatuses(
 
   return { clients: clients || [], filingStatuses };
 }
+
+// ---------------------------------------------------------------------------
+// Recent uploads
+// ---------------------------------------------------------------------------
+
+export interface RecentUpload {
+  id: string;
+  client_id: string;
+  client_name: string;
+  original_filename: string;
+  document_type_label: string | null;
+  filing_type_id: string | null;
+  needs_review: boolean;
+  created_at: string;
+}
+
+/**
+ * Fetch the most recent document uploads across all clients.
+ */
+export async function getRecentUploads(
+  supabase: SupabaseClient,
+  limit = 8
+): Promise<RecentUpload[]> {
+  const { data, error } = await supabase
+    .from('client_documents')
+    .select(`
+      id,
+      client_id,
+      original_filename,
+      filing_type_id,
+      needs_review,
+      created_at,
+      clients!inner ( company_name ),
+      document_types ( label )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching recent uploads:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    client_id: row.client_id,
+    client_name: row.clients?.company_name ?? 'Unknown',
+    original_filename: row.original_filename ?? 'Untitled',
+    document_type_label: row.document_types?.label ?? null,
+    filing_type_id: row.filing_type_id,
+    needs_review: row.needs_review ?? false,
+    created_at: row.created_at,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Documents needing review
+// ---------------------------------------------------------------------------
+
+export interface DocNeedingReview {
+  id: string;
+  client_id: string;
+  client_name: string;
+  original_filename: string;
+  document_type_label: string | null;
+  filing_type_id: string | null;
+  created_at: string;
+}
+
+/**
+ * Fetch documents uploaded via portal that need accountant review.
+ */
+export async function getDocsNeedingReview(
+  supabase: SupabaseClient,
+  limit = 20
+): Promise<DocNeedingReview[]> {
+  const { data, error } = await supabase
+    .from('client_documents')
+    .select(`
+      id,
+      client_id,
+      original_filename,
+      filing_type_id,
+      created_at,
+      clients!inner ( company_name ),
+      document_types ( label )
+    `)
+    .eq('needs_review', true)
+    .is('rejected_at', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching docs needing review:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    client_id: row.client_id,
+    client_name: row.clients?.company_name ?? 'Unknown',
+    original_filename: row.original_filename ?? 'Untitled',
+    document_type_label: row.document_types?.label ?? null,
+    filing_type_id: row.filing_type_id,
+    created_at: row.created_at,
+  }));
+}
+
+// ---------------------------------------------------------------------------
+// Failed email deliveries
+// ---------------------------------------------------------------------------
+
+export interface FailedDelivery {
+  id: string;
+  client_id: string;
+  client_name: string;
+  recipient_email: string;
+  subject: string;
+  delivery_status: string;
+  sent_at: string;
+}
+
+/**
+ * Fetch emails with bounced or failed delivery status.
+ */
+export async function getFailedDeliveries(
+  supabase: SupabaseClient,
+  limit = 20
+): Promise<FailedDelivery[]> {
+  const { data, error } = await supabase
+    .from('email_log')
+    .select(`
+      id,
+      client_id,
+      recipient_email,
+      subject,
+      delivery_status,
+      sent_at,
+      clients!inner ( company_name )
+    `)
+    .in('delivery_status', ['bounced', 'failed'])
+    .order('sent_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching failed deliveries:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    client_id: row.client_id,
+    client_name: row.clients?.company_name ?? 'Unknown',
+    recipient_email: row.recipient_email ?? '',
+    subject: row.subject ?? 'Untitled',
+    delivery_status: row.delivery_status,
+    sent_at: row.sent_at,
+  }));
+}

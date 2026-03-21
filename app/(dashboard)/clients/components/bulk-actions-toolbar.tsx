@@ -40,7 +40,7 @@ export function BulkActionsToolbar({
             onClick={onSendEmail}
           >
             <Mail className="size-4" />
-            Send Email
+            Send Email{selectedCount !== 1 ? "s" : ""}
           </ButtonBase>
 
           <ButtonBase
@@ -49,7 +49,7 @@ export function BulkActionsToolbar({
             onClick={onDeleteClients}
           >
             <Trash2 className="size-4" />
-            Delete Clients
+            Delete Client{selectedCount !== 1 ? "s" : ""}
           </ButtonBase>
 
           <div className="h-8 w-px bg-border" />
@@ -60,7 +60,7 @@ export function BulkActionsToolbar({
             onClick={onClearSelection}
           >
             <X className="size-4" />
-            Clear
+            Close
           </ButtonBase>
         </div>
       </div>

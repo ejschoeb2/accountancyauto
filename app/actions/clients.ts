@@ -6,6 +6,7 @@ import { getOrgId, getOrgContext } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { updateClientMetadataSchema, clientTypeSchema } from "@/lib/validations/client";
 import { z } from "zod";
+import { calculateFilingTypeStatus, type TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 
 // Client type matching the database schema
 export interface Client {
@@ -234,4 +235,94 @@ export async function deleteClients(
   }
 
   return { success: true, count: count || 0 };
+}
+
+/**
+ * Fetch a client's filing status for a specific filing type.
+ * Returns traffic light status + doc progress counts.
+ */
+export async function getClientFilingStatusForType(
+  clientId: string,
+  filingTypeId: string,
+  deadlineDate: string | null
+): Promise<{
+  status: TrafficLightStatus;
+  docReceived: number;
+  docRequired: number;
+}> {
+  const supabase = await createClient();
+
+  // Fetch client records_received_for and completed_for
+  const { data: client } = await supabase
+    .from("clients")
+    .select("records_received_for, completed_for")
+    .eq("id", clientId)
+    .single();
+
+  const recordsReceived: string[] = Array.isArray(client?.records_received_for)
+    ? client.records_received_for
+    : [];
+  const completedFor: string[] = Array.isArray(client?.completed_for)
+    ? client.completed_for
+    : [];
+
+  // Check for status override
+  const { data: override } = await supabase
+    .from("client_filing_status_overrides")
+    .select("override_status")
+    .eq("client_id", clientId)
+    .eq("filing_type_id", filingTypeId)
+    .maybeSingle();
+
+  const status = calculateFilingTypeStatus({
+    filing_type_id: filingTypeId,
+    deadline_date: deadlineDate,
+    is_records_received: recordsReceived.includes(filingTypeId),
+    is_completed: completedFor.includes(filingTypeId),
+    override_status: override?.override_status || null,
+  });
+
+  // Fetch mandatory doc requirements
+  const { data: reqRows } = await supabase
+    .from("filing_document_requirements")
+    .select("document_type_id")
+    .eq("filing_type_id", filingTypeId)
+    .eq("is_mandatory", true);
+
+  const mandatoryDocIds = new Set((reqRows ?? []).map((r) => r.document_type_id));
+  const docRequired = mandatoryDocIds.size;
+
+  if (docRequired === 0) {
+    return { status, docReceived: 0, docRequired: 0 };
+  }
+
+  // Fetch uploaded documents
+  const { data: docRows } = await supabase
+    .from("client_documents")
+    .select("document_type_id")
+    .eq("client_id", clientId)
+    .eq("filing_type_id", filingTypeId);
+
+  const satisfiedIds = new Set<string>();
+  for (const row of docRows ?? []) {
+    if (row.document_type_id && mandatoryDocIds.has(row.document_type_id)) {
+      satisfiedIds.add(row.document_type_id);
+    }
+  }
+
+  // Fetch manually received checklist customisations
+  const { data: manualRows } = await supabase
+    .from("client_document_checklist_customisations")
+    .select("document_type_id")
+    .eq("client_id", clientId)
+    .eq("filing_type_id", filingTypeId)
+    .eq("manually_received", true);
+
+  for (const row of manualRows ?? []) {
+    if (row.document_type_id && mandatoryDocIds.has(row.document_type_id)) {
+      satisfiedIds.add(row.document_type_id);
+    }
+  }
+
+  return { status, docReceived: satisfiedIds.size, docRequired };
 }

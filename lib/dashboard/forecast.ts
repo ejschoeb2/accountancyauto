@@ -231,7 +231,7 @@ function buildBuckets(timeframe: ForecastTimeframe): TimeBucket[] {
       return weeks.slice(0, 4).map((ws, i) => {
         const we = endOfWeek(ws, { weekStartsOn: 1 });
         return {
-          label: i === 0 ? 'This wk' : format(ws, 'd MMM'),
+          label: i === 0 ? 'This week' : format(ws, 'd MMM'),
           isoKey: format(ws, 'yyyy-MM-dd'),
           start: ws,
           end: we,

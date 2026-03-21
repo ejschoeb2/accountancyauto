@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { ButtonBase } from "@/components/ui/button-base";
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -80,26 +78,28 @@ export function DeleteAccountCard() {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={loading}>
-                    Keep my account
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleDeleteAccount();
-                    }}
+                  <ButtonBase
+                    variant="muted"
+                    buttonType="icon-text"
                     disabled={loading}
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    <ShieldCheck className="size-4" />
+                    Keep my account
+                  </ButtonBase>
+                  <ButtonBase
+                    variant="destructive"
+                    buttonType="icon-text"
+                    disabled={loading}
+                    onClick={handleDeleteAccount}
                   >
                     {loading ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" />
-                        Deleting...
-                      </>
+                      <Loader2 className="size-4 animate-spin" />
                     ) : (
-                      "Yes, delete my account"
+                      <Trash2 className="size-4" />
                     )}
-                  </AlertDialogAction>
+                    {loading ? "Deleting..." : "Yes, delete my account"}
+                  </ButtonBase>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

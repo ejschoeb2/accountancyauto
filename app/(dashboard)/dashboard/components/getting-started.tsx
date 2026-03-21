@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, ClipboardCheck, FileText, ListChecks, Send, Rocket, ArrowRight } from 'lucide-react';
+import { Check, ClipboardCheck, FileText, ListChecks, Send, Rocket } from 'lucide-react';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
 import { markOnboardingComplete } from '@/app/actions/settings';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+
 
 interface GettingStartedProps {
   progress: OnboardingProgress;
@@ -50,7 +50,6 @@ type StepKey = (typeof steps)[number]['key'];
 const STORAGE_KEY = 'onboarding-progress';
 
 export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
-  const router = useRouter();
   const hasShownToasts = useRef(false);
   const [dismissing, setDismissing] = useState(false);
 
@@ -102,37 +101,29 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
         toast.success(`Step complete: ${step.label}`, {
           description: `${completedCount}/${totalCount} steps done`,
           duration: 5000,
-          action: {
-            label: 'Back to dashboard',
-            onClick: () => router.push('/dashboard'),
-          },
         });
       }
     } catch {
       // localStorage unavailable — skip
     }
-  }, [progress, completedCount, totalCount, router]);
+  }, [progress, completedCount, totalCount]);
 
   return (
     <Card className="py-5">
       <CardContent className="px-5 py-0">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <Rocket className="size-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                Getting Started
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Step {allComplete ? totalCount : Math.min(currentStepIndex + 1, totalCount)} of {totalCount}
-                {allComplete && ' — all done!'}
-              </p>
-            </div>
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Getting Started
+            </p>
+            <p className="text-sm font-medium text-muted-foreground mt-1.5">
+              {allComplete
+                ? `${totalCount}/${totalCount} — all done!`
+                : `Step ${Math.min(currentStepIndex + 1, totalCount)} of ${totalCount}`}
+            </p>
           </div>
-          {allComplete && (
+          {allComplete ? (
             <button
               onClick={handleDismiss}
               disabled={dismissing}
@@ -141,15 +132,11 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
               <Check className="size-4" strokeWidth={2.5} />
               Complete setup
             </button>
+          ) : (
+            <div className="size-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+              <Rocket className="size-6 text-green-600" />
+            </div>
           )}
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-1.5 rounded-full bg-muted mb-6 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-green-500 transition-all duration-500 ease-out"
-            style={{ width: `${(completedCount / totalCount) * 100}%` }}
-          />
         </div>
 
         {/* Vertical stepper */}
@@ -163,20 +150,20 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
 
             return (
               <div key={step.key} className="relative flex gap-4">
-                {/* Vertical line + circle */}
+                {/* Vertical line + indicator */}
                 <div className="flex flex-col items-center">
-                  {/* Step circle */}
+                  {/* Step indicator */}
                   <div
-                    className={`relative z-10 flex items-center justify-center size-8 rounded-full border-2 shrink-0 transition-all duration-300 ${
+                    className={`relative z-10 flex items-center justify-center h-9 w-9 rounded-lg shrink-0 transition-all duration-300 ${
                       done
-                        ? 'bg-green-500 border-green-500'
+                        ? 'bg-green-500/10'
                         : isCurrent
-                        ? 'bg-background border-green-500'
-                        : 'bg-background border-muted-foreground/20'
+                        ? 'bg-green-500/10'
+                        : 'bg-muted'
                     }`}
                   >
                     {done ? (
-                      <Check className="size-4 text-white" strokeWidth={2.5} />
+                      <Check className="size-4 text-green-600" strokeWidth={2.5} />
                     ) : (
                       <span
                         className={`text-xs font-semibold ${
@@ -191,7 +178,7 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
                   {!isLast && (
                     <div
                       className={`w-0.5 flex-1 min-h-4 transition-colors duration-300 ${
-                        done ? 'bg-green-500' : 'bg-muted-foreground/15'
+                        done ? 'bg-green-500/30' : 'bg-muted-foreground/15'
                       }`}
                     />
                   )}
@@ -202,26 +189,19 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
                   {isCurrent ? (
                     /* Expanded current step */
                     <Link href={step.href} className="block group">
-                      <div className="rounded-lg border border-green-500/30 bg-green-500/[0.04] p-4 transition-all duration-200 hover:bg-green-500/[0.08] hover:border-green-500/50">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground">
-                              {step.label}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                              {step.description}
-                            </p>
-                          </div>
-                          <div className="size-9 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0 group-hover:bg-green-500/20 transition-colors">
-                            <ArrowRight className="size-4 text-green-600" />
-                          </div>
-                        </div>
+                      <div className="rounded-lg border p-4 transition-all duration-200 hover:border-primary/20 hover:shadow-sm">
+                        <p className="text-sm font-semibold text-foreground">
+                          {step.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                          {step.description}
+                        </p>
                       </div>
                     </Link>
                   ) : done ? (
                     /* Completed step — clickable but muted */
                     <Link href={step.href} className="block group">
-                      <div className="py-1.5 transition-colors">
+                      <div className="h-9 flex items-center transition-colors">
                         <p className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                           {step.label}
                         </p>
@@ -229,7 +209,7 @@ export function GettingStarted({ progress, onDismiss }: GettingStartedProps) {
                     </Link>
                   ) : (
                     /* Future locked step */
-                    <div className="py-1.5">
+                    <div className="h-9 flex items-center">
                       <p className="text-sm font-medium text-muted-foreground/40">
                         {step.label}
                       </p>

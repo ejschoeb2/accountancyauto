@@ -1,10 +1,54 @@
 import { Badge } from "@/components/ui/badge";
 import type { TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 
+interface DocProgressRingProps {
+  received: number;
+  required: number;
+  colorClass: string;
+}
+
+export function DocProgressRing({ received, required, colorClass }: DocProgressRingProps) {
+  const size = 18;
+  const strokeWidth = 2.5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = required > 0 ? received / required : 0;
+  const dashoffset = circumference * (1 - progress);
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="opacity-20"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={dashoffset}
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
 interface FilingStatusBadgeProps {
   status: TrafficLightStatus;
   isRecordsReceived: boolean;
   isOverride: boolean;
+  docReceived?: number;
+  docRequired?: number;
 }
 
 const STATUS_CONFIG: Record<TrafficLightStatus, { bg: string; text: string; label: string }> = {
@@ -49,14 +93,24 @@ export function FilingStatusBadge({
   status,
   isRecordsReceived,
   isOverride,
+  docReceived,
+  docRequired,
 }: FilingStatusBadgeProps) {
   const config = STATUS_CONFIG[status];
+  const showRing = docRequired != null && docRequired > 0 && docReceived != null;
 
   return (
-    <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center gap-2`}>
-      <span className={`text-sm font-medium ${config.text}`}>
+    <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center gap-2 ${config.text}`}>
+      <span className={`text-sm font-medium`}>
         {config.label}
       </span>
+      {showRing && (
+        <DocProgressRing
+          received={docReceived!}
+          required={docRequired!}
+          colorClass={config.text}
+        />
+      )}
       {isOverride && (
         <Badge variant="outline" className="text-xs border-accent text-accent h-5">
           Manual

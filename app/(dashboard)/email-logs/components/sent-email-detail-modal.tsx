@@ -9,6 +9,9 @@ import {
 import { ButtonBase } from '@/components/ui/button-base';
 import { previewSentEmail } from '@/app/actions/audit-log';
 import type { AuditEntry } from '@/app/actions/audit-log';
+import { getClientFilingStatusForType } from '@/app/actions/clients';
+import { FilingStatusBadge } from '@/app/(dashboard)/clients/components/filing-status-badge';
+import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
 import {
   X,
   ChevronLeft,
@@ -66,6 +69,11 @@ export function SentEmailDetailModal({
   const [preview, setPreview] = useState<{ html: string; subject: string; text: string } | null>(null);
   const [noBody, setNoBody] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientFilingStatus, setClientFilingStatus] = useState<{
+    status: TrafficLightStatus;
+    docReceived: number;
+    docRequired: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!open || !entry) return;
@@ -74,6 +82,16 @@ export function SentEmailDetailModal({
     setPreview(null);
     setNoBody(false);
     setError(null);
+    setClientFilingStatus(null);
+
+    // Fetch client filing status
+    if (entry.filing_type_id) {
+      getClientFilingStatusForType(
+        entry.client_id,
+        entry.filing_type_id,
+        entry.deadline_date
+      ).then(setClientFilingStatus).catch(() => {});
+    }
 
     previewSentEmail(entry.id)
       .then((result) => {
@@ -173,8 +191,11 @@ export function SentEmailDetailModal({
             ) : null}
           </div>
 
+          {/* Divider */}
+          <div className="w-px bg-border shrink-0" />
+
           {/* Right side: Metadata sidebar */}
-          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg" style={{ backgroundColor: '#ffffff' }}>
+          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg bg-white dark:bg-background">
             {/* Header */}
             <h3 className="text-lg font-semibold">Sent Email</h3>
 
@@ -249,7 +270,7 @@ export function SentEmailDetailModal({
 
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  Status
+                  Email Status
                 </p>
                 <div className={`px-3 py-2 rounded-md ${status.bg} inline-flex items-center`}>
                   <span className={`text-sm font-medium ${status.text}`}>
@@ -257,6 +278,21 @@ export function SentEmailDetailModal({
                   </span>
                 </div>
               </div>
+
+              {clientFilingStatus && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Client Status
+                  </p>
+                  <FilingStatusBadge
+                    status={clientFilingStatus.status}
+                    isRecordsReceived={clientFilingStatus.status === 'violet' || clientFilingStatus.status === 'green'}
+                    isOverride={false}
+                    docReceived={clientFilingStatus.docReceived}
+                    docRequired={clientFilingStatus.docRequired}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Navigation */}

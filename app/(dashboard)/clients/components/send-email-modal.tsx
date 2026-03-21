@@ -455,9 +455,12 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
                           </SelectContent>
                         </Select>
                         {selectedFilingTypeId && (
-                          <p className="text-xs text-green-600 dark:text-green-500">
-                            Deadlines calculated per client. A unique portal link will be generated for each recipient on send.
-                          </p>
+                          <div className="flex items-start gap-3 p-4 bg-green-500/10 rounded-xl">
+                            <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5" />
+                            <p className="text-sm font-medium text-green-500">
+                              Deadlines calculated per client. A unique portal link will be generated for each recipient on send.
+                            </p>
+                          </div>
                         )}
                       </div>
                     );

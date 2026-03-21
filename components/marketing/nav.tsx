@@ -46,15 +46,18 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
             <span className="font-bold text-lg text-foreground">Prompt</span>
           </a>
 
-          {/* Nav links — hide on org subdomain since they link to marketing sections */}
-          {!isOrgSubdomain && (
-            <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-              <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
-              <a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a>
-              <a href="/news" className="hover:text-foreground transition-colors">News</a>
-              <a href="/changelog" className="hover:text-foreground transition-colors">Changelog</a>
-            </nav>
-          )}
+          {/* Nav links */}
+          <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+            {!isOrgSubdomain && (
+              <>
+                <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
+                <a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a>
+                <a href="/news" className="hover:text-foreground transition-colors">News</a>
+                <a href="/changelog" className="hover:text-foreground transition-colors">Changelog</a>
+              </>
+            )}
+            <a href="/help" className="hover:text-foreground transition-colors">Help</a>
+          </nav>
 
           {/* Actions */}
           <div className="flex items-center gap-3">

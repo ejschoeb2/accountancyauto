@@ -136,7 +136,6 @@ const SORT_LABELS: Record<string, string> = {
   "name-desc": "Name (Z-A)",
   "deadline-asc": "Deadline (Earliest)",
   "deadline-desc": "Deadline (Latest)",
-  "most-urgent": "Most Urgent",
   "type-asc": "Type (A-Z)",
 };
 
@@ -148,7 +147,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [globalFilter, setGlobalFilter] = useState("");
   const validSorts = Object.keys(SORT_LABELS);
   const [sortBy, setSortBy] = useState<string>(
-    initialSort && validSorts.includes(initialSort) ? initialSort : "most-urgent"
+    initialSort && validSorts.includes(initialSort) ? initialSort : "deadline-asc"
   );
   const [viewMode, setViewMode] = useState<ViewMode>(initialView ?? 'status');
   const [isProgressReviewed, setIsProgressReviewed] = useState(progressReviewed);
@@ -723,25 +722,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           if (!deadlineB) return 1;
           return deadlineB.localeCompare(deadlineA);
         }
-        case "most-urgent": {
-          // Count overdue and waiting statuses for each client
-          const filingsA = localFilingStatusMap[a.id] || [];
-          const filingsB = localFilingStatusMap[b.id] || [];
-
-          const overdueCountA = filingsA.filter(f => !f.is_records_received && f.status === 'red').length;
-          const overdueCountB = filingsB.filter(f => !f.is_records_received && f.status === 'red').length;
-
-          // First sort by overdue count (more overdue = more urgent)
-          if (overdueCountA !== overdueCountB) {
-            return overdueCountB - overdueCountA;
-          }
-
-          // If same overdue count, sort by waiting count
-          const waitingCountA = filingsA.filter(f => !f.is_records_received && f.status === 'green').length;
-          const waitingCountB = filingsB.filter(f => !f.is_records_received && f.status === 'green').length;
-
-          return waitingCountB - waitingCountA;
-        }
         case "type-asc":
           return (a.client_type || "").localeCompare(b.client_type || "");
         default:
@@ -750,7 +730,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
     });
 
     return sorted;
-  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, localStatusMap, sortBy, localFilingStatusMap, dateFrom, dateTo]);
+  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, localStatusMap, sortBy, dateFrom, dateTo]);
 
   // Get selected clients
   const selectedClients = useMemo(() => {
@@ -1688,7 +1668,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="most-urgent">Most Urgent</SelectItem>
                     <SelectItem value="name-asc">Name (A-Z)</SelectItem>
                     <SelectItem value="name-desc">Name (Z-A)</SelectItem>
                     <SelectItem value="deadline-asc">Deadline (Earliest)</SelectItem>
@@ -1736,7 +1715,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="most-urgent">Most Urgent</SelectItem>
                     <SelectItem value="name-asc">Name (A-Z)</SelectItem>
                     <SelectItem value="name-desc">Name (Z-A)</SelectItem>
                     <SelectItem value="deadline-asc">Deadline (Earliest)</SelectItem>
@@ -1922,14 +1900,23 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                     router.push(`/clients/${row.original.id}${filingParam}`);
                   }}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell) => {
+                    const isEarliestDeadline = viewMode === 'status'
+                      && deadlineEditMode !== 'status'
+                      && localStatusMap[row.original.id]?.next_deadline_type === cell.column.id
+                      && !!localStatusMap[row.original.id]?.next_deadline;
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={isEarliestDeadline ? "bg-primary/[0.03] dark:bg-primary/[0.08]" : undefined}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (

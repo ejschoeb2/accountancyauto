@@ -196,7 +196,8 @@ export function WorkloadForecast() {
                     x2={containerWidth - paddingX}
                     y2={paddingTop + usableHeight}
                     stroke="currentColor"
-                    className="text-border/40"
+                    className="text-border"
+                    strokeWidth={1.5}
                   />
 
                   {/* Bars */}
@@ -229,7 +230,7 @@ export function WorkloadForecast() {
                           const barTopY = mounted
                             ? paddingTop + usableHeight - totalBarHeight
                             : paddingTop + usableHeight;
-                          const r = Math.min(6, barWidth / 3);
+                          const r = Math.min(10, barWidth / 2.5);
                           // Path with rounded top corners only, flat bottom
                           const clipPathD = `M ${x},${barTopY + totalBarHeight} L ${x},${barTopY + r} Q ${x},${barTopY} ${x + r},${barTopY} L ${x + barWidth - r},${barTopY} Q ${x + barWidth},${barTopY} ${x + barWidth},${barTopY + r} L ${x + barWidth},${barTopY + totalBarHeight} Z`;
                           return (
@@ -244,7 +245,7 @@ export function WorkloadForecast() {
                               </defs>
                               <g
                                 clipPath={`url(#${clipId})`}
-                                opacity={isHovered ? 1 : 0.85}
+                                opacity={isHovered ? 1 : 0.95}
                                 className="transition-opacity duration-200"
                               >
                                 {segments.map((seg) => (

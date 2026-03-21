@@ -81,7 +81,11 @@ export function ClientStatusTable({ clients }: ClientStatusTableProps) {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <TrafficLightBadge status={client.status} />
+                    <TrafficLightBadge
+                      status={client.status}
+                      docReceived={client.total_doc_received}
+                      docRequired={client.total_doc_required}
+                    />
                   </TableCell>
                   <TableCell>{formatDate(client.next_deadline)}</TableCell>
                   <TableCell className="text-right">

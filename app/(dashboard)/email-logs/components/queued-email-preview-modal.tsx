@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import { previewQueuedEmail } from '@/app/actions/audit-log';
 import type { QueuedReminder } from '@/app/actions/audit-log';
 import { cancelScheduling, uncancelScheduling, rescheduleToSpecificDate, sendNow } from '@/app/actions/email-queue';
+import { getClientFilingStatusForType } from '@/app/actions/clients';
+import { FilingStatusBadge } from '@/app/(dashboard)/clients/components/filing-status-badge';
+import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
 import {
   X,
   ChevronLeft,
@@ -37,7 +40,7 @@ interface QueuedEmailPreviewModalProps {
 import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  scheduled: { label: 'Scheduled', bg: 'bg-sky-500/10', text: 'text-sky-500' },
+  scheduled: { label: 'Scheduled', bg: 'bg-status-info/10', text: 'text-status-info' },
   rescheduled: { label: 'Rescheduled', bg: 'bg-blue-500/10', text: 'text-blue-500' },
   sent: { label: 'Sent', bg: 'bg-blue-500/10', text: 'text-blue-500' },
   cancelled: { label: 'Manually Cancelled', bg: 'bg-status-danger/10', text: 'text-status-danger' },
@@ -60,6 +63,11 @@ export function QueuedEmailPreviewModal({
   const [showReschedule, setShowReschedule] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [confirmSendNow, setConfirmSendNow] = useState(false);
+  const [clientFilingStatus, setClientFilingStatus] = useState<{
+    status: TrafficLightStatus;
+    docReceived: number;
+    docRequired: number;
+  } | null>(null);
 
   // Load preview when reminderId changes
   useEffect(() => {
@@ -71,6 +79,17 @@ export function QueuedEmailPreviewModal({
     setShowReschedule(false);
     setRescheduleDate('');
     setConfirmSendNow(false);
+    setClientFilingStatus(null);
+
+    // Fetch client filing status
+    const currentReminder = allReminders.find((r) => r.id === reminderId);
+    if (currentReminder?.filing_type_id) {
+      getClientFilingStatusForType(
+        currentReminder.client_id,
+        currentReminder.filing_type_id,
+        currentReminder.deadline_date
+      ).then(setClientFilingStatus).catch(() => {});
+    }
 
     previewQueuedEmail(reminderId)
       .then((result) => {
@@ -242,8 +261,11 @@ export function QueuedEmailPreviewModal({
             ) : null}
           </div>
 
+          {/* Divider */}
+          <div className="w-px bg-border shrink-0" />
+
           {/* Right side: Metadata sidebar */}
-          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg" style={{ backgroundColor: '#ffffff' }}>
+          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg bg-white dark:bg-background">
             {/* Header */}
             <h3 className="text-lg font-semibold">Email Preview</h3>
 
@@ -365,7 +387,7 @@ export function QueuedEmailPreviewModal({
 
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  Status
+                  Email Status
                 </p>
                 <div className={`px-3 py-2 rounded-md ${status.bg} inline-flex items-center`}>
                   <span className={`text-sm font-medium ${status.text}`}>
@@ -373,6 +395,21 @@ export function QueuedEmailPreviewModal({
                   </span>
                 </div>
               </div>
+
+              {clientFilingStatus && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Client Status
+                  </p>
+                  <FilingStatusBadge
+                    status={clientFilingStatus.status}
+                    isRecordsReceived={clientFilingStatus.status === 'violet' || clientFilingStatus.status === 'green'}
+                    isOverride={false}
+                    docReceived={clientFilingStatus.docReceived}
+                    docRequired={clientFilingStatus.docRequired}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Reschedule inline section */}

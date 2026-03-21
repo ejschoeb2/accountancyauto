@@ -126,7 +126,13 @@
       "Bash(claude mcp:*)",
       "mcp__svgmaker__svgmaker_generate",
       "mcp__lucide-icons__search_icons",
-      "mcp__lucide-icons__fuzzy_search_icons"
+      "mcp__lucide-icons__fuzzy_search_icons",
+      "Bash(mkdir -p ~/.claude/skills/remotion)",
+      "Bash(cp -r /tmp/remotion-skills/skills/remotion/* ~/.claude/skills/remotion/)",
+      "Read(//c/Users/ejsch/.claude/skills/**)",
+      "Bash(npm i:*)",
+      "Bash(npx remotion:*)",
+      "Bash(npx playwright:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

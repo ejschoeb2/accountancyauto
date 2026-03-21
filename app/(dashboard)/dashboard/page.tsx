@@ -2,19 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getDashboardMetrics, getClientStatusList, type DashboardMetrics, type ClientStatusRow } from '@/lib/dashboard/metrics';
-import { getOnboardingProgress, getGoFurtherProgress, type OnboardingProgress, type GoFurtherProgress } from '@/lib/dashboard/onboarding';
+import { getDashboardMetrics, getClientStatusList, getRecentUploads, getDocsNeedingReview, getFailedDeliveries, type DashboardMetrics, type ClientStatusRow, type RecentUpload, type DocNeedingReview, type FailedDelivery } from '@/lib/dashboard/metrics';
+import { getGoFurtherProgress, getOnboardingProgress, type OnboardingProgress, type GoFurtherProgress } from '@/lib/dashboard/onboarding';
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading';
 import { buttonBaseVariants } from '@/components/ui/button-base';
-import { EyeOff, Rocket, Zap } from 'lucide-react';
-import { SummaryCards } from './components/summary-cards';
+import { EyeOff, Zap } from 'lucide-react';
 import { UpcomingDeadlines } from './components/upcoming-deadlines';
 import { WorkloadForecast } from './components/workload-forecast';
 import { TodoBox } from './components/todo-box';
-import { GettingStarted } from './components/getting-started';
 import { GoFurther } from './components/go-further';
-
-type ActivePanel = 'getting-started' | 'go-further' | null;
+import { RecentUploads } from './components/recent-uploads';
 
 function DashboardContent() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -35,7 +32,10 @@ function DashboardContent() {
   const [clientStatusList, setClientStatusList] = useState<ClientStatusRow[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingProgress | null>(null);
   const [goFurther, setGoFurther] = useState<GoFurtherProgress | null>(null);
-  const [activePanel, setActivePanel] = useState<ActivePanel>('getting-started');
+  const [recentUploads, setRecentUploads] = useState<RecentUpload[]>([]);
+  const [docsNeedingReview, setDocsNeedingReview] = useState<DocNeedingReview[]>([]);
+  const [failedDeliveries, setFailedDeliveries] = useState<FailedDelivery[]>([]);
+  const [showGoFurther, setShowGoFurther] = useState(false);
   const [loading, setLoading] = useState(true);
 
   usePageLoading('dashboard-data', loading);
@@ -48,14 +48,18 @@ function DashboardContent() {
       getClientStatusList(supabase),
       getOnboardingProgress(supabase),
       getGoFurtherProgress(supabase),
+      getRecentUploads(supabase),
+      getDocsNeedingReview(supabase),
+      getFailedDeliveries(supabase),
     ])
-      .then(([metricsData, clientsData, onboardingData, goFurtherData]) => {
+      .then(([metricsData, clientsData, onboardingData, goFurtherData, uploadsData, docsReviewData, failedData]) => {
         setMetrics(metricsData);
         setClientStatusList(clientsData);
         setOnboarding(onboardingData);
         setGoFurther(goFurtherData);
-        // If getting started was dismissed, don't show either panel by default
-        if (onboardingData.dismissed) setActivePanel(null);
+        setRecentUploads(uploadsData);
+        setDocsNeedingReview(docsReviewData);
+        setFailedDeliveries(failedData);
       })
       .catch((error) => {
         console.error('Error loading dashboard:', error);
@@ -64,12 +68,6 @@ function DashboardContent() {
         setLoading(false);
       });
   }, []);
-
-  const onboardingDismissed = onboarding?.dismissed ?? false;
-
-  function togglePanel(panel: 'getting-started' | 'go-further') {
-    setActivePanel((current) => (current === panel ? null : panel));
-  }
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto">
@@ -83,13 +81,13 @@ function DashboardContent() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => togglePanel('go-further')}
+            onClick={() => setShowGoFurther((v) => !v)}
             className={buttonBaseVariants({
-              variant: activePanel === 'go-further' ? 'amber' : 'blue',
+              variant: showGoFurther ? 'amber' : 'blue',
               buttonType: 'icon-text',
             })}
           >
-            {activePanel === 'go-further' ? (
+            {showGoFurther ? (
               <>
                 <EyeOff className="size-4" />
                 Hide go further
@@ -101,57 +99,31 @@ function DashboardContent() {
               </>
             )}
           </button>
-          {!onboardingDismissed && (
-            <button
-              onClick={() => togglePanel('getting-started')}
-              className={buttonBaseVariants({
-                variant: activePanel === 'getting-started' ? 'amber' : 'green',
-                buttonType: 'icon-text',
-              })}
-            >
-              {activePanel === 'getting-started' ? (
-                <>
-                  <EyeOff className="size-4" />
-                  Hide get started
-                </>
-              ) : (
-                <>
-                  <Rocket className="size-4" />
-                  Get started
-                </>
-              )}
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Getting started checklist */}
-      {onboarding && activePanel === 'getting-started' && !onboardingDismissed && (
-        <GettingStarted
-          progress={onboarding}
-          onDismiss={() => {
-            setActivePanel(null);
-            setOnboarding((prev) => prev ? { ...prev, dismissed: true } : prev);
-          }}
-        />
-      )}
-
       {/* Go further checklist */}
-      {goFurther && activePanel === 'go-further' && (
+      {goFurther && showGoFurther && (
         <GoFurther progress={goFurther} />
       )}
 
-      {/* Summary metrics */}
-      <SummaryCards metrics={metrics} />
+      {/* To Do — full width */}
+      <TodoBox
+        metrics={metrics}
+        clients={clientStatusList}
+        onboarding={onboarding}
+        docsNeedingReview={docsNeedingReview}
+        failedDeliveries={failedDeliveries}
+      />
 
-      {/* Upcoming Deadlines & To Do */}
+      {/* Workload Forecast — full width */}
+      <WorkloadForecast />
+
+      {/* Upcoming Deadlines & Recent Uploads — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingDeadlines clients={clientStatusList} />
-        <TodoBox metrics={metrics} clients={clientStatusList} />
+        <RecentUploads uploads={recentUploads} />
       </div>
-
-      {/* Workload Forecast - full width */}
-      <WorkloadForecast />
     </div>
   );
 }

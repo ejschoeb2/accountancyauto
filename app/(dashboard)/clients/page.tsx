@@ -42,14 +42,16 @@ export default async function ClientsPage({ searchParams }: ClientsPageProps) {
       .maybeSingle(),
   ]);
 
-  // Build a lookup map: clientId -> { status, next_deadline, next_deadline_type, underlying_status }
-  const statusMap: Record<string, { status: string; next_deadline: string | null; next_deadline_type: string | null; underlying_status?: string }> = {};
+  // Build a lookup map: clientId -> ClientStatusInfo
+  const statusMap: Record<string, import("./components/client-table").ClientStatusInfo> = {};
   for (const row of clientStatusList) {
     statusMap[row.id] = {
       status: row.status,
       next_deadline: row.next_deadline,
       next_deadline_type: row.next_deadline_type,
       underlying_status: row.underlying_status,
+      total_doc_received: row.total_doc_received,
+      total_doc_required: row.total_doc_required,
     };
   }
 
