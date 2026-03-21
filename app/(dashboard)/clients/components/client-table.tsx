@@ -193,10 +193,13 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   // Local filing status overrides — tracks changes made via edit progress mode
   const [localFilingStatusMap, setLocalFilingStatusMap] = useState<Record<string, FilingTypeStatus[]>>(filingStatusMap);
 
-  // Sync localFilingStatusMap when filingStatusMap prop changes (e.g. after router.refresh())
+  // Sync local state when props change (e.g. after router.refresh())
   useEffect(() => {
     setLocalFilingStatusMap(prev => prev === filingStatusMap ? prev : filingStatusMap);
   }, [filingStatusMap]);
+  useEffect(() => {
+    setData(prev => prev === initialData ? prev : initialData);
+  }, [initialData]);
 
   // Derive overall client status from localFilingStatusMap so data view stays in sync.
   // Logic: if any filing is urgent (red/orange/amber), show the worst urgency.
@@ -759,6 +762,12 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
 
       try {
         await updateClientMetadata(clientId, { [field]: value });
+
+        // Fields that affect filing assignments/deadlines need a server refresh
+        const filingAffectingFields: (keyof Client)[] = ['vat_registered', 'vat_stagger_group', 'year_end_date'];
+        if (filingAffectingFields.includes(field)) {
+          router.refresh();
+        }
       } catch (error) {
         // Revert on error
         setData(previousData);
@@ -767,7 +776,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         throw error;
       }
     },
-    [data]
+    [data, router]
   );
 
 
