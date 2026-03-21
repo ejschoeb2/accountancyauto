@@ -3,14 +3,12 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getDashboardMetrics, getClientStatusList, type DashboardMetrics, type ClientStatusRow } from '@/lib/dashboard/metrics';
-import { getWorkloadForecast, type MonthlyWorkload } from '@/lib/dashboard/forecast';
 import { getOnboardingProgress, getGoFurtherProgress, type OnboardingProgress, type GoFurtherProgress } from '@/lib/dashboard/onboarding';
 import { PageLoadingProvider, usePageLoading } from '@/components/page-loading';
 import { buttonBaseVariants } from '@/components/ui/button-base';
 import { EyeOff, Rocket, Zap } from 'lucide-react';
 import { SummaryCards } from './components/summary-cards';
 import { UpcomingDeadlines } from './components/upcoming-deadlines';
-import { StatusDistribution } from './components/status-distribution';
 import { AlertFeed } from './components/alert-feed';
 import { WorkloadForecast } from './components/workload-forecast';
 import { GettingStarted } from './components/getting-started';
@@ -34,7 +32,6 @@ function DashboardContent() {
     completionRate: 0,
   });
   const [clientStatusList, setClientStatusList] = useState<ClientStatusRow[]>([]);
-  const [forecastData, setForecastData] = useState<MonthlyWorkload[]>([]);
   const [onboarding, setOnboarding] = useState<OnboardingProgress | null>(null);
   const [goFurther, setGoFurther] = useState<GoFurtherProgress | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>('getting-started');
@@ -48,14 +45,12 @@ function DashboardContent() {
     Promise.all([
       getDashboardMetrics(supabase),
       getClientStatusList(supabase),
-      getWorkloadForecast(supabase),
       getOnboardingProgress(supabase),
       getGoFurtherProgress(supabase),
     ])
-      .then(([metricsData, clientsData, forecast, onboardingData, goFurtherData]) => {
+      .then(([metricsData, clientsData, onboardingData, goFurtherData]) => {
         setMetrics(metricsData);
         setClientStatusList(clientsData);
-        setForecastData(forecast);
         setOnboarding(onboardingData);
         setGoFurther(goFurtherData);
         // If getting started was dismissed, don't show either panel by default
@@ -148,17 +143,14 @@ function DashboardContent() {
       {/* Summary metrics */}
       <SummaryCards metrics={metrics} />
 
-      {/* Status distribution - full width */}
-      <StatusDistribution clients={clientStatusList} />
+      {/* Workload Forecast - full width */}
+      <WorkloadForecast />
 
       {/* Upcoming Deadlines & Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingDeadlines clients={clientStatusList} />
         <AlertFeed />
       </div>
-
-      {/* Workload forecast - full width */}
-      <WorkloadForecast data={forecastData} />
     </div>
   );
 }
