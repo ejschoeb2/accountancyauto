@@ -520,7 +520,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   // Client limit alerts
   const clientCount = data.length;
   const isAtLimit = clientLimit !== null && clientCount >= clientLimit;
-  const isNearLimit = clientLimit !== null && !isAtLimit && clientCount >= clientLimit * 0.85;
+  const isNearLimit = clientLimit !== null && !isAtLimit && clientCount >= Math.floor(clientLimit * 0.95);
 
   const handleClientCreated = (newClient: Client) => {
     setData((prev) => [...prev, newClient]);
@@ -1481,19 +1481,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             );
           }
 
-          // No status info — show dash
-          if (!info) return <span className="text-muted-foreground">—</span>;
-
-          // Grey (no active filings) — show Inactive badge
-          if (info.status === 'grey') {
-            return (
-              <FilingStatusBadge
-                status="grey"
-                isRecordsReceived={false}
-                isOverride={false}
-              />
-            );
-          }
+          // No status info or no active filings — show dash
+          if (!info || info.status === 'grey') return <span className="text-muted-foreground">—</span>;
 
           return (
             <FilingStatusBadge
