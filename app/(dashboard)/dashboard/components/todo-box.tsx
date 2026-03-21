@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import { CheckButton } from '@/components/ui/check-button';
 import { TrafficLightBadge } from './traffic-light-badge';
-import { ClipboardCheck, CheckCircle2 } from 'lucide-react';
+import { ClipboardCheck, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { buttonBaseVariants } from '@/components/ui/button-base';
+import { getFilingTypeLabel } from '@/lib/constants/filing-types';
 import type { DashboardMetrics, ClientStatusRow } from '@/lib/dashboard/metrics';
 import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
 
@@ -21,23 +22,33 @@ interface TodoItem {
   status: TrafficLightStatus;
   docReceived: number;
   docRequired: number;
+  filingTypeId: string | null;
 }
 
-const CHECKBOX_VARIANT: Record<TrafficLightStatus, 'violet' | 'destructive' | 'amber' | 'green' | 'blue' | 'neutral'> = {
-  violet: 'violet',
-  red: 'destructive',
-  orange: 'destructive',
-  amber: 'amber',
-  blue: 'blue',
-  green: 'green',
-  grey: 'neutral',
-};
+const PAGE_SIZE = 6;
+
+/** Map filing_type_id to the appropriate government portal URL */
+function getPortalUrl(filingTypeId: string | null): string {
+  switch (filingTypeId) {
+    case 'companies_house':
+    case 'confirmation_statement':
+      return 'https://ewf.companieshouse.gov.uk/';
+    case 'vat_return':
+      return 'https://www.tax.service.gov.uk/vat-through-software/what-you-need-to-do';
+    case 'self_assessment':
+    case 'sa_payment_on_account':
+    case 'mtd_quarterly_update':
+      return 'https://www.tax.service.gov.uk/personal-account';
+    default:
+      return 'https://www.tax.service.gov.uk/business-account';
+  }
+}
 
 export function TodoBox({ metrics, clients }: TodoBoxProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
 
   // Build individual to-do rows from clients that need action
-  // Priority: red (overdue) > violet (ready to submit)
   const actionableStatuses: TrafficLightStatus[] = ['red', 'violet'];
 
   const todoItems: TodoItem[] = clients
@@ -53,12 +64,24 @@ export function TodoBox({ metrics, clients }: TodoBoxProps) {
       status: c.status,
       docReceived: c.total_doc_received,
       docRequired: c.total_doc_required,
+      filingTypeId: c.next_deadline_type,
     }));
 
   const visibleItems = todoItems.filter(item => !dismissed.has(item.id));
+  const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageItems = visibleItems.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   const handleDismiss = (id: string) => {
     setDismissed(prev => new Set(prev).add(id));
+  };
+
+  const handleRowClick = (item: TodoItem) => {
+    if (item.status === 'violet') {
+      window.open(getPortalUrl(item.filingTypeId), '_blank', 'noopener,noreferrer');
+    } else {
+      window.open(`/clients/${item.clientId}`, '_self');
+    }
   };
 
   return (
@@ -83,34 +106,53 @@ export function TodoBox({ metrics, clients }: TodoBoxProps) {
             </div>
           ) : (
             <div className="space-y-0">
-              {visibleItems.map((item) => (
+              {pageItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0"
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 transition-colors border-t first:border-t-0 cursor-pointer"
+                  onClick={() => handleRowClick(item)}
                 >
-                  <Checkbox
-                    variant={CHECKBOX_VARIANT[item.status]}
-                    size="sm"
-                    onCheckedChange={() => handleDismiss(item.id)}
-                  />
-                  <Link
-                    href={`/clients/${item.clientId}`}
-                    className="flex items-center justify-between flex-1 min-w-0 gap-2"
-                  >
-                    <span className="font-medium text-sm truncate">
-                      {item.clientName}
-                    </span>
-                    <TrafficLightBadge
-                      status={item.status}
-                      docReceived={item.docReceived}
-                      docRequired={item.docRequired}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <CheckButton
+                      checked={dismissed.has(item.id)}
+                      variant={dismissed.has(item.id) ? 'success' : 'default'}
+                      onCheckedChange={() => handleDismiss(item.id)}
+                      aria-label={`Mark ${item.clientName} as done`}
                     />
-                  </Link>
+                  </div>
+                  <span className="font-medium text-sm truncate flex-1 min-w-0">
+                    {item.clientName}
+                  </span>
+                  <TrafficLightBadge
+                    status={item.status}
+                    docReceived={item.docReceived}
+                    docRequired={item.docRequired}
+                  />
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-end gap-2 pt-4 mt-auto">
+            <button
+              className={buttonBaseVariants({ variant: 'muted', buttonType: 'icon-only' })}
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <button
+              className={buttonBaseVariants({ variant: 'muted', buttonType: 'icon-only' })}
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={safePage >= totalPages - 1}
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
