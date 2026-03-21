@@ -148,7 +148,7 @@ function DashboardContent() {
       {/* Upcoming Deadlines & To Do */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingDeadlines clients={clientStatusList} />
-        <TodoBox metrics={metrics} />
+        <TodoBox metrics={metrics} clients={clientStatusList} />
       </div>
 
       {/* Workload Forecast - full width */}

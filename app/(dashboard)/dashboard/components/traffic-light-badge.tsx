@@ -1,9 +1,12 @@
 'use client';
 
 import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
+import { DocProgressRing } from '@/app/(dashboard)/clients/components/filing-status-badge';
 
 interface TrafficLightBadgeProps {
   status: TrafficLightStatus;
+  docReceived?: number;
+  docRequired?: number;
 }
 
 const STATUS_CONFIG: Record<
@@ -47,14 +50,24 @@ const STATUS_CONFIG: Record<
   },
 };
 
-export function TrafficLightBadge({ status }: TrafficLightBadgeProps) {
+export function TrafficLightBadge({ status, docReceived, docRequired }: TrafficLightBadgeProps) {
   const config = STATUS_CONFIG[status];
+  // For violet/green, records are in — show full ring rather than partial doc progress
+  const isComplete = status === 'violet' || status === 'green';
+  const showRing = docRequired != null && docRequired > 0 && docReceived != null;
 
   return (
-    <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center`}>
-      <span className={`text-sm font-medium ${config.text}`}>
+    <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center gap-2 ${config.text}`}>
+      <span className={`text-sm font-medium`}>
         {config.label}
       </span>
+      {showRing && (
+        <DocProgressRing
+          received={isComplete ? docRequired! : docReceived!}
+          required={docRequired!}
+          colorClass={config.text}
+        />
+      )}
     </div>
   );
 }

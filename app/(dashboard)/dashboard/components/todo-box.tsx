@@ -10,13 +10,18 @@ import {
   MailX,
   AlertTriangle,
 } from 'lucide-react';
-import type { DashboardMetrics } from '@/lib/dashboard/metrics';
+import type { DashboardMetrics, ClientStatusRow } from '@/lib/dashboard/metrics';
 
 interface TodoBoxProps {
   metrics: DashboardMetrics;
+  clients: ClientStatusRow[];
 }
 
-export function TodoBox({ metrics }: TodoBoxProps) {
+export function TodoBox({ metrics, clients }: TodoBoxProps) {
+  // Count violet/overdue from clientStatusList so it matches the upcoming deadlines view
+  const violetCount = clients.filter(c => c.status === 'violet').length;
+  const overdueCount = clients.filter(c => c.status === 'red').length;
+
   const todoItems: {
     label: string;
     count: number;
@@ -25,10 +30,10 @@ export function TodoBox({ metrics }: TodoBoxProps) {
     color: string;
   }[] = [];
 
-  if (metrics.violetCount > 0) {
+  if (violetCount > 0) {
     todoItems.push({
       label: 'Ready to submit',
-      count: metrics.violetCount,
+      count: violetCount,
       href: '/clients?filter=violet',
       icon: <Send className="size-4" />,
       color: 'text-violet-600',
@@ -55,10 +60,10 @@ export function TodoBox({ metrics }: TodoBoxProps) {
     });
   }
 
-  if (metrics.overdueCount > 0) {
+  if (overdueCount > 0) {
     todoItems.push({
       label: 'Overdue clients to chase',
-      count: metrics.overdueCount,
+      count: overdueCount,
       href: '/clients?filter=red',
       icon: <AlertTriangle className="size-4" />,
       color: 'text-status-danger',
