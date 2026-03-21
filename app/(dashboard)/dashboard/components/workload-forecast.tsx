@@ -68,7 +68,7 @@ export function WorkloadForecast() {
 
   useEffect(() => { fetchData(timeframe); }, [timeframe, fetchData]);
 
-  // Observe container width
+  // Observe container width — re-attach when data changes so ref is always tracked
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -77,7 +77,7 @@ export function WorkloadForecast() {
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [data]);
 
   // Chart dimensions
   const chartHeight = 280;
@@ -142,34 +142,32 @@ export function WorkloadForecast() {
     <Card className="group py-5 hover:shadow-md transition-shadow duration-200">
       <CardContent className="px-8 py-0">
         <div className="flex items-start justify-between mb-6 gap-4">
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide pt-2">
+            Workload Forecast
+          </p>
           <div className="flex items-center gap-3">
+            <ToggleGroup
+              options={TIMEFRAME_OPTIONS}
+              value={timeframe}
+              onChange={setTimeframe}
+            />
             <div className="size-10 rounded-lg bg-violet-500/10 flex items-center justify-center transition-all duration-200 group-hover:bg-violet-500/20">
               <TrendingUp className="size-6 text-violet-500" />
             </div>
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Workload Forecast
-            </p>
           </div>
-          <ToggleGroup
-            options={TIMEFRAME_OPTIONS}
-            value={timeframe}
-            onChange={setTimeframe}
-          />
         </div>
 
-        {loading && data.length === 0 ? (
-          <div className="flex items-center justify-center" style={{ height: chartHeight + 40 }}>
-            <p className="text-sm text-muted-foreground">Loading forecast…</p>
-          </div>
-        ) : data.length === 0 || data.every(d => d.total === 0) ? (
-          <div className="flex items-center justify-center" style={{ height: chartHeight + 40 }}>
-            <p className="text-sm text-muted-foreground">No deadlines in this period</p>
-          </div>
-        ) : (
-          <>
-            <div ref={containerRef} className="relative w-full" style={{ minHeight: chartHeight + 40 }}>
-              {containerWidth > 0 && (
-                <svg
+        <div ref={containerRef} className="relative w-full" style={{ minHeight: chartHeight + 40 }}>
+          {loading && data.length === 0 ? (
+            <div className="flex items-center justify-center" style={{ height: chartHeight + 40 }}>
+              <p className="text-sm text-muted-foreground">Loading forecast…</p>
+            </div>
+          ) : data.length === 0 || data.every(d => d.total === 0) ? (
+            <div className="flex items-center justify-center" style={{ height: chartHeight + 40 }}>
+              <p className="text-sm text-muted-foreground">No deadlines in this period</p>
+            </div>
+          ) : containerWidth > 0 ? (
+            <svg
                   width={containerWidth}
                   height={chartHeight + 40}
                   className="overflow-visible"
@@ -361,25 +359,25 @@ export function WorkloadForecast() {
                       </g>
                     );
                   })()}
-                </svg>
-              )}
-            </div>
+            </svg>
+          ) : null}
+        </div>
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-2">
-              {legendOrder.filter(k => activeStatuses.has(k)).map((key) => (
-                <div key={key} className="flex items-center gap-1.5">
-                  <div
-                    className="size-3 rounded-sm flex-shrink-0"
-                    style={{ backgroundColor: STATUS_CONFIG[key].color }}
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {STATUS_CONFIG[key].label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
+        {/* Legend */}
+        {data.length > 0 && !data.every(d => d.total === 0) && (
+          <div className="flex flex-wrap gap-x-5 gap-y-2 mt-2">
+            {legendOrder.filter(k => activeStatuses.has(k)).map((key) => (
+              <div key={key} className="flex items-center gap-1.5">
+                <div
+                  className="size-3 rounded-sm flex-shrink-0"
+                  style={{ backgroundColor: STATUS_CONFIG[key].color }}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {STATUS_CONFIG[key].label}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
