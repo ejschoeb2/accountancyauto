@@ -18,6 +18,7 @@ export interface DashboardMetrics {
   sentTodayCount: number;
   pausedCount: number;
   failedDeliveryCount: number;
+  docsNeedingReviewCount: number; // documents uploaded via portal needing accountant review
   completionRate: number; // percentage of non-inactive clients that are green/violet
 }
 
@@ -29,6 +30,8 @@ export interface ClientStatusRow {
   next_deadline: string | null;
   next_deadline_type: string | null;
   days_until_deadline: number | null;
+  total_doc_received: number;
+  total_doc_required: number;
 }
 
 /**
@@ -207,6 +210,15 @@ export async function getDashboardMetrics(
 
   if (failedError) throw failedError;
 
+  // Query client_documents for docs needing review
+  const { count: docsNeedingReviewCount, error: docsReviewError } = await supabase
+    .from('client_documents')
+    .select('*', { count: 'exact', head: true })
+    .eq('needs_review', true)
+    .is('rejected_at', null);
+
+  if (docsReviewError) throw docsReviewError;
+
     return {
       overdueCount,
       criticalCount,
@@ -219,6 +231,7 @@ export async function getDashboardMetrics(
       sentTodayCount: sentTodayCount || 0,
       pausedCount: pausedCount || 0,
       failedDeliveryCount: failedDeliveryCount || 0,
+      docsNeedingReviewCount: docsNeedingReviewCount || 0,
       completionRate,
     };
   } catch (error) {
@@ -283,6 +296,54 @@ export async function getClientStatusList(
   const sentSet = new Set(
     (reminders || []).map((r) => `${r.client_id}_${r.filing_type_id}`)
   );
+
+  // Fetch mandatory document requirements per filing type
+  const { data: reqRows } = await supabase
+    .from('filing_document_requirements')
+    .select('filing_type_id, document_type_id')
+    .eq('is_mandatory', true);
+
+  const mandatoryDocTypes = new Map<string, Set<string>>();
+  for (const row of reqRows ?? []) {
+    if (!mandatoryDocTypes.has(row.filing_type_id)) {
+      mandatoryDocTypes.set(row.filing_type_id, new Set());
+    }
+    mandatoryDocTypes.get(row.filing_type_id)!.add(row.document_type_id);
+  }
+
+  // Fetch uploaded documents per client + filing type
+  const { data: docRows } = await supabase
+    .from('client_documents')
+    .select('client_id, filing_type_id, document_type_id');
+
+  const satisfiedDocTypes = new Map<string, Set<string>>();
+  for (const row of docRows ?? []) {
+    if (!row.filing_type_id || !row.document_type_id) continue;
+    const mandatorySet = mandatoryDocTypes.get(row.filing_type_id);
+    if (!mandatorySet?.has(row.document_type_id)) continue;
+    const key = `${row.client_id}-${row.filing_type_id}`;
+    if (!satisfiedDocTypes.has(key)) {
+      satisfiedDocTypes.set(key, new Set());
+    }
+    satisfiedDocTypes.get(key)!.add(row.document_type_id);
+  }
+
+  // Fetch manually received checklist customisations
+  const { data: manualRows } = await supabase
+    .from('client_document_checklist_customisations')
+    .select('client_id, filing_type_id, document_type_id')
+    .eq('manually_received', true);
+
+  for (const row of manualRows ?? []) {
+    if (!row.filing_type_id || !row.document_type_id) continue;
+    const mandatorySet = mandatoryDocTypes.get(row.filing_type_id);
+    if (!mandatorySet?.has(row.document_type_id)) continue;
+    const key = `${row.client_id}-${row.filing_type_id}`;
+    if (!satisfiedDocTypes.has(key)) {
+      satisfiedDocTypes.set(key, new Set());
+    }
+    satisfiedDocTypes.get(key)!.add(row.document_type_id);
+  }
 
   // Build client status rows
   const statusRows: ClientStatusRow[] = (clients || []).map((client) => {
@@ -386,6 +447,16 @@ export async function getClientStatusList(
       );
     }
 
+    // Aggregate doc counts across all assigned filings
+    let total_doc_received = 0;
+    let total_doc_required = 0;
+    for (const assignment of clientAssignments) {
+      const reqCount = mandatoryDocTypes.get(assignment.filing_type_id)?.size ?? 0;
+      const recCount = satisfiedDocTypes.get(`${client.id}-${assignment.filing_type_id}`)?.size ?? 0;
+      total_doc_required += reqCount;
+      total_doc_received += Math.min(recCount, reqCount);
+    }
+
     return {
       id: client.id,
       company_name: client.company_name,
@@ -394,6 +465,8 @@ export async function getClientStatusList(
       next_deadline,
       next_deadline_type,
       days_until_deadline,
+      total_doc_received,
+      total_doc_required,
     };
   });
 

@@ -29,6 +29,7 @@ function DashboardContent() {
     sentTodayCount: 0,
     pausedCount: 0,
     failedDeliveryCount: 0,
+    docsNeedingReviewCount: 0,
     completionRate: 0,
   });
   const [clientStatusList, setClientStatusList] = useState<ClientStatusRow[]>([]);
