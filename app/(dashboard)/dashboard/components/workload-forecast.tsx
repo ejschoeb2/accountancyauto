@@ -21,7 +21,7 @@ type StatusKey = (typeof STATUS_KEYS)[number];
 const STATUS_CONFIG: Record<StatusKey, { label: string; color: string }> = {
   red:    { label: 'Overdue',     color: '#ef4444' },
   orange: { label: 'Critical',    color: '#f97316' },
-  amber:  { label: 'Approaching', color: '#eab308' },
+  amber:  { label: 'Approaching', color: '#d97706' },
   blue:   { label: 'On Track',    color: '#3b82f6' },
   violet: { label: 'Records In',  color: '#8b5cf6' },
   green:  { label: 'Completed',   color: '#10b981' },
@@ -301,7 +301,8 @@ export function WorkloadForecast() {
                     const tooltipWidth = 170;
                     const tooltipLineHeight = 20;
                     const tooltipPadY = 14;
-                    const lineCount = legendOrder.length;
+                    const activeLines = legendOrder.filter(k => hoveredBar.bucket.breakdown[k] > 0);
+                    const lineCount = activeLines.length;
                     const tooltipHeight = tooltipPadY + lineCount * tooltipLineHeight + 12 + tooltipLineHeight + tooltipPadY;
                     const barCenterX = hoveredBar.x + barWidth / 2;
                     // Keep tooltip within bounds
@@ -321,37 +322,34 @@ export function WorkloadForecast() {
                           className="fill-foreground"
                           opacity={0.95}
                         />
-                        {legendOrder.map((key, li) => {
-                          const count = hoveredBar.bucket.breakdown[key];
-                          return (
-                            <g key={key} opacity={count > 0 ? 1 : 0.35}>
-                              <circle
-                                cx={tooltipX + 18}
-                                cy={tooltipY + tooltipPadY + li * tooltipLineHeight + 8}
-                                r={4.5}
-                                fill={STATUS_CONFIG[key].color}
-                              />
-                              <text
-                                x={tooltipX + 30}
-                                y={tooltipY + tooltipPadY + li * tooltipLineHeight + 12}
-                                fontSize="11"
-                                className="fill-background"
-                              >
-                                {STATUS_CONFIG[key].label}
-                              </text>
-                              <text
-                                x={tooltipX + tooltipWidth - 14}
-                                y={tooltipY + tooltipPadY + li * tooltipLineHeight + 12}
-                                fontSize="11"
-                                fontWeight="600"
-                                textAnchor="end"
-                                className="fill-background"
-                              >
-                                {count}
-                              </text>
-                            </g>
-                          );
-                        })}
+                        {activeLines.map((key, li) => (
+                          <g key={key}>
+                            <circle
+                              cx={tooltipX + 18}
+                              cy={tooltipY + tooltipPadY + li * tooltipLineHeight + 8}
+                              r={4.5}
+                              fill={STATUS_CONFIG[key].color}
+                            />
+                            <text
+                              x={tooltipX + 30}
+                              y={tooltipY + tooltipPadY + li * tooltipLineHeight + 12}
+                              fontSize="11"
+                              className="fill-background"
+                            >
+                              {STATUS_CONFIG[key].label}
+                            </text>
+                            <text
+                              x={tooltipX + tooltipWidth - 14}
+                              y={tooltipY + tooltipPadY + li * tooltipLineHeight + 12}
+                              fontSize="11"
+                              fontWeight="600"
+                              textAnchor="end"
+                              className="fill-background"
+                            >
+                              {hoveredBar.bucket.breakdown[key]}
+                            </text>
+                          </g>
+                        ))}
                         <line
                           x1={tooltipX + 12}
                           y1={tooltipY + tooltipPadY + lineCount * tooltipLineHeight + 4}
