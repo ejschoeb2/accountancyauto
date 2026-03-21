@@ -102,7 +102,7 @@
   /* Semantic status colors */
   --status-danger: oklch(0.577 0.245 27.325);
   --status-critical: oklch(0.713 0.202 40.85);
-  --status-warning: oklch(0.705 0.183 54.13);
+  --status-warning: oklch(0.795 0.175 86.05);
   --status-info: oklch(0.623 0.214 259.1);
   --status-neutral: oklch(0.554 0.027 256.8);
   /* Note: Green uses Tailwind's green-500/600 palette instead */
@@ -142,7 +142,7 @@
   --sidebar-ring: oklch(0.623 0.214 259.1);
   --status-danger: oklch(0.704 0.191 22.216);
   --status-critical: oklch(0.768 0.172 45.0);
-  --status-warning: oklch(0.768 0.172 70.08);
+  --status-warning: oklch(0.850 0.170 86.05);
   --status-info: oklch(0.623 0.214 259.1);
   --status-neutral: oklch(0.705 0.015 286.067);
   /* Note: Green uses Tailwind's green-500/600 palette instead */

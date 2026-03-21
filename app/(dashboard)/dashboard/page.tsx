@@ -11,6 +11,7 @@ import { SummaryCards } from './components/summary-cards';
 import { UpcomingDeadlines } from './components/upcoming-deadlines';
 import { AlertFeed } from './components/alert-feed';
 import { WorkloadForecast } from './components/workload-forecast';
+import { TodoBox } from './components/todo-box';
 import { GettingStarted } from './components/getting-started';
 import { GoFurther } from './components/go-further';
 
@@ -144,14 +145,17 @@ function DashboardContent() {
       {/* Summary metrics */}
       <SummaryCards metrics={metrics} />
 
+      {/* Upcoming Deadlines & To Do */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <UpcomingDeadlines clients={clientStatusList} />
+        <TodoBox metrics={metrics} />
+      </div>
+
       {/* Workload Forecast - full width */}
       <WorkloadForecast />
 
-      {/* Upcoming Deadlines & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <UpcomingDeadlines clients={clientStatusList} />
-        <AlertFeed />
-      </div>
+      {/* Activity feed */}
+      <AlertFeed />
     </div>
   );
 }

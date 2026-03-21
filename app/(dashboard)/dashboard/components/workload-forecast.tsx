@@ -19,12 +19,12 @@ const STATUS_KEYS = ['green', 'violet', 'blue', 'amber', 'orange', 'red'] as con
 type StatusKey = (typeof STATUS_KEYS)[number];
 
 const STATUS_CONFIG: Record<StatusKey, { label: string; color: string }> = {
-  red:    { label: 'Overdue',     color: '#ef4444' },
-  orange: { label: 'Critical',    color: '#f97316' },
-  amber:  { label: 'Approaching', color: '#d97706' },
-  blue:   { label: 'On Track',    color: '#3b82f6' },
-  violet: { label: 'Records In',  color: '#8b5cf6' },
-  green:  { label: 'Completed',   color: '#10b981' },
+  red:    { label: 'Overdue',     color: '#f87171' },
+  orange: { label: 'Critical',    color: '#fb923c' },
+  amber:  { label: 'Approaching', color: '#facc15' },
+  blue:   { label: 'On Track',    color: '#60a5fa' },
+  violet: { label: 'Records In',  color: '#a78bfa' },
+  green:  { label: 'Completed',   color: '#34d399' },
 };
 
 // Stacking order bottom→top: green, violet, blue, amber, orange, red

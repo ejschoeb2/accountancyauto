@@ -315,7 +315,7 @@ Custom status colors are defined in `globals.css`:
 /* Light mode */
 --status-danger: oklch(0.577 0.245 27.325);      /* Red */
 --status-critical: oklch(0.713 0.202 40.85);     /* Orange */
---status-warning: oklch(0.705 0.183 54.13);      /* Amber */
+--status-warning: oklch(0.795 0.175 86.05);      /* Yellow-amber (distinct from orange critical) */
 --status-info: oklch(0.623 0.214 259.1);         /* Blue */
 --status-neutral: oklch(0.554 0.027 256.8);      /* Grey */
 ```
