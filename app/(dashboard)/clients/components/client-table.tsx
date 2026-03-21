@@ -53,7 +53,7 @@ import { BulkActionsToolbar } from "./bulk-actions-toolbar";
 import { SendEmailModal } from "./send-email-modal";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { StatusDropdown } from "./status-dropdown";
-import { FilingStatusBadge } from "./filing-status-badge";
+import { FilingStatusBadge, DocProgressRing } from "./filing-status-badge";
 import type { FilingTypeStatus } from "@/lib/types/database";
 import type { Row } from "@tanstack/react-table";
 
@@ -82,6 +82,8 @@ export interface ClientStatusInfo {
   next_deadline: string | null;
   next_deadline_type: string | null;
   underlying_status?: string;
+  total_doc_received: number;
+  total_doc_required: number;
 }
 
 import { FILING_TYPE_LABELS, ALL_FILING_TYPE_IDS, FILING_TYPES_BY_CLIENT_TYPE } from '@/lib/constants/filing-types';
@@ -206,11 +208,15 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
       const filings = localFilingStatusMap[client.id] ?? [];
 
       if (client.reminders_paused || filings.length === 0) {
+        const docReceived = filings.reduce((sum, f) => sum + (f.doc_received_count || 0), 0);
+        const docRequired = filings.reduce((sum, f) => sum + (f.doc_required_count || 0), 0);
         result[client.id] = {
           status: client.reminders_paused ? 'grey' : (statusMap[client.id]?.status ?? 'grey'),
           next_deadline: statusMap[client.id]?.next_deadline ?? null,
           next_deadline_type: statusMap[client.id]?.next_deadline_type ?? null,
           underlying_status: statusMap[client.id]?.underlying_status,
+          total_doc_received: docReceived,
+          total_doc_required: docRequired,
         };
         continue;
       }
@@ -244,11 +250,16 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         status = 'blue';
       }
 
+      const docReceived = filings.reduce((sum, f) => sum + (f.doc_received_count || 0), 0);
+      const docRequired = filings.reduce((sum, f) => sum + (f.doc_required_count || 0), 0);
+
       result[client.id] = {
         status,
         next_deadline: earliest?.deadline_date ?? statusMap[client.id]?.next_deadline ?? null,
         next_deadline_type: earliest?.filing_type_id ?? statusMap[client.id]?.next_deadline_type ?? null,
         underlying_status: statusMap[client.id]?.underlying_status,
+        total_doc_received: docReceived,
+        total_doc_required: docRequired,
       };
     }
     return result;
@@ -1115,23 +1126,24 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                 {filingStatus.deadline_date && (
                   <div className="text-sm whitespace-nowrap">
                     <span className="text-muted-foreground">Deadline: </span>
-                    <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd/MM/yyyy")}</span>
-                  </div>
-                )}
-                {filingStatus.doc_required_count > 0 && (
-                  <div className="text-sm whitespace-nowrap">
-                    <span className="text-muted-foreground">Documents: </span>
-                    <span className="text-muted-foreground">{filingStatus.doc_received_count}/{filingStatus.doc_required_count} received</span>
+                    <span className="text-foreground/70">{format(new Date(filingStatus.deadline_date), "dd/MM/yyyy")}</span>
                   </div>
                 )}
                 {!filingStatus.is_records_received && (
                   <div className="text-sm whitespace-nowrap">
                     <span className="text-muted-foreground">Next Email: </span>
-                    <span className="text-muted-foreground">Paused</span>
+                    <span className="text-foreground/70">Paused</span>
                   </div>
                 )}
-                <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
-                  <span className="text-sm font-medium text-status-neutral">Paused</span>
+                <div className="px-3 py-2 rounded-md bg-status-neutral/10 text-status-neutral inline-flex items-center gap-2">
+                  <span className="text-sm font-medium">Paused</span>
+                  {filingStatus.doc_required_count > 0 && (
+                    <DocProgressRing
+                      received={filingStatus.doc_received_count}
+                      required={filingStatus.doc_required_count}
+                      colorClass="text-status-neutral"
+                    />
+                  )}
                 </div>
               </div>
             );
@@ -1146,19 +1158,13 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
               {filingStatus.deadline_date && (
                 <div className="text-sm whitespace-nowrap">
                   <span className="text-muted-foreground">Deadline: </span>
-                  <span className="text-muted-foreground">{format(new Date(filingStatus.deadline_date), "dd/MM/yyyy")}</span>
-                </div>
-              )}
-              {filingStatus.doc_required_count > 0 && (
-                <div className="text-sm whitespace-nowrap">
-                  <span className="text-muted-foreground">Documents: </span>
-                  <span className="text-muted-foreground">{filingStatus.doc_received_count}/{filingStatus.doc_required_count} received</span>
+                  <span className="text-foreground/70">{format(new Date(filingStatus.deadline_date), "dd/MM/yyyy")}</span>
                 </div>
               )}
               {!filingStatus.is_records_received && (
                 <div className="text-sm whitespace-nowrap">
                   <span className="text-muted-foreground">Next Email: </span>
-                  <span className="text-muted-foreground">
+                  <span className="text-foreground/70">
                     {filingStatus.next_email_date
                       ? format(new Date(filingStatus.next_email_date), "dd/MM/yyyy")
                       : "None scheduled"}
@@ -1170,6 +1176,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                   status={filingStatus.status}
                   isRecordsReceived={filingStatus.is_records_received}
                   isOverride={filingStatus.is_override}
+                  docReceived={filingStatus.doc_received_count}
+                  docRequired={filingStatus.doc_required_count}
                 />
               </div>
             </div>
@@ -1464,51 +1472,28 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
             );
           }
 
-          // No status info or grey (no filings) — show dash
-          if (!info || info.status === 'grey') return <span className="text-muted-foreground">—</span>;
+          // No status info — show dash
+          if (!info) return <span className="text-muted-foreground">—</span>;
 
-          const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-            red: {
-              bg: 'bg-status-danger/10',
-              text: 'text-status-danger',
-              label: 'Overdue',
-            },
-            orange: {
-              bg: 'bg-status-critical/10',
-              text: 'text-status-critical',
-              label: 'Critical',
-            },
-            amber: {
-              bg: 'bg-status-warning/10',
-              text: 'text-status-warning',
-              label: 'Approaching',
-            },
-            blue: {
-              bg: 'bg-status-info/10',
-              text: 'text-status-info',
-              label: 'On Track',
-            },
-            violet: {
-              bg: 'bg-violet-500/10',
-              text: 'text-violet-600',
-              label: 'Records Received',
-            },
-            green: {
-              bg: 'bg-green-500/10',
-              text: 'text-green-600',
-              label: 'Completed',
-            },
-          };
-
-          const config = statusConfig[info.status];
-          if (!config) return <span className="text-muted-foreground">—</span>;
+          // Grey (no active filings) — show Inactive badge
+          if (info.status === 'grey') {
+            return (
+              <FilingStatusBadge
+                status="grey"
+                isRecordsReceived={false}
+                isOverride={false}
+              />
+            );
+          }
 
           return (
-            <div className={`px-3 py-2 rounded-md ${config.bg} inline-flex items-center`}>
-              <span className={`text-sm font-medium ${config.text}`}>
-                {config.label}
-              </span>
-            </div>
+            <FilingStatusBadge
+              status={info.status as import("@/lib/dashboard/traffic-light").TrafficLightStatus}
+              isRecordsReceived={false}
+              isOverride={false}
+              docReceived={info.total_doc_received}
+              docRequired={info.total_doc_required}
+            />
           );
         },
         enableSorting: false,
@@ -1973,7 +1958,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           </DialogHeader>
           <DialogFooter>
             <IconButtonWithText
-              variant="violet"
+              variant="blue"
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isDeleting}
             >
