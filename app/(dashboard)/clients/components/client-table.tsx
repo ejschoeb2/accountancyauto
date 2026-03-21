@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle, CircleCheck, CircleMinus, ClipboardCheck } from "lucide-react";
+import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle, CircleCheck, CircleMinus, ClipboardCheck, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -521,6 +521,16 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const clientCount = data.length;
   const isAtLimit = clientLimit !== null && clientCount >= clientLimit;
   const isNearLimit = clientLimit !== null && !isAtLimit && clientCount >= Math.floor(clientLimit * 0.95);
+
+  // Detect client types with no applicable active filing types
+  const clientTypesWithNoFilings = useMemo(() => {
+    const typesInData = new Set(data.map(c => c.client_type).filter(Boolean) as string[]);
+    const activeSet = new Set(activeFilingTypeIds);
+    return [...typesInData].filter(type => {
+      const applicable = FILING_TYPES_BY_CLIENT_TYPE[type] ?? [];
+      return !applicable.some(id => activeSet.has(id));
+    });
+  }, [data, activeFilingTypeIds]);
 
   const handleClientCreated = (newClient: Client) => {
     setData((prev) => [...prev, newClient]);
@@ -1593,6 +1603,14 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
           <AlertTriangle className="size-5 text-amber-600 shrink-0" />
           <p className="text-sm text-amber-600">
             You&apos;re using {clientCount} of {clientLimit} clients on your plan. <a href="/settings?tab=billing" className="underline font-medium hover:text-amber-700">Upgrade</a> to add more capacity.
+          </p>
+        </div>
+      )}
+      {clientTypesWithNoFilings.length > 0 && (
+        <div className="flex items-center gap-3 p-4 bg-status-info/10 rounded-xl">
+          <Info className="size-5 text-status-info shrink-0" />
+          <p className="text-sm text-status-info">
+            You have {clientTypesWithNoFilings.join(', ')} clients but no deadlines are enabled for {clientTypesWithNoFilings.length === 1 ? 'this type' : 'these types'}. <a href="/settings?tab=deadlines" className="underline font-medium hover:text-blue-700">Enable deadlines</a> to track their filings.
           </p>
         </div>
       )}
