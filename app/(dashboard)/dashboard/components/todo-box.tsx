@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckButton } from '@/components/ui/check-button';
 import { TrafficLightBadge } from './traffic-light-badge';
@@ -14,17 +14,27 @@ import {
   ListChecks,
   Send,
   ExternalLink,
-  AlertTriangle,
   Eye,
   MailX,
+  Mail,
+  RotateCcw,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { ButtonBase } from '@/components/ui/button-base';
 import { buttonBaseVariants } from '@/components/ui/button-base';
 import { getFilingTypeLabel } from '@/lib/constants/filing-types';
+import { markFilingComplete, revertFilingComplete, rolloverToNextCycle, markDocReviewed } from '@/app/actions/todo';
 import type { DashboardMetrics, ClientStatusRow, DocNeedingReview, FailedDelivery } from '@/lib/dashboard/metrics';
 import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
+import type { AuditEntry } from '@/app/actions/audit-log';
+import { DocumentPreviewModal } from '@/app/(dashboard)/clients/[id]/components/document-preview-modal';
+import type { ClientDocument } from '@/app/(dashboard)/clients/[id]/components/document-preview-modal';
+import { SentEmailDetailModal } from '@/app/(dashboard)/email-logs/components/sent-email-detail-modal';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 interface TodoBoxProps {
   metrics: DashboardMetrics;
@@ -32,6 +42,7 @@ interface TodoBoxProps {
   onboarding: OnboardingProgress | null;
   docsNeedingReview: DocNeedingReview[];
   failedDeliveries: FailedDelivery[];
+  onDataChange: () => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,16 +90,22 @@ interface TodoItem {
   id: string;
   kind: TodoKind;
   sentence: string;
-  /** Whether checkbox auto-ticks when CTA is clicked */
-  autoTick: boolean;
   ctaLabel: string;
   ctaHref: string;
   ctaExternal: boolean;
   // Client action specific
+  clientId?: string;
+  filingTypeId?: string | null;
+  deadlineDate?: string | null;
   status?: TrafficLightStatus;
   docReceived?: number;
   docRequired?: number;
   daysUntilDeadline?: number | null;
+  // Doc review specific
+  docId?: string;
+  docClientId?: string;
+  // Failed delivery specific
+  failedDelivery?: FailedDelivery;
   // Badge overrides for non-client items
   badgeBg?: string;
   badgeText?: string;
@@ -122,10 +139,13 @@ function formatDeadlineLabel(daysUntil: number | null | undefined): string | nul
 
 const PAGE_SIZE = 6;
 
-export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, failedDeliveries }: TodoBoxProps) {
+export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, failedDeliveries, onDataChange }: TodoBoxProps) {
+  // Items fully removed from the list (after rollover or simple dismiss)
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const [completing, setCompleting] = useState<Set<string>>(new Set());
-  const completingTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  // Items in "completed" state awaiting rollover (client actions only)
+  const [completed, setCompleted] = useState<Set<string>>(new Set());
+  // Loading states for async operations
+  const [loadingAction, setLoadingAction] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
 
   // --- Onboarding items ---
@@ -148,7 +168,6 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
       let sentence: string;
       let ctaHref: string;
       let ctaExternal: boolean;
-      let autoTick: boolean;
 
       if (c.status === 'violet') {
         sentence = filingLabel
@@ -156,31 +175,30 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
           : `File ${c.company_name} with HMRC`;
         ctaHref = getPortalUrl(c.next_deadline_type);
         ctaExternal = true;
-        autoTick = true;
       } else if (c.status === 'orange') {
         sentence = filingLabel
           ? `Urgent: chase ${c.company_name} for ${filingLabel} records`
           : `Urgent: chase ${c.company_name} for outstanding records`;
         ctaHref = `/clients/${c.id}`;
         ctaExternal = false;
-        autoTick = false;
       } else {
         sentence = filingLabel
           ? `Chase ${c.company_name} for ${filingLabel} records`
           : `Chase ${c.company_name} for outstanding records`;
         ctaHref = `/clients/${c.id}`;
         ctaExternal = false;
-        autoTick = false;
       }
 
       return {
         id: `client-${c.id}`,
         kind: 'client-action' as const,
         sentence,
-        autoTick,
         ctaLabel: 'Take me there',
         ctaHref,
         ctaExternal,
+        clientId: c.id,
+        filingTypeId: c.next_deadline_type,
+        deadlineDate: c.next_deadline,
         status: c.status,
         docReceived: c.total_doc_received,
         docRequired: c.total_doc_required,
@@ -194,10 +212,11 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
       id: `doc-${doc.id}`,
       kind: 'doc-review' as const,
       sentence: `Review ${docLabel} uploaded by ${doc.client_name}`,
-      autoTick: true,
-      ctaLabel: 'Take me there',
+      ctaLabel: 'Open file',
       ctaHref: `/clients/${doc.client_id}?tab=documents`,
       ctaExternal: false,
+      docId: doc.id,
+      docClientId: doc.client_id,
       badgeBg: 'bg-amber-500/10',
       badgeText: 'text-amber-600',
       badgeLabel: 'Needs Review',
@@ -208,47 +227,216 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
     id: `failed-${email.id}`,
     kind: 'failed-delivery' as const,
     sentence: `Email to ${email.client_name} failed — ${email.delivery_status}`,
-    autoTick: false,
-    ctaLabel: 'Take me there',
+    ctaLabel: 'Open email',
     ctaHref: `/activity?tab=outbound&view=queued&status=failed`,
     ctaExternal: false,
+    failedDelivery: email,
     badgeBg: 'bg-status-danger/10',
     badgeText: 'text-status-danger',
     badgeLabel: email.delivery_status === 'bounced' ? 'Bounced' : 'Failed',
   }));
 
-  // Merge: client actions first (by urgency), then doc reviews, then failed deliveries
-  const allItems = [...clientItems, ...docReviewItems, ...failedItems];
+  // Merge: failed deliveries first, then doc reviews, then client actions (by urgency)
+  const allItems = [...failedItems, ...docReviewItems, ...clientItems];
 
   const visibleItems = allItems.filter((item) => !dismissed.has(item.id));
   const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
   const pageItems = visibleItems.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  const handleDismiss = useCallback((id: string) => {
-    // If already completing/dismissed, ignore
-    if (completing.has(id) || dismissed.has(id)) return;
+  // --- Actions ---
 
-    // Show green tick + "Completed" badge
-    setCompleting((prev) => new Set(prev).add(id));
+  const setItemLoading = (id: string, action: string) => {
+    setLoadingAction((prev) => ({ ...prev, [id]: action }));
+  };
+  const clearItemLoading = (id: string) => {
+    setLoadingAction((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
 
-    // After delay, actually remove the row
-    const timer = setTimeout(() => {
-      setCompleting((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      setDismissed((prev) => new Set(prev).add(id));
-      completingTimers.current.delete(id);
-    }, 1200);
+  /** Tick checkbox — marks filing as complete in DB (client actions) or dismisses (simple items) */
+  const handleTick = useCallback(async (item: TodoItem) => {
+    if (completed.has(item.id) || dismissed.has(item.id)) return;
 
-    completingTimers.current.set(id, timer);
-  }, [completing, dismissed]);
+    if (item.kind === 'client-action' && item.clientId && item.filingTypeId) {
+      setItemLoading(item.id, 'completing');
+      const result = await markFilingComplete(item.clientId, item.filingTypeId, item.deadlineDate ?? null);
+      clearItemLoading(item.id);
 
+      if (result.error) {
+        toast.error('Failed to mark as complete', { description: result.error });
+        return;
+      }
+
+      setCompleted((prev) => new Set(prev).add(item.id));
+      await onDataChange();
+    } else if (item.kind === 'doc-review' && item.docId) {
+      // Simple dismiss with DB update
+      setItemLoading(item.id, 'completing');
+      const result = await markDocReviewed(item.docId);
+      clearItemLoading(item.id);
+
+      if (result.error) {
+        toast.error('Failed to mark as reviewed', { description: result.error });
+        return;
+      }
+
+      setDismissed((prev) => new Set(prev).add(item.id));
+      await onDataChange();
+    } else {
+      // Simple UI dismiss (failed deliveries)
+      setDismissed((prev) => new Set(prev).add(item.id));
+    }
+  }, [completed, dismissed, onDataChange]);
+
+  /** Revert a completed filing back to its previous state */
+  const handleRevert = useCallback(async (item: TodoItem) => {
+    if (!item.clientId || !item.filingTypeId) return;
+
+    setItemLoading(item.id, 'reverting');
+    const result = await revertFilingComplete(item.clientId, item.filingTypeId);
+    clearItemLoading(item.id);
+
+    if (result.error) {
+      toast.error('Failed to revert', { description: result.error });
+      return;
+    }
+
+    setCompleted((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+    await onDataChange();
+  }, [onDataChange]);
+
+  /** Roll over to next cycle and remove from list */
+  const handleRollover = useCallback(async (item: TodoItem) => {
+    if (!item.clientId || !item.filingTypeId) return;
+
+    setItemLoading(item.id, 'rolling-over');
+    const result = await rolloverToNextCycle(item.clientId, item.filingTypeId);
+    clearItemLoading(item.id);
+
+    if (result.error) {
+      toast.error('Rollover failed', { description: result.error });
+      return;
+    }
+
+    setCompleted((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+    setDismissed((prev) => new Set(prev).add(item.id));
+    toast.success('Rolled over to next cycle');
+    await onDataChange();
+  }, [onDataChange]);
+
+  // --- Modal state ---
+  const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
+  const [previewDocClientId, setPreviewDocClientId] = useState<string>('');
+  const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
+
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailModalEntry, setEmailModalEntry] = useState<AuditEntry | null>(null);
+  const [emailModalEntries, setEmailModalEntries] = useState<AuditEntry[]>([]);
+
+  /** Fetch full document data and open preview modal */
+  const handleOpenDoc = useCallback(async (docId: string, clientId: string) => {
+    setLoadingDocId(docId);
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('client_documents')
+        .select(`
+          id,
+          filing_type_id,
+          document_type_id,
+          original_filename,
+          classification_confidence,
+          source,
+          created_at,
+          received_at,
+          retention_flagged,
+          extracted_tax_year,
+          extracted_employer,
+          extracted_paye_ref,
+          extraction_source,
+          page_count,
+          needs_review,
+          validation_warnings,
+          document_types ( id, code, label )
+        `)
+        .eq('id', docId)
+        .single();
+
+      if (error || !data) {
+        toast.error('Failed to load document');
+        return;
+      }
+
+      setPreviewDocClientId(clientId);
+      setPreviewDoc(data as unknown as ClientDocument);
+    } catch {
+      toast.error('Failed to load document');
+    } finally {
+      setLoadingDocId(null);
+    }
+  }, []);
+
+  /** Open email detail modal for a failed delivery */
+  const handleOpenEmail = useCallback((delivery: FailedDelivery) => {
+    const entry: AuditEntry = {
+      id: delivery.id,
+      sent_at: delivery.sent_at,
+      client_id: delivery.client_id,
+      client_name: delivery.client_name,
+      client_type: null,
+      filing_type_id: delivery.filing_type_id,
+      filing_type_name: null,
+      deadline_date: null,
+      step_index: null,
+      template_name: null,
+      delivery_status: delivery.delivery_status as AuditEntry['delivery_status'],
+      recipient_email: delivery.recipient_email,
+      subject: delivery.subject,
+      send_type: delivery.send_type,
+    };
+    // Build entries list from all failed deliveries for navigation
+    const allEntries: AuditEntry[] = failedDeliveries.map((d) => ({
+      id: d.id,
+      sent_at: d.sent_at,
+      client_id: d.client_id,
+      client_name: d.client_name,
+      client_type: null,
+      filing_type_id: d.filing_type_id,
+      filing_type_name: null,
+      deadline_date: null,
+      step_index: null,
+      template_name: null,
+      delivery_status: d.delivery_status as AuditEntry['delivery_status'],
+      recipient_email: d.recipient_email,
+      subject: d.subject,
+      send_type: d.send_type,
+    }));
+    setEmailModalEntries(allEntries);
+    setEmailModalEntry(entry);
+    setEmailModalOpen(true);
+  }, [failedDeliveries]);
+
+  /** CTA button click — opens modal or navigates */
   const handleCta = (item: TodoItem) => {
-    if (item.autoTick) {
-      handleDismiss(item.id);
+    if (item.kind === 'doc-review' && item.docId && item.docClientId) {
+      handleOpenDoc(item.docId, item.docClientId);
+      return;
+    }
+    if (item.kind === 'failed-delivery' && item.failedDelivery) {
+      handleOpenEmail(item.failedDelivery);
+      return;
     }
     if (item.ctaExternal) {
       window.open(item.ctaHref, '_blank', 'noopener,noreferrer');
@@ -326,36 +514,37 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
               {pageItems.map((item) => {
                 const showBorder = !isFirstRow;
                 isFirstRow = false;
-                const isCompleting = completing.has(item.id);
+                const isCompleted = completed.has(item.id);
+                const itemLoading = loadingAction[item.id];
 
                 return (
                   <div
                     key={item.id}
-                    className={`flex items-center gap-4 px-5 py-3.5 hover:bg-muted/50 transition-all duration-300 ${showBorder ? 'border-t' : ''} ${isCompleting ? 'opacity-60' : ''}`}
+                    className={`flex items-center gap-4 px-5 py-3.5 hover:bg-muted/50 transition-all duration-300 ${showBorder ? 'border-t' : ''}`}
                   >
                     {/* Checkbox */}
                     <CheckButton
-                      checked={isCompleting}
-                      variant={isCompleting ? 'success' : 'default'}
-                      onCheckedChange={() => handleDismiss(item.id)}
-                      aria-label={`Mark as done`}
+                      checked={isCompleted}
+                      variant={isCompleted ? 'success' : 'default'}
+                      onCheckedChange={() => handleTick(item)}
+                      disabled={!!itemLoading || isCompleted}
+                      aria-label="Mark as done"
                     />
 
                     {/* Action sentence */}
-                    <p className={`text-sm font-medium min-w-0 flex-1 truncate transition-colors duration-300 ${isCompleting ? 'line-through text-muted-foreground' : ''}`}>
+                    <p className={`text-sm font-medium min-w-0 flex-1 truncate transition-colors duration-300 ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
                       {item.sentence}
                     </p>
 
                     {/* Badge area */}
                     <div className="flex items-center gap-2 shrink-0">
-                      {isCompleting ? (
-                        /* Completing state — show green "Completed" badge */
-                        <div className="px-3 py-2 rounded-md inline-flex items-center gap-1.5 bg-green-500/10">
-                          <CheckCircle2 className="size-3.5 text-green-600" />
-                          <span className="text-sm font-medium text-green-600">
-                            Completed
-                          </span>
-                        </div>
+                      {isCompleted ? (
+                        /* Completed state — matches TrafficLightBadge green style with full ring */
+                        <TrafficLightBadge
+                          status="green"
+                          docReceived={item.docRequired ?? 0}
+                          docRequired={item.docRequired ?? 0}
+                        />
                       ) : (
                         <>
                           {/* Days remaining (client actions only) */}
@@ -401,17 +590,58 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
                     {/* Divider */}
                     <div className="h-6 border-r border-gray-300 dark:border-gray-700 shrink-0" />
 
-                    {/* CTA button */}
-                    <ButtonBase
-                      variant="blue"
-                      buttonType="icon-text"
-                      onClick={() => handleCta(item)}
-                      className="shrink-0"
-                      disabled={isCompleting}
-                    >
-                      <ExternalLink className="size-4" />
-                      {item.ctaLabel}
-                    </ButtonBase>
+                    {/* Action buttons */}
+                    {isCompleted ? (
+                      /* Completed state — Revert + Roll over buttons */
+                      <div className="flex items-center gap-2 shrink-0">
+                        <ButtonBase
+                          variant="muted"
+                          buttonType="icon-text"
+                          onClick={() => handleRevert(item)}
+                          disabled={!!itemLoading}
+                        >
+                          {itemLoading === 'reverting' ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <RotateCcw className="size-4" />
+                          )}
+                          Revert
+                        </ButtonBase>
+                        <ButtonBase
+                          variant="green"
+                          buttonType="icon-text"
+                          onClick={() => handleRollover(item)}
+                          disabled={!!itemLoading}
+                        >
+                          {itemLoading === 'rolling-over' ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="size-4" />
+                          )}
+                          Roll over
+                        </ButtonBase>
+                      </div>
+                    ) : (
+                      /* Normal state — CTA button */
+                      <ButtonBase
+                        variant="blue"
+                        buttonType="icon-text"
+                        onClick={() => handleCta(item)}
+                        disabled={!!itemLoading || loadingDocId === item.docId}
+                        className="shrink-0"
+                      >
+                        {(itemLoading === 'completing' || loadingDocId === item.docId) ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : item.kind === 'doc-review' ? (
+                          <FileText className="size-4" />
+                        ) : item.kind === 'failed-delivery' ? (
+                          <Mail className="size-4" />
+                        ) : (
+                          <ExternalLink className="size-4" />
+                        )}
+                        {item.ctaLabel}
+                      </ButtonBase>
+                    )}
                   </div>
                 );
               })}
@@ -437,6 +667,34 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
           </button>
         </div>
       </CardContent>
+
+      {/* Document preview modal */}
+      <DocumentPreviewModal
+        doc={previewDoc}
+        clientId={previewDocClientId}
+        onClose={() => setPreviewDoc(null)}
+        onDeleted={(docId) => {
+          setPreviewDoc(null);
+          onDataChange();
+        }}
+        onMarkedReceived={() => onDataChange()}
+      />
+
+      {/* Sent email detail modal (for failed deliveries) */}
+      <SentEmailDetailModal
+        open={emailModalOpen}
+        onOpenChange={setEmailModalOpen}
+        entry={emailModalEntry}
+        allEntries={emailModalEntries}
+        onNavigate={(direction) => {
+          if (!emailModalEntry) return;
+          const idx = emailModalEntries.findIndex((e) => e.id === emailModalEntry.id);
+          const newIdx = direction === 'prev' ? idx - 1 : idx + 1;
+          if (newIdx >= 0 && newIdx < emailModalEntries.length) {
+            setEmailModalEntry(emailModalEntries[newIdx]);
+          }
+        }}
+      />
     </Card>
   );
 }

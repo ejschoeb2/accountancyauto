@@ -392,28 +392,28 @@ export async function getClientStatusList(
         })
       : undefined;
 
-    // Find next deadline across all filings (track both date and filing type)
-    const earliestFiling = filings.length > 0
-      ? filings.reduce((earliest, f) => (f.deadline_date < earliest.deadline_date ? f : earliest), filings[0])
+    // Find next deadline across INCOMPLETE filings (skip completed ones)
+    const incompleteFilings = filings.filter(f => !completedFor.includes(f.filing_type_id));
+    const earliestFiling = incompleteFilings.length > 0
+      ? incompleteFilings.reduce((earliest, f) => (f.deadline_date < earliest.deadline_date ? f : earliest), incompleteFilings[0])
       : null;
     const next_deadline = earliestFiling?.deadline_date ?? null;
     const next_deadline_type = earliestFiling?.filing_type_id ?? null;
 
-    // Refine status: if the aggregate says blue/scheduled but the nearest deadline
-    // has records received, show violet instead (matches the "Next Deadline" column).
+    // Refine status: base on incomplete filings only.
+    // If all filings are completed, the aggregate status (green) stands.
     let status = aggregateStatus;
-    if (!client.reminders_paused && filings.length > 0) {
-      // Compute per-filing statuses
-      const perFilingStatuses = filings.map(f => {
+    if (!client.reminders_paused && incompleteFilings.length > 0) {
+      // Compute per-filing statuses for incomplete filings only
+      const perFilingStatuses = incompleteFilings.map(f => {
         const isReceived = recordsReceived.includes(f.filing_type_id);
-        const isCompleted = completedFor.includes(f.filing_type_id);
         return {
           filing_type_id: f.filing_type_id,
           status: calculateFilingTypeStatus({
             filing_type_id: f.filing_type_id,
             deadline_date: f.deadline_date,
             is_records_received: isReceived,
-            is_completed: isCompleted,
+            is_completed: false,
             override_status: null,
           }),
           is_records_received: isReceived,
@@ -425,14 +425,28 @@ export async function getClientStatusList(
         f.status === 'red' || f.status === 'orange' || f.status === 'amber'
       );
 
-      if (!hasUrgent && earliestFiling) {
+      if (hasUrgent) {
+        // Use the most urgent incomplete filing's status
+        const urgencyOrder: TrafficLightStatus[] = ['red', 'orange', 'amber'];
+        for (const urgency of urgencyOrder) {
+          if (perFilingStatuses.some(f => f.status === urgency)) {
+            status = urgency;
+            break;
+          }
+        }
+      } else if (earliestFiling) {
         const nearestStatus = perFilingStatuses.find(
           f => f.filing_type_id === earliestFiling.filing_type_id
         );
         if (nearestStatus?.is_records_received) {
           status = 'violet';
+        } else {
+          status = nearestStatus?.status ?? status;
         }
       }
+    } else if (!client.reminders_paused && incompleteFilings.length === 0 && filings.length > 0) {
+      // All filings completed
+      status = 'green';
     }
 
     // Calculate days until deadline
@@ -791,6 +805,8 @@ export interface FailedDelivery {
   subject: string;
   delivery_status: string;
   sent_at: string;
+  filing_type_id: string | null;
+  send_type: 'scheduled' | 'ad-hoc';
 }
 
 /**
@@ -809,6 +825,8 @@ export async function getFailedDeliveries(
       subject,
       delivery_status,
       sent_at,
+      filing_type_id,
+      send_type,
       clients!inner ( company_name )
     `)
     .in('delivery_status', ['bounced', 'failed'])
@@ -828,5 +846,7 @@ export async function getFailedDeliveries(
     subject: row.subject ?? 'Untitled',
     delivery_status: row.delivery_status,
     sent_at: row.sent_at,
+    filing_type_id: row.filing_type_id ?? null,
+    send_type: row.send_type || 'scheduled',
   }));
 }
