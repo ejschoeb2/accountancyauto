@@ -14,8 +14,6 @@ import {
   ListChecks,
   Send,
   ExternalLink,
-  Eye,
-  MailX,
   Mail,
   RotateCcw,
   RefreshCw,
@@ -575,9 +573,7 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
 
                           {/* Custom badge for doc reviews / failed deliveries */}
                           {item.kind !== 'client-action' && item.badgeLabel && (
-                            <div className={`px-3 py-2 rounded-md inline-flex items-center gap-1.5 ${item.badgeBg}`}>
-                              {item.kind === 'doc-review' && <Eye className={`size-3.5 ${item.badgeText}`} />}
-                              {item.kind === 'failed-delivery' && <MailX className={`size-3.5 ${item.badgeText}`} />}
+                            <div className={`px-3 py-2 rounded-md inline-flex items-center ${item.badgeBg}`}>
                               <span className={`text-sm font-medium ${item.badgeText}`}>
                                 {item.badgeLabel}
                               </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getDashboardMetrics, getClientStatusList, getRecentUploads, getDocsNeedingReview, getFailedDeliveries, type DashboardMetrics, type ClientStatusRow, type RecentUpload, type DocNeedingReview, type FailedDelivery } from '@/lib/dashboard/metrics';
 import { getGoFurtherProgress, getOnboardingProgress, type OnboardingProgress, type GoFurtherProgress } from '@/lib/dashboard/onboarding';
@@ -37,37 +37,40 @@ function DashboardContent() {
   const [failedDeliveries, setFailedDeliveries] = useState<FailedDelivery[]>([]);
   const [showGoFurther, setShowGoFurther] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   usePageLoading('dashboard-data', loading);
 
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     const supabase = createClient();
-
-    Promise.all([
-      getDashboardMetrics(supabase),
-      getClientStatusList(supabase),
-      getOnboardingProgress(supabase),
-      getGoFurtherProgress(supabase),
-      getRecentUploads(supabase),
-      getDocsNeedingReview(supabase),
-      getFailedDeliveries(supabase),
-    ])
-      .then(([metricsData, clientsData, onboardingData, goFurtherData, uploadsData, docsReviewData, failedData]) => {
-        setMetrics(metricsData);
-        setClientStatusList(clientsData);
-        setOnboarding(onboardingData);
-        setGoFurther(goFurtherData);
-        setRecentUploads(uploadsData);
-        setDocsNeedingReview(docsReviewData);
-        setFailedDeliveries(failedData);
-      })
-      .catch((error) => {
-        console.error('Error loading dashboard:', error);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    try {
+      const [metricsData, clientsData, onboardingData, goFurtherData, uploadsData, docsReviewData, failedData] =
+        await Promise.all([
+          getDashboardMetrics(supabase),
+          getClientStatusList(supabase),
+          getOnboardingProgress(supabase),
+          getGoFurtherProgress(supabase),
+          getRecentUploads(supabase),
+          getDocsNeedingReview(supabase),
+          getFailedDeliveries(supabase),
+        ]);
+      setMetrics(metricsData);
+      setClientStatusList(clientsData);
+      setOnboarding(onboardingData);
+      setGoFurther(goFurtherData);
+      setRecentUploads(uploadsData);
+      setDocsNeedingReview(docsReviewData);
+      setFailedDeliveries(failedData);
+      // Bump refreshKey so WorkloadForecast re-fetches its own data
+      setRefreshKey((k) => k + 1);
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto">
@@ -114,15 +117,16 @@ function DashboardContent() {
         onboarding={onboarding}
         docsNeedingReview={docsNeedingReview}
         failedDeliveries={failedDeliveries}
+        onDataChange={fetchData}
       />
 
       {/* Workload Forecast — full width */}
-      <WorkloadForecast />
+      <WorkloadForecast refreshKey={refreshKey} />
 
       {/* Upcoming Deadlines & Recent Uploads — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingDeadlines clients={clientStatusList} />
-        <RecentUploads uploads={recentUploads} />
+        <RecentUploads uploads={recentUploads} onDataChange={fetchData} />
       </div>
     </div>
   );
