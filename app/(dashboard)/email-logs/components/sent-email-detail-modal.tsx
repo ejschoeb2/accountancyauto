@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { ButtonBase } from '@/components/ui/button-base';
-import { previewSentEmail } from '@/app/actions/audit-log';
+import { previewSentEmail, resendEmail, deleteEmailLog } from '@/app/actions/audit-log';
 import type { AuditEntry } from '@/app/actions/audit-log';
+import { toast } from 'sonner';
 import { getClientFilingStatusForType } from '@/app/actions/clients';
 import { FilingStatusBadge } from '@/app/(dashboard)/clients/components/filing-status-badge';
 import type { TrafficLightStatus } from '@/lib/dashboard/traffic-light';
@@ -20,8 +22,9 @@ import {
   AlertCircle,
   ExternalLink,
   Mail,
+  RefreshCw,
+  Trash2,
 } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 
 interface SentEmailDetailModalProps {
@@ -30,6 +33,8 @@ interface SentEmailDetailModalProps {
   entry: AuditEntry | null;
   allEntries: AuditEntry[];
   onNavigate: (direction: 'prev' | 'next') => void;
+  onRefresh?: () => void;
+  hideNavigation?: boolean;
 }
 
 import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
@@ -63,9 +68,13 @@ export function SentEmailDetailModal({
   entry,
   allEntries,
   onNavigate,
+  onRefresh,
+  hideNavigation,
 }: SentEmailDetailModalProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [preview, setPreview] = useState<{ html: string; subject: string; text: string } | null>(null);
   const [noBody, setNoBody] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,6 +140,34 @@ export function SentEmailDetailModal({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  const handleResend = async () => {
+    if (!entry) return;
+    setResending(true);
+    const result = await resendEmail(entry.id);
+    setResending(false);
+    if ('error' in result) {
+      toast.error(result.error);
+    } else {
+      toast.success('Email resent successfully');
+      onOpenChange(false);
+      onRefresh?.();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!entry) return;
+    setDeleting(true);
+    const result = await deleteEmailLog(entry.id);
+    setDeleting(false);
+    if ('error' in result) {
+      toast.error(result.error);
+    } else {
+      toast.success('Email log deleted');
+      onOpenChange(false);
+      onRefresh?.();
+    }
+  };
+
   if (!entry) return null;
 
   const currentIndex = allEntries.findIndex((e) => e.id === entry.id);
@@ -192,12 +229,51 @@ export function SentEmailDetailModal({
           </div>
 
           {/* Divider */}
-          <div className="w-px bg-border shrink-0" />
+          <div className="w-[0.5px] bg-border shrink-0" />
 
           {/* Right side: Metadata sidebar */}
-          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg bg-white dark:bg-background">
+          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg bg-background">
             {/* Header */}
-            <h3 className="text-lg font-semibold">Sent Email</h3>
+            <DialogTitle className="text-xl font-semibold">Sent Email</DialogTitle>
+
+            {/* Bounced/Failed alert + actions */}
+            {(entry.delivery_status === 'bounced' || entry.delivery_status === 'failed') && (
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-xl">
+                  <AlertCircle className="size-5 text-red-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-red-500">
+                      {entry.delivery_status === 'bounced' ? 'Email Bounced' : 'Email Failed'}
+                    </p>
+                    <p className="text-sm text-red-500/80">
+                      {entry.delivery_status === 'bounced'
+                        ? 'This email bounced and was not delivered to the recipient. The address may be invalid or the mailbox may be full.'
+                        : 'This email failed to send. There may have been a server or configuration issue.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ButtonBase
+                    variant="blue"
+                    buttonType="icon-text"
+                    onClick={handleResend}
+                    disabled={resending}
+                  >
+                    <RefreshCw className={`size-4 ${resending ? 'animate-spin' : ''}`} />
+                    {resending ? 'Resending…' : 'Resend'}
+                  </ButtonBase>
+                  <ButtonBase
+                    variant="destructive"
+                    buttonType="icon-text"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    <Trash2 className="size-4" />
+                    {deleting ? 'Deleting…' : 'Delete'}
+                  </ButtonBase>
+                </div>
+              </div>
+            )}
 
             {/* Metadata */}
             <div className="space-y-4">
@@ -268,16 +344,19 @@ export function SentEmailDetailModal({
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  Email Status
-                </p>
-                <div className={`px-3 py-2 rounded-md ${status.bg} inline-flex items-center`}>
-                  <span className={`text-sm font-medium ${status.text}`}>
-                    {status.label}
-                  </span>
+              {/* Email Status — show badge for non-bounced/failed, alert box handles those */}
+              {entry.delivery_status !== 'bounced' && entry.delivery_status !== 'failed' && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Email Status
+                  </p>
+                  <div className={`px-3 py-2 rounded-md ${status.bg} inline-flex items-center`}>
+                    <span className={`text-sm font-medium ${status.text}`}>
+                      {status.label}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {clientFilingStatus && (
                 <div>
@@ -295,30 +374,34 @@ export function SentEmailDetailModal({
               )}
             </div>
 
-            {/* Navigation */}
+            {/* Navigation + Close */}
             <div className="mt-auto pt-4">
               <div className="flex gap-2">
+                {!hideNavigation && (
+                  <>
+                    <ButtonBase
+                      variant="blue"
+                      buttonType="icon-text"
+                      onClick={() => onNavigate('prev')}
+                      disabled={!hasPrev}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </ButtonBase>
+                    <ButtonBase
+                      variant="blue"
+                      buttonType="icon-text"
+                      onClick={() => onNavigate('next')}
+                      disabled={!hasNext}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </ButtonBase>
+                  </>
+                )}
+                <div className="flex-1" />
                 <ButtonBase
-                  variant="blue"
-                  buttonType="icon-text"
-                  onClick={() => onNavigate('prev')}
-                  disabled={!hasPrev}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </ButtonBase>
-                <ButtonBase
-                  variant="blue"
-                  buttonType="icon-text"
-                  onClick={() => onNavigate('next')}
-                  disabled={!hasNext}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </ButtonBase>
-                <Separator orientation="vertical" className="h-8" />
-                <ButtonBase
-                  variant="destructive"
+                  variant="amber"
                   buttonType="icon-text"
                   onClick={() => onOpenChange(false)}
                 >
