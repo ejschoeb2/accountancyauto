@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
 
 /**
@@ -89,8 +90,11 @@ export async function PUT(
   // Insert new exclusions (if any)
   if (body.excluded_client_ids.length > 0) {
     const orgId = await getOrgId();
+    const authSupabase = await createClient();
+    const { data: { user } } = await authSupabase.auth.getUser();
     const rows = body.excluded_client_ids.map((clientId) => ({
       org_id: orgId,
+      owner_id: user!.id,
       schedule_id: id,
       client_id: clientId,
     }));
