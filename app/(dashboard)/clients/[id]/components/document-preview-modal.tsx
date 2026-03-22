@@ -531,17 +531,30 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
           <div className="w-[480px] shrink-0 border-l p-6 flex flex-col gap-6 overflow-y-auto">
 
             {/* Filename */}
-            <DialogTitle className="text-lg font-semibold leading-snug break-words">
+            <DialogTitle className="text-xl font-semibold leading-snug break-words">
               {doc?.original_filename ?? ''}
             </DialogTitle>
 
-            {/* Action buttons — same position for both modes */}
+            {/* Assessment alert — above action buttons */}
+            {assessment && (
+              <div className={`flex items-start gap-3 p-4 ${assessment.alertBg} rounded-xl`}>
+                <assessment.Icon className={`size-5 ${assessment.iconClass} shrink-0 mt-0.5`} />
+                <div className="space-y-1">
+                  <p className={`text-sm font-medium ${assessment.alertText}`}>{assessment.title}</p>
+                  <p className={`text-sm ${assessment.alertTextMuted}`}>{assessment.detail}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
             <div className="flex items-center gap-2">
-              <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
-                {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-                Download
-              </IconButtonWithText>
-              {doc?.document_type_id && (
+              {needsReview && (
+                <IconButtonWithText variant="green" onClick={handleClearReview} disabled={clearingReview}>
+                  {clearingReview ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
+                  {clearingReview ? 'Passing…' : 'Pass Review'}
+                </IconButtonWithText>
+              )}
+              {doc?.document_type_id && !needsReview && (
                 <IconButtonWithText
                   variant="green"
                   onClick={handleMarkReceived}
@@ -555,18 +568,12 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
                 {rejecting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
                 Reject
               </IconButtonWithText>
+              <Separator orientation="vertical" className="h-6" />
+              <IconButtonWithText variant="blue" onClick={handleDownload} disabled={downloading}>
+                {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Download
+              </IconButtonWithText>
             </div>
-
-            {/* Assessment alert — directly below filename */}
-            {assessment && (
-              <div className={`flex items-start gap-3 p-4 ${assessment.alertBg} rounded-xl`}>
-                <assessment.Icon className={`size-5 ${assessment.iconClass} shrink-0 mt-0.5`} />
-                <div className="space-y-1">
-                  <p className={`text-sm font-medium ${assessment.alertText}`}>{assessment.title}</p>
-                  <p className={`text-sm ${assessment.alertTextMuted}`}>{assessment.detail}</p>
-                </div>
-              </div>
-            )}
 
             {/* File details */}
             <div className="space-y-3">
@@ -634,22 +641,15 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
             )}
 
             {/* Validation warnings */}
-            {needsReview && validationWarnings && validationWarnings.length > 0 && (
+            {needsReview && validationWarnings && validationWarnings.filter(w => w.message).length > 0 && (
               <div className="space-y-2">
-                {validationWarnings.map((w, i) => (
+                {validationWarnings.filter(w => w.message).map((w, i) => (
                   <div key={i} className="rounded-xl bg-amber-500/10 p-4 flex items-start gap-3">
                     <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
                     <p className="text-sm text-amber-700 leading-snug">{w.message}</p>
                   </div>
                 ))}
               </div>
-            )}
-
-            {needsReview && (
-              <IconButtonWithText variant="amber" onClick={handleClearReview} disabled={clearingReview}>
-                {clearingReview ? <Loader2 className="size-3 animate-spin" /> : <AlertTriangle className="size-3" />}
-                {clearingReview ? 'Clearing…' : 'Clear review'}
-              </IconButtonWithText>
             )}
 
             {/* Bottom navigation / close */}
@@ -664,9 +664,9 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
                     Next
                     <ChevronRight className="size-4" />
                   </IconButtonWithText>
-                  <Separator orientation="vertical" className="h-6" />
                 </>
               )}
+              <div className="flex-1" />
               <IconButtonWithText variant="amber" onClick={onClose}>
                 <X className="size-4" />
                 Close
