@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, Fragment } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -424,7 +424,7 @@ export function DeadlinesView({
                               <span className="font-medium text-foreground">Reminders:</span>
                               <span>1. {schedule.steps[0].template_name} ({schedule.steps[0].delay_days}d before)</span>
                               {schedule.steps.slice(1).map((step, idx) => (
-                                <><span key={`label-${step.step_number}`} /><span key={step.step_number}>{idx + 2}. {step.template_name} ({step.delay_days}d before)</span></>
+                                <Fragment key={step.step_number}><span /><span>{idx + 2}. {step.template_name} ({step.delay_days}d before)</span></Fragment>
                               ))}
                             </div>
                           ) : (

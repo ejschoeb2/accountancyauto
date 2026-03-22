@@ -41,7 +41,11 @@ const TIMEFRAME_OPTIONS: { value: ForecastTimeframe; label: string }[] = [
 // Component
 // ---------------------------------------------------------------------------
 
-export function WorkloadForecast() {
+interface WorkloadForecastProps {
+  refreshKey?: number;
+}
+
+export function WorkloadForecast({ refreshKey }: WorkloadForecastProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [timeframe, setTimeframe] = useState<ForecastTimeframe>('6-months');
@@ -66,7 +70,7 @@ export function WorkloadForecast() {
     }
   }, []);
 
-  useEffect(() => { fetchData(timeframe); }, [timeframe, fetchData]);
+  useEffect(() => { fetchData(timeframe); }, [timeframe, fetchData, refreshKey]);
 
   // Observe container width — re-attach when data changes so ref is always tracked
   useEffect(() => {
@@ -89,7 +93,9 @@ export function WorkloadForecast() {
   const usableWidth = containerWidth - paddingX * 2;
   const usableHeight = chartHeight - paddingTop - paddingBottom;
   const barCount = data.length || 1;
-  const barWidth = Math.max(12, (usableWidth - (barCount - 1) * barGap) / barCount);
+  const slotWidth = (usableWidth - (barCount - 1) * barGap) / barCount;
+  const barWidth = Math.max(12, slotWidth * 0.7);
+  const barInset = (slotWidth - barWidth) / 2; // center bar within slot
 
   const maxTotal = Math.max(...data.map(d => d.total), 1);
 
@@ -103,7 +109,7 @@ export function WorkloadForecast() {
 
   // Build stacked bar segments
   const bars = data.map((bucket, i) => {
-    const x = paddingX + i * (barWidth + barGap);
+    const x = paddingX + i * (slotWidth + barGap) + barInset;
     let yOffset = paddingTop + usableHeight; // start from baseline
     const segments: { key: StatusKey; x: number; y: number; width: number; height: number; color: string }[] = [];
 
@@ -230,7 +236,7 @@ export function WorkloadForecast() {
                           const barTopY = mounted
                             ? paddingTop + usableHeight - totalBarHeight
                             : paddingTop + usableHeight;
-                          const r = Math.min(10, barWidth / 2.5);
+                          const r = Math.min(14, barWidth / 2);
                           // Path with rounded top corners only, flat bottom
                           const clipPathD = `M ${x},${barTopY + totalBarHeight} L ${x},${barTopY + r} Q ${x},${barTopY} ${x + r},${barTopY} L ${x + barWidth - r},${barTopY} Q ${x + barWidth},${barTopY} ${x + barWidth},${barTopY + r} L ${x + barWidth},${barTopY + totalBarHeight} Z`;
                           return (

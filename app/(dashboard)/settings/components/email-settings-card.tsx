@@ -56,18 +56,19 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
 
   return (
     <Card className="p-6">
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4 mb-6">
         <div className="flex items-center justify-center size-12 rounded-lg bg-status-info/10 shrink-0">
           <Mail className="size-6 text-status-info" />
         </div>
-        <div className="flex-1 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold">Email Settings</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure the sender details for reminder emails
-            </p>
-          </div>
+        <div>
+          <h2 className="text-lg font-semibold">Email Settings</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configure the sender details for reminder emails
+          </p>
+        </div>
+      </div>
 
+      <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label
@@ -168,7 +169,6 @@ export function EmailSettingsCard({ defaultSettings, senderDomain }: EmailSettin
               </span>
             )}
           </div>
-        </div>
       </div>
     </Card>
   );

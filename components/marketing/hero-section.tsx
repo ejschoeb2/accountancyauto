@@ -41,7 +41,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 100, damping: 12, delay: 0.42 }}
-            className="text-base text-muted-foreground leading-relaxed max-w-lg"
+            className="text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-lg"
           >
             Automated client reminders for UK accounting practices. Stop manually
             chasing records and documents — Prompt handles it for you.

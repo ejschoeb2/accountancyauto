@@ -58,9 +58,50 @@ const documentFeatures: Feature[] = [
 
 /* ── Shared card component ── */
 
-const FeatureCard = ({ feature }: { feature: Feature }) => {
+const FeatureCard = ({ feature, variant = "stacked", reversed = false }: { feature: Feature; variant?: "stacked" | "horizontal"; reversed?: boolean }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { Illustration } = feature;
+
+  if (variant === "horizontal") {
+    const textBlock = (
+      <div className="md:col-span-3 p-8 md:p-10 flex flex-col justify-center">
+        <h3 className="text-xl font-bold text-foreground tracking-tight mb-3">
+          {feature.title}
+        </h3>
+        <p className="text-[15px] text-muted-foreground leading-relaxed">
+          {feature.description}
+        </p>
+      </div>
+    );
+
+    const illustrationBlock = (
+      <div className="md:col-span-9 p-6 md:p-8 flex items-center justify-center">
+        <div className="w-full h-full min-h-[320px]">
+          <Illustration isHovered={isHovered} />
+        </div>
+      </div>
+    );
+
+    return (
+      <div
+        className="group rounded-2xl bg-card border border-border/60 shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-default grid grid-cols-1 md:grid-cols-12 min-h-[400px]"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {reversed ? (
+          <>
+            {illustrationBlock}
+            {textBlock}
+          </>
+        ) : (
+          <>
+            {textBlock}
+            {illustrationBlock}
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -136,13 +177,26 @@ const FeatureGroup = ({
 /* ── Exports ── */
 
 export const FeaturesSection = () => (
-  <FeatureGroup
-    id="features"
-    label="How It Works"
-    heading={<>Less admin.<br className="hidden lg:block" /> More accounting.</>}
-    subtitle="Add your clients, set your schedule. Prompt tracks every UK filing deadline and sends reminders automatically — so nothing slips through the cracks."
-    features={coreFeatures}
-  />
+  <section id="features" className="relative z-[1] py-20 lg:py-28">
+    <div className="max-w-screen-xl mx-auto px-4">
+      {/* Header */}
+      <div className="mb-16">
+        <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
+          How It Works
+        </p>
+        <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+          Less admin.<br className="hidden lg:block" /> More accounting.
+        </h2>
+      </div>
+
+      {/* Full-width horizontal cards — alternating text/illustration sides */}
+      <div className="flex flex-col gap-8">
+        {coreFeatures.map((f, i) => (
+          <FeatureCard key={f.title} feature={f} variant="horizontal" reversed={i % 2 === 1} />
+        ))}
+      </div>
+    </div>
+  </section>
 );
 
 export const DocumentCollectionSection = () => (

@@ -1,7 +1,10 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { getOrgId } from '@/lib/auth/org-context';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
+import { sendRichEmail } from '@/lib/email/sender';
 import { resolveDocumentsRequired } from '@/lib/documents/checklist';
 
 export interface AuditEntry {
@@ -586,5 +589,109 @@ export async function previewSentEmail(
   } catch (error) {
     console.error('previewSentEmail error:', error);
     return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Resend a previously sent email by re-rendering its content and sending via Postmark.
+ */
+export async function resendEmail(
+  emailLogId: string
+): Promise<{ success: true; newEmailLogId: string } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const orgId = await getOrgId();
+
+    // Fetch original email_log entry
+    const { data: emailLog, error: logError } = await supabase
+      .from('email_log')
+      .select('client_id, recipient_email, subject, filing_type_id, reminder_queue_id, send_type')
+      .eq('id', emailLogId)
+      .single();
+
+    if (logError || !emailLog) {
+      return { error: 'Email log entry not found' };
+    }
+
+    // Get the email body from the linked reminder_queue
+    let text = '';
+    let html: string | undefined;
+    if (emailLog.reminder_queue_id) {
+      const preview = await previewQueuedEmail(emailLog.reminder_queue_id);
+      if ('error' in preview) return { error: preview.error };
+      text = preview.text;
+      html = preview.html;
+    } else {
+      return { error: 'Cannot resend — no email body stored for this entry' };
+    }
+
+    // Get org Postmark token
+    const admin = createAdminClient();
+    const { data: orgData } = await admin
+      .from('organisations')
+      .select('postmark_server_token')
+      .eq('id', orgId)
+      .single();
+
+    // Send via Postmark
+    const sendResult = await sendRichEmail({
+      to: emailLog.recipient_email,
+      subject: emailLog.subject,
+      html,
+      text,
+      clientId: emailLog.client_id,
+      orgPostmarkToken: orgData?.postmark_server_token || undefined,
+    });
+
+    // Log the resend
+    const { data: newLog, error: insertError } = await supabase
+      .from('email_log')
+      .insert({
+        org_id: orgId,
+        client_id: emailLog.client_id,
+        recipient_email: emailLog.recipient_email,
+        subject: emailLog.subject,
+        delivery_status: 'sent',
+        send_type: emailLog.send_type,
+        reminder_queue_id: emailLog.reminder_queue_id,
+        filing_type_id: emailLog.filing_type_id,
+        postmark_message_id: sendResult.messageId,
+      })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      console.error('Failed to log resent email:', insertError);
+    }
+
+    return { success: true, newEmailLogId: newLog?.id ?? '' };
+  } catch (error) {
+    console.error('resendEmail error:', error);
+    return { error: error instanceof Error ? error.message : 'Failed to resend email' };
+  }
+}
+
+/**
+ * Delete an email log entry.
+ */
+export async function deleteEmailLog(
+  emailLogId: string
+): Promise<{ success: true } | { error: string }> {
+  try {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from('email_log')
+      .delete()
+      .eq('id', emailLogId);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('deleteEmailLog error:', error);
+    return { error: error instanceof Error ? error.message : 'Failed to delete email' };
   }
 }

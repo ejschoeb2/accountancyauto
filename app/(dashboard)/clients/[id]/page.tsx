@@ -209,9 +209,18 @@ export default function ClientPage() {
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">
-            {client.display_name || client.company_name}
-          </h1>
+          {editing ? (
+            <Input
+              value={formData.display_name || formData.company_name || ''}
+              onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+              className="text-4xl font-bold tracking-tight h-auto py-1 px-2 border-dashed"
+              autoFocus
+            />
+          ) : (
+            <h1 className="text-4xl font-bold tracking-tight">
+              {client.display_name || client.company_name}
+            </h1>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Link href="/clients">

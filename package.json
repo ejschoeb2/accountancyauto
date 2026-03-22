@@ -13,7 +13,10 @@
     "check:migrations": "tsx scripts/apply-missing-migrations.ts",
     "remotion:preview": "npx remotion studio remotion/index.ts",
     "remotion:render": "npx remotion render remotion/index.ts FeatureDemo out/feature-demo.mp4",
-    "record:demo": "tsx scripts/record-demo.ts"
+    "record:demo": "tsx scripts/record-demo.ts",
+    "record:all": "tsx scripts/demo/record-all.ts",
+    "record:list": "tsx scripts/demo/record-all.ts --list",
+    "seed:demo": "tsx scripts/demo/seed-demo-data.ts"
   },
   "dependencies": {
     "@azure/msal-node": "^5.0.5",

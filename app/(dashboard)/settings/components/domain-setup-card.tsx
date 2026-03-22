@@ -130,62 +130,62 @@ export function DomainSetupCard({ initialDnsData }: DomainSetupCardProps) {
   if (state === "input") {
     return (
       <Card className="p-6">
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4 mb-6">
           <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
             <Globe className="size-6 text-violet-500" />
           </div>
-          <div className="flex-1 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Custom Sending Domain</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Send reminder emails from your own domain so clients recognise the sender.
-              </p>
-            </div>
+          <div>
+            <h2 className="text-lg font-semibold">Custom Sending Domain</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Send reminder emails from your own domain so clients recognise the sender.
+            </p>
+          </div>
+        </div>
 
-            <div className="flex items-start gap-3 p-3 bg-amber-500/10 rounded-lg">
-              <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-amber-600/90">
-                No custom domain configured. Reminders currently send from{" "}
-                <span className="font-mono">noreply@prompt.accountants</span>.
-              </p>
-            </div>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-3 bg-amber-500/10 rounded-lg">
+            <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-600/90">
+              No custom domain configured. Reminders currently send from{" "}
+              <span className="font-mono">noreply@prompt.accountants</span>.
+            </p>
+          </div>
 
-            <div className="space-y-2">
-              <label htmlFor="setup-domain" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Your domain
-              </label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="setup-domain"
-                  type="text"
-                  placeholder="yourfirm.co.uk"
-                  value={inputDomain}
-                  onChange={(e) => {
-                    setInputDomain(e.target.value);
-                    setError(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSetup();
-                  }}
-                  className="max-w-sm"
-                />
-                <ButtonBase
-                  variant="blue"
-                  buttonType="icon-text"
-                  onClick={handleSetup}
-                  disabled={!inputDomain.trim()}
-                >
-                  Set Up Domain
-                  <ArrowRight className="size-4" />
-                </ButtonBase>
+          <div className="space-y-2">
+            <label htmlFor="setup-domain" className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Your domain
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="setup-domain"
+                type="text"
+                placeholder="yourfirm.co.uk"
+                value={inputDomain}
+                onChange={(e) => {
+                  setInputDomain(e.target.value);
+                  setError(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSetup();
+                }}
+                className="max-w-sm"
+              />
+              <ButtonBase
+                variant="blue"
+                buttonType="icon-text"
+                onClick={handleSetup}
+                disabled={!inputDomain.trim()}
+              >
+                Set Up Domain
+                <ArrowRight className="size-4" />
+              </ButtonBase>
+            </div>
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <AlertCircle className="size-4 shrink-0" />
+                {error}
               </div>
-              {error && (
-                <div className="flex items-center gap-2 text-sm text-destructive">
-                  <AlertCircle className="size-4 shrink-0" />
-                  {error}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </Card>

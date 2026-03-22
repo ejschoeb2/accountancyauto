@@ -1,10 +1,12 @@
 /**
  * Recording: Manage Your To-Do List
  *
- * Login to the dashboard, interact with the To Do box — hover over items,
- * check off an item to mark it complete (shows the "completed" state with
- * Revert and Roll over buttons), and use pagination. Stops before rolling
- * over since that has permanent side effects.
+ * Login to the dashboard, interact with the To Do box:
+ * 1. Click an email row (failed delivery) to open the email preview modal
+ * 2. Click a document row (doc review) to open the document preview modal
+ * 3. Paginate through to-do items
+ * 4. Check off a records received item (violet status = "File ... with HMRC")
+ * 5. Revert (undo) the check
  */
 
 import {
@@ -21,8 +23,8 @@ const demo: DemoDefinition = {
   id: "todo-list",
   title: "Manage Your To-Do List",
   description:
-    "Add, check off, and manage to-do items from the dashboard.",
-  tags: ["todo", "tasks", "checklist", "dashboard"],
+    "Open an email row to preview it, open a document row to preview it, paginate through items, check off a records received item, and revert.",
+  tags: ["todo", "tasks", "checklist", "dashboard", "email", "documents"],
   category: "Dashboard",
   hasSideEffects: true,
 
@@ -33,11 +35,13 @@ const demo: DemoDefinition = {
     console.log("-> Highlighting To Do section...");
     const todoHeader = page.locator('text=To Do').first();
     if (await todoHeader.isVisible().catch(() => false)) {
+      await todoHeader.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await cursorMove(page, 'text=To Do');
       await wait(PAUSE.READ);
     }
 
-    // ---- Check if there are any to-do items ----
+    // ---- Check for empty state ----
     const emptyState = page.locator('text=All caught up');
     if (await emptyState.isVisible().catch(() => false)) {
       console.log("-> Empty state — no to-do items. Showing the message...");
@@ -47,46 +51,113 @@ const demo: DemoDefinition = {
       return;
     }
 
-    // ---- Show onboarding steps if present ----
-    const getStartedBadge = page.locator('text=Get started').first();
-    if (await getStartedBadge.isVisible().catch(() => false)) {
-      console.log("-> Showing onboarding to-do items...");
-      await cursorMove(page, 'text=Get started');
-      await wait(PAUSE.MEDIUM);
+    // The To Do card contains rows. Each to-do row has a CTA button:
+    // - doc-review rows: "Open file" button (opens DocumentPreviewModal)
+    // - failed-delivery rows: "Open email" button (opens SentEmailDetailModal)
+    // - client-action rows: "Take me there" button (navigates away)
 
-      // Hover over the first onboarding item description
-      const onboardingItems = page.locator('text=Review client progress').first();
-      if (await onboardingItems.isVisible().catch(() => false)) {
-        await cursorMove(page, 'text=Review client progress');
-        await wait(PAUSE.MEDIUM);
+    // ---- Step 1: Click an email row (failed delivery) CTA to open email modal ----
+    const emailCta = page.locator('button:has-text("Open email")').first();
+    if (await emailCta.isVisible().catch(() => false)) {
+      console.log("-> Opening email preview modal...");
+      await cursorClick(page, 'button:has-text("Open email")');
+      await wait(PAUSE.LONG);
+
+      // Pause so viewer can see the email modal content
+      await wait(PAUSE.READ);
+
+      // Close the modal (click the X button or press Escape)
+      console.log("-> Closing email modal...");
+      await page.keyboard.press("Escape");
+      await wait(PAUSE.MEDIUM);
+    } else {
+      console.log("-> No failed delivery rows found, skipping email modal step.");
+    }
+
+    // ---- Step 2: Click a document row CTA to open document preview modal ----
+    const docCta = page.locator('button:has-text("Open file")').first();
+    if (await docCta.isVisible().catch(() => false)) {
+      console.log("-> Opening document preview modal...");
+      await cursorClick(page, 'button:has-text("Open file")');
+      await wait(PAUSE.LONG);
+
+      // Pause so viewer can see the document modal content
+      await wait(PAUSE.READ);
+
+      // Close the modal
+      console.log("-> Closing document modal...");
+      await page.keyboard.press("Escape");
+      await wait(PAUSE.MEDIUM);
+    } else {
+      console.log("-> No document review rows found, skipping document modal step.");
+    }
+
+    // ---- Step 3: Paginate through to-do items ----
+    // Pagination is in div.flex.items-center.justify-end.gap-2.pt-4 at the bottom
+    // Contains two buttons: prev (ChevronLeft) and next (ChevronRight)
+    console.log("-> Looking for pagination...");
+    const paginationContainer = page.locator('.flex.items-center.justify-end.gap-2.pt-4').first();
+    if (await paginationContainer.isVisible().catch(() => false)) {
+      const paginationBtns = paginationContainer.locator("button");
+      const paginationCount = await paginationBtns.count();
+
+      if (paginationCount >= 2) {
+        const nextBtn = paginationBtns.nth(1);
+        const isDisabled = await nextBtn.isDisabled();
+        if (!isDisabled) {
+          console.log("-> Paginating to next page of to-do items...");
+          // Scroll pagination into view first
+          await paginationContainer.scrollIntoViewIfNeeded();
+          await injectCursor(page);
+          await cursorClick(page, '.flex.items-center.justify-end.gap-2.pt-4 >> button >> nth=1');
+          await wait(PAUSE.READ);
+
+          // Show items on second page
+          await wait(PAUSE.MEDIUM);
+
+          // Go back to first page
+          const prevBtn = paginationBtns.nth(0);
+          if (!(await prevBtn.isDisabled())) {
+            console.log("-> Going back to first page...");
+            await cursorClick(page, '.flex.items-center.justify-end.gap-2.pt-4 >> button >> nth=0');
+            await wait(PAUSE.MEDIUM);
+          }
+        }
       }
     }
 
-    // ---- Hover over client action items ----
-    // Each item row has: CheckButton, sentence text, badge area, CTA button
+    // ---- Step 4: Check off a records received item ----
+    // Records received items (violet status) have sentence starting with "File ... with HMRC"
+    // Each item row has a CheckButton with aria-label="Mark as done"
+    // We look for a row containing "File" and "HMRC" text, then click its checkbox
     const checkButtons = page.locator('[aria-label="Mark as done"]');
     const itemCount = await checkButtons.count();
 
     if (itemCount > 0) {
-      console.log("-> Hovering over first to-do item...");
-      await cursorMove(page, '[aria-label="Mark as done"]', 0);
-      await wait(PAUSE.MEDIUM);
+      // Try to find a "File ... with HMRC" item (records received / violet status)
+      // These are the safest to check — they represent filings ready to submit
+      let targetIndex = 0;
 
-      // Show the CTA "Take me there" button
-      const ctaButtons = page.locator('button:has-text("Take me there")');
-      if (await ctaButtons.first().isVisible().catch(() => false)) {
-        console.log("-> Highlighting 'Take me there' button...");
-        await cursorMove(page, 'button:has-text("Take me there")');
-        await wait(PAUSE.MEDIUM);
+      // Look through visible items for a records-received one
+      for (let i = 0; i < itemCount; i++) {
+        const row = checkButtons.nth(i).locator('xpath=ancestor::div[contains(@class,"flex items-center gap-4")]');
+        const text = await row.textContent().catch(() => '');
+        if (text && text.includes('File') && text.includes('HMRC')) {
+          targetIndex = i;
+          break;
+        }
       }
 
-      // ---- Check off the first item ----
-      console.log("-> Checking off the first to-do item...");
-      await cursorClick(page, '[aria-label="Mark as done"]', 0);
+      console.log("-> Hovering over to-do item before checking...");
+      await cursorMove(page, '[aria-label="Mark as done"]', targetIndex);
+      await wait(PAUSE.MEDIUM);
+
+      console.log("-> Checking off the to-do item...");
+      await cursorClick(page, '[aria-label="Mark as done"]', targetIndex);
       await wait(PAUSE.LONG);
 
-      // ---- Show the completed state ----
-      // After checking, the row should show strikethrough text and Revert/Roll over buttons
+      // ---- Step 5: Show completed state and revert ----
+      // After checking, the row shows strikethrough text with Revert and Roll over buttons
       const revertBtn = page.locator('button:has-text("Revert")').first();
       if (await revertBtn.isVisible().catch(() => false)) {
         console.log("-> Item marked complete — showing Revert and Roll over options...");
@@ -99,44 +170,13 @@ const demo: DemoDefinition = {
           await wait(PAUSE.READ);
         }
 
-        // ---- Revert it back (undo the check) ----
-        console.log("-> Reverting the completion to undo side effects...");
+        // Revert the completion to undo side effects
+        console.log("-> Reverting the completion to undo...");
         await cursorClick(page, 'button:has-text("Revert")');
         await wait(PAUSE.LONG);
       }
-
-      // ---- Show second item if available ----
-      if (itemCount > 1) {
-        console.log("-> Hovering over second to-do item...");
-        await cursorMove(page, '[aria-label="Mark as done"]', 1);
-        await wait(PAUSE.MEDIUM);
-      }
-    }
-
-    // ---- Show pagination ----
-    // Pagination buttons are the last two buttons (prev/next) at the bottom of the To Do card
-    const paginationContainer = page.locator('.flex.items-center.justify-end.gap-2.pt-4').first();
-    if (await paginationContainer.isVisible().catch(() => false)) {
-      const paginationBtns = paginationContainer.locator("button");
-      const paginationCount = await paginationBtns.count();
-
-      if (paginationCount >= 2) {
-        const nextBtn = paginationBtns.last();
-        const isDisabled = await nextBtn.isDisabled();
-        if (!isDisabled) {
-          console.log("-> Paginating to next page of to-do items...");
-          await nextBtn.click();
-          await wait(PAUSE.READ);
-
-          // Go back
-          const prevBtn = paginationBtns.first();
-          if (!(await prevBtn.isDisabled())) {
-            console.log("-> Going back to first page...");
-            await prevBtn.click();
-            await wait(PAUSE.MEDIUM);
-          }
-        }
-      }
+    } else {
+      console.log("-> No checkable to-do items found.");
     }
 
     console.log("-> To-Do list demo complete.");

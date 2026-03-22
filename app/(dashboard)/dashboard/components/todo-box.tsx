@@ -690,6 +690,7 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
             setEmailModalEntry(emailModalEntries[newIdx]);
           }
         }}
+        hideNavigation
       />
     </Card>
   );

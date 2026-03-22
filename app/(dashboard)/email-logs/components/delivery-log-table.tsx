@@ -1273,6 +1273,7 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
         entry={selectedSentEntry}
         allEntries={sortedData as AuditEntry[]}
         onNavigate={handleSentNavigate}
+        onRefresh={fetchData}
       />
 
       {/* Reschedule Modal */}

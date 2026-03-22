@@ -89,19 +89,20 @@ export function MemberSettingsCard({
 
   return (
     <Card className="p-6">
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-4 mb-6">
         <div className="flex items-center justify-center size-12 rounded-lg bg-violet-500/10 shrink-0">
           <User className="size-6 text-violet-500" />
         </div>
-        <div className="flex-1 space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold">My Email Settings</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure your personal reminder send hour and email identity. These override
-              the organisation defaults.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-lg font-semibold">My Email Settings</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configure your personal reminder send hour and email identity. These override
+            the organisation defaults.
+          </p>
+        </div>
+      </div>
 
+      <div className="space-y-6">
           {/* Send Hour */}
           <div className="space-y-1.5">
             <label htmlFor="member-send-hour" className="text-sm font-medium">
@@ -221,7 +222,6 @@ export function MemberSettingsCard({
               <span className="text-sm text-status-danger font-medium">{error}</span>
             )}
           </div>
-        </div>
       </div>
     </Card>
   );

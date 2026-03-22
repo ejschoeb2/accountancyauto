@@ -189,9 +189,10 @@ export function FilingManagement({ clientId, onUpdate, highlightFiling }: Filing
 
   // Open override dialog
   const handleOpenOverrideDialog = (filingTypeId: string) => {
+    const filing = filings.find(f => f.filing_type.id === filingTypeId);
     setCurrentFilingType(filingTypeId);
-    setOverrideDate('');
-    setOverrideReason('');
+    setOverrideDate(filing?.override_deadline || filing?.calculated_deadline || '');
+    setOverrideReason(filing?.override_reason || '');
     setShowOverrideDialog(true);
   };
 

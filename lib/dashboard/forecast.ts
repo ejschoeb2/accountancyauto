@@ -353,6 +353,27 @@ export async function getWorkloadForecast(
     }
   }
 
+  // Include rolled-over completions as green entries in the forecast.
+  // These are filings that were completed and rolled over — no longer in
+  // completed_for, so the normal status calculation won't show them as green.
+  const rangeStartStr = format(rangeStart, 'yyyy-MM-dd');
+  const rangeEndStr = format(rangeEnd, 'yyyy-MM-dd');
+  const { data: completionLogs } = await supabase
+    .from('filing_completion_log')
+    .select('deadline_date')
+    .not('rolled_over_at', 'is', null)
+    .gte('deadline_date', rangeStartStr)
+    .lte('deadline_date', rangeEndStr);
+
+  for (const log of completionLogs ?? []) {
+    const logDate = new Date(log.deadline_date);
+    logDate.setHours(0, 0, 0, 0);
+    const bucketIdx = buckets.findIndex(b => logDate >= b.start && logDate <= b.end);
+    if (bucketIdx >= 0) {
+      breakdowns[bucketIdx].green++;
+    }
+  }
+
   return buckets.map((bucket, i) => {
     const bd = breakdowns[i];
     return {

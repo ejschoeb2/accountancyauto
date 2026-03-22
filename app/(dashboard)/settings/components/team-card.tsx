@@ -293,18 +293,19 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
   return (
     <>
       <Card className="p-6">
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4 mb-6">
           <div className="flex items-center justify-center size-12 rounded-lg bg-blue-500/10 shrink-0">
             <Users className="size-6 text-blue-500" />
           </div>
-          <div className="flex-1 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold">Team</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Manage your team members and client distribution
-              </p>
-            </div>
+          <div>
+            <h2 className="text-lg font-semibold">Team</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Manage your team members and client distribution
+            </p>
+          </div>
+        </div>
 
+        <div className="space-y-6">
             {/* Summary */}
             <div className="flex flex-wrap gap-4 text-sm">
               <span className="text-muted-foreground">
@@ -570,7 +571,6 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
                 </div>
               )}
             </div>
-          </div>
         </div>
       </Card>
 
