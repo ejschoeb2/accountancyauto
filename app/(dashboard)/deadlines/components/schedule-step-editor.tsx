@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { UseFieldArrayReturn, UseFormReturn } from "react-hook-form";
-import { Trash2, Plus, Pencil, CheckCircle, X, Link, AlertCircle } from "lucide-react";
+import { Trash2, Plus, Pencil, CheckCircle, X, Link, AlertCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { IconButtonWithText } from "@/components/ui/icon-button-with-text";
 import { Input } from "@/components/ui/input";
@@ -334,7 +334,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType, 
 
         // Link template to the step
         if (creatingForStepIndex !== null) {
-          form.setValue(`steps.${creatingForStepIndex}.email_template_id`, newTemplate.id);
+          form.setValue(`steps.${creatingForStepIndex}.email_template_id`, newTemplate.id, { shouldDirty: true });
         }
 
         // Cache the template data locally
@@ -362,9 +362,10 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType, 
   return (
     <div className="space-y-6">
       {hasDuplicates && (
-        <div className="rounded-lg border border-yellow-600/50 bg-yellow-600/10 p-4">
-          <p className="text-sm text-foreground">
-            Note: The same email template is assigned to multiple steps. This is allowed, but recipients will receive similar emails at different intervals.
+        <div className="flex items-center gap-3 p-4 bg-amber-500/10 rounded-xl">
+          <AlertTriangle className="size-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-600">
+            The same email template is assigned to multiple steps. This is allowed, but recipients will receive similar emails at different intervals.
           </p>
         </div>
       )}
@@ -406,7 +407,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType, 
                             if (value === "custom") {
                               setCustomDelayDays({ ...customDelayDays, [index]: true });
                             } else {
-                              form.setValue(`steps.${index}.delay_days`, Number(value));
+                              form.setValue(`steps.${index}.delay_days`, Number(value), { shouldDirty: true });
                               setCustomDelayDays({ ...customDelayDays, [index]: false });
                             }
                           }}
@@ -448,7 +449,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType, 
                       </Label>
                       <Select
                         value={selectedTemplateId || "__none__"}
-                        onValueChange={(value) => form.setValue(`steps.${index}.email_template_id`, value === "__none__" ? "" : value)}
+                        onValueChange={(value) => form.setValue(`steps.${index}.email_template_id`, value === "__none__" ? "" : value, { shouldDirty: true })}
                       >
                         <SelectTrigger id={`steps.${index}.email_template_id`} className="h-9">
                           <SelectValue />
