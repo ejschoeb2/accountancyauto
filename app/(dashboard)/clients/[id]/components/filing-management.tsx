@@ -137,6 +137,12 @@ export function FilingManagement({ clientId, onUpdate, highlightFiling }: Filing
         // Delay slightly to ensure layout is complete
         setTimeout(() => {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Remove ?filing= from URL so refresh doesn't re-scroll
+          const url = new URL(window.location.href);
+          if (url.searchParams.has('filing')) {
+            url.searchParams.delete('filing');
+            window.history.replaceState({}, '', url.pathname + (url.search || ''));
+          }
           // Remove highlight after animation
           setTimeout(() => setHighlightedId(null), 2000);
         }, 100);
