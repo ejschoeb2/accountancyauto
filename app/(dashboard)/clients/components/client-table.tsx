@@ -1134,7 +1134,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                     <span className="text-foreground/70">Paused</span>
                   </div>
                 )}
-                <div className="px-3 py-2 rounded-md bg-status-neutral/10 text-status-neutral inline-flex items-center gap-2">
+                <div className="px-3 py-2 rounded-md bg-status-neutral/10 text-status-neutral inline-flex items-center gap-2 w-fit">
                   <span className="text-sm font-medium">Paused</span>
                   {filingStatus.doc_required_count > 0 && (
                     <DocProgressRing

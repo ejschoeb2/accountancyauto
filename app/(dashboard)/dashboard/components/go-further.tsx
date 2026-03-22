@@ -1,12 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Check, Globe, ShieldCheck, CalendarPlus, Upload, Zap } from 'lucide-react';
 import type { GoFurtherProgress } from '@/lib/dashboard/onboarding';
 import Link from 'next/link';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 
 interface GoFurtherProps {
   progress: GoFurtherProgress;
@@ -47,53 +44,8 @@ const steps = [
   },
 ];
 
-const STORAGE_KEY = 'go-further-progress';
-
 export function GoFurther({ progress }: GoFurtherProps) {
-  const router = useRouter();
-  const hasShownToasts = useRef(false);
   const completedCount = steps.filter((s) => progress[s.key]).length;
-
-  useEffect(() => {
-    if (hasShownToasts.current) return;
-    hasShownToasts.current = true;
-
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const prev: Record<string, boolean> = stored ? JSON.parse(stored) : {};
-
-      const newlyCompleted = steps.filter(
-        (s) => progress[s.key] && !prev[s.key]
-      );
-
-      const current: Record<string, boolean> = {};
-      for (const s of steps) current[s.key] = progress[s.key];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
-
-      for (const step of newlyCompleted) {
-        const nowComplete = steps.every((s) => current[s.key]);
-
-        if (nowComplete) {
-          toast.success('All advanced features enabled!', {
-            description: 'You\'ve unlocked everything Prompt has to offer.',
-            duration: 6000,
-          });
-          break;
-        }
-
-        toast.success(`Enabled: ${step.label}`, {
-          description: `${completedCount}/${steps.length} features activated`,
-          duration: 5000,
-          action: {
-            label: 'Back to dashboard',
-            onClick: () => router.push('/dashboard'),
-          },
-        });
-      }
-    } catch {
-      // localStorage unavailable — skip
-    }
-  }, [progress, completedCount, router]);
 
   return (
     <Card className="py-5">

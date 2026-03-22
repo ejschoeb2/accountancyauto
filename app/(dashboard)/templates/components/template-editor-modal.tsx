@@ -7,6 +7,7 @@ import { SubjectLineEditor } from './subject-line-editor'
 import { PlaceholderDropdown } from './placeholder-dropdown'
 import { EditorToolbar } from './template-editor-toolbar'
 import { Button } from '@/components/ui/button'
+import { ButtonBase } from '@/components/ui/button-base'
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -304,12 +305,14 @@ export function TemplateEditorModal({ open, onOpenChange, templateId, usedInSche
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>
+            <ButtonBase variant="amber" buttonType="icon-text" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>
+              <X className="size-4" />
               Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+            </ButtonBase>
+            <ButtonBase variant="destructive" buttonType="icon-text" onClick={handleDelete} disabled={deleting}>
+              <Trash2 className="size-4" />
               {deleting ? 'Deleting...' : 'Delete'}
-            </Button>
+            </ButtonBase>
           </DialogFooter>
         </DialogContent>
       </Dialog>
