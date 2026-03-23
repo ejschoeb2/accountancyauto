@@ -150,17 +150,17 @@ const BentoCard = ({ feature }: { feature: Feature }) => {
 
   return (
     <div
-      className="group h-full rounded-2xl bg-card border border-border/60 shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-default flex flex-col overflow-hidden min-h-[260px]"
+      className="group h-full rounded-2xl bg-card border border-border/60 shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-default grid grid-cols-1 md:grid-cols-2 overflow-hidden min-h-[220px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Illustration */}
-      <div className="flex-1 min-h-0">
+      {/* Illustration — left */}
+      <div className="flex items-center justify-center p-4 min-h-[180px]">
         <Illustration isHovered={isHovered} />
       </div>
 
-      {/* Text */}
-      <div className="px-5 pb-5 pt-2">
+      {/* Text — right */}
+      <div className="flex flex-col justify-center px-5 py-5">
         <h3 className="text-[15px] font-bold text-foreground tracking-tight mb-1.5">
           {feature.title}
         </h3>
@@ -211,7 +211,7 @@ export const DocumentCollectionSection = () => (
         </h2>
       </div>
 
-      {/* Bento grid — 3 rows × 2 cols, varied width splits */}
+      {/* Bento grid — 3 rows × 2 cols, alternating splits */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         {/* Row 1 (7/5): Upload Portal + Document Intelligence */}
         <div className="md:col-span-7">
@@ -221,20 +221,20 @@ export const DocumentCollectionSection = () => (
           <BentoCard feature={powerFeatures[1]} />
         </div>
 
-        {/* Row 2 (5/7): Auto-Reject + Auto-Confirm */}
+        {/* Row 2 (5/7): Auto-Reject + Custom Domains */}
         <div className="md:col-span-5">
           <BentoCard feature={powerFeatures[2]} />
         </div>
         <div className="md:col-span-7">
-          <BentoCard feature={powerFeatures[3]} />
+          <BentoCard feature={powerFeatures[5]} />
         </div>
 
-        {/* Row 3 (8/4): Cloud Storage + Custom Domains */}
-        <div className="md:col-span-8">
+        {/* Row 3 (7/5): Cloud Storage + Auto-Confirm */}
+        <div className="md:col-span-7">
           <BentoCard feature={powerFeatures[4]} />
         </div>
-        <div className="md:col-span-4">
-          <BentoCard feature={powerFeatures[5]} />
+        <div className="md:col-span-5">
+          <BentoCard feature={powerFeatures[3]} />
         </div>
       </div>
 
