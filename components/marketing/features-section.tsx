@@ -154,12 +154,7 @@ const BentoCard = ({ feature }: { feature: Feature }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Illustration — left */}
-      <div className="flex items-center justify-center p-4 min-h-[180px]">
-        <Illustration isHovered={isHovered} />
-      </div>
-
-      {/* Text — right */}
+      {/* Text — left */}
       <div className="flex flex-col justify-center px-5 py-5">
         <h3 className="text-[15px] font-bold text-foreground tracking-tight mb-1.5">
           {feature.title}
@@ -167,6 +162,11 @@ const BentoCard = ({ feature }: { feature: Feature }) => {
         <p className="text-[13px] text-muted-foreground leading-relaxed">
           {feature.description}
         </p>
+      </div>
+
+      {/* Illustration — right */}
+      <div className="flex items-center justify-center p-4 min-h-[180px]">
+        <Illustration isHovered={isHovered} />
       </div>
     </div>
   );
@@ -211,30 +211,36 @@ export const DocumentCollectionSection = () => (
         </h2>
       </div>
 
-      {/* Bento grid — 3 rows × 2 cols, alternating splits */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-        {/* Row 1 (7/5): Upload Portal + Document Intelligence */}
-        <div className="md:col-span-7">
-          <BentoCard feature={powerFeatures[0]} />
-        </div>
-        <div className="md:col-span-5">
-          <BentoCard feature={powerFeatures[1]} />
-        </div>
-
-        {/* Row 2 (5/7): Auto-Reject + Custom Domains */}
-        <div className="md:col-span-5">
-          <BentoCard feature={powerFeatures[2]} />
-        </div>
-        <div className="md:col-span-7">
-          <BentoCard feature={powerFeatures[5]} />
+      {/* Bento grid — 3 rows × 2 cols, subtle alternating splits */}
+      <div className="flex flex-col gap-5">
+        {/* Row 1 (55/45): Upload Portal + Document Intelligence */}
+        <div className="flex flex-col md:flex-row gap-5">
+          <div className="md:w-[55%]">
+            <BentoCard feature={powerFeatures[0]} />
+          </div>
+          <div className="md:w-[45%]">
+            <BentoCard feature={powerFeatures[1]} />
+          </div>
         </div>
 
-        {/* Row 3 (7/5): Cloud Storage + Auto-Confirm */}
-        <div className="md:col-span-7">
-          <BentoCard feature={powerFeatures[4]} />
+        {/* Row 2 (45/55): Auto-Reject + Custom Domains */}
+        <div className="flex flex-col md:flex-row gap-5">
+          <div className="md:w-[45%]">
+            <BentoCard feature={powerFeatures[2]} />
+          </div>
+          <div className="md:w-[55%]">
+            <BentoCard feature={powerFeatures[5]} />
+          </div>
         </div>
-        <div className="md:col-span-5">
-          <BentoCard feature={powerFeatures[3]} />
+
+        {/* Row 3 (55/45): Cloud Storage + Auto-Confirm */}
+        <div className="flex flex-col md:flex-row gap-5">
+          <div className="md:w-[55%]">
+            <BentoCard feature={powerFeatures[4]} />
+          </div>
+          <div className="md:w-[45%]">
+            <BentoCard feature={powerFeatures[3]} />
+          </div>
         </div>
       </div>
 
