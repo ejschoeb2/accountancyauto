@@ -5,7 +5,9 @@ import { DeadlineTrackingIllustration }    from "./feature-illustrations/deadlin
 import { AutomatedRemindersIllustration }  from "./feature-illustrations/automated-reminders";
 import { ClientUploadPortalIllustration }  from "./feature-illustrations/client-upload-portal";
 import { DocumentIntelligenceIllustration } from "./feature-illustrations/document-intelligence";
-import { DocumentAwareEmailsIllustration } from "./feature-illustrations/document-aware-emails";
+import { CloudStorageSyncIllustration }    from "./feature-illustrations/cloud-storage-sync";
+import { YearRolloverIllustration }        from "./feature-illustrations/year-rollover";
+import { AuditTrailIllustration }          from "./feature-illustrations/audit-trail";
 import { EmailManagementIllustration }     from "./feature-illustrations/email-management";
 
 type IllustrationComponent = React.ComponentType<{ isHovered: boolean }>;
@@ -36,23 +38,42 @@ const coreFeatures: Feature[] = [
   },
 ];
 
-/* ── Section 2: Collect Records, Not Excuses (features 3, 4, 5) ── */
+/* ── Section 2: Power Features — bento grid ── */
 
-const documentFeatures: Feature[] = [
+interface PowerFeature extends Feature {
+  span: "large" | "medium" | "small";
+}
+
+const powerFeatures: PowerFeature[] = [
   {
     title:       "Client Upload Portal",
-    description: "Clients receive a secure, no-login link and upload their records against a filing-specific checklist. Documents go straight to your Google Drive, OneDrive, or Dropbox — Prompt never stores your clients' files on its own servers. GDPR compliant by design.",
+    description: "Clients receive a secure, no-login link and upload records against a filing-specific checklist. Documents go straight to your cloud storage — Prompt never stores files on its own servers.",
     Illustration: ClientUploadPortalIllustration,
+    span:        "large",
   },
   {
     title:       "Document Intelligence",
-    description: "Every upload is automatically classified, verified, and scored. Prompt checks tax years, employer names, and PAYE references — flagging mismatches and auto-rejecting wrong documents before they reach your desk.",
+    description: "Every upload is automatically classified, verified, and scored. Prompt checks tax years, employer names, and PAYE references — flagging mismatches before they reach your desk.",
     Illustration: DocumentIntelligenceIllustration,
+    span:        "medium",
   },
   {
-    title:       "Document-Aware Emails",
-    description: "Reminder emails that know what's still outstanding. Prompt dynamically lists the documents still needed and embeds a fresh upload portal link in every chase — clients see exactly what they need to provide, every time.",
-    Illustration: DocumentAwareEmailsIllustration,
+    title:       "Cloud Storage Sync",
+    description: "Uploaded documents land directly in your Google Drive, OneDrive, or Dropbox — organised by client and filing type. Your files, your storage, always.",
+    Illustration: CloudStorageSyncIllustration,
+    span:        "medium",
+  },
+  {
+    title:       "One-Click Year Rollover",
+    description: "New tax year? Roll every client deadline forward in one click. No re-entry, no missed filings.",
+    Illustration: YearRolloverIllustration,
+    span:        "small",
+  },
+  {
+    title:       "Full Audit Trail",
+    description: "Every email, upload, and status change logged with timestamps. Complete compliance-ready history at a glance.",
+    Illustration: AuditTrailIllustration,
+    span:        "small",
   },
 ];
 
@@ -124,55 +145,37 @@ const FeatureCard = ({ feature, variant = "stacked", reversed = false }: { featu
   );
 };
 
-/* ── Shared section layout — header left, 3 cards stacked right ── */
+/* ── Bento grid card for power features ── */
 
-const FeatureGroup = ({
-  id,
-  label,
-  heading,
-  subtitle,
-  features,
-}: {
-  id?: string;
-  label: string;
-  heading: React.ReactNode;
-  subtitle: string;
-  features: Feature[];
-}) => (
-  <section id={id} className="relative z-[1] py-20 lg:py-28">
-    <div className="max-w-screen-xl mx-auto px-4">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-20 items-start">
+const BentoCard = ({ feature, span }: { feature: Feature; span: "large" | "medium" | "small" }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const { Illustration } = feature;
 
-        {/* Left: section header */}
-        <div className="lg:col-span-5 lg:pt-2 lg:sticky lg:top-24">
-          <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
-            {label}
-          </p>
-          <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
-            {heading}
-          </h2>
-          <p className="mt-5 text-base text-muted-foreground max-w-sm leading-relaxed">
-            {subtitle}
-          </p>
-        </div>
+  const heightClass = span === "large" ? "min-h-[280px]" : span === "medium" ? "min-h-[260px]" : "min-h-[220px]";
 
-        {/* Right: single-column stacked cards — cascading left offset */}
-        <div className="lg:col-span-7 flex flex-col gap-8">
-          {features.map((f, i) => (
-            <div
-              key={f.title}
-              className="lg:max-w-[85%] ml-auto"
-              style={{ marginRight: `${i * 2.5}rem` }}
-            >
-              <FeatureCard feature={f} />
-            </div>
-          ))}
-        </div>
+  return (
+    <div
+      className={`group h-full rounded-2xl bg-card border border-border/60 shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-default flex flex-col overflow-hidden ${heightClass}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Illustration */}
+      <div className="flex-1 min-h-0">
+        <Illustration isHovered={isHovered} />
+      </div>
 
+      {/* Text */}
+      <div className="px-5 pb-5 pt-2">
+        <h3 className="text-[15px] font-bold text-foreground tracking-tight mb-1.5">
+          {feature.title}
+        </h3>
+        <p className="text-[13px] text-muted-foreground leading-relaxed">
+          {feature.description}
+        </p>
       </div>
     </div>
-  </section>
-);
+  );
+};
 
 /* ── Exports ── */
 
@@ -200,10 +203,41 @@ export const FeaturesSection = () => (
 );
 
 export const DocumentCollectionSection = () => (
-  <FeatureGroup
-    label="Optional Power Features"
-    heading={<>Documents in.<br className="hidden lg:block" /> Chasing over.</>}
-    subtitle="Already running smoothly? Take it further. These advanced features turn reminders into a full document collection pipeline — enable them when you're ready, or never. Your call."
-    features={documentFeatures}
-  />
+  <section className="relative z-[1] py-20 lg:py-28">
+    <div className="max-w-screen-xl mx-auto px-4">
+
+      {/* Section header — centred above the grid */}
+      <div className="mb-12">
+        <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
+          Optional Power Features
+        </p>
+        <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+          Documents in.<br className="hidden lg:block" /> Chasing over.
+        </h2>
+      </div>
+
+      {/* Bento grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 auto-rows-fr">
+        {/* Row 1: Upload Portal (large, 7-col) + Document Intelligence (medium, 5-col) */}
+        <div className="lg:col-span-7 md:col-span-2 lg:row-span-1">
+          <BentoCard feature={powerFeatures[0]} span="large" />
+        </div>
+        <div className="lg:col-span-5">
+          <BentoCard feature={powerFeatures[1]} span="medium" />
+        </div>
+
+        {/* Row 2: Cloud Storage (medium, 5-col) + Year Rollover (small, 3-col) + Audit Trail (small, 4-col) */}
+        <div className="lg:col-span-5">
+          <BentoCard feature={powerFeatures[2]} span="medium" />
+        </div>
+        <div className="lg:col-span-3">
+          <BentoCard feature={powerFeatures[3]} span="small" />
+        </div>
+        <div className="lg:col-span-4">
+          <BentoCard feature={powerFeatures[4]} span="small" />
+        </div>
+      </div>
+
+    </div>
+  </section>
 );
