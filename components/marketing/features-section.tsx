@@ -6,8 +6,9 @@ import { AutomatedRemindersIllustration }  from "./feature-illustrations/automat
 import { ClientUploadPortalIllustration }  from "./feature-illustrations/client-upload-portal";
 import { DocumentIntelligenceIllustration } from "./feature-illustrations/document-intelligence";
 import { CloudStorageSyncIllustration }    from "./feature-illustrations/cloud-storage-sync";
-import { YearRolloverIllustration }        from "./feature-illustrations/year-rollover";
-import { AuditTrailIllustration }          from "./feature-illustrations/audit-trail";
+import { AutoRejectIllustration }          from "./feature-illustrations/auto-reject";
+import { AutoConfirmIllustration }         from "./feature-illustrations/auto-confirm";
+import { CustomDomainsIllustration }       from "./feature-illustrations/custom-domains";
 import { EmailManagementIllustration }     from "./feature-illustrations/email-management";
 
 type IllustrationComponent = React.ComponentType<{ isHovered: boolean }>;
@@ -38,42 +39,38 @@ const coreFeatures: Feature[] = [
   },
 ];
 
-/* ── Section 2: Power Features — bento grid ── */
+/* ── Section 2: Power Features — bento grid (3 rows × 2 cols, varied splits) ── */
 
-interface PowerFeature extends Feature {
-  span: "large" | "medium" | "small";
-}
-
-const powerFeatures: PowerFeature[] = [
+const powerFeatures: Feature[] = [
   {
     title:       "Client Upload Portal",
     description: "Clients receive a secure, no-login link and upload records against a filing-specific checklist. Documents go straight to your cloud storage — Prompt never stores files on its own servers.",
     Illustration: ClientUploadPortalIllustration,
-    span:        "large",
   },
   {
     title:       "Document Intelligence",
     description: "Every upload is automatically classified, verified, and scored. Prompt checks tax years, employer names, and PAYE references — flagging mismatches before they reach your desk.",
     Illustration: DocumentIntelligenceIllustration,
-    span:        "medium",
+  },
+  {
+    title:       "Smart Auto-Reject",
+    description: "Wrong tax year? Wrong document type? Prompt catches it instantly and rejects the upload before it ever reaches your desk — clients are prompted to re-upload the right file.",
+    Illustration: AutoRejectIllustration,
+  },
+  {
+    title:       "Auto-Confirm Documents",
+    description: "When a document passes the smart scan, Prompt automatically marks it as received. No manual review needed — verified records flow straight into your dashboard.",
+    Illustration: AutoConfirmIllustration,
   },
   {
     title:       "Cloud Storage Sync",
     description: "Uploaded documents land directly in your Google Drive, OneDrive, or Dropbox — organised by client and filing type. Your files, your storage, always.",
     Illustration: CloudStorageSyncIllustration,
-    span:        "medium",
   },
   {
-    title:       "One-Click Year Rollover",
-    description: "New tax year? Roll every client deadline forward in one click. No re-entry, no missed filings.",
-    Illustration: YearRolloverIllustration,
-    span:        "small",
-  },
-  {
-    title:       "Full Audit Trail",
-    description: "Every email, upload, and status change logged with timestamps. Complete compliance-ready history at a glance.",
-    Illustration: AuditTrailIllustration,
-    span:        "small",
+    title:       "Custom Domains",
+    description: "Send reminders from your own domain — reminders@yourfirm.co.uk instead of a generic address. Professional, trusted, and fully authenticated with DKIM and SPF.",
+    Illustration: CustomDomainsIllustration,
   },
 ];
 
@@ -147,15 +144,13 @@ const FeatureCard = ({ feature, variant = "stacked", reversed = false }: { featu
 
 /* ── Bento grid card for power features ── */
 
-const BentoCard = ({ feature, span }: { feature: Feature; span: "large" | "medium" | "small" }) => {
+const BentoCard = ({ feature }: { feature: Feature }) => {
   const [isHovered, setIsHovered] = useState(false);
   const { Illustration } = feature;
 
-  const heightClass = span === "large" ? "min-h-[280px]" : span === "medium" ? "min-h-[260px]" : "min-h-[220px]";
-
   return (
     <div
-      className={`group h-full rounded-2xl bg-card border border-border/60 shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-default flex flex-col overflow-hidden ${heightClass}`}
+      className="group h-full rounded-2xl bg-card border border-border/60 shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-default flex flex-col overflow-hidden min-h-[260px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -216,25 +211,30 @@ export const DocumentCollectionSection = () => (
         </h2>
       </div>
 
-      {/* Bento grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 auto-rows-fr">
-        {/* Row 1: Upload Portal (large, 7-col) + Document Intelligence (medium, 5-col) */}
-        <div className="lg:col-span-7 md:col-span-2 lg:row-span-1">
-          <BentoCard feature={powerFeatures[0]} span="large" />
+      {/* Bento grid — 3 rows × 2 cols, varied width splits */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+        {/* Row 1 (7/5): Upload Portal + Document Intelligence */}
+        <div className="md:col-span-7">
+          <BentoCard feature={powerFeatures[0]} />
         </div>
-        <div className="lg:col-span-5">
-          <BentoCard feature={powerFeatures[1]} span="medium" />
+        <div className="md:col-span-5">
+          <BentoCard feature={powerFeatures[1]} />
         </div>
 
-        {/* Row 2: Cloud Storage (medium, 5-col) + Year Rollover (small, 3-col) + Audit Trail (small, 4-col) */}
-        <div className="lg:col-span-5">
-          <BentoCard feature={powerFeatures[2]} span="medium" />
+        {/* Row 2 (5/7): Auto-Reject + Auto-Confirm */}
+        <div className="md:col-span-5">
+          <BentoCard feature={powerFeatures[2]} />
         </div>
-        <div className="lg:col-span-3">
-          <BentoCard feature={powerFeatures[3]} span="small" />
+        <div className="md:col-span-7">
+          <BentoCard feature={powerFeatures[3]} />
         </div>
-        <div className="lg:col-span-4">
-          <BentoCard feature={powerFeatures[4]} span="small" />
+
+        {/* Row 3 (8/4): Cloud Storage + Custom Domains */}
+        <div className="md:col-span-8">
+          <BentoCard feature={powerFeatures[4]} />
+        </div>
+        <div className="md:col-span-4">
+          <BentoCard feature={powerFeatures[5]} />
         </div>
       </div>
 
