@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, SlidersHorizontal, Play, FileText, BookOpen, ArrowRight } from "lucide-react";
@@ -264,7 +264,7 @@ const GuideCard = ({ guide, index }: { guide: Guide; index: number }) => {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-export default function GuidesPage() {
+function GuidesContent() {
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<GuideCategory | null>(null);
@@ -481,5 +481,13 @@ export default function GuidesPage() {
 
       <FooterSection />
     </main>
+  );
+}
+
+export default function GuidesPage() {
+  return (
+    <Suspense>
+      <GuidesContent />
+    </Suspense>
   );
 }
