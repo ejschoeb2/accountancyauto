@@ -3,6 +3,9 @@
  *
  * Provides a fake animated cursor, click ripple effects, timing helpers,
  * and browser lifecycle management for Playwright-based demo recordings.
+ *
+ * Recording strategy: ffmpeg gdigrab captures the screen directly at high
+ * quality instead of Playwright's built-in recordVideo (VP8, lossy).
  */
 
 import { chromium, Browser, BrowserContext, Page } from "playwright";
@@ -81,6 +84,17 @@ const CURSOR_CLICK_RIPPLE = `
     setTimeout(() => ripple.remove(), 400);
   })();
 `;
+
+// CSS injected on every page load to hide the system cursor and dev toolbars
+const HIDE_CSS = [
+  "html { cursor: none !important; }",
+  "* { cursor: none !important; }",
+  "nextjs-portal { display: none !important; }",
+  "#__vercel_toolbar { display: none !important; }",
+  "#vercel-toolbar { display: none !important; }",
+  "#__nextjs-toast-errors-parent { display: none !important; }",
+  ".__vercel_toolbar_container { display: none !important; }",
+].join(" ");
 
 /** Ensure the fake cursor is injected on the page */
 export async function injectCursor(page: Page) {
@@ -190,12 +204,23 @@ export async function startRecording(): Promise<DemoSession> {
     },
   });
 
-  const page = await context.newPage();
+  // Inject cursor-hide + toolbar-suppress CSS on EVERY page navigation
+  await context.addInitScript((css: string) => {
+    const inject = () => {
+      const s = document.createElement("style");
+      s.textContent = css;
+      (document.head || document.documentElement).appendChild(s);
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", inject);
+    } else {
+      inject();
+    }
+  }, HIDE_CSS);
 
-  // Hide the real system cursor
-  await page.addStyleTag({
-    content: "html { cursor: none !important; } * { cursor: none !important; }",
-  });
+  const page = await context.newPage();
+  // Also apply immediately so the very first page load is covered
+  await page.addStyleTag({ content: HIDE_CSS });
 
   return { browser, context, page, outDir };
 }
@@ -255,11 +280,20 @@ export async function login(page: Page) {
   await wait(PAUSE.LONG);
 }
 
-/** Navigate to a page via sidebar link */
+/**
+ * Navigate to a page via sidebar link, with a direct goto() fallback
+ * in case the sidebar click doesn't trigger navigation within 5 seconds.
+ */
 export async function navigateTo(page: Page, href: string) {
   console.log(`→ Navigating to ${href}...`);
-  await cursorClick(page, `a[href*="${href}"], [data-sidebar-item="${href.replace("/", "")}"]`);
-  await page.waitForURL(`**${href}**`);
+  try {
+    await cursorClick(page, `a[href*="${href}"], [data-sidebar-item="${href.replace("/", "")}"]`);
+    await page.waitForURL(`**${href}**`, { timeout: 5000 });
+  } catch {
+    // Fallback: direct navigation (no cursor animation, but reliable)
+    await page.goto(`${BASE_URL}${href}`);
+    await page.waitForURL(`**${href}**`, { timeout: 10000 });
+  }
   await page.waitForLoadState("networkidle");
   await injectCursor(page);
   await wait(PAUSE.LONG);

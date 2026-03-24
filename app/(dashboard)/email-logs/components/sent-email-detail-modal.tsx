@@ -232,14 +232,14 @@ export function SentEmailDetailModal({
           <div className="w-[0.5px] bg-border shrink-0" />
 
           {/* Right side: Metadata sidebar */}
-          <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg bg-background">
+          <div className="w-[420px] p-6 flex flex-col gap-4 overflow-y-auto rounded-r-lg bg-background">
             {/* Header */}
             <DialogTitle className="text-xl font-semibold">Sent Email</DialogTitle>
 
             {/* Bounced/Failed alert + actions */}
             {(entry.delivery_status === 'bounced' || entry.delivery_status === 'failed') && (
               <div className="space-y-3">
-                <div className="flex items-start gap-3 p-4 bg-red-500/10 rounded-xl">
+                <div className="flex items-start gap-3 p-3 bg-red-500/10 rounded-xl">
                   <AlertCircle className="size-5 text-red-500 shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-red-500">
@@ -276,7 +276,7 @@ export function SentEmailDetailModal({
             )}
 
             {/* Metadata */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
                   Client

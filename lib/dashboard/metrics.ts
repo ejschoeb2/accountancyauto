@@ -720,6 +720,7 @@ export async function getRecentUploads(
       clients!inner ( company_name ),
       document_types ( label )
     `)
+    .is('rejected_at', null)
     .order('created_at', { ascending: false })
     .limit(limit);
 

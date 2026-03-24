@@ -573,7 +573,7 @@ export async function previewSentEmail(
 
     const { data: emailLog, error: logError } = await supabase
       .from('email_log')
-      .select('reminder_queue_id, subject')
+      .select('reminder_queue_id, subject, client_id, recipient_email, filing_type_id, sent_at')
       .eq('id', emailLogId)
       .single();
 
@@ -582,7 +582,17 @@ export async function previewSentEmail(
     }
 
     if (!emailLog.reminder_queue_id) {
-      return { noBody: true };
+      // No linked queue entry — generate a placeholder preview from metadata
+      const subject = emailLog.subject || 'Reminder Email';
+      const placeholderText = [
+        `To: ${emailLog.recipient_email || 'Unknown recipient'}`,
+        `Subject: ${subject}`,
+        `Sent: ${emailLog.sent_at ? new Date(emailLog.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Unknown date'}`,
+        '',
+        'The full body for this email was not stored.',
+        'This typically happens with demo or seed data, or emails sent before body storage was enabled.',
+      ].join('\n');
+      return { html: '', subject, text: placeholderText };
     }
 
     return await previewQueuedEmail(emailLog.reminder_queue_id);

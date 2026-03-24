@@ -6,7 +6,7 @@ import { HelpCircle } from "lucide-react";
 export function HelpLink() {
   return (
     <Link
-      href="/help"
+      href="/guides"
       className="p-2"
       title="Help"
       target="_blank"

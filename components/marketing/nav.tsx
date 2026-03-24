@@ -53,10 +53,9 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
                 <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
                 <a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a>
                 <a href="/news" className="hover:text-foreground transition-colors">News</a>
-                <a href="/changelog" className="hover:text-foreground transition-colors">Changelog</a>
+                <a href="/guides" className="hover:text-foreground transition-colors">Guides</a>
               </>
             )}
-            <a href="/help" className="hover:text-foreground transition-colors">Help</a>
           </nav>
 
           {/* Actions */}

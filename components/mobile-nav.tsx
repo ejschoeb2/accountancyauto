@@ -68,11 +68,11 @@ export function MobileNav({ isSuperAdmin }: MobileNavProps) {
 
           <SheetClose asChild>
             <Link
-              href="/help"
+              href="/guides"
               className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
             >
               <HelpCircle className="size-4" />
-              Help
+              Guides
             </Link>
           </SheetClose>
 

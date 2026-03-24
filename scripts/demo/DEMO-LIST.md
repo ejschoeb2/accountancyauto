@@ -6,6 +6,16 @@ Mark with ~~strikethrough~~ or just delete the row to remove.
 
 ---
 
+## Missing Videos (not yet recorded)
+
+| ID | Title | Notes |
+|---|---|---|
+| sign-up-and-onboard | Sign Up & Complete Onboarding | Was in recording script but video not in out/ |
+| go-further-checklist | Complete the Go Further Checklist | Was in recording script but video not in out/ |
+| dashboard-overview | Explore the Dashboard | Was in recording script but video not in out/ |
+
+---
+
 
 
 ## Dashboard (5)
@@ -80,7 +90,8 @@ Mark with ~~strikethrough~~ or just delete the row to remove.
 | # | ID | Title | What it shows |
 |---|---|---|---|
 | 47 | setup-custom-domain | Set Up a Custom Sending Domain | Settings > Email tab, enter domain, view DNS records |
-| 48 | manage-team-members | Manage Team Members | Settings > General, view team card, roles | ADD TO THIS, SEPERATE INTO CHANGING MEMBER STATUS AND DELETE MEMBER
+| 48a | change-member-role | Change a Team Member's Role | Settings > General, change member role |
+| 48b | remove-team-member | Remove a Team Member | Settings > General, remove member from team |
 | 49 | connect-storage | Connect Cloud Storage | Settings > General, browse GDrive/OneDrive/Dropbox options |
 | 50 | enable-client-portal | Enable the Client Portal | Settings > General, toggle portal on |
 | 51 | configure-upload-checks | Configure Upload Checks | Settings > General, change validation mode |

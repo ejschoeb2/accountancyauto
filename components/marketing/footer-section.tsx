@@ -68,7 +68,6 @@ export const FooterSection = () => {
             <a href="/#features" className="hover:text-white/70 transition-colors">Features</a>
             <a href="/#pricing" className="hover:text-white/70 transition-colors">Pricing</a>
             <a href="/news" className="hover:text-white/70 transition-colors">News</a>
-            <a href="/changelog" className="hover:text-white/70 transition-colors">Changelog</a>
             <a href="/privacy" className="hover:text-white/70 transition-colors">Privacy Policy</a>
             <a href="/terms" className="hover:text-white/70 transition-colors">Terms of Service</a>
           </nav>

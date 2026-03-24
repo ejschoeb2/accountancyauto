@@ -43,3 +43,7 @@ next-env.d.ts
 
 .env.local
 .env*.local
+
+# video assets — hosted in Supabase Storage, uploaded via: npm run upload:videos
+/public/hero-loop.mp4
+/public/tutorials/

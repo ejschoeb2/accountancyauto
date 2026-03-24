@@ -1,20 +1,17 @@
 "use client";
 
-import { HeroParticles } from "@/components/marketing/hero-particles";
+import { useState } from "react";
+import { HeroBrowser, HeroCta } from "@/components/marketing/hero-browser";
 import { motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
 
 const HEADING_WORDS = ["The", "Chase", "Is", "Over"];
 
 export const HeroSection = () => {
+  const [browserHovering, setBrowserHovering] = useState(false);
+  const [ctaHovering, setCtaHovering] = useState(false);
+
   return (
-    // relative so the full-width particle overlay is contained here
-    <section className="relative pt-28 pb-16 lg:pt-44 lg:pb-24">
-
-      {/* Particles at section level — z-0, spans full viewport width.
-          Text is z-10 so particles pass underneath naturally. */}
-      <HeroParticles />
-
+    <section className="relative pt-28 pb-16 lg:pt-44 lg:pb-24 overflow-hidden">
       <div className="max-w-screen-xl mx-auto px-4 relative">
         {/* Constrained to left portion of the content area */}
         <div className="flex flex-col gap-4 max-w-[720px]">
@@ -41,7 +38,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 100, damping: 12, delay: 0.42 }}
-            className="text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-lg"
+            className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-lg"
           >
             Automated client reminders for UK accounting practices. Stop manually
             chasing records and documents — Prompt handles it for you.
@@ -52,17 +49,14 @@ export const HeroSection = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 100, damping: 12, delay: 0.54 }}
           >
-            <button
-              onClick={() => window.scrollBy({ top: 600, behavior: "smooth" })}
-              className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-8 py-4 text-lg font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
-            >
-              Find out more
-              <ChevronDown size={18} />
-            </button>
+            <HeroCta browserHovering={browserHovering} onHoverChange={setCtaHovering} />
           </motion.div>
 
         </div>
       </div>
+
+      {/* Browser preview — right side */}
+      <HeroBrowser onHoverChange={setBrowserHovering} ctaHovering={ctaHovering} />
     </section>
   );
 };

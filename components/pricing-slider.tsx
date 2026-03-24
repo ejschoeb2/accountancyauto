@@ -64,7 +64,7 @@ function getTier(clients: number): TierInfo {
 
 // Free zone = 0–2.5% of track (clients 1–10 out of 400), rest is unified violet
 const TRACK_SEGMENTS = [
-  { from: 0,    to: 2.3, cls: "bg-green-400"  },  // Free
+  { from: 0,    to: 2.3, cls: "bg-green-500"  },  // Free
   { from: 2.3,  to: 100, cls: "bg-violet-600" },  // Solo → Firm → Enterprise
 ];
 
@@ -196,7 +196,7 @@ export function PricingSlider({
             exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
             className={[
-              "flex flex-col p-7 rounded-2xl border shadow-lg",
+              "flex flex-col p-7 rounded-2xl border shadow-lg transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 cursor-default",
               tier.featured
                 ? "bg-card border-2 border-violet-500"
                 : tier.isEnterprise
@@ -278,7 +278,7 @@ export function PricingSlider({
         <div className="relative select-none mb-3" style={{ paddingTop: "10px", paddingBottom: "10px" }}>
 
           {/* Segmented track */}
-          <div className="relative h-2 rounded-full overflow-hidden">
+          <div className="relative h-3 rounded-full overflow-hidden">
             {TRACK_SEGMENTS.map((seg) => (
               <div
                 key={seg.from}

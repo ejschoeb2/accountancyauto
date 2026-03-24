@@ -267,7 +267,7 @@ export function QueuedEmailPreviewModal({
           {/* Right side: Metadata sidebar */}
           <div className="w-[420px] p-6 flex flex-col gap-6 overflow-y-auto rounded-r-lg bg-white dark:bg-background">
             {/* Header */}
-            <h3 className="text-lg font-semibold">Email Preview</h3>
+            <h3 className="text-2xl font-bold">Email Preview</h3>
 
             {/* Actions */}
             {(canCancel || isCancelled || canReschedule || canSendNow) && (
@@ -450,7 +450,7 @@ export function QueuedEmailPreviewModal({
 
             {/* Navigation */}
             <div className="mt-auto pt-4">
-              <div className="flex gap-2">
+              <div className="flex gap-2 justify-end">
                 <ButtonBase
                   variant="blue"
                   buttonType="icon-text"
@@ -471,7 +471,7 @@ export function QueuedEmailPreviewModal({
                 </ButtonBase>
                 <Separator orientation="vertical" className="h-8" />
                 <ButtonBase
-                  variant="destructive"
+                  variant="amber"
                   buttonType="icon-text"
                   onClick={() => onOpenChange(false)}
                 >

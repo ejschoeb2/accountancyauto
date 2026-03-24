@@ -16,7 +16,10 @@
     "record:demo": "tsx scripts/record-demo.ts",
     "record:all": "tsx scripts/demo/record-all.ts",
     "record:list": "tsx scripts/demo/record-all.ts --list",
-    "seed:demo": "tsx scripts/demo/seed-demo-data.ts"
+    "record:shortlist": "tsx scripts/demo/record-shortlist.ts",
+    "seed:demo": "tsx scripts/demo/seed-demo-data.ts",
+    "upload:videos": "tsx scripts/upload-videos.ts",
+    "capture:guide-screenshots": "tsx scripts/demo/capture-guide-screenshots.ts"
   },
   "dependencies": {
     "@azure/msal-node": "^5.0.5",
@@ -75,6 +78,7 @@
     "dotenv": "^17.3.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "pdf-lib": "^1.17.1",
     "playwright": "^1.58.2",
     "postgres": "^3.4.8",
     "shadcn": "^3.8.4",

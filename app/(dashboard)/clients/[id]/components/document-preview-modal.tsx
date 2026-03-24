@@ -204,6 +204,7 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const [fileNotFound, setFileNotFound] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [savingField, setSavingField] = useState(false);
@@ -248,21 +249,22 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
 
   // Fetch preview URL/bytes when doc changes
   useEffect(() => {
-    if (!doc) { setPreviewUrl(null); setPreviewError(false); return; }
+    if (!doc) { setPreviewUrl(null); setPreviewError(false); setFileNotFound(false); return; }
 
     // When a blob URL is provided externally (e.g. upload test page), use it directly
     if (previewBlobUrl) {
       setPreviewUrl(previewBlobUrl);
       setPreviewError(false);
+      setFileNotFound(false);
       setLoadingPreview(false);
       return;
     }
 
     const mime = inferMimeType(doc.original_filename);
-    if (!mime) { setPreviewUrl(null); setPreviewError(false); return; }
+    if (!mime) { setPreviewUrl(null); setPreviewError(false); setFileNotFound(false); return; }
 
     // Need a valid clientId to fetch — skip if not yet set
-    if (!clientId) { setPreviewUrl(null); setPreviewError(false); return; }
+    if (!clientId) { setPreviewUrl(null); setPreviewError(false); setFileNotFound(false); return; }
 
     // Revoke previous blob URL
     if (blobUrlRef.current) {
@@ -271,6 +273,7 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
     }
     setPreviewUrl(null);
     setPreviewError(false);
+    setFileNotFound(false);
     setLoadingPreview(true);
 
     fetch(`/api/clients/${clientId}/documents`, {
@@ -279,13 +282,18 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
       body: JSON.stringify({ action: 'download', documentId: doc.id }),
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load');
+        if (!res.ok) {
+          // 404 = file doesn't exist in storage (e.g. demo/seed data)
+          if (res.status === 404) { setFileNotFound(true); return; }
+          throw new Error('Failed to load');
+        }
         const contentType = res.headers.get('content-type') ?? '';
         if (contentType.includes('application/json')) {
+          const json = (await res.json()) as { signedUrl?: string; error?: string };
+          if (!json.signedUrl) { setFileNotFound(true); return; }
           // Supabase / OneDrive / Dropbox — signed/temp URL
           // Re-fetch as blob to avoid CORS issues with <object> embeds
-          const { signedUrl } = (await res.json()) as { signedUrl: string };
-          const blobRes = await fetch(signedUrl);
+          const blobRes = await fetch(json.signedUrl);
           if (!blobRes.ok) throw new Error('Failed to load');
           const blob = await blobRes.blob();
           const url = URL.createObjectURL(blob);
@@ -299,7 +307,7 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
           setPreviewUrl(url);
         }
       })
-      .catch(() => { setPreviewError(true); toast.error('Failed to load preview'); })
+      .catch(() => { setFileNotFound(true); })
       .finally(() => setLoadingPreview(false));
   }, [doc?.id, clientId, previewBlobUrl]);
 
@@ -340,24 +348,19 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
 
   const handleReject = async () => {
     if (!doc) return;
-    const isPortal = doc.source === 'portal_upload';
-    const msg = isPortal
-      ? 'Reject this document? The client will see it as rejected on their portal.'
-      : 'Delete this document? This cannot be undone.';
-    if (!confirm(msg)) return;
+    if (!confirm('Delete this document? This cannot be undone.')) return;
     setRejecting(true);
     try {
-      const action = isPortal ? 'reject' : 'delete';
       const res = await fetch(`/api/clients/${clientId}/documents`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, documentId: doc.id }),
+        body: JSON.stringify({ action: 'delete', documentId: doc.id }),
       });
-      if (!res.ok) { toast.error(isPortal ? 'Failed to reject' : 'Failed to delete'); return; }
-      toast.success(isPortal ? 'Document rejected' : 'Document deleted');
+      if (!res.ok) { toast.error('Failed to delete'); return; }
+      toast.success('Document deleted');
       onDeleted(doc.id);
       onClose();
-    } catch { toast.error(isPortal ? 'Failed to reject' : 'Failed to delete'); }
+    } catch { toast.error('Failed to delete'); }
     finally { setRejecting(false); }
   };
 
@@ -495,6 +498,14 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
                   alt={doc?.original_filename}
                   className="max-h-full max-w-full object-contain rounded"
                 />
+              </div>
+            ) : fileNotFound ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <FileX className="size-10 opacity-30" />
+                  <p className="text-sm font-medium">No file stored</p>
+                  <p className="text-xs opacity-70">This document record has no uploaded file yet.</p>
+                </div>
               </div>
             ) : previewError ? (
               <div className="flex items-center justify-center h-full">

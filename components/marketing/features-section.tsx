@@ -204,7 +204,7 @@ export const DocumentCollectionSection = () => (
       {/* Section header — centred above the grid */}
       <div className="mb-12">
         <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
-          Optional Power Features
+          Take it further
         </p>
         <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
           Documents in.<br className="hidden lg:block" /> Chasing over.

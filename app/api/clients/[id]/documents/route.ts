@@ -70,6 +70,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
+    if (!doc.storage_path) {
+      return NextResponse.json({ error: 'No file stored for this document' }, { status: 404 });
+    }
+
     // ── Google Drive: server-proxied bytes response ────────────────────────
     // drive.file scope cannot produce public or short-lived sharing links.
     // All Google Drive downloads must be proxied through the server.

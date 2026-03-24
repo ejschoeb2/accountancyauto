@@ -135,7 +135,7 @@ function formatDeadlineLabel(daysUntil: number | null | undefined): string | nul
   return `${daysUntil}d`;
 }
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 4;
 
 export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, failedDeliveries, onDataChange }: TodoBoxProps) {
   // Items fully removed from the list (after rollover or simple dismiss)
@@ -553,7 +553,11 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
                               <span className={`text-sm font-medium whitespace-nowrap ${
                                 (item.daysUntilDeadline ?? 0) < 0
                                   ? 'text-status-danger'
+                                  : (item.daysUntilDeadline ?? 0) <= 3
+                                  ? 'text-status-danger'
                                   : (item.daysUntilDeadline ?? 0) <= 7
+                                  ? 'text-amber-500'
+                                  : (item.daysUntilDeadline ?? 0) <= 14
                                   ? 'text-status-warning'
                                   : 'text-muted-foreground'
                               }`}>
