@@ -89,12 +89,20 @@ export async function PATCH(
     // Fetch current client state before update
     const { data: currentClient, error: fetchError } = await supabase
       .from('clients')
-      .select('reminders_paused, records_received_for')
+      .select('reminders_paused, records_received_for, client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme')
       .eq('id', id)
       .single();
 
     if (fetchError) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    // If switching to Individual, clear company-specific fields
+    if ('client_type' in body && body.client_type === 'Individual' && currentClient.client_type !== 'Individual') {
+      body.year_end_date = null;
+      body.vat_registered = false;
+      body.vat_stagger_group = null;
+      body.vat_scheme = null;
     }
 
     // Validate the request body
@@ -162,7 +170,8 @@ export async function PATCH(
     }
 
     // Rebuild reminder queue when deadline-affecting fields change
-    if ('year_end_date' in body || 'vat_stagger_group' in body) {
+    const clientTypeChanged = 'client_type' in body && body.client_type !== currentClient.client_type;
+    if ('year_end_date' in body || 'vat_stagger_group' in body || clientTypeChanged) {
       try {
         await rebuildQueueForClient(adminClient, id);
       } catch (rebuildErr) {

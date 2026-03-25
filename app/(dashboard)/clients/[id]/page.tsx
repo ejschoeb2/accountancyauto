@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Edit2, CheckCircle, X, Mail, Pause, Play, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit2, CheckCircle, X, Mail, Pause, Play, Trash2, AlertTriangle } from 'lucide-react';
 import { IconButtonWithText } from '@/components/ui/icon-button-with-text';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,6 +54,8 @@ export default function ClientPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showSaveWarning, setShowSaveWarning] = useState(false);
+  const [saveWarnings, setSaveWarnings] = useState<string[]>([]);
 
   // Form state
   const [formData, setFormData] = useState<Partial<Client>>({});
@@ -151,6 +153,39 @@ export default function ClientPage() {
   };
 
   const handleSave = async () => {
+    // Check for critical changes that need a warning
+    const warnings: string[] = [];
+
+    if (client && formData.client_type && formData.client_type !== client.client_type) {
+      const from = client.client_type || 'unset';
+      const to = formData.client_type;
+      warnings.push(
+        `Changing company type from "${from}" to "${to}". This affects which filing types apply to this client — you should review their filing assignments after saving.`
+      );
+      if (to === 'Individual') {
+        warnings.push(
+          'Switching to Individual will clear year-end date, VAT registration, and VAT stagger group, as these do not apply to individuals.'
+        );
+      }
+    }
+
+    if (client && formData.year_end_date && formData.year_end_date !== client.year_end_date) {
+      warnings.push(
+        `Changing year-end date from "${client.year_end_date || 'unset'}" to "${formData.year_end_date}". All year-end-based deadlines (Corporation Tax, CT600, Companies House) and their scheduled reminder emails will be recalculated.`
+      );
+    }
+
+    if (warnings.length > 0) {
+      setSaveWarnings(warnings);
+      setShowSaveWarning(true);
+      return;
+    }
+
+    await executeSave();
+  };
+
+  const executeSave = async () => {
+    setShowSaveWarning(false);
     setSaving(true);
     try {
       const response = await fetch(`/api/clients/${id}`, {
@@ -284,7 +319,16 @@ export default function ClientPage() {
               <Label htmlFor="client_type">Company Type</Label>
               <Select
                 value={formData.client_type || ''}
-                onValueChange={(value) => setFormData({ ...formData, client_type: value as ClientType })}
+                onValueChange={(value) => {
+                  const updates: Partial<Client> = { ...formData, client_type: value as ClientType };
+                  if (value === 'Individual') {
+                    updates.year_end_date = null;
+                    updates.vat_registered = false;
+                    updates.vat_stagger_group = null;
+                    updates.vat_scheme = null;
+                  }
+                  setFormData(updates);
+                }}
               >
                 <SelectTrigger id="client_type">
                   <SelectValue placeholder="Select type" />
@@ -469,6 +513,38 @@ export default function ClientPage() {
         onClose={() => setIsSendEmailModalOpen(false)}
         selectedClients={client ? [client] : []}
       />
+
+      {/* Critical Change Warning Dialog */}
+      <Dialog open={showSaveWarning} onOpenChange={setShowSaveWarning}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-amber-500" />
+              Confirm Changes
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-2">
+                {saveWarnings.map((warning, i) => (
+                  <p key={i} className="text-sm text-muted-foreground">{warning}</p>
+                ))}
+                <p className="text-sm font-medium text-foreground">
+                  Any scheduled reminder emails affected by these changes will be recalculated automatically. Emails already sent will not be affected.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <IconButtonWithText variant="amber" onClick={() => setShowSaveWarning(false)} disabled={saving}>
+              <X className="size-4" />
+              Cancel
+            </IconButtonWithText>
+            <IconButtonWithText variant="blue" onClick={executeSave} disabled={saving}>
+              <CheckCircle className="size-4" />
+              {saving ? 'Saving...' : 'Confirm & Save'}
+            </IconButtonWithText>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
