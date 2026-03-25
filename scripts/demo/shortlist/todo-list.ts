@@ -26,13 +26,7 @@ const demo: DemoDefinition = {
   async record({ page }) {
     await login(page);
 
-    // ── Scroll to To Do section ────────────────────────────────────────────
-    const todoHeader = page.locator('text=To Do').first();
-    if (await todoHeader.isVisible().catch(() => false)) {
-      await todoHeader.evaluate((el) => el.scrollIntoView({ behavior: "smooth", block: "start" }));
-      await wait(PAUSE.LONG);
-      await injectCursor(page);
-    }
+    await injectCursor(page);
 
     // Check for empty state early exit
     const emptyState = page.locator('text=All caught up');

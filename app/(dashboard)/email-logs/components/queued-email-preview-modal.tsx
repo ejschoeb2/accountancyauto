@@ -4,7 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ButtonBase } from '@/components/ui/button-base';
 import { Input } from '@/components/ui/input';
 import { previewQueuedEmail } from '@/app/actions/audit-log';
@@ -226,6 +228,7 @@ export function QueuedEmailPreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="[&>button]:hidden sm:max-w-7xl max-h-[94vh] p-0 gap-0">
+        <VisuallyHidden><DialogTitle>Email Preview</DialogTitle></VisuallyHidden>
         <div className="flex h-[88vh]">
           {/* Left side: Email preview (plain text) */}
           <div className="flex-1 overflow-y-auto flex flex-col rounded-l-lg" style={{ backgroundColor: '#ffffff' }}>

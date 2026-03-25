@@ -18,7 +18,7 @@ function getCookieDomain(): string | undefined {
 }
 
 // Routes that don't require org context or authentication
-const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/auth/signout", "/auth/reset-password", "/pricing", "/setup", "/invite/accept", "/portal", "/news", "/changelog", "/help", "/privacy", "/terms"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/forgot-password", "/auth/callback", "/auth/signout", "/auth/reset-password", "/pricing", "/setup", "/invite/accept", "/portal", "/news", "/changelog", "/help", "/privacy", "/terms", "/guides"];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));

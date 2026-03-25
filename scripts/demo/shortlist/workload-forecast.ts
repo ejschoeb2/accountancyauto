@@ -27,9 +27,9 @@ const demo: DemoDefinition = {
 
     // ── Smooth scroll to Workload Forecast section ─────────────────────────
     await page.locator('text=Workload Forecast').first().evaluate((el) => {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    await wait(PAUSE.LONG);
+    await wait(PAUSE.MEDIUM);
     await injectCursor(page);
     await wait(PAUSE.MEDIUM);
 
@@ -58,12 +58,11 @@ const demo: DemoDefinition = {
     let barCount = await hoverTargets.count();
 
     if (barCount > 0) {
-      // Move through bars 0, 1, 2 smoothly
       for (let i = 0; i < Math.min(3, barCount); i++) {
         await hoverBar(i);
         await wait(PAUSE.SHORT);
       }
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
     }
 
     // Switch to "This week"
@@ -76,7 +75,7 @@ const demo: DemoDefinition = {
         await hoverBar(i);
         await wait(PAUSE.SHORT);
       }
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
     }
 
     // Switch to "4 weeks"
@@ -89,7 +88,7 @@ const demo: DemoDefinition = {
         await hoverBar(i);
         await wait(PAUSE.SHORT);
       }
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
     }
 
     // Switch to "12 months"
@@ -98,10 +97,11 @@ const demo: DemoDefinition = {
       await cursorClick(page, 'button:has-text("12 months")');
       await wait(PAUSE.LONG);
       barCount = await hoverTargets.count();
-      if (barCount > 0) {
-        await hoverBar(0);
-        await wait(PAUSE.READ);
+      for (let i = 0; i < Math.min(5, barCount); i++) {
+        await hoverBar(i);
+        await wait(PAUSE.SHORT);
       }
+      await wait(PAUSE.MEDIUM);
     }
 
     // Return to default (6 months)

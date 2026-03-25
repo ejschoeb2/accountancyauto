@@ -81,10 +81,10 @@ const demo: DemoDefinition = {
       await injectCursor(page);
       await wait(PAUSE.READ);
 
-      // Press Pass Review
-      const passReviewBtn = page.locator('[role="dialog"] button:has-text("Pass Review")').first();
-      if (await passReviewBtn.isVisible().catch(() => false)) {
-        await cursorClick(page, '[role="dialog"] button:has-text("Pass Review")');
+      // Press Reject
+      const rejectBtn = page.locator('[role="dialog"] button:has-text("Reject")').first();
+      if (await rejectBtn.isVisible().catch(() => false)) {
+        await cursorClick(page, '[role="dialog"] button:has-text("Reject")');
         await wait(PAUSE.LONG);
       }
 

@@ -30,7 +30,7 @@ const SHORTLIST_IDS = [
 ];
 
 // Seconds to trim from the start of each recording (login sequence)
-const TRIM_SECONDS = 9;
+const TRIM_SECONDS = 10;
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const OUT_DIR = path.join(ROOT, "out");
