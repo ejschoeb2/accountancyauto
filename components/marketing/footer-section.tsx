@@ -46,7 +46,7 @@ export const FooterSection = () => {
       {/* CTA — vertically centered */}
       <div className="relative z-10 flex-1 flex items-center justify-center px-4 pb-16 pt-10">
         <div className="flex flex-col items-center gap-8 text-center">
-          <h2 className="max-w-4xl text-7xl lg:text-9xl font-bold text-white">
+          <h2 className="max-w-4xl text-5xl sm:text-7xl lg:text-9xl font-bold text-white">
             Ready to stop chasing?
           </h2>
           <a
@@ -73,7 +73,7 @@ export const FooterSection = () => {
           </nav>
 
           {/* Logo + copyright + contact — same line, centered */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
             <a href="/" className="flex items-center gap-2">
               <PromptLogo size={20} className="text-violet-400" />
               <span className="font-bold text-white">Prompt</span>

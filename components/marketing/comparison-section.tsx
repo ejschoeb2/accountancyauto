@@ -72,7 +72,7 @@ export const ComparisonSection = () => {
           <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
             Why Switch
           </p>
-          <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
             Prompt vs. the old way.
           </h2>
           <p className="mt-5 text-base text-muted-foreground leading-relaxed max-w-lg">
@@ -92,13 +92,13 @@ export const ComparisonSection = () => {
 
           {/* Column headers */}
           <div className="grid grid-cols-2 divide-x divide-border/60">
-            <div className="bg-muted/50 px-5 py-4 lg:px-8 lg:py-5">
-              <span className="text-[13px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70">
+            <div className="bg-muted/50 px-3 py-3 sm:px-5 sm:py-4 lg:px-8 lg:py-5">
+              <span className="text-[11px] sm:text-[13px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70">
                 The old way 😩
               </span>
             </div>
-            <div className="bg-violet-600 px-5 py-4 lg:px-8 lg:py-5">
-              <span className="text-[13px] font-semibold tracking-[0.2em] uppercase text-violet-100">
+            <div className="bg-violet-600 px-3 py-3 sm:px-5 sm:py-4 lg:px-8 lg:py-5">
+              <span className="text-[11px] sm:text-[13px] font-semibold tracking-[0.2em] uppercase text-violet-100">
                 With Prompt ✓
               </span>
             </div>
@@ -112,9 +112,9 @@ export const ComparisonSection = () => {
               className="grid grid-cols-2 divide-x divide-border/60 border-t border-border/60"
             >
               {/* Old way cell */}
-              <div className="flex items-start gap-3 px-5 py-5 lg:px-8 lg:py-6 bg-muted/20">
+              <div className="flex items-start gap-2 sm:gap-3 px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6 bg-muted/20">
                 <XCircle
-                  size={17}
+                  size={15}
                   className="flex-shrink-0 mt-[2px] text-rose-400/80"
                   aria-hidden="true"
                 />
@@ -124,9 +124,9 @@ export const ComparisonSection = () => {
               </div>
 
               {/* With Prompt cell */}
-              <div className="flex items-start gap-3 px-5 py-5 lg:px-8 lg:py-6 bg-violet-50/5">
+              <div className="flex items-start gap-2 sm:gap-3 px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-6 bg-violet-50/5">
                 <CheckCircle2
-                  size={17}
+                  size={15}
                   className="flex-shrink-0 mt-[2px] text-violet-500"
                   aria-hidden="true"
                 />

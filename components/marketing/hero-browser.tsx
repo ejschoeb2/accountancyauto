@@ -203,7 +203,7 @@ export const HeroCta = ({
   }, []);
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       {/* Watch tutorials — green progress bar fills over violet base */}
       <div
         onMouseEnter={handleEnter}
@@ -216,7 +216,7 @@ export const HeroCta = ({
           className="absolute inset-0 bg-green-500 origin-left rounded-full"
           style={{ scaleX: smoothProgress }}
         />
-        <span className="relative z-10 px-8 py-4 text-lg font-semibold text-white whitespace-nowrap inline-flex items-center gap-2">
+        <span className="relative z-10 px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg font-semibold text-white whitespace-nowrap inline-flex items-center gap-2">
           Watch tutorials
           <ArrowRight size={18} />
         </span>
@@ -225,7 +225,7 @@ export const HeroCta = ({
       {/* Try for free — blue */}
       <button
         onClick={() => router.push("/signup")}
-        className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-8 py-4 text-lg font-semibold text-white shadow-md shadow-blue-500/30 hover:bg-blue-700 hover:shadow-blue-500/50 active:scale-95 transition-all duration-200"
+        className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg font-semibold text-white shadow-md shadow-blue-500/30 hover:bg-blue-700 hover:shadow-blue-500/50 active:scale-95 transition-all duration-200"
       >
         Try for free
         <ArrowRight size={18} />

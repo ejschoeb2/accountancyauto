@@ -182,7 +182,7 @@ export const FeaturesSection = () => (
         <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
           How It Works
         </p>
-        <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
           Less admin.<br className="hidden lg:block" /> More accounting.
         </h2>
       </div>
@@ -206,7 +206,7 @@ export const DocumentCollectionSection = () => (
         <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
           Take it further
         </p>
-        <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
           Documents in.<br className="hidden lg:block" /> Chasing over.
         </h2>
       </div>

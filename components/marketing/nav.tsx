@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserPlus, LogIn, ArrowLeft } from "lucide-react";
+import { UserPlus, LogIn, ArrowLeft, Menu, X } from "lucide-react";
 import { PromptLogo } from "@/components/prompt-logo";
 
 interface MarketingNavProps {
@@ -34,6 +34,11 @@ function useIsOrgSubdomain(): boolean {
 
 export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", signupBlue }: MarketingNavProps = {}) => {
   const isOrgSubdomain = useIsOrgSubdomain();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const signupClassName = signupBlue
+    ? "inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all duration-200"
+    : "inline-flex items-center gap-2 rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200";
 
   return (
     <header className="bg-background">
@@ -46,7 +51,7 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
             <span className="font-bold text-lg text-foreground">Prompt</span>
           </a>
 
-          {/* Nav links */}
+          {/* Nav links — desktop only */}
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             {!isOrgSubdomain && (
               <>
@@ -80,23 +85,66 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
                   </a>
                 )}
                 {!hideSignup && (
-                  <a
-                    href="/signup"
-                    className={
-                      signupBlue
-                        ? "inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/30 hover:shadow-blue-500/50 hover:from-blue-500 hover:to-blue-400 active:scale-95 transition-all duration-200"
-                        : "inline-flex items-center gap-2 rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
-                    }
-                  >
+                  <a href="/signup" className={`hidden md:inline-flex ${signupClassName.replace("inline-flex", "").trim()}`}>
                     {signupLabel}
                     <UserPlus size={15} />
                   </a>
                 )}
+                {/* Hamburger — mobile only */}
+                <button
+                  className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                  onClick={() => setMobileOpen(!mobileOpen)}
+                  aria-label="Toggle menu"
+                >
+                  {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
               </>
             )}
           </div>
 
         </div>
+
+        {/* Mobile menu dropdown */}
+        {mobileOpen && !isOrgSubdomain && (
+          <div className="md:hidden border-t border-border/40 py-4 flex flex-col gap-1">
+            <a
+              href="/#features"
+              onClick={() => setMobileOpen(false)}
+              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
+            >
+              Features
+            </a>
+            <a
+              href="/#pricing"
+              onClick={() => setMobileOpen(false)}
+              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
+            >
+              Pricing
+            </a>
+            <a
+              href="/news"
+              onClick={() => setMobileOpen(false)}
+              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
+            >
+              News
+            </a>
+            <a
+              href="/guides"
+              onClick={() => setMobileOpen(false)}
+              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
+            >
+              Guides
+            </a>
+            {!hideSignup && (
+              <div className="mt-3 pt-3 border-t border-border/40">
+                <a href="/signup" onClick={() => setMobileOpen(false)} className={signupClassName}>
+                  {signupLabel}
+                  <UserPlus size={15} />
+                </a>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

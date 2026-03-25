@@ -11,11 +11,11 @@ export const HeroSection = () => {
   const [ctaHovering, setCtaHovering] = useState(false);
 
   return (
-    <section className="relative pt-28 pb-16 lg:pt-44 lg:pb-24 overflow-hidden">
+    <section className="relative pt-20 pb-16 sm:pt-28 lg:pt-44 lg:pb-24 overflow-hidden">
       <div className="max-w-screen-xl mx-auto px-4 relative">
         {/* Constrained to left portion of the content area */}
         <div className="flex flex-col gap-4 max-w-[720px]">
-          <h1 className="text-8xl lg:text-9xl font-bold tracking-tight text-foreground leading-none">
+          <h1 className="text-5xl sm:text-7xl lg:text-9xl font-bold tracking-tight text-foreground leading-none">
             {HEADING_WORDS.map((word, index) => (
               <motion.span
                 key={word}

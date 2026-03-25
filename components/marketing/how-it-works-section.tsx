@@ -125,7 +125,7 @@ export const HowItWorksSection = () => (
           <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
             How It Works
           </p>
-          <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
             Up and running<br className="hidden lg:block" /> in minutes.
           </h2>
           <p className="mt-5 text-sm text-muted-foreground leading-relaxed">

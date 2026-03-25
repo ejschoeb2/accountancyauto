@@ -34,7 +34,7 @@ export const TestimonialsSection = () => (
         <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
           Trusted by Practices
         </p>
-        <h2 className="text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
           Don&apos;t take our<br className="hidden lg:block" /> word for it.
         </h2>
       </div>
