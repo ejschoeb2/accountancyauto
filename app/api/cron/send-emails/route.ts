@@ -255,8 +255,22 @@ async function processOrgEmails(
         console.error(`[${org.name}] Failed to send email for reminder ${reminder.id}:`, error);
         result.errors.push(`[${org.name}] Failed to send to ${client.primary_email}: ${errorMessage}`);
 
-        // Keep as scheduled for retry on next cron run (no missed emails)
-        // No status change needed — entry stays 'scheduled' with resolved content
+        const MAX_SEND_ATTEMPTS = 5;
+        const newAttemptCount = (reminder.attempt_count ?? 0) + 1;
+        const exhausted = newAttemptCount >= MAX_SEND_ATTEMPTS;
+
+        // Increment attempt_count; mark failed if cap reached, otherwise keep scheduled for retry
+        await adminClient
+          .from('reminder_queue')
+          .update({
+            attempt_count: newAttemptCount,
+            ...(exhausted ? { status: 'failed' } : {}),
+          })
+          .eq('id', reminder.id);
+
+        if (exhausted) {
+          console.warn(`[${org.name}] Reminder ${reminder.id} exceeded max send attempts — marking failed`);
+        }
 
         // Insert email_log entry for failed send
         await adminClient
@@ -269,7 +283,9 @@ async function processOrgEmails(
             recipient_email: client.primary_email,
             subject: reminder.resolved_subject,
             delivery_status: 'failed',
-            bounce_description: errorMessage,
+            bounce_description: exhausted
+              ? `${errorMessage} (max attempts reached)`
+              : errorMessage,
           });
 
         result.failed++;
