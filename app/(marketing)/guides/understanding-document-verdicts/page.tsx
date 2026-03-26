@@ -61,10 +61,12 @@ export default function UnderstandingDocumentVerdictsPage() {
               Understanding Document Verdicts
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              When a client uploads a document, Prompt doesn't just store it — it analyses the
-              content and assigns a verdict that tells you how confident it is that the document
-              is what it should be. This article explains how that works, what each verdict means,
-              and what to do when a document needs your attention.
+              When a client uploads a document and your practice has upload checks configured to
+              run verification, Prompt analyses the content and assigns a verdict that tells you
+              how confident it is that the document is what it should be. Verdicts only apply
+              when verification is enabled in <strong>Settings → Upload Checks</strong> — if
+              processing is set to &ldquo;No processing&rdquo; or &ldquo;Extract metadata
+              only&rdquo;, uploads are accepted without a verdict.
             </p>
           </div>
 
@@ -268,33 +270,43 @@ export default function UnderstandingDocumentVerdictsPage() {
             <hr className="border-border/50" />
 
             <section>
-              <h2 className="text-2xl font-bold text-foreground mb-4">Adjusting upload validation in settings</h2>
+              <h2 className="text-2xl font-bold text-foreground mb-4">Adjusting upload checks in settings</h2>
               <p className="mb-4">
-                If you find that the pipeline is flagging documents too aggressively — or not
-                aggressively enough — you can adjust the validation settings in{" "}
-                <strong>Settings → Upload Checks</strong>.
+                You can control what processing runs on uploaded documents in{" "}
+                <strong>Settings → Upload Checks</strong>. The main processing modes are:
               </p>
+              <ul className="list-disc list-outside ml-5 space-y-2 mb-4">
+                <li>
+                  <strong>Verify &amp; extract metadata</strong> — runs both document verification (assigning verdicts)
+                  and metadata extraction (reading tax year, employer name, PAYE reference via OCR). This is the
+                  most thorough option.
+                </li>
+                <li>
+                  <strong>Verify uploads only</strong> — runs document verification to assign verdicts but
+                  skips the metadata extraction step.
+                </li>
+                <li>
+                  <strong>Extract metadata only</strong> — reads metadata like tax year and employer name
+                  but does not classify or assign verdicts. Documents are categorised by filename only.
+                </li>
+                <li>
+                  <strong>No processing</strong> — documents are categorised by filename keywords only. No
+                  OCR or validation runs. All uploads are accepted as-is.
+                </li>
+              </ul>
               <p className="mb-4">
-                The available modes are:
+                When verification is enabled (either mode), two additional options become available:
               </p>
               <ul className="list-disc list-outside ml-5 space-y-2">
                 <li>
-                  <strong>Strict</strong> — all four verdict levels are active, and both Low
-                  confidence and Review needed documents require manual clearance before counting
-                  as received.
+                  <strong>Reject mismatched HMRC documents</strong> — when enabled, portal uploads of HMRC
+                  documents (P60, P45, SA302) that clearly have the wrong tax year are automatically rejected
+                  and the client is told to upload the correct document. Other document types are unaffected.
                 </li>
                 <li>
-                  <strong>Standard</strong> (default) — Low confidence and Review needed require
-                  clearance. Likely match is accepted automatically.
-                </li>
-                <li>
-                  <strong>Relaxed</strong> — only Review needed requires manual clearance. Low
-                  confidence documents are accepted automatically with an amber indicator.
-                </li>
-                <li>
-                  <strong>Off</strong> — no validation is run. All uploads are accepted
-                  immediately as received. Not recommended for practices that handle HMRC
-                  penalty exposure.
+                  <strong>Auto-confirm verified uploads</strong> — when enabled, documents with a Verified
+                  verdict are automatically marked as received. Uploads that need review or have low confidence
+                  remain pending for manual confirmation.
                 </li>
               </ul>
             </section>

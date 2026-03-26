@@ -1,8 +1,9 @@
 /**
  * Recording: Search & Filter the Client Table
  *
- * Login, navigate to /clients, switch to the Data view, then use
- * search bar, status filter, client type filter, and sort options.
+ * Login, navigate to /clients, switch to Data view, use the search bar
+ * to find actual seeded clients, apply status and type filters, sort
+ * by different columns. Full table width is shown.
  */
 
 import {
@@ -21,7 +22,7 @@ const demo: DemoDefinition = {
   id: "search-and-filter-clients",
   title: "Search & Filter the Client Table",
   description:
-    "Use the search bar, status filter, and filing type filter to find specific clients in the table.",
+    "Use the search bar to find clients by name, apply status and type filters, and sort by different columns.",
   tags: ["search", "filter", "find", "clients", "table", "sort"],
   category: "Clients",
   hasSideEffects: false,
@@ -35,23 +36,54 @@ const demo: DemoDefinition = {
     await cursorClick(page, 'button:has-text("Client Data")');
     await wait(PAUSE.MEDIUM);
 
-    // ---- Use search bar ----
-    console.log("-> Typing in search bar...");
-    await cursorType(page, 'input[placeholder="Search by client name..."]', "Acme", {
+    // ---- Show the full table ----
+    console.log("-> Showing client table...");
+    await cursorMove(page, "table");
+    await wait(PAUSE.READ);
+
+    // ---- Search for "Hartley" (seeded client) ----
+    console.log("-> Searching for 'Hartley'...");
+    await cursorType(page, 'input[placeholder="Search by client name..."]', "Hartley", {
       delay: 60,
     });
     await wait(PAUSE.LONG);
 
+    // Show the filtered result
+    await cursorMove(page, "table");
+    await wait(PAUSE.READ);
+
     // ---- Clear search ----
     console.log("-> Clearing search...");
-    // The clear X button is a sibling Button inside the same relative container
-    const clearBtn = page.locator('input[placeholder="Search by client name..."] ~ button').first();
-    if (await clearBtn.isVisible()) {
-      await cursorClick(page, 'input[placeholder="Search by client name..."] ~ button');
-    } else {
-      // Fallback: clear via fill
-      await page.locator('input[placeholder="Search by client name..."]').fill("");
-    }
+    const searchInput = page.locator('input[placeholder="Search by client name..."]');
+    await searchInput.fill("");
+    await wait(PAUSE.MEDIUM);
+
+    // ---- Search for "Brighton" (seeded client) ----
+    console.log("-> Searching for 'Brighton'...");
+    await cursorType(page, 'input[placeholder="Search by client name..."]', "Brighton", {
+      delay: 60,
+    });
+    await wait(PAUSE.LONG);
+    await cursorMove(page, "table");
+    await wait(PAUSE.MEDIUM);
+
+    // ---- Clear search ----
+    console.log("-> Clearing search...");
+    await searchInput.fill("");
+    await wait(PAUSE.MEDIUM);
+
+    // ---- Search for "Thames" (seeded client) ----
+    console.log("-> Searching for 'Thames'...");
+    await cursorType(page, 'input[placeholder="Search by client name..."]', "Thames", {
+      delay: 60,
+    });
+    await wait(PAUSE.LONG);
+    await cursorMove(page, "table");
+    await wait(PAUSE.MEDIUM);
+
+    // ---- Clear search ----
+    console.log("-> Clearing search...");
+    await searchInput.fill("");
     await wait(PAUSE.MEDIUM);
 
     // ---- Open filters panel ----
@@ -60,23 +92,30 @@ const demo: DemoDefinition = {
     await cursorClick(page, 'button:has-text("Filter")');
     await wait(PAUSE.MEDIUM);
 
-    // ---- Click a status filter (Overdue) ----
+    // ---- Click Overdue status filter ----
     console.log("-> Filtering by Overdue status...");
     await cursorClick(page, 'button:has-text("Overdue")');
     await wait(PAUSE.LONG);
 
-    // ---- Click another status filter (Approaching) ----
+    // Show filtered results
+    await cursorMove(page, "table");
+    await wait(PAUSE.READ);
+
+    // ---- Add Approaching status filter ----
     console.log("-> Adding Approaching status filter...");
     await cursorClick(page, 'button:has-text("Approaching")');
     await wait(PAUSE.LONG);
 
-    // ---- Click a client type filter (Limited Company) ----
+    // Show combined filter results
+    await cursorMove(page, "table");
+    await wait(PAUSE.MEDIUM);
+
+    // ---- Apply Limited Company type filter ----
     console.log("-> Filtering by Limited Company type...");
     await cursorClick(page, 'button:has-text("Limited Company")');
     await wait(PAUSE.LONG);
 
-    // ---- Show filtered results ----
-    console.log("-> Reviewing filtered results...");
+    // Show results
     await cursorMove(page, "table");
     await wait(PAUSE.READ);
 
@@ -87,22 +126,58 @@ const demo: DemoDefinition = {
 
     // ---- Close filters panel ----
     console.log("-> Closing filters...");
-    // After clearing, the button text becomes "Close Filters" since showFilters is still true
     await cursorClick(page, 'button:has-text("Close Filters")');
     await wait(PAUSE.MEDIUM);
 
-    // ---- Change sort order ----
+    // ---- Sort by Name (A-Z) ----
     console.log("-> Opening sort selector...");
-    // The sort Select trigger is next to the "Sort by:" label
-    await cursorClick(page, '[class*="min-w-[180px]"]');
-    await wait(PAUSE.SHORT);
+    // The sort Select trigger has min-w-[180px] class
+    const sortTrigger = page.locator('button[role="combobox"]').filter({ has: page.locator('text=Deadline') }).first();
+    // Fallback: find the SelectTrigger near "Sort by:"
+    const sortContainer = page.locator('text=Sort by:').locator('xpath=following-sibling::*').first();
+    try {
+      await sortContainer.click();
+      await wait(PAUSE.SHORT);
+    } catch {
+      // Try clicking the select trigger directly
+      const triggers = page.locator('.min-w-\\[180px\\]');
+      if (await triggers.count() > 0) {
+        await triggers.first().click();
+        await wait(PAUSE.SHORT);
+      }
+    }
 
     console.log("-> Selecting Name (A-Z) sort...");
-    await cursorClick(page, '[role="option"]:has-text("Name (A-Z)")');
-    await wait(PAUSE.LONG);
+    const nameAzOption = page.locator('[role="option"]:has-text("Name (A-Z)")');
+    if (await nameAzOption.isVisible().catch(() => false)) {
+      await cursorClick(page, '[role="option"]:has-text("Name (A-Z)")');
+      await wait(PAUSE.LONG);
+    }
 
     // ---- Show sorted results ----
     console.log("-> Reviewing sorted results...");
+    await cursorMove(page, "table");
+    await wait(PAUSE.READ);
+
+    // ---- Sort by Deadline (Earliest) ----
+    console.log("-> Sorting by Deadline (Earliest)...");
+    try {
+      await sortContainer.click();
+      await wait(PAUSE.SHORT);
+    } catch {
+      const triggers = page.locator('.min-w-\\[180px\\]');
+      if (await triggers.count() > 0) {
+        await triggers.first().click();
+        await wait(PAUSE.SHORT);
+      }
+    }
+
+    const deadlineOption = page.locator('[role="option"]:has-text("Deadline (Earliest)")');
+    if (await deadlineOption.isVisible().catch(() => false)) {
+      await cursorClick(page, '[role="option"]:has-text("Deadline (Earliest)")');
+      await wait(PAUSE.LONG);
+    }
+
     await cursorMove(page, "table");
     await wait(PAUSE.READ);
 

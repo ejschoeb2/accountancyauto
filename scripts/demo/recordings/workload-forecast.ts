@@ -3,8 +3,8 @@
  *
  * Login, scroll to the Workload Forecast chart, toggle between timeframes
  * (This week, 4 weeks, 6 months, 12 months), and hover over individual bars
- * to show the deadline split tooltip. Pauses on each tooltip so viewers can
- * read the breakdown.
+ * to show the deadline split tooltip. Demonstrates that bars include green
+ * segments for completed work in each time window.
  */
 
 import {
@@ -21,8 +21,8 @@ const demo: DemoDefinition = {
   id: "workload-forecast",
   title: "Read the Workload Forecast",
   description:
-    "View the workload forecast chart, toggle timeframes (week/4wk/6mo/12mo), and hover over bars to see the deadline split.",
-  tags: ["workload", "forecast", "chart", "dashboard", "planning", "timeframe"],
+    "View the workload forecast chart, toggle timeframes (week/4wk/6mo/12mo), and hover over bars to see the status split — including green segments for completed filings.",
+  tags: ["workload", "forecast", "chart", "dashboard", "planning", "timeframe", "status"],
   category: "Dashboard",
   hasSideEffects: false,
 
@@ -41,16 +41,12 @@ const demo: DemoDefinition = {
     await wait(PAUSE.READ);
 
     // Helper: hover over bars using the invisible transparent rect targets.
-    // These rects have onMouseEnter handlers — we need to use page.hover()
-    // to trigger the React event, then move the fake cursor for visuals.
     const hoverBar = async (index: number) => {
       const target = page.locator("svg rect[fill='transparent']").nth(index);
       const box = await target.boundingBox();
       if (!box) return;
 
-      // Move the real mouse to trigger onMouseEnter
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-      // Move fake cursor to same spot
       await injectCursor(page);
       await page.evaluate(
         ({ x, y }) => {
@@ -62,18 +58,20 @@ const demo: DemoDefinition = {
       await wait(450);
     };
 
-    // ---- Default view (6 months) — hover over bars ----
+    // Helper to get bar count safely
+    const getBarCount = async () => {
+      await wait(600); // let chart re-render
+      return page.locator("svg rect[fill='transparent']").count();
+    };
+
+    // ---- Default view (6 months) — hover over bars to show status split ----
     console.log("-> Hovering over bars in default 6-month view...");
-    const hoverTargets = page.locator("svg rect[fill='transparent']");
-    let barCount = await hoverTargets.count();
+    let barCount = await getBarCount();
 
     if (barCount > 0) {
-      // Hover first bar
-      console.log("-> Hovering over first bar...");
       await hoverBar(0);
       await wait(PAUSE.READ);
 
-      // Hover a middle bar
       if (barCount > 2) {
         const midIndex = Math.floor(barCount / 2);
         console.log(`-> Hovering over bar ${midIndex + 1}...`);
@@ -83,14 +81,13 @@ const demo: DemoDefinition = {
     }
 
     // ---- Switch to "This week" ----
-    // ToggleGroup renders plain <button> elements with text labels
     console.log("-> Switching to 'This week' timeframe...");
     const thisWeekBtn = page.locator('button:has-text("This week")').first();
     if (await thisWeekBtn.isVisible().catch(() => false)) {
       await cursorClick(page, 'button:has-text("This week")');
       await wait(PAUSE.LONG);
 
-      barCount = await hoverTargets.count();
+      barCount = await getBarCount();
       if (barCount > 0) {
         await hoverBar(0);
         await wait(PAUSE.READ);
@@ -104,9 +101,8 @@ const demo: DemoDefinition = {
       await cursorClick(page, 'button:has-text("4 weeks")');
       await wait(PAUSE.LONG);
 
-      barCount = await hoverTargets.count();
+      barCount = await getBarCount();
       if (barCount > 1) {
-        console.log("-> Hovering over a bar in 4-week view...");
         await hoverBar(1);
         await wait(PAUSE.READ);
       } else if (barCount > 0) {
@@ -115,50 +111,50 @@ const demo: DemoDefinition = {
       }
     }
 
-    // ---- Switch to "6 months" ----
-    console.log("-> Switching to '6 months' timeframe...");
-    const sixMonthsBtn = page.locator('button:has-text("6 months")').first();
-    if (await sixMonthsBtn.isVisible().catch(() => false)) {
-      await cursorClick(page, 'button:has-text("6 months")');
-      await wait(PAUSE.LONG);
-
-      barCount = await hoverTargets.count();
-      if (barCount > 2) {
-        await hoverBar(2);
-        await wait(PAUSE.READ);
-      }
-    }
-
-    // ---- Switch to "12 months" ----
-    console.log("-> Switching to '12 months' timeframe...");
+    // ---- Switch to "12 months" to show green (completed) bars ----
+    console.log("-> Switching to '12 months' to show completed (green) bars...");
     const twelveMonthsBtn = page.locator('button:has-text("12 months")').first();
     if (await twelveMonthsBtn.isVisible().catch(() => false)) {
       await cursorClick(page, 'button:has-text("12 months")');
       await wait(PAUSE.LONG);
 
-      barCount = await hoverTargets.count();
+      barCount = await getBarCount();
       if (barCount > 0) {
-        // Hover first bar
+        // Hover first bar — likely to have green completed segments
         await hoverBar(0);
         await wait(PAUSE.READ);
 
-        // Hover a later bar
+        // Hover a later bar to show different status mixes
         if (barCount > 4) {
-          console.log("-> Hovering over a later bar in 12-month view...");
           await hoverBar(4);
+          await wait(PAUSE.READ);
+        }
+
+        // Hover the last bar to show future deadlines
+        if (barCount > 8) {
+          await hoverBar(barCount - 1);
           await wait(PAUSE.READ);
         }
       }
     }
 
+    // ---- Point out the legend showing status colors including green ----
+    console.log("-> Pointing out the legend...");
+    const legendGreen = page.locator('text=Completed').last();
+    if (await legendGreen.isVisible().catch(() => false)) {
+      await cursorMove(page, 'text=Completed', -1);
+      await wait(PAUSE.READ);
+    }
+
     // ---- Return to default (6 months) ----
     console.log("-> Returning to '6 months' view...");
+    const sixMonthsBtn = page.locator('button:has-text("6 months")').first();
     if (await sixMonthsBtn.isVisible().catch(() => false)) {
       await cursorClick(page, 'button:has-text("6 months")');
       await wait(PAUSE.MEDIUM);
     }
 
-    // Move mouse away from chart to dismiss any lingering tooltip
+    // Move mouse away to dismiss tooltip
     await page.mouse.move(0, 0);
     await wait(PAUSE.SHORT);
 

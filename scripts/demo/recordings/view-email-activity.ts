@@ -1,8 +1,9 @@
 /**
- * Recording: View Email Activity & Delivery Logs
+ * Recording: View Sent Email Activity & Delivery Logs
  *
- * Navigate to the Activity page, show the outbound tab with sent emails,
- * browse the delivery log table, and explore filters.
+ * Navigate to the Activity page, switch to Sent Emails, search for
+ * specific emails, apply filters (deadline type, delivery status),
+ * change sorting, and browse the sent email table.
  */
 
 import {
@@ -10,24 +11,28 @@ import {
   login,
   navigateTo,
   cursorClick,
+  cursorType,
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
   id: "view-email-activity",
-  title: "View Email Activity & Delivery Logs",
+  title: "View Sent Email Activity & Delivery Logs",
   description:
-    "Navigate to the Activity page and browse sent emails, queued emails, and delivery statuses.",
+    "Navigate to the Activity page, switch to sent emails, search by client name, filter by deadline type and delivery status, and change sorting.",
   tags: [
     "activity",
     "email",
     "logs",
     "sent",
-    "queued",
     "delivery",
     "status",
+    "filter",
+    "search",
+    "sort",
   ],
   category: "Emails",
   hasSideEffects: false,
@@ -37,19 +42,19 @@ const demo: DemoDefinition = {
     await navigateTo(page, "/activity");
 
     // ---- Page loads on Outbound / Queued by default ----
-    console.log("-> Viewing Activity page (Outbound / Queued)...");
+    console.log("-> Viewing Activity page...");
     await page.waitForLoadState("networkidle");
     await wait(PAUSE.LONG);
 
-    // ---- Show the Outbound toggle is active ----
-    console.log("-> Highlighting Outbound toggle...");
-    await cursorMove(page, 'button:has-text("Outbound")');
-    await wait(PAUSE.SHORT);
-
     // ---- Switch to Sent Emails ----
     console.log("-> Switching to Sent Emails view...");
-    await cursorClick(page, 'button:has-text("Sent Emails")');
-    await wait(PAUSE.LONG);
+    const sentToggle = page.locator('button:has-text("Sent Emails")');
+    if (await sentToggle.isVisible()) {
+      await cursorClick(page, 'button:has-text("Sent Emails")');
+      await page.waitForLoadState("networkidle");
+      await injectCursor(page);
+      await wait(PAUSE.LONG);
+    }
 
     // ---- Browse the sent emails table ----
     console.log("-> Browsing sent email rows...");
@@ -59,44 +64,126 @@ const demo: DemoDefinition = {
     if (rowCount > 0) {
       await cursorMove(page, "table tbody tr", 0);
       await wait(PAUSE.SHORT);
-      await cursorMove(page, "table tbody tr", Math.min(1, rowCount - 1));
-      await wait(PAUSE.SHORT);
-      if (rowCount > 2) {
-        await cursorMove(page, "table tbody tr", 2);
+      if (rowCount > 1) {
+        await cursorMove(page, "table tbody tr", 1);
         await wait(PAUSE.SHORT);
       }
     }
+    await wait(PAUSE.MEDIUM);
 
-    await wait(PAUSE.READ);
+    // ---- Search for a specific client ----
+    console.log("-> Searching for a client by name...");
+    const searchInput = page.locator('input[placeholder="Search by client name..."]');
+    if (await searchInput.isVisible()) {
+      await cursorType(
+        page,
+        'input[placeholder="Search by client name..."]',
+        "Hartley",
+        { delay: 40 }
+      );
+      await wait(PAUSE.LONG);
+
+      // View filtered results
+      console.log("-> Viewing search results...");
+      await wait(PAUSE.READ);
+
+      // Clear search
+      console.log("-> Clearing search...");
+      const clearSearchBtn = page.locator('input[placeholder="Search by client name..."] ~ button').first();
+      if (await clearSearchBtn.isVisible()) {
+        await cursorClick(page, 'input[placeholder="Search by client name..."] ~ button');
+      } else {
+        await searchInput.fill("");
+      }
+      await wait(PAUSE.MEDIUM);
+    }
 
     // ---- Open filters panel ----
-    console.log("-> Opening filters...");
-    const filterBtn = page
-      .locator('button:has-text("Filter")')
-      .first();
+    console.log("-> Opening filters panel...");
+    const filterBtn = page.locator('button:has-text("Filter")').first();
     if (await filterBtn.isVisible()) {
       await cursorClick(page, 'button:has-text("Filter")');
-      await wait(PAUSE.MEDIUM);
+      await wait(PAUSE.LONG);
+    }
 
-      // Hover over a deadline type filter chip
-      const deadlineChip = page
-        .locator('button:has-text("Corp Tax")')
-        .first();
-      if (await deadlineChip.isVisible()) {
-        await cursorMove(page, 'button:has-text("Corp Tax")');
-        await wait(PAUSE.SHORT);
+    // ---- Filter by delivery status — click "Delivered" ----
+    console.log("-> Filtering by delivery status...");
+    const deliveredChip = page.locator('button:has-text("Delivered")').first();
+    if (await deliveredChip.isVisible()) {
+      await cursorClick(page, 'button:has-text("Delivered")');
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // View filtered results
+    console.log("-> Viewing delivered emails...");
+    await wait(PAUSE.READ);
+
+    // ---- Add a deadline type filter ----
+    console.log("-> Also filtering by deadline type...");
+    const corpTaxChip = page.locator('button:has-text("Corp Tax")').first();
+    if (await corpTaxChip.isVisible()) {
+      await cursorClick(page, 'button:has-text("Corp Tax")');
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // View combined filter results
+    await wait(PAUSE.READ);
+
+    // ---- Clear all filters ----
+    console.log("-> Clearing all filters...");
+    const clearAllBtn = page.locator('button:has-text("Clear all")').first();
+    if (await clearAllBtn.isVisible()) {
+      await cursorClick(page, 'button:has-text("Clear all")');
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // ---- Close filter panel ----
+    console.log("-> Closing filters...");
+    const closeFiltersBtn = page.locator('button:has-text("Close Filters")').first();
+    if (await closeFiltersBtn.isVisible()) {
+      await cursorClick(page, 'button:has-text("Close Filters")');
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // ---- Change sort order ----
+    console.log("-> Changing sort order...");
+    const sortSelect = page.locator('[data-slot="select-trigger"]').last();
+    if (await sortSelect.isVisible()) {
+      await cursorClick(page, '[data-slot="select-trigger"]');
+      await wait(PAUSE.SHORT);
+
+      const clientNameSort = page.locator('[role="option"]:has-text("Client Name (A-Z)")').first();
+      if (await clientNameSort.isVisible()) {
+        await cursorClick(page, '[role="option"]:has-text("Client Name (A-Z)")');
+      } else {
+        await page.keyboard.press("Escape");
+      }
+      await wait(PAUSE.LONG);
+    }
+
+    // ---- View sorted results ----
+    console.log("-> Viewing sorted results...");
+    await wait(PAUSE.READ);
+
+    // ---- Click a sent email row to open detail modal ----
+    console.log("-> Clicking on a sent email to view details...");
+    const firstSentRow = page.locator("table tbody tr").first();
+    if (await firstSentRow.isVisible()) {
+      await cursorClick(page, "table tbody tr", 0);
+      await wait(PAUSE.LONG);
+
+      // If a detail modal/panel opens, view it
+      const dialog = page.locator('[role="dialog"]');
+      if (await dialog.isVisible()) {
+        console.log("-> Viewing sent email details...");
+        await wait(PAUSE.READ);
+        await page.keyboard.press("Escape");
+        await wait(PAUSE.MEDIUM);
       }
     }
 
-    await wait(PAUSE.READ);
-
-    // ---- Switch back to Queued Emails briefly ----
-    console.log("-> Switching to Queued Emails view...");
-    await cursorClick(page, 'button:has-text("Queued Emails")');
-    await wait(PAUSE.LONG);
-
-    console.log("-> Activity overview complete -- pausing for viewer...");
-    await wait(PAUSE.READ);
+    console.log("-> Sent email activity demo complete.");
+    await wait(PAUSE.SHORT);
   },
 };
 

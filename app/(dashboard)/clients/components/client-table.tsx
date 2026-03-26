@@ -649,7 +649,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   // Filter and sort data based on tag filters + status filter + sort option
   const filteredData = useMemo(() => {
     let filtered = data.filter((client) => {
-      // In deadline view, filter by the selected client type
+      // In deadline view, always filter by the selected client type (columns depend on it)
       if (viewMode === 'status' && client.client_type !== deadlineClientType) {
         return false;
       }
@@ -731,6 +731,31 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
 
     return sorted;
   }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, localStatusMap, sortBy, dateFrom, dateTo]);
+
+  // Auto-switch client type tab when searching in status view
+  // If the search matches clients of a single type, switch to that type tab
+  useEffect(() => {
+    if (viewMode !== 'status' || !globalFilter) return;
+
+    const search = globalFilter.toLowerCase();
+    const matchingTypes = new Set<string>();
+
+    for (const client of data) {
+      const name = (client.display_name || client.company_name || "").toLowerCase();
+      const company = (client.company_name || "").toLowerCase();
+      if (name.includes(search) || company.includes(search)) {
+        if (client.client_type) matchingTypes.add(client.client_type);
+      }
+    }
+
+    // If all matches are a single type and it's different from current, switch
+    if (matchingTypes.size === 1) {
+      const matchedType = [...matchingTypes][0];
+      if (matchedType !== deadlineClientType) {
+        setDeadlineClientType(matchedType);
+      }
+    }
+  }, [globalFilter, viewMode, data, deadlineClientType]);
 
   // Get selected clients
   const selectedClients = useMemo(() => {
@@ -1497,6 +1522,12 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
       rowSelection,
       sorting,
       globalFilter,
+    },
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const search = (filterValue as string).toLowerCase();
+      const name = (row.original.display_name || row.original.company_name || "").toLowerCase();
+      const company = (row.original.company_name || "").toLowerCase();
+      return name.includes(search) || company.includes(search);
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,

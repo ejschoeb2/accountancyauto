@@ -2,11 +2,11 @@
  * Recording: Manage Your To-Do List
  *
  * Login to the dashboard, interact with the To Do box:
- * 1. Click an email row (failed delivery) to open the email preview modal
- * 2. Click a document row (doc review) to open the document preview modal
- * 3. Paginate through to-do items
- * 4. Check off a records received item (violet status = "File ... with HMRC")
- * 5. Revert (undo) the check
+ * 1. Show the ordering: failed emails first, then documents needing review, then client actions
+ * 2. Open a failed email and show resend option
+ * 3. Open a document and show accept/reject options
+ * 4. Show the "Take me there" button for HMRC filing
+ * 5. Navigate between pages of items
  */
 
 import {
@@ -23,79 +23,125 @@ const demo: DemoDefinition = {
   id: "todo-list",
   title: "Manage Your To-Do List",
   description:
-    "Open an email row to preview it, open a document row to preview it, paginate through items, check off a records received item, and revert.",
-  tags: ["todo", "tasks", "checklist", "dashboard", "email", "documents"],
+    "See the prioritised to-do list: failed emails first, then documents needing review, then client actions. Open an email, review a document, and navigate to HMRC filing.",
+  tags: ["todo", "tasks", "checklist", "dashboard", "email", "documents", "priority"],
   category: "Dashboard",
-  hasSideEffects: true,
+  hasSideEffects: false,
 
   async record({ page }) {
     await login(page);
 
-    // ---- Highlight the To Do section header ----
+    // ---- Scroll to and highlight the To Do section ----
     console.log("-> Highlighting To Do section...");
     const todoHeader = page.locator('text=To Do').first();
-    if (await todoHeader.isVisible().catch(() => false)) {
-      await todoHeader.scrollIntoViewIfNeeded();
-      await injectCursor(page);
-      await cursorMove(page, 'text=To Do');
-      await wait(PAUSE.READ);
-    }
+    await todoHeader.scrollIntoViewIfNeeded();
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
+    await cursorMove(page, 'text=To Do');
+    await wait(PAUSE.READ);
 
     // ---- Check for empty state ----
     const emptyState = page.locator('text=All caught up');
     if (await emptyState.isVisible().catch(() => false)) {
-      console.log("-> Empty state — no to-do items. Showing the message...");
+      console.log("-> Empty state — no to-do items.");
       await cursorMove(page, 'text=All caught up');
       await wait(PAUSE.READ);
-      console.log("-> To-Do list demo complete (empty state).");
       return;
     }
 
-    // The To Do card contains rows. Each to-do row has a CTA button:
-    // - doc-review rows: "Open file" button (opens DocumentPreviewModal)
-    // - failed-delivery rows: "Open email" button (opens SentEmailDetailModal)
-    // - client-action rows: "Take me there" button (navigates away)
+    // ---- Show the ordering: hover over items to demonstrate priority order ----
+    // Failed deliveries come first (red "Failed"/"Bounced" badge)
+    // Then doc reviews (amber "Needs Review" badge)
+    // Then client actions (traffic light badges)
+    console.log("-> Showing the to-do item ordering...");
 
-    // ---- Step 1: Click an email row (failed delivery) CTA to open email modal ----
+    // Hover over the first item to show it's the highest priority
+    const firstItem = page.locator('[aria-label="Mark as done"]').first();
+    if (await firstItem.isVisible().catch(() => false)) {
+      await cursorMove(page, '[aria-label="Mark as done"]', 0);
+      await wait(PAUSE.READ);
+    }
+
+    // ---- Step 1: Open a failed email and show resend option ----
     const emailCta = page.locator('button:has-text("Open email")').first();
     if (await emailCta.isVisible().catch(() => false)) {
-      console.log("-> Opening email preview modal...");
+      console.log("-> Opening failed email to show resend option...");
       await cursorClick(page, 'button:has-text("Open email")');
       await wait(PAUSE.LONG);
 
-      // Pause so viewer can see the email modal content
+      // Show the email detail modal — it contains resend button
       await wait(PAUSE.READ);
 
-      // Close the modal (click the X button or press Escape)
+      // Look for resend button in the modal
+      const resendBtn = page.locator('[role="dialog"] button:has-text("Resend")');
+      if (await resendBtn.isVisible().catch(() => false)) {
+        console.log("-> Pointing out the Resend button...");
+        await cursorMove(page, '[role="dialog"] button:has-text("Resend")');
+        await wait(PAUSE.READ);
+      }
+
+      // Close the modal
       console.log("-> Closing email modal...");
       await page.keyboard.press("Escape");
       await wait(PAUSE.MEDIUM);
     } else {
-      console.log("-> No failed delivery rows found, skipping email modal step.");
+      console.log("-> No failed delivery rows found, skipping email modal.");
     }
 
-    // ---- Step 2: Click a document row CTA to open document preview modal ----
+    // ---- Step 2: Open a document and show accept/reject options ----
     const docCta = page.locator('button:has-text("Open file")').first();
     if (await docCta.isVisible().catch(() => false)) {
-      console.log("-> Opening document preview modal...");
+      console.log("-> Opening document for review...");
+      await docCta.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await cursorClick(page, 'button:has-text("Open file")');
       await wait(PAUSE.LONG);
 
-      // Pause so viewer can see the document modal content
+      // Show the document preview modal content
       await wait(PAUSE.READ);
+
+      // Point out the Pass Review / Mark Received button (accept)
+      const passBtn = page.locator('[role="dialog"] button:has-text("Pass Review")');
+      const markReceivedBtn = page.locator('[role="dialog"] button:has-text("Mark Received")');
+      if (await passBtn.isVisible().catch(() => false)) {
+        console.log("-> Showing Pass Review (accept) button...");
+        await cursorMove(page, '[role="dialog"] button:has-text("Pass Review")');
+        await wait(PAUSE.READ);
+      } else if (await markReceivedBtn.isVisible().catch(() => false)) {
+        console.log("-> Showing Mark Received button...");
+        await cursorMove(page, '[role="dialog"] button:has-text("Mark Received")');
+        await wait(PAUSE.READ);
+      }
+
+      // Point out the Reject button
+      const rejectBtn = page.locator('[role="dialog"] button:has-text("Reject")');
+      if (await rejectBtn.isVisible().catch(() => false)) {
+        console.log("-> Showing Reject button...");
+        await cursorMove(page, '[role="dialog"] button:has-text("Reject")');
+        await wait(PAUSE.MEDIUM);
+      }
 
       // Close the modal
       console.log("-> Closing document modal...");
       await page.keyboard.press("Escape");
       await wait(PAUSE.MEDIUM);
     } else {
-      console.log("-> No document review rows found, skipping document modal step.");
+      console.log("-> No document review rows found, skipping document modal.");
     }
 
-    // ---- Step 3: Paginate through to-do items ----
-    // Pagination is in div.flex.items-center.justify-end.gap-2.pt-4 at the bottom
-    // Contains two buttons: prev (ChevronLeft) and next (ChevronRight)
+    // ---- Step 3: Show the "Take me there" button for HMRC filing ----
+    const takeMeBtn = page.locator('button:has-text("Take me there")').first();
+    if (await takeMeBtn.isVisible().catch(() => false)) {
+      console.log("-> Showing 'Take me there' button for HMRC filing...");
+      await takeMeBtn.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await cursorMove(page, 'button:has-text("Take me there")');
+      await wait(PAUSE.READ);
+    }
+
+    // ---- Step 4: Navigate between pages ----
     console.log("-> Looking for pagination...");
+    // Pagination: two icon buttons at the bottom of the To Do card
     const paginationContainer = page.locator('.flex.items-center.justify-end.gap-2.pt-4').first();
     if (await paginationContainer.isVisible().catch(() => false)) {
       const paginationBtns = paginationContainer.locator("button");
@@ -105,11 +151,13 @@ const demo: DemoDefinition = {
         const nextBtn = paginationBtns.nth(1);
         const isDisabled = await nextBtn.isDisabled();
         if (!isDisabled) {
-          console.log("-> Paginating to next page of to-do items...");
-          // Scroll pagination into view first
+          console.log("-> Going to next page of to-do items...");
           await paginationContainer.scrollIntoViewIfNeeded();
           await injectCursor(page);
-          await cursorClick(page, '.flex.items-center.justify-end.gap-2.pt-4 >> button >> nth=1');
+          // Click via the locator directly since nested selectors can be fragile
+          await cursorMove(page, '.flex.items-center.justify-end.gap-2.pt-4');
+          await wait(PAUSE.SHORT);
+          await nextBtn.click();
           await wait(PAUSE.READ);
 
           // Show items on second page
@@ -119,64 +167,11 @@ const demo: DemoDefinition = {
           const prevBtn = paginationBtns.nth(0);
           if (!(await prevBtn.isDisabled())) {
             console.log("-> Going back to first page...");
-            await cursorClick(page, '.flex.items-center.justify-end.gap-2.pt-4 >> button >> nth=0');
+            await prevBtn.click();
             await wait(PAUSE.MEDIUM);
           }
         }
       }
-    }
-
-    // ---- Step 4: Check off a records received item ----
-    // Records received items (violet status) have sentence starting with "File ... with HMRC"
-    // Each item row has a CheckButton with aria-label="Mark as done"
-    // We look for a row containing "File" and "HMRC" text, then click its checkbox
-    const checkButtons = page.locator('[aria-label="Mark as done"]');
-    const itemCount = await checkButtons.count();
-
-    if (itemCount > 0) {
-      // Try to find a "File ... with HMRC" item (records received / violet status)
-      // These are the safest to check — they represent filings ready to submit
-      let targetIndex = 0;
-
-      // Look through visible items for a records-received one
-      for (let i = 0; i < itemCount; i++) {
-        const row = checkButtons.nth(i).locator('xpath=ancestor::div[contains(@class,"flex items-center gap-4")]');
-        const text = await row.textContent().catch(() => '');
-        if (text && text.includes('File') && text.includes('HMRC')) {
-          targetIndex = i;
-          break;
-        }
-      }
-
-      console.log("-> Hovering over to-do item before checking...");
-      await cursorMove(page, '[aria-label="Mark as done"]', targetIndex);
-      await wait(PAUSE.MEDIUM);
-
-      console.log("-> Checking off the to-do item...");
-      await cursorClick(page, '[aria-label="Mark as done"]', targetIndex);
-      await wait(PAUSE.LONG);
-
-      // ---- Step 5: Show completed state and revert ----
-      // After checking, the row shows strikethrough text with Revert and Roll over buttons
-      const revertBtn = page.locator('button:has-text("Revert")').first();
-      if (await revertBtn.isVisible().catch(() => false)) {
-        console.log("-> Item marked complete — showing Revert and Roll over options...");
-        await cursorMove(page, 'button:has-text("Revert")');
-        await wait(PAUSE.MEDIUM);
-
-        const rolloverBtn = page.locator('button:has-text("Roll over")').first();
-        if (await rolloverBtn.isVisible().catch(() => false)) {
-          await cursorMove(page, 'button:has-text("Roll over")');
-          await wait(PAUSE.READ);
-        }
-
-        // Revert the completion to undo side effects
-        console.log("-> Reverting the completion to undo...");
-        await cursorClick(page, 'button:has-text("Revert")');
-        await wait(PAUSE.LONG);
-      }
-    } else {
-      console.log("-> No checkable to-do items found.");
     }
 
     console.log("-> To-Do list demo complete.");

@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(*)",
       "mcp__supabase__list_tables",
       "WebSearch",
       "mcp__supabase__apply_migration",
@@ -132,7 +133,21 @@
       "Read(//c/Users/ejsch/.claude/skills/**)",
       "Bash(npm i:*)",
       "Bash(npx remotion:*)",
-      "Bash(npx playwright:*)"
+      "Bash(npx playwright:*)",
+      "Bash(bash scripts/convert-tutorials.sh)",
+      "Bash(/tmp/report.txt:*)",
+      "Read(//tmp/**)",
+      "Bash(wait b05xu5gtj:*)",
+      "Bash(find /c/Users/ejsch/University/Coding Projects/Automations/peninsulaacounting/scripts/demo -type f \\\\\\(-name *.json -o -name *.config.* -o -name .env* \\\\\\))",
+      "WebFetch(domain:getuku.com)",
+      "WebFetch(domain:www.accountancymanager.co.uk)",
+      "WebFetch(domain:senta.co)",
+      "WebFetch(domain:www.pixieapp.com)",
+      "WebFetch(domain:brightsg.com)",
+      "WebFetch(domain:www.usepixie.com)",
+      "WebFetch(domain:www.capium.com)",
+      "WebFetch(domain:www.capterra.com)",
+      "WebFetch(domain:www.g2.com)"
     ]
   },
   "enableAllProjectMcpServers": true,

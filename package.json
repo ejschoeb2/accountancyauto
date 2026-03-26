@@ -19,6 +19,8 @@
     "record:shortlist": "tsx scripts/demo/record-shortlist.ts",
     "record:send-now-email": "tsx scripts/demo/record-send-now-email.ts",
     "seed:demo": "tsx scripts/demo/seed-demo-data.ts",
+    "reset:demo": "tsx scripts/demo/reset-demo-data.ts",
+    "reset-and-seed:demo": "tsx scripts/demo/reset-demo-data.ts && tsx scripts/demo/seed-demo-data.ts",
     "upload:videos": "tsx scripts/upload-videos.ts",
     "capture:guide-screenshots": "tsx scripts/demo/capture-guide-screenshots.ts"
   },

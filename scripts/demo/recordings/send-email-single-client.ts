@@ -1,8 +1,8 @@
 /**
  * Recording: Send Email to a Single Client
  *
- * Navigate to a client detail page, click Send Email, compose an email
- * with a filing context and template, preview it (stops before sending).
+ * Navigate to a client detail page, click Send Email, select a filing
+ * context and template, preview the personalised email, and send it.
  */
 
 import {
@@ -10,17 +10,17 @@ import {
   login,
   navigateTo,
   cursorClick,
-  cursorType,
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
   id: "send-email-single-client",
   title: "Send Email to a Single Client",
   description:
-    "From the client detail page, compose and send an email to one specific client.",
+    "From the client detail page, compose and send an email to one specific client with personalised filing details.",
   tags: ["email", "send", "single", "client", "detail"],
   category: "Emails",
   hasSideEffects: true,
@@ -29,16 +29,18 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Click first client row to open detail page ----
-    console.log("-> Opening a client detail page...");
+    // ---- Click a client row to open detail page ----
+    console.log("-> Opening client detail page...");
+    // Click on the client name cell (second column) of first row
     const clientRow = page.locator("table tbody tr").first();
     await clientRow.waitFor({ state: "visible", timeout: 10000 });
     await cursorClick(page, "table tbody tr td", 1);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
+    await injectCursor(page);
     await wait(PAUSE.LONG);
 
-    // ---- Click Send Email button ----
+    // ---- Click Send Email button on the client detail page ----
     console.log("-> Clicking Send Email button...");
     const sendEmailBtn = page
       .locator('button:has-text("Send Email"), a:has-text("Send Email")')
@@ -48,110 +50,96 @@ const demo: DemoDefinition = {
       page,
       'button:has-text("Send Email"), a:has-text("Send Email")'
     );
-    await wait(PAUSE.MEDIUM);
+    await wait(PAUSE.LONG);
 
     // ---- Wait for dialog ----
-    console.log("-> Composing email in Send Email modal...");
+    console.log("-> Send Email dialog opened...");
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
     await wait(PAUSE.MEDIUM);
 
     // ---- Select filing context ----
     console.log("-> Selecting filing context...");
-    const filingTrigger = page
-      .locator('[role="dialog"] button[role="combobox"]')
-      .first();
-    if (await filingTrigger.isVisible()) {
-      await cursorClick(
-        page,
-        '[role="dialog"] button[role="combobox"]',
-        0
-      );
+    const filingSelect = page.locator('[role="dialog"] [data-slot="select-trigger"]').first();
+    if (await filingSelect.isVisible()) {
+      await cursorClick(page, '[role="dialog"] [data-slot="select-trigger"]', 0);
       await wait(PAUSE.SHORT);
-      const filingOption = page.locator('[role="option"]').nth(1);
-      if ((await filingOption.count()) > 0) {
-        await cursorClick(page, '[role="option"]', 1);
-        await wait(PAUSE.MEDIUM);
+
+      // Select Corporation Tax
+      const corpTaxOption = page.locator('[role="option"]:has-text("Corporation Tax")').first();
+      if (await corpTaxOption.isVisible()) {
+        await cursorClick(page, '[role="option"]:has-text("Corporation Tax")');
       } else {
-        await page.keyboard.press("Escape");
-        await wait(PAUSE.SHORT);
+        await cursorClick(page, '[role="option"]', 1);
       }
+      await wait(PAUSE.LONG);
     }
 
     // ---- Select template ----
     console.log("-> Selecting email template...");
-    const templateTrigger = page
-      .locator('[role="dialog"] button[role="combobox"]')
-      .nth(1);
-    if (await templateTrigger.isVisible()) {
-      await cursorClick(
-        page,
-        '[role="dialog"] button[role="combobox"]',
-        1
-      );
+    const templateSelect = page.locator('[role="dialog"] [data-slot="select-trigger"]').nth(1);
+    if (await templateSelect.isVisible()) {
+      await cursorClick(page, '[role="dialog"] [data-slot="select-trigger"]', 1);
       await wait(PAUSE.SHORT);
-      const templateOption = page.locator('[role="option"]').nth(1);
-      if (
-        (await templateOption.count()) > 0 &&
-        (await templateOption.isVisible())
-      ) {
-        await cursorClick(page, '[role="option"]', 1);
-        await wait(PAUSE.LONG);
+
+      // Select "Follow-Up Reminder"
+      const followUpOption = page.locator('[role="option"]:has-text("Follow-Up Reminder")').first();
+      if (await followUpOption.isVisible()) {
+        await cursorClick(page, '[role="option"]:has-text("Follow-Up Reminder")');
       } else {
-        await page.keyboard.press("Escape");
-        await wait(PAUSE.SHORT);
+        await cursorClick(page, '[role="option"]', 1);
       }
+      await wait(PAUSE.LONG);
     }
 
-    // ---- Type subject if empty ----
-    const subjectInput = page.locator(
-      '[role="dialog"] input[placeholder*="Subject"], [role="dialog"] input[placeholder*="subject"]'
-    );
-    if ((await subjectInput.count()) > 0 && (await subjectInput.isVisible())) {
-      const subjectVal = await subjectInput.inputValue();
-      if (!subjectVal) {
-        await cursorType(
-          page,
-          '[role="dialog"] input[placeholder*="Subject"], [role="dialog"] input[placeholder*="subject"]',
-          "Reminder: your upcoming filing deadline",
-          { delay: 30 }
-        );
-        await wait(PAUSE.MEDIUM);
-      }
-    }
-
-    // ---- Type body if empty ----
-    const editorDiv = page
-      .locator(
-        '[role="dialog"] .tiptap, [role="dialog"] [contenteditable="true"]'
-      )
-      .first();
-    if ((await editorDiv.count()) > 0 && (await editorDiv.isVisible())) {
-      const bodyText = await editorDiv.textContent();
-      if (!bodyText || bodyText.trim().length === 0) {
-        await cursorType(
-          page,
-          '[role="dialog"] .tiptap, [role="dialog"] [contenteditable="true"]',
-          "Dear {{client_name}},\n\nThis is a reminder about your upcoming {{filing_type}} deadline on {{deadline}}.\n\nPlease get in touch if you have any questions.\n\nKind regards",
-          { delay: 20 }
-        );
-        await wait(PAUSE.MEDIUM);
-      }
-    }
-
+    // ---- Show the email content with personalised variables ----
+    console.log("-> Reviewing email content...");
     await wait(PAUSE.READ);
 
     // ---- Click Next to preview ----
-    console.log("-> Previewing email...");
-    const nextBtn = page
-      .locator('[role="dialog"] button:has-text("Next")')
-      .first();
+    console.log("-> Proceeding to preview...");
+    const nextBtn = page.locator('[role="dialog"] button:has-text("Next")').first();
     if (await nextBtn.isVisible()) {
       await cursorClick(page, '[role="dialog"] button:has-text("Next")');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.LONG);
     }
 
-    console.log("-> On preview screen -- pausing for viewer...");
+    // ---- Preview screen — show personalised email content ----
+    console.log("-> On Preview & Confirm screen...");
     await wait(PAUSE.READ);
+
+    // ---- Click Send ----
+    console.log("-> Sending email...");
+    const sendBtn = page.locator('[role="dialog"] button:has-text("Send to")').first();
+    if (await sendBtn.isVisible()) {
+      await cursorClick(page, '[role="dialog"] button:has-text("Send to")');
+      await wait(PAUSE.LONG);
+    }
+
+    // ---- Wait for sending to complete ----
+    console.log("-> Waiting for email to be sent...");
+    const resultsTitle = page.locator('[role="dialog"]:has-text("Send Complete")');
+    try {
+      await resultsTitle.waitFor({ state: "visible", timeout: 30000 });
+    } catch {
+      await wait(5000);
+    }
+    await wait(PAUSE.READ);
+
+    // ---- Show the results ----
+    console.log("-> Showing send results...");
+    await wait(PAUSE.READ);
+
+    // ---- Close modal ----
+    console.log("-> Closing modal...");
+    const doneBtn = page.locator('[role="dialog"] button:has-text("Done")').first();
+    if (await doneBtn.isVisible()) {
+      await cursorClick(page, '[role="dialog"] button:has-text("Done")');
+    } else {
+      await page.keyboard.press("Escape");
+    }
+    await wait(PAUSE.MEDIUM);
+
+    console.log("-> Single client email demo complete.");
   },
 };
 

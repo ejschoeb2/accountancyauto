@@ -33,7 +33,6 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          if (video.currentTime < 9) video.currentTime = 9;
           video.play().catch(() => {});
         } else {
           video.pause();

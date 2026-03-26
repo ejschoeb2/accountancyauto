@@ -90,13 +90,15 @@ const demo: DemoDefinition = {
 
       // ---- Hover over the Delete confirmation button but DON'T click ----
       console.log("-> Showing destructive Delete button (not clicking)...");
+      // The delete confirmation dialog has Cancel and Delete buttons in a DialogFooter
+      // The Delete button is a ButtonBase variant="destructive" containing a Trash2 icon + "Delete" text
       const confirmDeleteBtn = page
-        .locator('[role="dialog"] button:has-text("Delete"):not(:has-text("Template"))')
-        .last();
-      if (await confirmDeleteBtn.isVisible()) {
+        .locator('[role="dialog"]:has-text("cannot be undone") button:has-text("Delete")')
+        .first();
+      if (await confirmDeleteBtn.isVisible().catch(() => false)) {
         await cursorMove(
           page,
-          '[role="dialog"] button.bg-destructive, [role="dialog"] button[variant="destructive"]'
+          '[role="dialog"]:has-text("cannot be undone") button:has-text("Delete")'
         );
         await wait(PAUSE.MEDIUM);
       }

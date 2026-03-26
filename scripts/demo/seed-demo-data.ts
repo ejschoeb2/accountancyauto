@@ -166,11 +166,93 @@ async function seed() {
     console.log("  ~ User already linked to org");
   }
 
+  // ── 1b. Team members (real auth users) ────────────────────────────────
+
+  console.log("\n1b. Creating team member users...");
+
+  const teamMemberDefs = [
+    {
+      email: "james.wilson@thornton-associates.co.uk",
+      password: DEMO_PASSWORD,
+      fullName: "James Wilson",
+      role: "member" as const,
+    },
+    {
+      email: "sophie.chen@thornton-associates.co.uk",
+      password: DEMO_PASSWORD,
+      fullName: "Sophie Chen",
+      role: "admin" as const,
+    },
+  ];
+
+  const teamMemberIds: Record<string, string> = {};
+
+  for (const member of teamMemberDefs) {
+    // Check if user already exists
+    let memberId: string | null = null;
+    const existing = existingUsers?.users?.find((u) => u.email === member.email);
+
+    if (existing) {
+      memberId = existing.id;
+      console.log(`  ~ Team member ${member.email} already exists (${memberId})`);
+    } else {
+      const { data: newMember, error: memberError } =
+        await supabase.auth.admin.createUser({
+          email: member.email,
+          password: member.password,
+          email_confirm: true,
+          user_metadata: { full_name: member.fullName },
+        });
+      if (memberError) {
+        console.error(
+          `  Failed to create team member ${member.email}:`,
+          memberError.message
+        );
+        continue;
+      }
+      memberId = newMember.user.id;
+      console.log(`  + Created team member: ${member.email} (${memberId})`);
+    }
+
+    teamMemberIds[member.email] = memberId;
+
+    // Link team member to org
+    const { data: existingMemberLink } = await supabase
+      .from("user_organisations")
+      .select("id")
+      .eq("user_id", memberId)
+      .eq("org_id", orgId)
+      .maybeSingle();
+
+    if (!existingMemberLink) {
+      await supabase
+        .from("user_organisations")
+        .insert({ user_id: memberId, org_id: orgId, role: member.role });
+      console.log(`  + Linked ${member.fullName} to org as ${member.role}`);
+    } else {
+      console.log(`  ~ ${member.fullName} already linked to org`);
+    }
+  }
+
   // ── 2. Clients ──────────────────────────────────────────────────────────
 
   console.log("\n2. Creating clients...");
 
-  const clientDefs = [
+  interface ClientDef {
+    company_name: string;
+    display_name: string | null;
+    primary_email: string;
+    client_type: "Limited Company" | "LLP" | "Partnership" | "Individual";
+    year_end_date: string;
+    vat_registered: boolean;
+    vat_stagger_group: 1 | 2 | 3 | null;
+    vat_scheme: "Standard" | "Flat Rate" | "Cash Accounting" | "Annual Accounting" | null;
+    reminders_paused: boolean;
+    records_received_for: string[];
+    completed_for: string[];
+  }
+
+  const clientDefs: ClientDef[] = [
     // OVERDUE clients (deadline passed, not completed)
     {
       company_name: "Hartley Construction Ltd",
@@ -359,6 +441,80 @@ async function seed() {
     },
   ];
 
+  // ── Filler clients (pad to ~50 total) ─────────────────────────────────
+  // These give the table a realistic size for demos like search, filter,
+  // bulk-delete, CSV import, and the workload forecast chart.
+
+  const fillerNames: Array<{
+    company_name: string;
+    display_name: string | null;
+    client_type: "Limited Company" | "LLP" | "Partnership" | "Individual";
+    vat_registered: boolean;
+    vat_stagger_group: 1 | 2 | 3 | null;
+    vat_scheme: "Standard" | "Flat Rate" | "Cash Accounting" | "Annual Accounting" | null;
+    year_end_offset: number; // days ago for year_end_date
+  }> = [
+    { company_name: "Archer & Lane Solicitors LLP", display_name: "Archer & Lane", client_type: "LLP", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 90 },
+    { company_name: "Beacon Software Ltd", display_name: "Beacon Software", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Standard", year_end_offset: 150 },
+    { company_name: "Castlegate Ventures Ltd", display_name: "Castlegate Ventures", client_type: "Limited Company", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 200 },
+    { company_name: "Diana Frost", display_name: null, client_type: "Individual", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 0 },
+    { company_name: "Eclipse Design Studio Ltd", display_name: "Eclipse Design", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 3, vat_scheme: "Flat Rate", year_end_offset: 120 },
+    { company_name: "Fenwick & Partners", display_name: null, client_type: "Partnership", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 0 },
+    { company_name: "Granville Hotels Ltd", display_name: "Granville Hotels", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Standard", year_end_offset: 280 },
+    { company_name: "Harper & Webb Accountants LLP", display_name: "Harper & Webb", client_type: "LLP", vat_registered: true, vat_stagger_group: 3, vat_scheme: "Cash Accounting", year_end_offset: 45 },
+    { company_name: "Ironbridge Manufacturing Ltd", display_name: "Ironbridge Manufacturing", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 330 },
+    { company_name: "James Thornton", display_name: null, client_type: "Individual", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 0 },
+    { company_name: "Kingsway Logistics Ltd", display_name: "Kingsway Logistics", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Annual Accounting", year_end_offset: 75 },
+    { company_name: "Lakeside Dental Practice Ltd", display_name: "Lakeside Dental", client_type: "Limited Company", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 210 },
+    { company_name: "Morgan & Clarke", display_name: null, client_type: "Partnership", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 0 },
+    { company_name: "Northstar IT Solutions Ltd", display_name: "Northstar IT", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 3, vat_scheme: "Standard", year_end_offset: 160 },
+    { company_name: "Orchard Farm Supplies Ltd", display_name: "Orchard Farm", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Flat Rate", year_end_offset: 240 },
+    { company_name: "Patricia Hammond", display_name: null, client_type: "Individual", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 0 },
+    { company_name: "Queensgate Recruitment Ltd", display_name: "Queensgate Recruitment", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Standard", year_end_offset: 100 },
+    { company_name: "Redwood Financial Planning LLP", display_name: "Redwood Financial", client_type: "LLP", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 55 },
+    { company_name: "Summit Engineering Ltd", display_name: "Summit Engineering", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 3, vat_scheme: "Standard", year_end_offset: 190 },
+    { company_name: "Thomas Whitfield", display_name: null, client_type: "Individual", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 0 },
+    { company_name: "Unity Care Services Ltd", display_name: "Unity Care", client_type: "Limited Company", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 270 },
+    { company_name: "Victoria Chambers Ltd", display_name: "Victoria Chambers", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 140 },
+    { company_name: "Whitmore & Sons Ltd", display_name: "Whitmore & Sons", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Cash Accounting", year_end_offset: 310 },
+    { company_name: "Xavier Consulting Ltd", display_name: "Xavier Consulting", client_type: "Limited Company", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 60 },
+    { company_name: "York & District Builders LLP", display_name: "York Builders", client_type: "LLP", vat_registered: true, vat_stagger_group: 3, vat_scheme: "Standard", year_end_offset: 225 },
+    { company_name: "Zenith Electrical Contractors Ltd", display_name: "Zenith Electrical", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 175 },
+    { company_name: "Ashford Wealth Management Ltd", display_name: "Ashford Wealth", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Standard", year_end_offset: 85 },
+    { company_name: "Bridgewater Plastics Ltd", display_name: "Bridgewater Plastics", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 3, vat_scheme: "Flat Rate", year_end_offset: 260 },
+    { company_name: "Croft & Baines", display_name: null, client_type: "Partnership", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 0 },
+    { company_name: "Dominic Patel", display_name: null, client_type: "Individual", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 0 },
+    { company_name: "Elmswood Veterinary Group Ltd", display_name: "Elmswood Vets", client_type: "Limited Company", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 130 },
+    { company_name: "Foxglove Events Ltd", display_name: "Foxglove Events", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Standard", year_end_offset: 295 },
+    { company_name: "Glendale Transport Ltd", display_name: "Glendale Transport", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 3, vat_scheme: "Annual Accounting", year_end_offset: 110 },
+    { company_name: "Hannah Brooks", display_name: null, client_type: "Individual", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 0 },
+    { company_name: "Ivybridge Consulting LLP", display_name: "Ivybridge Consulting", client_type: "LLP", vat_registered: true, vat_stagger_group: 1, vat_scheme: "Standard", year_end_offset: 170 },
+    { company_name: "Jubilee Catering Ltd", display_name: "Jubilee Catering", client_type: "Limited Company", vat_registered: true, vat_stagger_group: 2, vat_scheme: "Standard", year_end_offset: 50 },
+    { company_name: "Kestrel Print Solutions Ltd", display_name: "Kestrel Print", client_type: "Limited Company", vat_registered: false, vat_stagger_group: null, vat_scheme: null, year_end_offset: 340 },
+  ];
+
+  for (const filler of fillerNames) {
+    const yearEnd = filler.client_type === "Individual" || filler.client_type === "Partnership"
+      ? "2025-04-05"
+      : daysAgo(filler.year_end_offset);
+
+    clientDefs.push({
+      company_name: filler.company_name,
+      display_name: filler.display_name,
+      primary_email: `demo+${filler.company_name.toLowerCase().replace(/[^a-z0-9]/g, "")}@example.com`,
+      client_type: filler.client_type,
+      year_end_date: yearEnd,
+      vat_registered: filler.vat_registered,
+      vat_stagger_group: filler.vat_stagger_group,
+      vat_scheme: filler.vat_scheme,
+      reminders_paused: false,
+      records_received_for: [] as string[],
+      completed_for: [] as string[],
+    });
+  }
+
+  console.log(`  Total clients to seed: ${clientDefs.length}`);
+
   const clientIds: Record<string, string> = {};
 
   for (const def of clientDefs) {
@@ -381,7 +537,6 @@ async function seed() {
         ...def,
         org_id: orgId,
         owner_id: userId,
-        quickbooks_id: `DEMO-${crypto.randomBytes(8).toString("hex")}`,
         active: true,
       })
       .select("id")
@@ -1464,6 +1619,9 @@ async function seed() {
   console.log("Summary:");
   console.log(
     `  - User:        ${DEMO_EMAIL}`
+  );
+  console.log(
+    `  - Team members: ${Object.keys(teamMemberIds).length}`
   );
   console.log(
     `  - Organisation: Thornton & Associates (${ORG_SLUG})`

@@ -2,7 +2,7 @@
  * Recording: Bulk Delete Clients
  *
  * Select multiple clients in the table, click Delete in the bulk
- * actions toolbar, show the confirmation dialog but stop before confirming.
+ * actions toolbar, show the confirmation dialog, and actually confirm.
  */
 
 import {
@@ -13,6 +13,7 @@ import {
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
@@ -28,11 +29,12 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Select multiple clients ----
+    // ---- Select multiple clients using row checkboxes ----
     console.log("-> Selecting clients...");
     const checkboxes = page.locator('table [role="checkbox"]');
     const count = await checkboxes.count();
 
+    // Skip the header "select all" checkbox (index 0), select individual rows
     if (count > 1) {
       await cursorClick(page, 'table [role="checkbox"]', 1);
       await wait(PAUSE.SHORT);
@@ -49,9 +51,9 @@ const demo: DemoDefinition = {
     // ---- Show the bulk actions toolbar ----
     console.log("-> Bulk actions toolbar visible...");
     const toolbar = page.locator('text="selected"').first();
-    if (await toolbar.isVisible()) {
+    if (await toolbar.isVisible().catch(() => false)) {
       await cursorMove(page, 'text="selected"');
-      await wait(PAUSE.MEDIUM);
+      await wait(PAUSE.READ);
     }
 
     // ---- Click Delete Clients button in toolbar ----
@@ -67,20 +69,30 @@ const demo: DemoDefinition = {
     await cursorMove(page, '[role="dialog"]');
     await wait(PAUSE.READ);
 
-    // ---- Cancel — do NOT confirm ----
-    console.log("-> Cancelling — stopping before confirmation...");
-    await cursorClick(page, '[role="dialog"] button:has-text("Cancel")');
-    await wait(PAUSE.MEDIUM);
-
-    // ---- Clear selection ----
-    console.log("-> Clearing selection...");
-    const closeBtn = page.locator('button:has-text("Close")').first();
-    if (await closeBtn.isVisible()) {
-      await cursorClick(page, 'button:has-text("Close")');
-      await wait(PAUSE.SHORT);
+    // ---- Show warning text ----
+    const description = page.locator('[role="dialog"] [data-slot="dialog-description"]');
+    if (await description.isVisible().catch(() => false)) {
+      await cursorMove(page, '[role="dialog"] [data-slot="dialog-description"]');
+      await wait(PAUSE.READ);
     }
 
-    console.log("-> Bulk delete demo complete (no data was deleted).");
+    // ---- Actually confirm the bulk delete ----
+    console.log("-> Confirming bulk deletion...");
+    const confirmDeleteBtn = page.locator('[role="dialog"] button:has-text("Delete")').last();
+    if (await confirmDeleteBtn.isVisible().catch(() => false)) {
+      await cursorClick(page, '[role="dialog"] button:has-text("Delete")');
+      await wait(PAUSE.LONG);
+    }
+
+    // ---- Show the result ----
+    console.log("-> Clients deleted — showing updated table...");
+    await wait(PAUSE.LONG);
+
+    // The table should now have fewer rows
+    await cursorMove(page, "table");
+    await wait(PAUSE.READ);
+
+    console.log("-> Bulk delete demo complete.");
     await wait(PAUSE.SHORT);
   },
 };

@@ -43,9 +43,9 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
   }, [isHovered]);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center px-4 py-4 select-none overflow-hidden">
+    <div className="w-full h-full flex flex-col items-center justify-center px-3 py-3 select-none overflow-hidden">
       {/* Pipeline nodes */}
-      <div className="flex items-start gap-1">
+      <div className="flex items-start gap-1.5">
         {NODES.map((node, i) => {
           const Icon = node.icon;
           const isActive = i <= activeNode;
@@ -55,7 +55,7 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
             <div key={i} className="flex items-start">
               {/* Node */}
               <motion.div
-                className="flex flex-col items-center w-[56px]"
+                className="flex flex-col items-center w-[66px]"
                 animate={{
                   opacity: isHovered ? 1 : 0.35,
                   y: isHovered ? 0 : 4,
@@ -69,7 +69,7 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
               >
                 {/* Icon circle */}
                 <motion.div
-                  className="w-[32px] h-[32px] rounded-full border-2 flex items-center justify-center mb-1.5"
+                  className="w-[38px] h-[38px] rounded-full border-2 flex items-center justify-center mb-2"
                   animate={{
                     borderColor: isActive ? node.color : "rgba(156,163,175,0.2)",
                     backgroundColor: isCurrently
@@ -84,7 +84,7 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
                   }}
                 >
                   <Icon
-                    size={14}
+                    size={17}
                     strokeWidth={2}
                     style={{ color: isActive ? node.color : "#9ca3af" }}
                   />
@@ -92,7 +92,7 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
 
                 {/* Label */}
                 <span
-                  className="text-[8px] font-bold text-center leading-tight"
+                  className="text-[10px] font-bold text-center leading-tight"
                   style={{ color: isActive ? node.color : undefined }}
                 >
                   {node.label}
@@ -100,7 +100,7 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
 
                 {/* Sublabel */}
                 <motion.span
-                  className="text-[7px] text-muted-foreground/40 text-center leading-tight mt-[2px]"
+                  className="text-[9px] text-muted-foreground/40 text-center leading-tight mt-[3px]"
                   animate={{ opacity: isHovered ? 0.7 : 0 }}
                   transition={{ duration: 0.2, delay: i * 0.06 + 0.1 }}
                 >
@@ -111,14 +111,14 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
               {/* Connector arrow */}
               {i < NODES.length - 1 && (
                 <motion.div
-                  className="flex items-center mt-[14px] mx-[-2px]"
+                  className="flex items-center mt-[17px] mx-[-1px]"
                   animate={{
                     opacity: isHovered ? 0.5 : 0.15,
                   }}
                   transition={{ duration: 0.2, delay: i * 0.06 + 0.05 }}
                 >
-                  <div className="w-[8px] border-t border-dashed border-border/50" />
-                  <span className="text-[8px] text-muted-foreground/30">›</span>
+                  <div className="w-[10px] border-t border-dashed border-border/50" />
+                  <span className="text-[10px] text-muted-foreground/30">›</span>
                 </motion.div>
               )}
             </div>
@@ -128,15 +128,15 @@ export const ReminderPipelineIllustration = ({ isHovered }: { isHovered: boolean
 
       {/* Skip fork — shown below "Send email" */}
       <motion.div
-        className="flex items-center gap-1.5 mt-2.5"
+        className="flex items-center gap-1.5 mt-3"
         animate={{
           opacity: isHovered ? 0.5 : 0,
           y: isHovered ? 0 : 4,
         }}
         transition={{ duration: 0.25, delay: 0.35 }}
       >
-        <Pause size={8} className="text-muted-foreground/40" strokeWidth={2} />
-        <span className="text-[7px] text-muted-foreground/40 font-medium">
+        <Pause size={10} className="text-muted-foreground/40" strokeWidth={2} />
+        <span className="text-[9px] text-muted-foreground/40 font-medium">
           Paused clients skip send
         </span>
       </motion.div>

@@ -27,7 +27,7 @@ export const demos: DemoEntry[] = [
   {
     id: "upcoming-deadlines-widget",
     title: "Use the Upcoming Deadlines Widget",
-    description: "View the upcoming deadlines timeline, use next/previous buttons to paginate, and click to jump to a client.",
+    description: "The widget shows each approaching deadline with the client name, deadline type, traffic-light status, and due date. Click any row to jump to that client's detail page.",
     tags: ["deadlines", "upcoming", "timeline", "dashboard", "widget", "navigate"],
     category: "Dashboard",
     hasSideEffects: false,
@@ -35,7 +35,7 @@ export const demos: DemoEntry[] = [
   {
     id: "workload-forecast",
     title: "Read the Workload Forecast",
-    description: "View the workload forecast chart, toggle timeframes (week/4wk/6mo/12mo), and hover over bars to see the deadline split.",
+    description: "Shows deadlines across different time frames split by status into colour-coded bars. As bars shift toward green, that time window is done. Hover to see the exact breakdown.",
     tags: ["workload", "forecast", "chart", "dashboard", "planning", "timeframe"],
     category: "Dashboard",
     hasSideEffects: false,
@@ -43,7 +43,7 @@ export const demos: DemoEntry[] = [
   {
     id: "todo-list",
     title: "Manage Your To-Do List",
-    description: "Open an email row to preview it, open a document row to preview it, paginate through items, check off a records received item, and revert.",
+    description: "Ordered by priority: failed emails first, then documents needing review, then clients ready to submit. View and resend emails, accept or reject files, and go straight to HMRC to file.",
     tags: ["todo", "tasks", "checklist", "dashboard", "email", "documents"],
     category: "Dashboard",
     hasSideEffects: true,
@@ -51,7 +51,7 @@ export const demos: DemoEntry[] = [
   {
     id: "recent-uploads",
     title: "Review Recent Document Uploads",
-    description: "See recently uploaded documents, click a row to open the document preview modal, and close it.",
+    description: "See all recently uploaded files from clients through the portal. Reject incorrect files, download files, and pass review on uploads that need it — all from the preview modal.",
     tags: ["uploads", "documents", "recent", "dashboard", "review", "preview"],
     category: "Dashboard",
     hasSideEffects: false,
@@ -62,8 +62,8 @@ export const demos: DemoEntry[] = [
   // ───────────────────────────────────────────
   {
     id: "add-client-manually",
-    title: "Add a Client Manually",
-    description: "Open the 'Add Client' dialog and fill in client details — name, email, company type, year end, VAT details.",
+    title: "Add a Single Client Manually",
+    description: "Add a single client via the dialog — enter name, email, company type, year end, and VAT details. Deadline dates are automatically calculated from the information you enter.",
     tags: ["add", "create", "new", "client", "manual"],
     category: "Clients",
     hasSideEffects: true,
@@ -71,7 +71,7 @@ export const demos: DemoEntry[] = [
   {
     id: "import-clients-csv",
     title: "Import Clients from CSV",
-    description: "Open the import dialog, drag-and-drop a CSV file, and complete the remaining import steps.",
+    description: "Import your entire client list via CSV. Clients are automatically rolled forward for past deadlines, and clients with no matching deadline types will have no deadlines until configured.",
     tags: ["import", "csv", "bulk", "upload", "clients", "spreadsheet"],
     category: "Clients",
     hasSideEffects: true,
@@ -95,15 +95,15 @@ export const demos: DemoEntry[] = [
   {
     id: "client-detail-page",
     title: "View a Client's Detail Page",
-    description: "Open a client's detail page to see their full profile, filing assignments, document uploads, and email history.",
+    description: "View a client's full detail page — edit details, mark records received, check sent and queued emails, deactivate deadlines, generate portal links, and more.",
     tags: ["client", "detail", "profile", "view", "filings", "overview"],
     category: "Clients",
     hasSideEffects: false,
   },
   {
     id: "edit-client-details",
-    title: "Edit Client Details from the Detail Page",
-    description: "Switch to edit mode on the client detail page to update name, email, company type, VAT scheme, and other fields.",
+    title: "Edit Client Details (Detail Page)",
+    description: "Switch to edit mode on the client detail page to update name, email, company type, VAT scheme, and other fields. Save all changes in one go.",
     tags: ["edit", "client", "detail", "update", "profile"],
     category: "Clients",
     hasSideEffects: true,
@@ -111,7 +111,7 @@ export const demos: DemoEntry[] = [
   {
     id: "mark-filing-complete",
     title: "Mark a Filing as Complete",
-    description: "On the client detail page, click the 'Complete' button on a filing to mark it as done for the current period.",
+    description: "Use the link to go to HMRC or Companies House to submit, then mark the filing as complete. After completion, roll over to set up reminders for the next deadline cycle.",
     tags: ["filing", "complete", "done", "mark", "status", "client"],
     category: "Clients",
     hasSideEffects: true,
@@ -119,7 +119,7 @@ export const demos: DemoEntry[] = [
   {
     id: "mark-records-received",
     title: "Mark Records as Received",
-    description: "Toggle the 'Records Received' status on a filing to indicate the client has sent their paperwork.",
+    description: "Records are received automatically when a client submits all documents, or manually via the checkbox. Marking as received stops further reminders to the client for that deadline.",
     tags: ["records", "received", "filing", "status", "client", "paperwork"],
     category: "Clients",
     hasSideEffects: true,
@@ -127,7 +127,7 @@ export const demos: DemoEntry[] = [
   {
     id: "override-deadline",
     title: "Override a Filing Deadline",
-    description: "Set a custom deadline date for a specific filing, overriding the auto-calculated date.",
+    description: "Set a custom deadline date for a specific filing. Overriding reschedules all reminders so they remain the correctly configured time period before the new deadline.",
     tags: ["deadline", "override", "custom date", "filing", "client"],
     category: "Clients",
     hasSideEffects: true,
@@ -135,15 +135,15 @@ export const demos: DemoEntry[] = [
   {
     id: "rollover-filing",
     title: "Roll Over a Completed Filing",
-    description: "After marking a filing complete, roll it over to start tracking the next period's deadline.",
+    description: "After marking a filing complete, roll it over to create the next period's deadline and schedule all reminders for the next cycle automatically.",
     tags: ["rollover", "filing", "next period", "reset", "client"],
     category: "Clients",
     hasSideEffects: true,
   },
   {
     id: "pause-resume-client",
-    title: "Pause & Resume a Client's Reminders",
-    description: "Pause all automated reminders for a client, then resume them later.",
+    title: "Pause & Resume Reminders",
+    description: "Temporarily pause all automated reminders for a client without losing any configuration. Resuming picks up exactly where things left off.",
     tags: ["pause", "resume", "reminders", "stop", "client", "inactive"],
     category: "Clients",
     hasSideEffects: true,
@@ -151,7 +151,7 @@ export const demos: DemoEntry[] = [
   {
     id: "delete-client",
     title: "Delete a Client",
-    description: "Delete a client from the system — shows the confirmation dialog and what data will be removed.",
+    description: "Delete a client and all associated filings from Prompt, with a confirmation step to ensure nothing is removed by accident.",
     tags: ["delete", "remove", "client"],
     category: "Clients",
     hasSideEffects: true,
@@ -159,7 +159,7 @@ export const demos: DemoEntry[] = [
   {
     id: "bulk-delete-clients",
     title: "Bulk Delete Clients",
-    description: "Select multiple clients from the table and delete them all at once using the bulk actions toolbar.",
+    description: "Select multiple clients from the table and remove them in a single action, with a confirmation step to prevent accidental deletion.",
     tags: ["bulk", "delete", "multiple", "clients", "toolbar"],
     category: "Clients",
     hasSideEffects: true,
@@ -167,7 +167,7 @@ export const demos: DemoEntry[] = [
   {
     id: "generate-portal-link",
     title: "Generate a Client Portal Link",
-    description: "Generate a secure, time-limited portal link for a client so they can upload documents directly.",
+    description: "Generate a secure portal link for a client to upload documents. Portal links can also be configured to generate automatically in emails sent to clients.",
     tags: ["portal", "link", "upload", "client", "share", "secure"],
     category: "Clients",
     hasSideEffects: true,
@@ -182,8 +182,8 @@ export const demos: DemoEntry[] = [
   },
   {
     id: "bulk-edit-filing-status",
-    title: "Bulk Update Filing Status",
-    description: "Select multiple clients and mark records as received or filings as completed in bulk.",
+    title: "Edit Client Progress Quickly",
+    description: "Switch into edit progress mode on the client deadlines table to quickly update any client's filing status inline — mark records received, complete filings, and roll over deadlines.",
     tags: ["bulk", "status", "received", "completed", "filing", "clients"],
     category: "Clients",
     hasSideEffects: true,
@@ -195,7 +195,7 @@ export const demos: DemoEntry[] = [
   {
     id: "adhoc-email",
     title: "Send an Ad-hoc Email",
-    description: "Select clients from the client list and send them a custom email with filing type and template.",
+    description: "Select clients and send a custom email using any template. Template variables update automatically for each selected recipient, so one send goes out personalised to every client.",
     tags: ["email", "send", "ad-hoc", "clients", "bulk", "template"],
     category: "Emails",
     hasSideEffects: true,
@@ -203,7 +203,7 @@ export const demos: DemoEntry[] = [
   {
     id: "send-email-single-client",
     title: "Send Email to a Single Client",
-    description: "From the client detail page, compose and send an email to one specific client.",
+    description: "Compose and send an email from the client detail page — useful for quick follow-ups with the client's full filing history in context.",
     tags: ["email", "send", "single", "client", "detail"],
     category: "Emails",
     hasSideEffects: true,
@@ -211,7 +211,7 @@ export const demos: DemoEntry[] = [
   {
     id: "view-email-activity",
     title: "View Email Activity & Delivery Logs",
-    description: "Navigate to the Activity page and browse sent emails, queued emails, and delivery statuses.",
+    description: "Browse all sent emails with delivery statuses and bounce information — a complete history of every email Prompt has already sent.",
     tags: ["activity", "email", "logs", "sent", "queued", "delivery", "status"],
     category: "Emails",
     hasSideEffects: false,
@@ -219,7 +219,7 @@ export const demos: DemoEntry[] = [
   {
     id: "view-queued-emails",
     title: "Preview & Manage Queued Emails",
-    description: "View emails scheduled to be sent, preview their content, and optionally cancel them.",
+    description: "Preview queued emails before they're sent, send them early, cancel them, or let them go out on schedule.",
     tags: ["queued", "scheduled", "preview", "cancel", "email", "pending"],
     category: "Emails",
     hasSideEffects: true,
@@ -231,7 +231,7 @@ export const demos: DemoEntry[] = [
   {
     id: "create-email-template",
     title: "Create a Custom Email Template",
-    description: "Create a new email template with subject line, body content, and dynamic placeholders like {{client_name}}.",
+    description: "Create a new email template with subject line, body content, and placeholder variables like client name, deadline date, and portal link that are filled in automatically per recipient.",
     tags: ["template", "create", "new", "email", "custom", "placeholders"],
     category: "Email Templates",
     hasSideEffects: true,
@@ -239,7 +239,7 @@ export const demos: DemoEntry[] = [
   {
     id: "edit-email-template",
     title: "Edit an Existing Email Template",
-    description: "Open a template in the editor, modify the subject and body, and use placeholder pills for dynamic content.",
+    description: "Open any template in the editor to refine wording, update subject lines, and reformat the body. Changes apply to all future emails using the template.",
     tags: ["template", "edit", "modify", "email", "placeholders", "editor"],
     category: "Email Templates",
     hasSideEffects: true,
@@ -255,7 +255,7 @@ export const demos: DemoEntry[] = [
   {
     id: "delete-email-template",
     title: "Delete an Email Template",
-    description: "Remove a custom email template that is no longer needed.",
+    description: "Remove a template you no longer need. Deletion is not possible if the template is currently in use by a deadline's reminder schedule.",
     tags: ["template", "delete", "remove", "email"],
     category: "Email Templates",
     hasSideEffects: true,
@@ -267,7 +267,7 @@ export const demos: DemoEntry[] = [
   {
     id: "configure-filing-types",
     title: "Choose Active Filing Types",
-    description: "Select which filing types your practice handles — Corporation Tax, CT600, Companies House, VAT, Self Assessment, and custom schedules.",
+    description: "Choose which deadlines your practice tracks. Configured during setup wizard but editable any time from the deadlines page. Only active types generate reminders.",
     tags: ["filing types", "configure", "select", "deadlines", "setup"],
     category: "Deadlines",
     hasSideEffects: true,
@@ -275,15 +275,15 @@ export const demos: DemoEntry[] = [
   {
     id: "edit-reminder-schedule",
     title: "Edit a Deadline's Reminder Schedule",
-    description: "Open a filing type's schedule editor to configure which email templates are sent and how many days before the deadline.",
+    description: "Open a deadline's schedule editor to adjust timing, change required documents, add steps, and configure which email templates are sent.",
     tags: ["schedule", "reminder", "edit", "steps", "timing", "deadline", "configure"],
     category: "Deadlines",
     hasSideEffects: true,
   },
   {
     id: "activate-deadline-for-client",
-    title: "Activate a Deadline for Specific Clients",
-    description: "Use the 'Activate for clients' modal to assign a filing type to individual clients and preview their calculated deadlines.",
+    title: "Activate a Deadline for a Client",
+    description: "From a client's detail page, activate an inactive deadline for that client. Prompt calculates the deadline date and begins scheduling reminders automatically.",
     tags: ["activate", "deadline", "client", "assign", "filing type"],
     category: "Deadlines",
     hasSideEffects: true,
@@ -299,7 +299,7 @@ export const demos: DemoEntry[] = [
   {
     id: "create-custom-schedule",
     title: "Create a Custom Deadline Schedule",
-    description: "Set up a custom recurring deadline with your own name, date, recurrence rule, and reminder steps.",
+    description: "Create a custom deadline with your own name, date, and recurrence rule. Choose an email template for each step, add as many reminder steps as you need, and assign to clients.",
     tags: ["custom", "schedule", "create", "deadline", "recurring", "new"],
     category: "Deadlines",
     hasSideEffects: true,
@@ -311,7 +311,7 @@ export const demos: DemoEntry[] = [
   {
     id: "review-document-upload",
     title: "Review & Approve a Document Upload",
-    description: "When a document is uploaded via the client portal, review the validation result and approve or reject it.",
+    description: "Preview uploaded documents, see validation results, pass review or reject them, and navigate between uploads without leaving the review modal.",
     tags: ["review", "approve", "reject", "document", "upload", "validation", "portal"],
     category: "Documents",
     hasSideEffects: true,
@@ -319,7 +319,7 @@ export const demos: DemoEntry[] = [
   {
     id: "view-upload-activity",
     title: "View Upload Activity Log",
-    description: "Switch to the 'Uploads' tab on the Activity page to see all document uploads with their validation status.",
+    description: "View all document uploads with their validation status. Search for specific uploads, filter by status or filing type, and change the sort order.",
     tags: ["uploads", "activity", "log", "documents", "validation", "status"],
     category: "Documents",
     hasSideEffects: false,
@@ -331,7 +331,7 @@ export const demos: DemoEntry[] = [
   {
     id: "setup-custom-domain",
     title: "Set Up a Custom Sending Domain",
-    description: "Configure a custom email domain with DNS records (DKIM, SPF) so emails are sent from your practice's domain.",
+    description: "Set up a custom sending domain so clients see emails from your practice. The settings page includes DNS setup instructions for the main domain providers.",
     tags: ["domain", "custom", "dns", "dkim", "spf", "email", "settings", "branding"],
     category: "Settings",
     hasSideEffects: true,
@@ -353,14 +353,6 @@ export const demos: DemoEntry[] = [
     hasSideEffects: true,
   },
   {
-    id: "connect-storage",
-    title: "Connect Cloud Storage (Google Drive / OneDrive / Dropbox)",
-    description: "Link a cloud storage provider so client document uploads are automatically saved to your preferred service.",
-    tags: ["storage", "google drive", "onedrive", "dropbox", "connect", "cloud", "settings"],
-    category: "Settings",
-    hasSideEffects: true,
-  },
-  {
     id: "enable-client-portal",
     title: "Enable the Client Portal",
     description: "Turn on the client upload portal so clients can submit documents through a secure link.",
@@ -370,8 +362,8 @@ export const demos: DemoEntry[] = [
   },
   {
     id: "configure-upload-checks",
-    title: "Configure Upload Validation Checks",
-    description: "Set how document uploads are validated — automatic acceptance, manual review, or rejection of mismatched files.",
+    title: "Configure Upload Checks",
+    description: "Configure how uploads are validated — automatic acceptance, manual review, or document classification. Options include file type/size checks, tax year verification, and more.",
     tags: ["upload", "validation", "checks", "settings", "auto", "manual", "review"],
     category: "Settings",
     hasSideEffects: true,
@@ -387,7 +379,7 @@ export const demos: DemoEntry[] = [
   {
     id: "delete-account",
     title: "Delete Your Account",
-    description: "Walk through the account deletion flow — shows the confirmation dialog and what data will be removed.",
+    description: "Permanently delete your Prompt account and ALL associated data — clients, filings, emails, templates, documents, and team members.",
     tags: ["delete", "account", "remove", "settings", "danger"],
     category: "Settings",
     hasSideEffects: true,
@@ -404,14 +396,6 @@ export const demos: DemoEntry[] = [
     category: "Billing",
     hasSideEffects: false,
   },
-  {
-    id: "upgrade-plan",
-    title: "Upgrade Your Plan",
-    description: "Browse available plans and upgrade to a higher tier for more clients and features.",
-    tags: ["upgrade", "plan", "billing", "pricing", "subscription"],
-    category: "Billing",
-    hasSideEffects: true,
-  },
 
   // ───────────────────────────────────────────
   // Client Portal
@@ -419,7 +403,7 @@ export const demos: DemoEntry[] = [
   {
     id: "client-portal-upload",
     title: "Upload Documents via the Client Portal",
-    description: "Open a portal link as a client and upload documents — shows the checklist, drag-and-drop upload, progress, and validation feedback.",
+    description: "The portal experience from the client's perspective: open a link, see which documents are outstanding, and drag-and-drop to upload. Works on any device, no account required.",
     tags: ["portal", "upload", "client", "documents", "checklist", "drag drop"],
     category: "Client Portal",
     hasSideEffects: true,

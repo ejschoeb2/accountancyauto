@@ -36,7 +36,7 @@ const TutorialCard = ({
       ([entry]) => {
         if (entry.isIntersecting) {
           // Skip the login sequence at the start of each recording
-          if (video.currentTime < 9) video.currentTime = 9;
+
           video.play().catch(() => {});
         } else {
           video.pause();

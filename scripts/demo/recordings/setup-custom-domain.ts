@@ -34,29 +34,38 @@ const demo: DemoDefinition = {
     await wait(PAUSE.MEDIUM);
 
     // ─── Locate Custom Sending Domain card ───
-    console.log("→ Viewing Custom Sending Domain card...");
+    console.log("-> Viewing Custom Sending Domain card...");
     await cursorMove(page, 'text="Custom Sending Domain"');
     await wait(PAUSE.SHORT);
 
-    // ─── Enter domain ───
-    console.log("→ Entering domain name...");
-    await cursorType(page, '#setup-domain', "smithaccounting.co.uk", { delay: 30 });
-    await wait(PAUSE.MEDIUM);
+    // Check whether a domain is already configured (DNS records visible) or fresh input state
+    const domainInput = page.locator('#setup-domain');
+    const isDomainInputVisible = await domainInput.isVisible().catch(() => false);
 
-    // ─── Click Set Up Domain ───
-    console.log("→ Clicking Set Up Domain...");
-    await cursorClick(page, 'button:has-text("Set Up Domain")');
-    await wait(PAUSE.LONG);
+    if (isDomainInputVisible) {
+      // ─── Fresh state: enter domain ───
+      console.log("-> Entering domain name...");
+      await cursorType(page, '#setup-domain', "smithaccounting.co.uk", { delay: 30 });
+      await wait(PAUSE.MEDIUM);
+
+      // ─── Click Set Up Domain ───
+      console.log("-> Clicking Set Up Domain...");
+      await cursorClick(page, 'button:has-text("Set Up Domain")');
+      await wait(PAUSE.LONG);
+    } else {
+      // Domain already configured — DNS records are already showing
+      console.log("-> Domain already configured — viewing DNS records...");
+    }
 
     // ─── If DNS records appear, browse them ───
-    console.log("→ Viewing DNS records (if displayed)...");
+    console.log("-> Viewing DNS records (if displayed)...");
     const dnsTable = page.locator('table').first();
     if (await dnsTable.isVisible().catch(() => false)) {
       await cursorMove(page, 'table');
       await wait(PAUSE.READ);
 
       // Select a domain provider
-      console.log("→ Selecting a domain provider...");
+      console.log("-> Selecting a domain provider...");
       const cloudflareBtn = page.locator('button:has-text("Cloudflare")');
       if (await cloudflareBtn.isVisible().catch(() => false)) {
         await cursorClick(page, 'button:has-text("Cloudflare")');
@@ -65,7 +74,7 @@ const demo: DemoDefinition = {
     }
 
     await wait(PAUSE.READ);
-    console.log("→ Done — domain setup shown (stops before DNS verification).");
+    console.log("-> Done — domain setup shown (stops before DNS verification).");
   },
 };
 

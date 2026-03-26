@@ -1,8 +1,10 @@
 /**
  * Recording: Generate a Client Portal Link
  *
- * On the client detail page, scroll to the Generate Upload Link section,
- * select a filing type, and click Generate Link.
+ * Navigate to "Oakwood Property Management Ltd" (approaching, has records
+ * received for corp tax — so it has document requirements), scroll to filing
+ * management, and generate an upload link for a filing type that has
+ * document requirements.
  */
 
 import {
@@ -13,6 +15,7 @@ import {
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
@@ -28,61 +31,109 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Navigate to a client detail page ----
-    console.log("-> Clicking on a client row...");
+    // ---- Search for Oakwood Property Management (has document requirements) ----
+    console.log("-> Searching for Oakwood Property Management...");
+    const searchInput = page.locator('input[placeholder="Search by client name..."]');
+    await searchInput.waitFor({ state: "visible", timeout: 5000 });
+    await searchInput.fill("Oakwood");
+    await wait(PAUSE.LONG);
+
+    // ---- Navigate to client detail page ----
+    console.log("-> Clicking on Oakwood Property Management...");
+    const clientRow = page.locator('table tbody tr').first();
+    await clientRow.waitFor({ state: "visible", timeout: 5000 });
     await cursorClick(page, "table tbody tr", 0);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
+    await injectCursor(page);
     await wait(PAUSE.LONG);
 
-    // ---- Scroll to Filing Management and find a Generate Upload Link button ----
+    // ---- Scroll to Filing Management ----
     console.log("-> Scrolling to filing management...");
     const filingSection = page.locator('h2:has-text("Filing Management")');
+    await filingSection.waitFor({ state: "visible", timeout: 10000 });
     await filingSection.scrollIntoViewIfNeeded();
+    await injectCursor(page);
     await wait(PAUSE.MEDIUM);
 
-    // ---- Find and click Generate Upload Link on a filing card ----
-    console.log("-> Looking for Generate Upload Link button...");
-    const generateBtn = page
-      .locator('button:has-text("Generate Upload Link"), button:has-text("Upload")')
-      .first();
+    // ---- Wait for filing cards to load ----
+    await page.locator('[id^="filing-"]').first().waitFor({ state: "visible", timeout: 10000 });
+    await wait(PAUSE.MEDIUM);
 
-    if (await generateBtn.isVisible()) {
-      await generateBtn.scrollIntoViewIfNeeded();
-      await cursorMove(
-        page,
-        'button:has-text("Generate Upload Link"), button:has-text("Upload")'
-      );
-      await wait(PAUSE.MEDIUM);
+    // ---- Find a Generate Upload Link button that is enabled ----
+    console.log("-> Looking for an enabled Generate Upload Link button...");
+    const generateBtns = page.locator('button:has-text("Generate Upload Link")');
+    const btnCount = await generateBtns.count();
 
-      // Check if the button is disabled (portal may not be enabled)
-      const isDisabled = await generateBtn.isDisabled().catch(() => false);
+    let clickedBtn = false;
+    for (let i = 0; i < btnCount; i++) {
+      const btn = generateBtns.nth(i);
+      const isDisabled = await btn.isDisabled().catch(() => true);
       if (!isDisabled) {
-        console.log("-> Clicking Generate Upload Link...");
-        await cursorClick(
-          page,
-          'button:has-text("Generate Upload Link"), button:has-text("Upload")'
-        );
-        await wait(PAUSE.LONG);
+        await btn.scrollIntoViewIfNeeded();
+        await injectCursor(page);
+        await wait(PAUSE.MEDIUM);
 
-        // ---- Show the generated link ----
-        console.log("-> Portal link generated — reviewing...");
-        const portalUrlInput = page.locator('input[readonly][class*="font-mono"]');
-        if (await portalUrlInput.isVisible()) {
-          await cursorMove(page, 'input[readonly][class*="font-mono"]');
-          await wait(PAUSE.READ);
-        }
-      } else {
-        console.log("-> Generate Upload Link button is disabled (portal not enabled).");
+        // Show the button before clicking
+        await cursorMove(page, `button:has-text("Generate Upload Link") >> nth=${i}`);
         await wait(PAUSE.READ);
+
+        // Click to generate the link
+        console.log("-> Clicking Generate Upload Link...");
+        await btn.click();
+        await wait(PAUSE.LONG);
+        clickedBtn = true;
+        break;
       }
-    } else {
-      console.log("-> No Generate Upload Link button found.");
-      await cursorMove(page, '[id^="filing-"]');
     }
 
-    await wait(PAUSE.READ);
+    if (!clickedBtn) {
+      // Fallback: try clicking the short "Upload" text variant (mobile)
+      const uploadBtns = page.locator('button:has-text("Upload")');
+      const uploadCount = await uploadBtns.count();
+      for (let i = 0; i < uploadCount; i++) {
+        const btn = uploadBtns.nth(i);
+        const isDisabled = await btn.isDisabled().catch(() => true);
+        if (!isDisabled && await btn.isVisible().catch(() => false)) {
+          await btn.scrollIntoViewIfNeeded();
+          await injectCursor(page);
+          await btn.click();
+          await wait(PAUSE.LONG);
+          clickedBtn = true;
+          break;
+        }
+      }
+    }
+
+    if (!clickedBtn) {
+      console.log("-> All Generate Upload Link buttons are disabled (no document requirements).");
+      await cursorMove(page, '[id^="filing-"]');
+      await wait(PAUSE.READ);
+      return;
+    }
+
+    // ---- Show the generated link ----
+    console.log("-> Portal link generated — reviewing...");
+    await wait(PAUSE.MEDIUM);
+
+    // The portal URL should appear in a read-only input with font-mono class
+    const portalUrlInput = page.locator('input[readonly]').first();
+    if (await portalUrlInput.isVisible().catch(() => false)) {
+      await portalUrlInput.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await cursorMove(page, 'input[readonly]');
+      await wait(PAUSE.READ);
+    }
+
+    // Look for copy button or expiry info
+    const expiryText = page.locator('text=Expires').first();
+    if (await expiryText.isVisible().catch(() => false)) {
+      await cursorMove(page, 'text=Expires');
+      await wait(PAUSE.READ);
+    }
+
     console.log("-> Generate portal link demo complete.");
+    await wait(PAUSE.READ);
   },
 };
 

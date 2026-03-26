@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { MarketingNav } from "@/components/marketing/nav";
 import { FooterSection } from "@/components/marketing/footer-section";
@@ -80,18 +80,20 @@ export function DocumentGuideContent({
               {activeSection.documents.map((doc) => (
                 <div
                   key={doc.code}
-                  className="rounded-xl border border-border/60 bg-card shadow-sm shadow-black/5 p-5"
+                  className="rounded-xl border border-border/60 bg-card shadow-sm shadow-black/5 p-5 hover:border-border transition-colors"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="flex items-center justify-center size-9 rounded-lg bg-violet-500/10 shrink-0 mt-0.5">
-                      <FileText className="size-4 text-violet-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground">
-                        {doc.label}
-                      </p>
+                  <div className="flex items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2.5 mb-1">
+                        <p className="text-[15px] font-semibold text-foreground">
+                          {doc.label}
+                        </p>
+                        <span className="text-[11px] font-mono text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded">
+                          {doc.code}
+                        </span>
+                      </div>
                       {doc.description && (
-                        <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
                           {doc.description}
                         </p>
                       )}

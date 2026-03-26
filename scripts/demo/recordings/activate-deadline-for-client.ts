@@ -1,9 +1,9 @@
 /**
- * Recording: Activate a Deadline for Specific Clients
+ * Recording: Activate a Deadline from a Client's Detail Page
  *
- * On /deadlines, switch to Inactive view, click the Activate button
- * on a filing type to open the client selector modal, exclude a client,
- * step through documents, then stop before confirming.
+ * Navigate to a client detail page that has an inactive deadline,
+ * find the inactive filing card, toggle it to active, and show
+ * the updated state.
  */
 
 import {
@@ -12,92 +12,113 @@ import {
   navigateTo,
   cursorClick,
   cursorMove,
-  cursorType,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
   id: "activate-deadline-for-client",
-  title: "Activate a Deadline for Specific Clients",
+  title: "Activate a Deadline from a Client's Detail Page",
   description:
-    "Use the 'Activate for clients' modal to assign a filing type to individual clients and preview their calculated deadlines.",
-  tags: ["activate", "deadline", "client", "assign", "filing type"],
+    "Go to a client's detail page, find an inactive deadline in the Filing Management section, and activate it by toggling the Active checkbox.",
+  tags: ["activate", "deadline", "client", "filing", "detail page"],
   category: "Deadlines",
   hasSideEffects: true,
 
   async record({ page }) {
     await login(page);
-    await navigateTo(page, "/deadlines");
+    await navigateTo(page, "/clients");
 
-    // ─── Switch to inactive deadlines ───
-    console.log("→ Switching to Inactive Deadlines...");
-    await cursorClick(page, 'button:has-text("Inactive Deadlines")');
-    await wait(PAUSE.LONG);
-
-    // ─── Click Activate on the first inactive filing type ───
-    console.log("→ Clicking Activate on a filing type...");
-    const activateBtn = page.locator('button:has-text("Activate")').first();
-    await activateBtn.waitFor({ state: "visible", timeout: 5000 });
-    await cursorClick(page, 'button:has-text("Activate")', 0);
-    await wait(PAUSE.MEDIUM);
-
-    // ─── Modal opens — Step 1: Client selection ───
-    console.log("→ Activate modal opened — client selection step...");
-    await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
-    await wait(PAUSE.LONG);
-
-    // Search for a client
-    console.log("→ Searching for a client...");
-    const searchInput = page.locator('[role="dialog"] input[placeholder="Search clients..."]');
-    if (await searchInput.isVisible()) {
-      await cursorType(page, '[role="dialog"] input[placeholder="Search clients..."]', "Smith", { delay: 40 });
-      await wait(PAUSE.MEDIUM);
-
-      // Clear search to see all
-      await searchInput.fill("");
-      await wait(PAUSE.SHORT);
+    // ---- Find a client that likely has an inactive deadline ----
+    // Sarah Mitchell is an Individual — she won't have Corp Tax / CT600 / Companies House
+    // Those will show as inactive filings on her page
+    console.log("-> Looking for Sarah Mitchell (Individual client)...");
+    const sarahRow = page.locator('table tbody tr:has-text("Sarah Mitchell")').first();
+    if (await sarahRow.isVisible()) {
+      await cursorClick(page, 'table tbody tr:has-text("Sarah Mitchell") td', 1);
+    } else {
+      // Fallback: click any client
+      await cursorClick(page, "table tbody tr td", 1);
     }
 
-    // Exclude a client by clicking on a row (toggles the checkbox)
-    console.log("→ Excluding a client...");
-    const clientRows = page.locator('[role="dialog"] .hover\\:bg-muted\\/50');
-    const rowCount = await clientRows.count();
-    if (rowCount > 1) {
-      await cursorClick(page, '[role="dialog"] .hover\\:bg-muted\\/50', 1);
+    await page.waitForURL("**/clients/**", { timeout: 10000 });
+    await page.waitForLoadState("networkidle");
+    await injectCursor(page);
+    await wait(PAUSE.LONG);
+
+    // ---- View the client detail page ----
+    console.log("-> On client detail page...");
+    await wait(PAUSE.READ);
+
+    // ---- Scroll down to Filing Management section ----
+    console.log("-> Scrolling to Filing Management section...");
+    const filingSection = page.locator('h2:has-text("Filing Management")').first();
+    if (await filingSection.isVisible()) {
+      await filingSection.scrollIntoViewIfNeeded();
       await wait(PAUSE.MEDIUM);
     }
 
-    // Pause to show the exclusion state
-    await wait(PAUSE.READ);
-
-    // ─── Click Next to proceed ───
-    console.log("→ Clicking Next...");
-    await cursorClick(page, '[role="dialog"] button:has-text("Next")');
-    await wait(PAUSE.LONG);
-
-    // ─── Step 2 or Confirm step ───
-    // If there are document requirements, we see a documents step first
-    const docStep = page.locator('[role="dialog"]:has-text("documents clients need to provide")');
-    if (await docStep.isVisible()) {
-      console.log("→ Document settings step — reviewing...");
-      await wait(PAUSE.READ);
-
-      // Click Next to confirm step
-      await cursorClick(page, '[role="dialog"] button:has-text("Next")');
-      await wait(PAUSE.LONG);
-    }
-
-    // ─── Confirm step — show summary but don't activate ───
-    console.log("→ Confirm step — reviewing summary...");
-    await wait(PAUSE.READ);
-
-    // Close without activating
-    console.log("→ Closing modal without activating (demo)...");
-    await page.keyboard.press('Escape');
+    // ---- Find an inactive filing card ----
+    // Inactive filings have an "Active" checkbox label with the checkbox unchecked
+    // They appear with opacity-60 styling
+    console.log("-> Looking for an inactive deadline...");
     await wait(PAUSE.MEDIUM);
 
-    console.log("→ Activate deadline demo complete.");
+    // The filing cards have "Active" labels next to CheckButton toggles
+    // Look for a card that has an unchecked Active toggle (the filing is inactive)
+    const activeLabels = page.locator('label:has-text("Active")');
+    const labelCount = await activeLabels.count();
+
+    let activatedOne = false;
+    for (let i = 0; i < labelCount; i++) {
+      // Find the checkbox associated with this "Active" label
+      const labelEl = activeLabels.nth(i);
+      const parentDiv = labelEl.locator(".."); // parent element
+      const checkbox = parentDiv.locator('[role="checkbox"]').first();
+
+      if (await checkbox.isVisible()) {
+        const isChecked = await checkbox.getAttribute("data-state");
+        if (isChecked === "unchecked") {
+          console.log("-> Found an inactive deadline — activating...");
+
+          // Scroll this card into view
+          await labelEl.scrollIntoViewIfNeeded();
+          await wait(PAUSE.SHORT);
+
+          // Show the inactive state
+          await cursorMove(page, 'label:has-text("Active")', i);
+          await wait(PAUSE.READ);
+
+          // Click the checkbox to activate
+          await cursorClick(page, 'label:has-text("Active")', i);
+          await wait(PAUSE.LONG);
+
+          activatedOne = true;
+          break;
+        }
+      }
+    }
+
+    if (!activatedOne) {
+      // If all filings are already active, just hover over one to show the toggle
+      console.log("-> All filings are already active — showing Active toggle...");
+      if (labelCount > 0) {
+        await cursorMove(page, 'label:has-text("Active")', 0);
+        await wait(PAUSE.READ);
+      }
+    }
+
+    // ---- Show the result — the filing card is now active ----
+    console.log("-> Deadline is now active for this client...");
+    await wait(PAUSE.READ);
+
+    // ---- Scroll up to show the page title ----
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    await wait(PAUSE.MEDIUM);
+
+    console.log("-> Activate deadline from client page demo complete.");
+    await wait(PAUSE.SHORT);
   },
 };
 

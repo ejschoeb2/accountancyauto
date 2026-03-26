@@ -1,9 +1,9 @@
 /**
  * Recording: Import Clients from CSV
  *
- * Login, navigate to /clients, open the Import CSV dialog, download the
- * template, show the drag-and-drop zone, then navigate directly to the
- * /clients/import page to showcase the column-mapping step UI.
+ * Login, navigate to /clients, open the Import CSV dialog, upload a CSV
+ * with 4 clients via sessionStorage seeding, go through all import steps
+ * (column mapping, review/edit, confirm), and actually complete the import.
  */
 
 import {
@@ -43,42 +43,40 @@ const demo: DemoDefinition = {
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
     await wait(PAUSE.MEDIUM);
 
-    // ---- Show the dialog content — required and optional fields ----
-    console.log("-> Reviewing import dialog — required and optional fields...");
+    // ---- Show the dialog content ----
+    console.log("-> Reviewing import dialog...");
     await cursorMove(page, '[role="dialog"]');
     await wait(PAUSE.READ);
 
-    // ---- Click Download Template button ----
-    console.log("-> Downloading CSV template...");
-    await cursorClick(page, '[role="dialog"] button:has-text("Download template")');
-    await wait(PAUSE.MEDIUM);
-
     // ---- Show the drag-and-drop zone ----
     console.log("-> Showing the upload drop zone...");
-    await cursorMove(page, '[role="dialog"] .border-dashed');
-    await wait(PAUSE.READ);
+    const dropZone = page.locator('[role="dialog"] .border-dashed');
+    if (await dropZone.isVisible().catch(() => false)) {
+      await cursorMove(page, '[role="dialog"] .border-dashed');
+      await wait(PAUSE.READ);
+    }
 
-    // ---- Close the dialog ----
-    console.log("-> Closing import dialog...");
-    await cursorClick(page, '[role="dialog"] button:has-text("Close")');
-    await wait(PAUSE.MEDIUM);
+    // ---- Close the dialog (we'll seed data and navigate to import page) ----
+    console.log("-> Closing dialog to seed CSV data...");
+    await page.keyboard.press("Escape");
+    await wait(PAUSE.SHORT);
 
-    // ---- Navigate to the import page to show column mapping UI ----
-    // Seed sessionStorage with fake parsed CSV data so the import page renders
-    console.log("-> Navigating to import page with sample data...");
+    // ---- Seed sessionStorage with sample CSV data (4 clients) ----
+    console.log("-> Seeding CSV data and navigating to import page...");
     await page.evaluate(() => {
       const sampleData = {
         parsedData: {
-          headers: ["Company Name", "Email", "Client Type", "Year End Date", "VAT Registered"],
+          headers: ["company_name", "primary_email", "client_type", "year_end_date", "vat_registered"],
           rows: [
-            { "Company Name": "Acme Ltd", "Email": "acme@example.com", "Client Type": "Limited Company", "Year End Date": "2026-03-31", "VAT Registered": "Yes" },
-            { "Company Name": "Baker & Sons", "Email": "baker@example.com", "Client Type": "Partnership", "Year End Date": "2026-06-30", "VAT Registered": "No" },
-            { "Company Name": "Clark Consulting", "Email": "clark@example.com", "Client Type": "Individual", "Year End Date": "2026-04-05", "VAT Registered": "No" },
+            { "company_name": "Ashworth & Partners Ltd", "primary_email": "info@ashworthpartners.co.uk", "client_type": "Limited Company", "year_end_date": "2026-03-31", "vat_registered": "Yes" },
+            { "company_name": "Blackwood Consulting LLP", "primary_email": "admin@blackwoodllp.com", "client_type": "LLP", "year_end_date": "2026-06-30", "vat_registered": "No" },
+            { "company_name": "Clearwater Properties Ltd", "primary_email": "finance@clearwater.co.uk", "client_type": "Limited Company", "year_end_date": "2026-12-31", "vat_registered": "Yes" },
+            { "company_name": "Daniel Foster", "primary_email": "dan.foster@gmail.com", "client_type": "Individual", "year_end_date": "2025-04-05", "vat_registered": "No" },
           ],
           sampleRows: [
-            { "Company Name": "Acme Ltd", "Email": "acme@example.com", "Client Type": "Limited Company", "Year End Date": "2026-03-31", "VAT Registered": "Yes" },
-            { "Company Name": "Baker & Sons", "Email": "baker@example.com", "Client Type": "Partnership", "Year End Date": "2026-06-30", "VAT Registered": "No" },
-            { "Company Name": "Clark Consulting", "Email": "clark@example.com", "Client Type": "Individual", "Year End Date": "2026-04-05", "VAT Registered": "No" },
+            { "company_name": "Ashworth & Partners Ltd", "primary_email": "info@ashworthpartners.co.uk", "client_type": "Limited Company", "year_end_date": "2026-03-31", "vat_registered": "Yes" },
+            { "company_name": "Blackwood Consulting LLP", "primary_email": "admin@blackwoodllp.com", "client_type": "LLP", "year_end_date": "2026-06-30", "vat_registered": "No" },
+            { "company_name": "Clearwater Properties Ltd", "primary_email": "finance@clearwater.co.uk", "client_type": "Limited Company", "year_end_date": "2026-12-31", "vat_registered": "Yes" },
           ],
         },
         clientLimit: null,
@@ -92,62 +90,87 @@ const demo: DemoDefinition = {
     await injectCursor(page);
     await wait(PAUSE.LONG);
 
-    // ---- Show the column mapping step ----
-    console.log("-> Reviewing column mapping step...");
-    await cursorMove(page, 'h2:has-text("Map CSV Columns")');
-    await wait(PAUSE.READ);
-
-    // ---- Hover over a mapping row to show the select dropdowns ----
-    console.log("-> Showing column mapping selectors...");
-    // Hover over the first mapping row
-    const firstMappingRow = page.locator('.rounded-xl.border').first();
-    if (await firstMappingRow.isVisible()) {
-      await cursorMove(page, '.rounded-xl.border');
-      await wait(PAUSE.MEDIUM);
+    // ---- Step 1: Column Mapping ----
+    console.log("-> Step 1: Reviewing column mapping...");
+    const mappingHeader = page.locator('h2:has-text("Map CSV Columns")');
+    if (await mappingHeader.isVisible().catch(() => false)) {
+      await cursorMove(page, 'h2:has-text("Map CSV Columns")');
+      await wait(PAUSE.READ);
     }
 
-    // ---- Show sample values preview ----
-    console.log("-> Reviewing sample data preview in mapping...");
-    await cursorMove(page, '.rounded-xl.border', 1);
-    await wait(PAUSE.READ);
+    // Show the mapping rows — they should be auto-matched
+    const mappingRows = page.locator('.rounded-xl.border');
+    const mappingCount = await mappingRows.count();
+    if (mappingCount > 0) {
+      console.log("-> Showing auto-matched columns...");
+      await cursorMove(page, '.rounded-xl.border', 0);
+      await wait(PAUSE.MEDIUM);
 
-    // ---- Click Continue to show the edit-data step ----
-    console.log("-> Clicking Continue to review data...");
-    const continueBtn = page.locator('button:has-text("Continue")').first();
-    if (await continueBtn.isVisible()) {
-      await cursorClick(page, 'button:has-text("Continue")');
-      await wait(PAUSE.LONG);
-
-      // ---- Show the review/edit data table ----
-      console.log("-> Reviewing imported data before confirmation...");
-      const reviewHeading = page.locator('h2:has-text("Review")').first();
-      if (await reviewHeading.isVisible()) {
-        await cursorMove(page, 'h2:has-text("Review")');
-        await wait(PAUSE.READ);
-
-        // Show the data table
-        await cursorMove(page, 'table');
-        await wait(PAUSE.READ);
-
-        // Show the Import button at the bottom
-        const importBtn = page.locator('button:has-text("Import")').last();
-        if (await importBtn.isVisible()) {
-          console.log("-> Showing Import button...");
-          await cursorMove(page, 'button:has-text("Import")', -1);
-          await wait(PAUSE.MEDIUM);
-        }
+      if (mappingCount > 1) {
+        await cursorMove(page, '.rounded-xl.border', 1);
+        await wait(PAUSE.MEDIUM);
       }
     }
 
-    // ---- Navigate back to clients ----
-    console.log("-> Returning to clients page...");
-    const backBtn = page.locator('button:has-text("Back")').first();
-    if (await backBtn.isVisible()) {
-      await cursorClick(page, 'button:has-text("Back")');
+    // ---- Click Continue to go to edit-data step ----
+    console.log("-> Clicking Continue to review data...");
+    const continueBtn = page.locator('button:has-text("Continue")').first();
+    if (await continueBtn.isVisible().catch(() => false)) {
+      await cursorClick(page, 'button:has-text("Continue")');
+      await wait(PAUSE.LONG);
+    }
+
+    // ---- Step 2: Review/Edit Data ----
+    console.log("-> Step 2: Reviewing imported data...");
+    const reviewHeading = page.locator('h2:has-text("Review")').first();
+    if (await reviewHeading.isVisible().catch(() => false)) {
+      await cursorMove(page, 'h2:has-text("Review")');
+      await wait(PAUSE.READ);
+    }
+
+    // Show the data table
+    const dataTable = page.locator('table').first();
+    if (await dataTable.isVisible().catch(() => false)) {
+      await cursorMove(page, 'table');
+      await wait(PAUSE.READ);
+
+      // Scroll down to show all rows
+      const lastRow = page.locator('table tbody tr').last();
+      await lastRow.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await wait(PAUSE.MEDIUM);
     }
 
-    console.log("-> Import CSV flow tour complete.");
+    // ---- Click Import to actually import the clients ----
+    console.log("-> Clicking Import to confirm the import...");
+    const importBtn = page.locator('button:has-text("Import")').last();
+    if (await importBtn.isVisible().catch(() => false)) {
+      await importBtn.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await cursorClick(page, 'button:has-text("Import")');
+      await wait(PAUSE.LONG);
+    }
+
+    // ---- Step 3: Results ----
+    console.log("-> Showing import results...");
+    await wait(PAUSE.LONG);
+
+    // Look for success message or results summary
+    const successText = page.locator('text=successfully').first();
+    if (await successText.isVisible().catch(() => false)) {
+      await cursorMove(page, 'text=successfully');
+      await wait(PAUSE.READ);
+    }
+
+    // Look for "Go to Clients" or similar button
+    const goToClientsBtn = page.locator('button:has-text("Go to Clients"), a:has-text("Go to Clients"), button:has-text("View Clients")').first();
+    if (await goToClientsBtn.isVisible().catch(() => false)) {
+      console.log("-> Clicking to return to clients page...");
+      await cursorClick(page, 'button:has-text("Go to Clients"), a:has-text("Go to Clients"), button:has-text("View Clients")');
+      await wait(PAUSE.LONG);
+    }
+
+    console.log("-> Import CSV flow complete.");
     await wait(PAUSE.SHORT);
   },
 };

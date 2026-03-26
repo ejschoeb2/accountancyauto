@@ -20,19 +20,19 @@ const ROWS: DeadlineRow[] = [
 ];
 
 export const FilingDeadlinesIllustration = ({ isHovered }: { isHovered: boolean }) => (
-  <div className="w-full h-full flex flex-col justify-center px-5 py-4 select-none overflow-hidden">
+  <div className="w-full h-full flex flex-col justify-center px-4 py-3 select-none overflow-hidden">
     {/* Year-end anchor */}
     <motion.div
       className="flex items-center gap-2 mb-3"
       animate={{ opacity: isHovered ? 1 : 0.4 }}
       transition={{ duration: 0.3 }}
     >
-      <Calendar size={11} className="text-violet-500" strokeWidth={2} />
-      <span className="text-[8px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
+      <Calendar size={13} className="text-violet-500" strokeWidth={2} />
+      <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
         Year End
       </span>
       <motion.span
-        className="text-[9px] font-bold text-violet-600 bg-violet-500/10 px-2 py-[2px] rounded-full"
+        className="text-[11px] font-bold text-violet-600 bg-violet-500/10 px-2.5 py-[3px] rounded-full"
         animate={{
           opacity: isHovered ? 1 : 0.5,
           scale: isHovered ? 1 : 0.9,
@@ -44,7 +44,7 @@ export const FilingDeadlinesIllustration = ({ isHovered }: { isHovered: boolean 
     </motion.div>
 
     {/* Deadline rows */}
-    <div className="flex flex-col gap-[5px]">
+    <div className="flex flex-col gap-[6px]">
       {ROWS.map((row, i) => (
         <motion.div
           key={row.filing}
@@ -61,20 +61,20 @@ export const FilingDeadlinesIllustration = ({ isHovered }: { isHovered: boolean 
           }}
         >
           {/* Filing type */}
-          <span className="text-[9px] text-muted-foreground/60 w-[88px] flex-shrink-0 truncate">
+          <span className="text-[11px] text-muted-foreground/60 w-[100px] flex-shrink-0 truncate">
             {row.filing}
           </span>
 
           {/* Dotted connector */}
           <motion.div
-            className="flex-1 border-b border-dashed border-border/30 min-w-[12px]"
+            className="flex-1 border-b border-dashed border-border/30 min-w-[8px]"
             animate={{ opacity: isHovered ? 0.6 : 0.2 }}
             transition={{ duration: 0.2, delay: i * 0.08 + 0.1 }}
           />
 
           {/* Formula badge */}
           <motion.span
-            className="text-[8px] font-mono font-medium text-muted-foreground/50 bg-muted/60 px-1.5 py-[2px] rounded flex-shrink-0"
+            className="text-[10px] font-mono font-bold text-muted-foreground/60 bg-muted/60 px-2 py-[3px] rounded flex-shrink-0"
             animate={{
               opacity: isHovered ? 1 : 0,
               scale: isHovered ? 1 : 0.8,
@@ -91,7 +91,7 @@ export const FilingDeadlinesIllustration = ({ isHovered }: { isHovered: boolean 
 
           {/* Arrow */}
           <motion.span
-            className="text-[9px] text-muted-foreground/30"
+            className="text-[11px] text-muted-foreground/30"
             animate={{ opacity: isHovered ? 0.6 : 0 }}
             transition={{ duration: 0.15, delay: i * 0.08 + 0.2 }}
           >
@@ -100,7 +100,7 @@ export const FilingDeadlinesIllustration = ({ isHovered }: { isHovered: boolean 
 
           {/* Date pill */}
           <motion.span
-            className="text-[8px] font-semibold px-2 py-[2px] rounded-full flex-shrink-0"
+            className="text-[10px] font-semibold px-2.5 py-[3px] rounded-full flex-shrink-0"
             style={{ backgroundColor: row.bg, color: row.color }}
             initial={{ opacity: 0, scale: 0.75 }}
             animate={{

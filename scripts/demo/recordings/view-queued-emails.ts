@@ -13,13 +13,14 @@ import {
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
   id: "view-queued-emails",
   title: "Preview & Manage Queued Emails",
   description:
-    "View emails scheduled to be sent, preview their content, and optionally cancel them.",
+    "View emails scheduled to be sent, preview their content, and optionally cancel or reschedule them.",
   tags: [
     "queued",
     "scheduled",
@@ -38,12 +39,15 @@ const demo: DemoDefinition = {
     // ---- Ensure we are on Outbound / Queued ----
     console.log("-> Ensuring Queued Emails view...");
     await page.waitForLoadState("networkidle");
+    await injectCursor(page);
     await wait(PAUSE.MEDIUM);
 
     // Click Queued Emails toggle if not already active
     const queuedBtn = page.locator('button:has-text("Queued Emails")').first();
     if (await queuedBtn.isVisible()) {
       await cursorClick(page, 'button:has-text("Queued Emails")');
+      await page.waitForLoadState("networkidle");
+      await injectCursor(page);
       await wait(PAUSE.LONG);
     }
 
@@ -61,6 +65,11 @@ const demo: DemoDefinition = {
     await cursorMove(page, "table tbody tr", 0);
     await wait(PAUSE.SHORT);
 
+    if (rowCount > 1) {
+      await cursorMove(page, "table tbody tr", 1);
+      await wait(PAUSE.SHORT);
+    }
+
     // ---- Click first queued email to open preview modal ----
     console.log("-> Opening queued email preview modal...");
     await cursorClick(page, "table tbody tr", 0);
@@ -73,7 +82,6 @@ const demo: DemoDefinition = {
 
     // ---- Browse the preview content ----
     console.log("-> Viewing email preview and metadata...");
-    await cursorMove(page, '[role="dialog"] h3:has-text("Email Preview")');
     await wait(PAUSE.READ);
 
     // ---- Show action buttons ----
@@ -124,8 +132,12 @@ const demo: DemoDefinition = {
       .first();
     if (await closeBtn.isVisible()) {
       await cursorClick(page, '[role="dialog"] button:has-text("Close")');
-      await wait(PAUSE.SHORT);
+    } else {
+      await page.keyboard.press("Escape");
     }
+    await wait(PAUSE.SHORT);
+
+    console.log("-> Queued emails demo complete.");
   },
 };
 

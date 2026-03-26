@@ -225,6 +225,9 @@ export async function startRecording(): Promise<DemoSession> {
   return { browser, context, page, outDir };
 }
 
+// Seconds to trim from the start of each recording (login sequence)
+export const TRIM_SECONDS = 10;
+
 /** Close browser and rename the recorded video to the target filename */
 export async function stopRecording(session: DemoSession, outputName: string) {
   // Get the video path BEFORE closing — Playwright knows which file belongs to this page
@@ -239,21 +242,21 @@ export async function stopRecording(session: DemoSession, outputName: string) {
     fs.renameSync(videoPath, dest);
     console.log(`\n✓ Video saved: out/${outputName}`);
 
-    // Auto-convert to high-quality MP4 if ffmpeg is available
+    // Auto-convert to high-quality MP4, trimming login sequence, if ffmpeg is available
     const mp4Name = outputName.replace(".webm", ".mp4");
     const mp4Path = path.join(session.outDir, mp4Name);
     try {
       if (fs.existsSync(mp4Path)) fs.unlinkSync(mp4Path);
       execSync(
-        `ffmpeg -i "${dest}" -c:v libx264 -crf 16 -preset slow -pix_fmt yuv420p -movflags +faststart "${mp4Path}"`,
+        `ffmpeg -i "${dest}" -ss ${TRIM_SECONDS} -c:v libx264 -crf 16 -preset slow -pix_fmt yuv420p -movflags +faststart -an "${mp4Path}"`,
         { stdio: "pipe" }
       );
-      console.log(`✓ Converted to mp4: out/${mp4Name}`);
+      console.log(`✓ Converted to mp4 (trimmed ${TRIM_SECONDS}s): out/${mp4Name}`);
       // Remove the webm source after successful conversion
       fs.unlinkSync(dest);
     } catch {
       console.log(
-        `  Convert manually: ffmpeg -i out/${outputName} -c:v libx264 -crf 16 -preset slow -pix_fmt yuv420p -movflags +faststart out/${mp4Name}`
+        `  Convert manually: ffmpeg -i out/${outputName} -ss ${TRIM_SECONDS} -c:v libx264 -crf 16 -preset slow -pix_fmt yuv420p -movflags +faststart -an out/${mp4Name}`
       );
     }
   } else {
