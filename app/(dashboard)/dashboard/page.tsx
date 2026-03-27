@@ -120,14 +120,14 @@ function DashboardContent() {
         onDataChange={fetchData}
       />
 
-      {/* Workload Forecast — full width */}
-      <WorkloadForecast refreshKey={refreshKey} />
-
       {/* Upcoming Deadlines & Recent Uploads — side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UpcomingDeadlines clients={clientStatusList} />
         <RecentUploads uploads={recentUploads} onDataChange={fetchData} />
       </div>
+
+      {/* Workload Forecast — full width */}
+      <WorkloadForecast refreshKey={refreshKey} />
     </div>
   );
 }

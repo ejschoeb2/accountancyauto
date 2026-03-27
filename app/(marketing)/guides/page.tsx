@@ -101,6 +101,7 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
               src={guide.videoPath}
               controls
               muted
+              playsInline
               preload="metadata"
               className="w-full h-full object-cover"
             />

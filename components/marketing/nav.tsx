@@ -53,14 +53,10 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
 
           {/* Nav links — desktop only */}
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-            {!isOrgSubdomain && (
-              <>
-                <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
-                <a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a>
-                <a href="/news" className="hover:text-foreground transition-colors">News</a>
-                <a href="/guides" className="hover:text-foreground transition-colors">Guides</a>
-              </>
-            )}
+            <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
+            <a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a>
+            <a href="/news" className="hover:text-foreground transition-colors">News</a>
+            <a href="/guides" className="hover:text-foreground transition-colors">Guides</a>
           </nav>
 
           {/* Actions */}
@@ -90,22 +86,22 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
                     <UserPlus size={15} />
                   </a>
                 )}
-                {/* Hamburger — mobile only */}
-                <button
-                  className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                  onClick={() => setMobileOpen(!mobileOpen)}
-                  aria-label="Toggle menu"
-                >
-                  {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-                </button>
               </>
             )}
+            {/* Hamburger — mobile only */}
+            <button
+              className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
           </div>
 
         </div>
 
         {/* Mobile menu dropdown */}
-        {mobileOpen && !isOrgSubdomain && (
+        {mobileOpen && (
           <div className="md:hidden border-t border-border/40 py-4 flex flex-col gap-1">
             <a
               href="/#features"
