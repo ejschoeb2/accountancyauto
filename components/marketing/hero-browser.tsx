@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowRight, ArrowDown, Play } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 
-const BROWSER_WIDTH = 700;
+const BROWSER_WIDTH = 820;
 // Resting: 50% hidden off-screen right
 const RESTING_X = BROWSER_WIDTH * 0.40;
 // Hovered: fully visible
@@ -111,12 +111,8 @@ export const HeroBrowser = ({
               playsInline
             />
           </motion.div>
-          {/* Frosted glass overlay — blurs + washes at rest, fades on hover */}
-          <motion.div
-            className="absolute inset-0 backdrop-blur-[2px] bg-background/0 pointer-events-none"
-            animate={{ opacity: isHovered ? 0 : 1 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          />
+          {/* Frosted glass overlay — always visible */}
+          <div className="absolute inset-0 backdrop-blur-[2px] pointer-events-none" />
           {/* CTA overlay — fades in when browser is expanded */}
           <AnimatePresence>
             {isHovered && (
