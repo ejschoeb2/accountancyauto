@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { motion, useMotionValue, useSpring, animate } from "framer-motion";
+import { motion, useMotionValue, useSpring } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ArrowDown } from "lucide-react";
 
-// Progress bar fill duration in ms
-const FILL_DURATION = 7000;
 const BROWSER_WIDTH = 700;
 // Resting: 50% hidden off-screen right
 const RESTING_X = BROWSER_WIDTH * 0.40;
@@ -127,9 +125,7 @@ export const HeroBrowser = ({
 };
 
 /**
- * CTA buttons: "Watch tutorials" with green progress bar fill + "Try for free".
- * The tutorials button fills green when the browser or itself is hovered.
- * After 3s continuous hover, navigates to /tutorials.
+ * CTA buttons: "Find out more" scrolls to #features + "Try for free" goes to signup.
  */
 export const HeroCta = ({
   browserHovering,
@@ -139,88 +135,20 @@ export const HeroCta = ({
   onHoverChange?: (hovering: boolean) => void;
 }) => {
   const router = useRouter();
-  const [selfHovering, setSelfHovering] = useState(false);
-  const hoverStartRef = useRef<number | null>(null);
-  const rafRef = useRef<number>(undefined);
-  const navigatedRef = useRef(false);
-
-  const progress = useMotionValue(0);
-  const smoothProgress = useSpring(progress, { stiffness: 300, damping: 30 });
-
-  const startFill = useCallback(() => {
-    if (navigatedRef.current) return;
-    if (hoverStartRef.current) return;
-    hoverStartRef.current = performance.now();
-    progress.set(0);
-
-    const tick = () => {
-      if (!hoverStartRef.current) return;
-      const elapsed = performance.now() - hoverStartRef.current;
-      const p = Math.min(elapsed / FILL_DURATION, 1);
-      progress.set(p);
-
-      if (p >= 1) {
-        navigatedRef.current = true;
-        router.push("/guides?type=tutorial");
-        return;
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-  }, [progress, router]);
-
-  const stopFill = useCallback(() => {
-    hoverStartRef.current = null;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    animate(progress, 0, { duration: 0.3 });
-  }, [progress]);
-
-  // React to browser hover changes
-  useEffect(() => {
-    if (browserHovering) {
-      startFill();
-    } else if (!selfHovering) {
-      stopFill();
-    }
-  }, [browserHovering, selfHovering, startFill, stopFill]);
-
-  const handleEnter = useCallback(() => {
-    setSelfHovering(true);
-    onHoverChange?.(true);
-    startFill();
-  }, [startFill, onHoverChange]);
-
-  const handleLeave = useCallback(() => {
-    setSelfHovering(false);
-    onHoverChange?.(false);
-    if (!browserHovering) stopFill();
-  }, [browserHovering, stopFill, onHoverChange]);
-
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* Watch tutorials — green progress bar fills over violet base */}
-      <div
-        onMouseEnter={handleEnter}
-        onMouseLeave={handleLeave}
-        className="relative inline-flex items-center rounded-full bg-violet-600 shadow-md shadow-violet-500/30 hover:shadow-violet-500/50 transition-shadow duration-200 overflow-hidden cursor-pointer select-none"
-        onClick={() => router.push("/guides?type=tutorial")}
+      {/* Find out more — scrolls to features section */}
+      <button
+        onClick={() => {
+          const el = document.getElementById("features");
+          if (el) el.scrollIntoView({ behavior: "smooth" });
+        }}
+        className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
       >
-        {/* Green fill that sweeps left-to-right */}
-        <motion.div
-          className="absolute inset-0 bg-green-500 origin-left rounded-full"
-          style={{ scaleX: smoothProgress }}
-        />
-        <span className="relative z-10 px-6 py-3 sm:px-8 sm:py-4 text-base sm:text-lg font-semibold text-white whitespace-nowrap inline-flex items-center gap-2">
-          Watch tutorials
-          <ArrowRight size={18} />
-        </span>
-      </div>
+        Find out more
+        <ArrowDown size={18} />
+      </button>
 
       {/* Try for free — blue */}
       <button

@@ -177,14 +177,19 @@ const BentoCard = ({ feature }: { feature: Feature }) => {
 export const FeaturesSection = () => (
   <section id="features" className="relative z-[1] py-20 lg:py-28">
     <div className="max-w-screen-xl mx-auto px-4">
-      {/* Header */}
-      <div className="mb-16">
-        <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
-          How It Works
+      {/* Header — two-column with subheading on right */}
+      <div className="mb-16 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+        <div>
+          <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
+            How It Works
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+            Less admin.<br className="hidden lg:block" /> More accounting.
+          </h2>
+        </div>
+        <p className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-md lg:text-right">
+          Set up in minutes — add your clients, pick a reminder schedule, and Prompt takes it from there.
         </p>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
-          Less admin.<br className="hidden lg:block" /> More accounting.
-        </h2>
       </div>
 
       {/* Full-width horizontal cards — alternating text/illustration sides */}
@@ -201,14 +206,19 @@ export const DocumentCollectionSection = () => (
   <section className="relative z-[1] py-20 lg:py-28">
     <div className="max-w-screen-xl mx-auto px-4">
 
-      {/* Section header — centred above the grid */}
-      <div className="mb-12">
-        <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
-          Take it further
+      {/* Section header — two-column with subheading on right */}
+      <div className="mb-12 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+        <div>
+          <p className="text-[13px] font-semibold tracking-[0.25em] uppercase text-muted-foreground mb-5">
+            Optional Add-ons
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
+            Want to go further?<br className="hidden lg:block" /> Turn these on.
+          </h2>
+        </div>
+        <p className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-md lg:text-right">
+          Prompt works great on its own — but when you're ready, these extras let clients upload documents, verify them automatically, and more.
         </p>
-        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-[1.15]">
-          Documents in.<br className="hidden lg:block" /> Chasing over.
-        </h2>
       </div>
 
       {/* Bento grid — 3 rows × 2 cols, subtle alternating splits */}
