@@ -4,7 +4,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ArrowRight, ArrowDown } from "lucide-react";
+import { ArrowRight, ArrowDown, Play } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 
 const BROWSER_WIDTH = 700;
 // Resting: 50% hidden off-screen right
@@ -93,7 +94,7 @@ export const HeroBrowser = ({
         </div>
 
         {/* Content area — video preview */}
-        <div className="relative aspect-[4/3] bg-background overflow-hidden">
+        <div className="relative aspect-[16/9] bg-background overflow-hidden">
           {/* Video dims slightly at rest */}
           <motion.div
             className="w-full h-full"
@@ -103,7 +104,7 @@ export const HeroBrowser = ({
             <video
               ref={videoRef}
               src={HERO_VIDEO}
-              className="w-full h-full object-cover object-left-top"
+              className="w-full h-full object-cover"
               muted
               autoPlay
               loop
@@ -116,6 +117,23 @@ export const HeroBrowser = ({
             animate={{ opacity: isHovered ? 0 : 1 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           />
+          {/* CTA overlay — fades in when browser is expanded */}
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              >
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-foreground shadow-lg shadow-black/10">
+                  <Play size={14} className="fill-current" />
+                  See tutorials
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* Subtle gradient overlay on the left edge for smooth page blend */}
           <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-background/40 to-transparent pointer-events-none" />
         </div>
