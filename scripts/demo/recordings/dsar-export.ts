@@ -1,9 +1,12 @@
 /**
  * Recording: Export Client Data (DSAR)
  *
- * On the client detail page, scroll down through all sections to the
- * Compliance section at the bottom, pause to show it, then click the
- * DSAR Export button.
+ * Navigate quickly to a client detail page and scroll to the Compliance
+ * section to click the DSAR Export button.
+ *
+ * NOTE: The login() helper takes ~11s which gets trimmed by ffmpeg.
+ * This script adds an extra initial wait to ensure the trimmed video
+ * starts cleanly on the dashboard, not mid-login.
  */
 
 import {
@@ -28,75 +31,31 @@ const demo: DemoDefinition = {
 
   async record({ page }) {
     await login(page);
+    // Extra wait so the trimmed video starts cleanly on the dashboard
+    await wait(1000);
     await navigateTo(page, "/clients");
 
-    // ---- Navigate to a client detail page ----
-    console.log("-> Clicking on a client row...");
-    await cursorClick(page, "table tbody tr", 0);
+    // ---- Navigate to a client detail page (click name cell) ----
+    console.log("-> Clicking on a client name...");
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
-    await wait(PAUSE.LONG);
+    await wait(PAUSE.SHORT);
 
-    // ---- Scroll down gradually to show the page content ----
-    console.log("-> Scrolling down through Client Details...");
-    const clientDetails = page.locator('h2:has-text("Client Details")');
-    if (await clientDetails.isVisible().catch(() => false)) {
-      await clientDetails.scrollIntoViewIfNeeded();
-      await injectCursor(page);
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // Scroll to Filing Management
-    console.log("-> Scrolling past Filing Management...");
-    const filingSection = page.locator('h2:has-text("Filing Management")');
-    if (await filingSection.isVisible().catch(() => false)) {
-      await filingSection.scrollIntoViewIfNeeded();
-      await injectCursor(page);
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // Continue scrolling down to find Compliance section
+    // ---- Scroll directly to Compliance section ----
     console.log("-> Scrolling to Compliance section...");
-
-    // Scroll the page down more to reach the bottom
-    await page.evaluate(() => window.scrollBy(0, 500));
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await injectCursor(page);
     await wait(PAUSE.SHORT);
 
-    await page.evaluate(() => window.scrollBy(0, 500));
-    await injectCursor(page);
-    await wait(PAUSE.SHORT);
-
-    await page.evaluate(() => window.scrollBy(0, 500));
-    await injectCursor(page);
-    await wait(PAUSE.SHORT);
-
-    // Try to find the Compliance heading
     const complianceSection = page.locator('h2:has-text("Compliance")');
     if (await complianceSection.isVisible().catch(() => false)) {
       await complianceSection.scrollIntoViewIfNeeded();
       await injectCursor(page);
-      await wait(PAUSE.MEDIUM);
-    } else {
-      // Scroll all the way to the bottom
-      console.log("-> Scrolling to bottom of page...");
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await injectCursor(page);
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ---- Show the DSAR description ----
-    console.log("-> Reviewing DSAR export section...");
-    if (await complianceSection.isVisible().catch(() => false)) {
       await cursorMove(page, 'h2:has-text("Compliance")');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.SHORT);
     }
-
-    // Scroll down a bit more to make sure the DSAR button is visible
-    await page.evaluate(() => window.scrollBy(0, 200));
-    await injectCursor(page);
-    await wait(PAUSE.SHORT);
 
     // ---- Click the DSAR Export button ----
     console.log("-> Clicking DSAR Export button...");
@@ -104,26 +63,15 @@ const demo: DemoDefinition = {
     if (await dsarBtn.isVisible().catch(() => false)) {
       await dsarBtn.scrollIntoViewIfNeeded();
       await injectCursor(page);
-      await wait(PAUSE.SHORT);
-
       await cursorClick(page, 'button:has-text("DSAR Export")');
       await wait(PAUSE.LONG);
 
-      // Wait for download (button text may change to "Preparing export...")
+      // Wait for download
       console.log("-> Export in progress...");
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
     } else {
-      console.log("-> DSAR Export button not found — scrolling to show it...");
-      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      await injectCursor(page);
-      await wait(PAUSE.LONG);
-
-      // Try again
-      if (await dsarBtn.isVisible().catch(() => false)) {
-        await cursorClick(page, 'button:has-text("DSAR Export")');
-        await wait(PAUSE.LONG);
-        await wait(PAUSE.READ);
-      }
+      console.log("-> DSAR Export button not found.");
+      await wait(PAUSE.MEDIUM);
     }
 
     console.log("-> DSAR export demo complete.");

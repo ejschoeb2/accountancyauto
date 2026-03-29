@@ -1,9 +1,10 @@
 /**
  * Recording: Mark Records as Received
  *
- * Navigate to a client (Brighton Digital LLP — approaching, not yet received),
- * scroll to filing management, show individual document checkboxes being ticked,
- * then show the overall records received toggle and how it stops reminders.
+ * Navigate to Brighton Digital LLP (approaching, not yet received),
+ * scroll to filing management, find the CT600 filing card, tick each
+ * document row in the checklist table individually with visible cursor,
+ * showing the records being marked as received.
  */
 
 import {
@@ -12,6 +13,7 @@ import {
   navigateTo,
   cursorClick,
   cursorMove,
+  cursorType,
   wait,
   PAUSE,
   injectCursor,
@@ -30,14 +32,14 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Search for Brighton Digital (approaching, not yet received) ----
+    // ---- Search for Brighton Digital with visible cursor ----
     console.log("-> Searching for Brighton Digital LLP...");
     const searchInput = page.locator('input[placeholder="Search by client name..."]');
     await searchInput.waitFor({ state: "visible", timeout: 5000 });
-    await searchInput.fill("Brighton Digital");
+    await cursorType(page, 'input[placeholder="Search by client name..."]', "Brighton Digital");
     await wait(PAUSE.LONG);
 
-    // ---- Click on the client row ----
+    // ---- Click on the client row with visible cursor ----
     console.log("-> Clicking on Brighton Digital...");
     const clientRow = page.locator('table tbody tr').first();
     await clientRow.waitFor({ state: "visible", timeout: 5000 });
@@ -55,101 +57,101 @@ const demo: DemoDefinition = {
     await injectCursor(page);
     await wait(PAUSE.MEDIUM);
 
-    // ---- Find the first active filing card ----
-    console.log("-> Locating an active filing card...");
-    const filingCards = page.locator('[id^="filing-"]');
-    const cardCount = await filingCards.count();
-
-    if (cardCount === 0) {
-      console.log("-> No filing cards found.");
-      return;
-    }
-
-    const firstCard = filingCards.first();
-    await firstCard.scrollIntoViewIfNeeded();
+    // ---- Find the CT600 Filing card specifically ----
+    console.log("-> Locating CT600 Filing card...");
+    const ct600Card = page.locator('#filing-ct600_filing');
+    await ct600Card.waitFor({ state: "visible", timeout: 10000 });
+    await ct600Card.scrollIntoViewIfNeeded();
     await injectCursor(page);
     await wait(PAUSE.MEDIUM);
 
-    // ---- Show the filing card with its document checklist ----
-    console.log("-> Showing the filing card and document checklist...");
-    await cursorMove(page, '[id^="filing-"]');
+    // Show the filing card
+    await cursorMove(page, '#filing-ct600_filing');
     await wait(PAUSE.READ);
 
-    // ---- Tick individual document checkboxes ----
-    // The DocumentCard renders CheckButton items for each document type
-    // Look for individual document checkboxes inside the filing card
-    console.log("-> Looking for individual document checkboxes...");
-    const docCheckboxes = firstCard.locator('[aria-label*="received"]');
-    const docCheckCount = await docCheckboxes.count();
+    // ---- Tick individual document rows in the CT600 checklist table ----
+    // The DocumentCard renders a table inside the filing card with checklist rows.
+    // Each row is clickable — clicking it toggles manually_received.
+    console.log("-> Looking for document checklist rows in the CT600 card...");
+    const ct600Table = ct600Card.locator('table');
+    await ct600Table.waitFor({ state: "visible", timeout: 10000 });
+    await wait(PAUSE.MEDIUM);
 
-    // Also look for the overall "X of Y required received" label area
-    const overallCheckbox = firstCard.locator('[aria-label*="Mark all"]').first();
+    // Get all body rows (checklist items) — each has a CheckButton in first cell
+    const checklistRows = ct600Card.locator('table tbody tr');
+    const rowCount = await checklistRows.count();
+    console.log(`-> Found ${rowCount} checklist rows — ticking each one...`);
 
-    if (docCheckCount > 1) {
-      // There are individual checkboxes — tick them one by one
-      console.log(`-> Found ${docCheckCount} document checkboxes — ticking individually...`);
-
-      // Tick first checkbox
-      const firstCheckbox = docCheckboxes.first();
-      await firstCheckbox.scrollIntoViewIfNeeded();
+    // Tick each row individually with visible cursor
+    for (let i = 0; i < rowCount; i++) {
+      const row = checklistRows.nth(i);
+      await row.scrollIntoViewIfNeeded();
       await injectCursor(page);
-      await wait(PAUSE.SHORT);
-      await firstCheckbox.click();
-      await wait(PAUSE.LONG);
 
-      // Show the effect
-      console.log("-> First document checked — showing updated status...");
-      await wait(PAUSE.MEDIUM);
+      // Click the CheckButton in the first cell of this row
+      const checkBtn = row.locator('button').first();
+      if (await checkBtn.isVisible().catch(() => false)) {
+        const box = await checkBtn.boundingBox();
+        if (box) {
+          // Move cursor to the checkbox
+          await page.evaluate(
+            ({ x, y }) => {
+              const el = document.getElementById("demo-cursor");
+              if (el) { el.style.top = y + "px"; el.style.left = x + "px"; }
+            },
+            { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+          );
+          await wait(450);
 
-      // Tick second checkbox if available
-      if (docCheckCount > 1) {
-        const secondCheckbox = docCheckboxes.nth(1);
-        if (await secondCheckbox.isVisible().catch(() => false)) {
-          await secondCheckbox.scrollIntoViewIfNeeded();
-          await injectCursor(page);
-          await secondCheckbox.click();
+          // Show click ripple
+          await page.evaluate(`
+            (() => {
+              const cursor = document.getElementById('demo-cursor');
+              if (!cursor) return;
+              const ripple = document.createElement('div');
+              Object.assign(ripple.style, {
+                position: 'fixed',
+                top: (parseFloat(cursor.style.top) + 4) + 'px',
+                left: (parseFloat(cursor.style.left) + 4) + 'px',
+                width: '16px', height: '16px', borderRadius: '50%',
+                background: 'rgba(59, 130, 246, 0.4)',
+                transform: 'scale(1)',
+                transition: 'transform 0.35s ease-out, opacity 0.35s ease-out',
+                pointerEvents: 'none', zIndex: '2147483646',
+              });
+              document.body.appendChild(ripple);
+              requestAnimationFrame(() => { ripple.style.transform = 'scale(3)'; ripple.style.opacity = '0'; });
+              setTimeout(() => ripple.remove(), 400);
+            })();
+          `);
+          await wait(100);
+
+          await checkBtn.click();
+          console.log(`-> Ticked row ${i + 1} of ${rowCount}`);
           await wait(PAUSE.LONG);
-          console.log("-> Second document checked...");
-          await wait(PAUSE.MEDIUM);
         }
       }
     }
 
-    // ---- Toggle the overall records received checkbox ----
-    // This is the CheckButton at the card level with "X of Y required received" label
-    if (await overallCheckbox.isVisible().catch(() => false)) {
-      console.log("-> Toggling overall 'Records Received'...");
-      await overallCheckbox.scrollIntoViewIfNeeded();
-      await injectCursor(page);
-      await cursorMove(page, '[id^="filing-"]');
-      await wait(PAUSE.MEDIUM);
+    // ---- Show the result — card should now show records received ----
+    console.log("-> All documents ticked — showing updated status...");
+    await ct600Card.scrollIntoViewIfNeeded();
+    await injectCursor(page);
+    await wait(PAUSE.MEDIUM);
 
-      await overallCheckbox.click();
-      await wait(PAUSE.LONG);
+    // The overall "X of Y required received" count should now be fully ticked
+    // and records_received_for should be auto-set by onRequiredAllReceivedChange
+    await cursorMove(page, '#filing-ct600_filing');
+    await wait(PAUSE.READ);
 
-      // ---- Show the result — reminders stopped ----
-      console.log("-> Records received — reminders will be cancelled...");
-      await firstCard.scrollIntoViewIfNeeded();
-      await injectCursor(page);
+    // Check if "Documents received" status text appeared
+    const statusText = ct600Card.locator('text=Documents received');
+    if (await statusText.isVisible().catch(() => false)) {
+      await cursorMove(page, '#filing-ct600_filing span.text-violet-600');
       await wait(PAUSE.READ);
-
-      // The card should now show "Documents received — awaiting filing" in violet
-      const statusText = firstCard.locator('text=Documents received');
-      if (await statusText.isVisible().catch(() => false)) {
-        await cursorMove(page, 'text=Documents received');
-        await wait(PAUSE.READ);
-      }
-    } else {
-      // No individual document checkboxes — try the label click
-      const receivedLabel = firstCard.locator('label:has-text("received")').first();
-      if (await receivedLabel.isVisible().catch(() => false)) {
-        console.log("-> Clicking records received label...");
-        await receivedLabel.click();
-        await wait(PAUSE.LONG);
-      }
     }
 
-    // ---- Show that the toast confirms reminders are cancelled ----
+    // ---- Show the toast / final result ----
     console.log("-> Giving time to show the result...");
     await wait(PAUSE.READ);
 

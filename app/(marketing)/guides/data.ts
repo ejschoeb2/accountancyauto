@@ -119,17 +119,6 @@ export const guides: Guide[] = [
     searchTags: ["traffic light", "status", "colours", "urgency", "overdue", "critical", "complete"],
   },
 
-  // ─── Reminders ──────────────────────────────────────────
-  {
-    id: "how-the-reminder-pipeline-works",
-    title: "How the Reminder Pipeline Works",
-    description:
-      "Every day, Prompt's pipeline runs across all active clients and determines which reminder stage each client is at based on days remaining and emails already sent. If a client is due a reminder, it's sent automatically using the assigned template. The pipeline stops chasing a client as soon as all required documents are received. The pipeline evaluates each deadline's configured reminder steps, checks which emails have already been sent, calculates whether the next step is due based on days before the deadline, and queues the appropriate email. Pausing a client suspends all pipeline activity, and marking a filing as complete or records as received removes that deadline from the pipeline entirely.",
-    category: "Deadlines",
-    type: "article",
-    searchTags: ["pipeline", "daily", "automated", "reminders", "stages", "how it works"],
-  },
-
   // ─── Email Templates ────────────────────────────────────
   {
     id: "writing-effective-email-templates",
@@ -150,7 +139,9 @@ export const guides: Guide[] = [
       "The client portal gives your clients a simple, no-login page to upload documents. Every reminder email includes a unique portal link tied to a specific client and filing. When clicked, the client sees exactly which documents are still outstanding and can upload them directly from their browser — on any device, no account required. Portal links are time-limited — each link's expiry is set automatically based on the reminder schedule, typically lasting until the next reminder step or 30 days if it's the final step. Links can also be revoked manually at any time.",
     category: "Client Portal",
     type: "article",
-    searchTags: ["portal", "upload", "link", "client experience", "no login", "secure"],
+    href: "/guides/how-the-client-portal-works",
+    videoPath: `${STORAGE_BASE}/tutorials/enable-client-portal.mp4`,
+    searchTags: ["portal", "upload", "link", "client experience", "no login", "secure", "enable"],
   },
   {
     id: "managing-portal-documents-and-checklists",
@@ -160,7 +151,8 @@ export const guides: Guide[] = [
     category: "Client Portal",
     type: "guide",
     href: "/guides/managing-portal-documents-and-checklists",
-    searchTags: ["documents", "checklist", "manage", "customise", "manual", "received"],
+    videoPath: `${STORAGE_BASE}/tutorials/generate-portal-link.mp4`,
+    searchTags: ["documents", "checklist", "manage", "customise", "manual", "received", "portal link", "generate"],
   },
 
   // ─── Documents ──────────────────────────────────────────
@@ -194,7 +186,8 @@ export const guides: Guide[] = [
     category: "Settings",
     type: "guide",
     href: "/guides/managing-your-team-and-settings",
-    searchTags: ["team", "roles", "admin", "member", "permissions", "organisation", "settings"],
+    videoPath: `${STORAGE_BASE}/tutorials/invite-team-member.mp4`,
+    searchTags: ["team", "roles", "admin", "member", "permissions", "organisation", "settings", "invite"],
   },
   {
     id: "connecting-cloud-storage",
@@ -283,16 +276,6 @@ export const guides: Guide[] = [
     type: "tutorial",
     videoPath: `${STORAGE_BASE}/tutorials/search-and-filter-clients.mp4`,
     searchTags: ["search", "filter", "sort", "find", "table"],
-  },
-  {
-    id: "edit-client-inline",
-    title: "Edit Client Details Inline",
-    description:
-      "Sometimes you just need to fix a year end date or update a detail without navigating away from the client list. Inline editing lets you change client information directly in the table — just click a cell, make the change, and move on.",
-    category: "Clients",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/edit-client-inline.mp4`,
-    searchTags: ["edit", "inline", "table", "year end", "quick edit"],
   },
   {
     id: "client-detail-page",
@@ -385,16 +368,6 @@ export const guides: Guide[] = [
     searchTags: ["bulk", "delete", "multiple", "select", "mass"],
   },
   {
-    id: "generate-portal-link",
-    title: "Generate a Client Portal Link",
-    description:
-      "Portal links give your clients a secure, branded way to upload documents directly to Prompt without needing their own login. Each link is tied to a specific filing, so uploads land in the right place automatically. You can generate links manually from the client detail page, or configure them to be generated automatically and included in reminder emails sent to clients.",
-    category: "Clients",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/generate-portal-link.mp4`,
-    searchTags: ["portal", "link", "share", "upload", "secure"],
-  },
-  {
     id: "dsar-export",
     title: "Export Client Data (DSAR)",
     description:
@@ -404,17 +377,6 @@ export const guides: Guide[] = [
     videoPath: `${STORAGE_BASE}/tutorials/dsar-export.mp4`,
     searchTags: ["gdpr", "export", "data", "dsar", "download", "privacy"],
   },
-  {
-    id: "bulk-edit-filing-status",
-    title: "Edit Client Progress Quickly",
-    description:
-      "From the client deadlines table, switch into edit progress mode to quickly update any client's filing status without opening their detail page. You can mark records as received, mark filings as complete, and roll over deadlines — all inline from the table view, saving significant time during busy periods.",
-    category: "Clients",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/bulk-edit-filing-status.mp4`,
-    searchTags: ["bulk", "edit", "status", "received", "completed", "mass update"],
-  },
-
   // ─── Emails ─────────────────────────────────────────────
   {
     id: "adhoc-email",
@@ -438,9 +400,9 @@ export const guides: Guide[] = [
   },
   {
     id: "view-email-activity",
-    title: "View Email Activity & Delivery Logs",
+    title: "View Sent Email Activity",
     description:
-      "The email activity log gives you full visibility into every email Prompt has already sent. You can see delivery statuses, bounce information, and a complete history of all sent emails — invaluable for answering client queries about whether they received a reminder or for auditing your communication trail.",
+      "The email activity log gives you full visibility into every email Prompt has sent. Browse delivery statuses, see when each email was delivered, and check for bounces — invaluable for answering client queries about whether they received a reminder or for auditing your communication trail.",
     category: "Emails",
     type: "tutorial",
     videoPath: `${STORAGE_BASE}/tutorials/view-email-activity.mp4`,
@@ -576,13 +538,13 @@ export const guides: Guide[] = [
   // ─── Settings ───────────────────────────────────────────
   {
     id: "setup-custom-domain",
-    title: "Set Up a Custom Sending Domain",
+    title: "Setting Up a Custom Sending Domain",
     description:
       "By default, emails are sent from a Prompt address, but setting up a custom sending domain means your clients see emails coming from your own practice domain. This improves deliverability and builds trust. The settings page includes step-by-step DNS setup instructions for the main domain providers, covering the DKIM and SPF records you need to add.",
     category: "Settings",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/setup-custom-domain.mp4`,
-    searchTags: ["domain", "dns", "email", "custom", "sending"],
+    type: "guide",
+    href: "/guides/setting-up-a-custom-sending-domain",
+    searchTags: ["domain", "dns", "email", "custom", "sending", "dkim", "spf"],
   },
   {
     id: "change-member-role",
@@ -605,16 +567,6 @@ export const guides: Guide[] = [
     searchTags: ["team", "remove", "member", "delete"],
   },
   {
-    id: "enable-client-portal",
-    title: "Enable the Client Portal",
-    description:
-      "The client portal gives your clients a simple, branded page where they can upload documents directly to your practice. Enabling it is a single toggle, but this tutorial also covers what the portal looks like from the client's perspective and how uploaded files flow into your review queue.",
-    category: "Settings",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/enable-client-portal.mp4`,
-    searchTags: ["portal", "enable", "client", "upload"],
-  },
-  {
     id: "configure-upload-checks",
     title: "Configure Upload Checks",
     description:
@@ -623,16 +575,6 @@ export const guides: Guide[] = [
     type: "tutorial",
     videoPath: `${STORAGE_BASE}/tutorials/configure-upload-checks.mp4`,
     searchTags: ["upload", "checks", "validation", "configure"],
-  },
-  {
-    id: "invite-team-member",
-    title: "Invite a Team Member",
-    description:
-      "Growing your team on Prompt is straightforward — enter their email address, assign them a role, and they'll receive an invitation to join. This tutorial covers the invitation process and explains the different role options so you can give each team member the right level of access from the start.",
-    category: "Settings",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/invite-team-member.mp4`,
-    searchTags: ["invite", "team", "member", "add", "new"],
   },
   {
     id: "delete-account",
@@ -657,15 +599,4 @@ export const guides: Guide[] = [
     searchTags: ["billing", "plan", "usage", "subscription"],
   },
 
-  // ─── Client Portal ─────────────────────────────────────
-  {
-    id: "client-portal-upload",
-    title: "Upload via Client Portal",
-    description:
-      "The portal experience from the client's perspective: open a portal link, see exactly which documents are still outstanding via the upload checklist, and drag-and-drop files to upload them. The portal works on any device with no account required — useful for understanding what your clients will experience when you send them a link.",
-    category: "Client Portal",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/client-portal-upload.mp4`,
-    searchTags: ["portal", "upload", "client", "documents", "submit"],
-  },
 ];

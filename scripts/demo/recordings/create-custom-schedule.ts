@@ -2,8 +2,9 @@
  * Recording: Create a Custom Deadline Schedule
  *
  * On /deadlines, click "Create Deadline" to open the new custom schedule
- * form, fill in details (name, description, date), add two reminder
- * steps with templates, select clients, scroll up and create it.
+ * form. Fill in details (name, description, date), click Manage Documents
+ * to add a document, add one reminder step with a template, select clients,
+ * and create it.
  */
 
 import {
@@ -68,23 +69,64 @@ const demo: DemoDefinition = {
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Scroll to Reminder Steps ───
+    // ─── Click Manage Documents and add a document ───
+    console.log("-> Clicking Manage Documents...");
+    const manageDocsBtn = page.locator('button:has-text("Manage Documents")');
+    if (await manageDocsBtn.isVisible().catch(() => false)) {
+      await cursorClick(page, 'button:has-text("Manage Documents")');
+      await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+      await wait(PAUSE.MEDIUM);
+
+      // Click the first document in the list to add it
+      console.log("-> Adding a document requirement...");
+      const docRow = page.locator('[role="dialog"] .cursor-pointer').first();
+      if (await docRow.isVisible().catch(() => false)) {
+        await cursorClick(page, '[role="dialog"] .cursor-pointer', 0);
+        await wait(PAUSE.SHORT);
+      }
+
+      // Add a second document
+      const docRow2 = page.locator('[role="dialog"] .cursor-pointer').nth(1);
+      if (await docRow2.isVisible().catch(() => false)) {
+        await cursorClick(page, '[role="dialog"] .cursor-pointer', 1);
+        await wait(PAUSE.SHORT);
+      }
+
+      // Close the document modal
+      console.log("-> Closing document modal...");
+      const closeDocBtn = page.locator('[role="dialog"] button:has-text("Close")');
+      if (await closeDocBtn.isVisible().catch(() => false)) {
+        await cursorClick(page, '[role="dialog"] button:has-text("Close")');
+      } else {
+        await page.keyboard.press("Escape");
+      }
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // ─── Scroll down to Reminder Steps ───
     console.log("-> Scrolling to Reminder Steps...");
     const stepsHeading = page.locator('h2:has-text("Reminder Steps")');
     if (await stepsHeading.isVisible()) {
       await stepsHeading.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await wait(PAUSE.SHORT);
+    }
+
+    // ─── Add one reminder step ───
+    console.log("-> Adding a reminder step...");
+    const addStepBtn = page.locator('button:has-text("Add Step")').first();
+    if (await addStepBtn.isVisible()) {
+      await addStepBtn.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await wait(PAUSE.SHORT);
+      await cursorClick(page, 'button:has-text("Add Step")');
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Add first reminder step ───
-    console.log("-> Adding first reminder step...");
-    await cursorClick(page, 'button:has-text("Add Step")');
-    await wait(PAUSE.LONG);
-
-    // ─── Configure the first step — 30 days before ───
-    console.log("-> Setting first step to 30 days before...");
+    // ─── Configure the step — set delay ───
+    console.log("-> Setting step to 30 days before...");
     const delaySelects = page.locator('[data-slot="select-trigger"]');
-    let selectIdx = (await delaySelects.count()) - 1;
+    const selectIdx = (await delaySelects.count()) - 1;
     if (selectIdx >= 0) {
       await cursorClick(page, '[data-slot="select-trigger"]', selectIdx);
       await wait(PAUSE.SHORT);
@@ -97,10 +139,10 @@ const demo: DemoDefinition = {
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Choose email template for first step ───
-    console.log("-> Selecting template for first step...");
-    const firstTemplateSelect = page.locator('[id^="steps."][id$=".email_template_id"]').first();
-    if (await firstTemplateSelect.isVisible()) {
+    // ─── Choose email template for the step ───
+    console.log("-> Selecting template for step...");
+    const templateSelect = page.locator('[id^="steps."][id$=".email_template_id"]').first();
+    if (await templateSelect.isVisible()) {
       await cursorClick(page, '[id^="steps."][id$=".email_template_id"]', 0);
       await wait(PAUSE.SHORT);
       // Select "Friendly First Reminder"
@@ -108,9 +150,12 @@ const demo: DemoDefinition = {
       if (await friendlyOption.isVisible()) {
         await cursorClick(page, '[role="option"]:has-text("Friendly First Reminder")');
       } else {
+        // Select any available template
         const options = page.locator('[role="option"]');
         if ((await options.count()) > 1) {
           await cursorClick(page, '[role="option"]', 1);
+        } else if ((await options.count()) > 0) {
+          await cursorClick(page, '[role="option"]', 0);
         } else {
           await page.keyboard.press("Escape");
         }
@@ -118,66 +163,16 @@ const demo: DemoDefinition = {
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Add a second reminder step ───
-    console.log("-> Adding second reminder step...");
-    const addStepBtn = page.locator('button:has-text("Add Step")').first();
-    if (await addStepBtn.isVisible()) {
-      await addStepBtn.scrollIntoViewIfNeeded();
-      await wait(PAUSE.SHORT);
-      await cursorClick(page, 'button:has-text("Add Step")');
-      await wait(PAUSE.LONG);
-    }
-
-    // ─── Configure the second step — 7 days before ───
-    console.log("-> Setting second step to 7 days before...");
-    const allDelaySelects = page.locator('[data-slot="select-trigger"]');
-    selectIdx = (await allDelaySelects.count()) - 1;
-    if (selectIdx >= 0) {
-      await cursorClick(page, '[data-slot="select-trigger"]', selectIdx);
-      await wait(PAUSE.SHORT);
-      const sevenDays = page.locator('[role="option"]:has-text("7")').first();
-      if (await sevenDays.isVisible()) {
-        await cursorClick(page, '[role="option"]:has-text("7")');
-      } else {
-        await cursorClick(page, '[role="option"]', 0);
-      }
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ─── Choose template for second step ───
-    console.log("-> Selecting template for second step...");
-    const secondTemplateSelect = page.locator('[id^="steps."][id$=".email_template_id"]').last();
-    if (await secondTemplateSelect.isVisible()) {
-      await cursorClick(page, '[id^="steps."][id$=".email_template_id"]');
-      await wait(PAUSE.SHORT);
-      // Select "Follow-Up Reminder"
-      const followUpOption = page.locator('[role="option"]:has-text("Follow-Up Reminder")').first();
-      if (await followUpOption.isVisible()) {
-        await cursorClick(page, '[role="option"]:has-text("Follow-Up Reminder")');
-      } else {
-        const options = page.locator('[role="option"]');
-        if ((await options.count()) > 2) {
-          await cursorClick(page, '[role="option"]', 2);
-        } else {
-          await page.keyboard.press("Escape");
-        }
-      }
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ─── Scroll to Applies To section and select clients ───
-    console.log("-> Scrolling to client selector...");
+    // ─── Scroll down to Applies To section ───
+    console.log("-> Scrolling to Applies To section...");
     const appliesToHeading = page.locator('h2:has-text("Applies To")');
     if (await appliesToHeading.isVisible()) {
       await appliesToHeading.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await wait(PAUSE.MEDIUM);
 
-      // Select a few clients
+      // Select a few clients directly (no filtering)
       console.log("-> Selecting clients...");
-      const clientCheckboxes = page.locator('[role="checkbox"]');
-      const checkCount = await clientCheckboxes.count();
-
-      // Find checkboxes in the Applies To section (after the heading)
       const clientRows = page.locator(".hover\\:bg-muted\\/50.cursor-pointer, table tbody tr");
       const rowCount = await clientRows.count();
       if (rowCount > 0) {
@@ -190,11 +185,11 @@ const demo: DemoDefinition = {
       }
       if (rowCount > 2) {
         await cursorClick(page, ".hover\\:bg-muted\\/50.cursor-pointer, table tbody tr", 2);
-        await wait(PAUSE.MEDIUM);
+        await wait(PAUSE.SHORT);
       }
     }
 
-    await wait(PAUSE.READ);
+    await wait(PAUSE.MEDIUM);
 
     // ─── Scroll up and create the schedule ───
     console.log("-> Scrolling up to create...");

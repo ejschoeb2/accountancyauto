@@ -1,10 +1,12 @@
 /**
  * Recording: Review Recent Document Uploads
  *
- * Login to the dashboard, scroll to the Recent Uploads section, show all
- * upload rows, paginate to next page and back, click a row to open the
- * document preview modal, accept/approve the document, navigate to the
- * next item in the modal, then close.
+ * Login to the dashboard, scroll to the Recent Uploads section, browse
+ * the upload rows, click on a row with "Review" badge to open the
+ * document preview modal, pass review on it, then close.
+ *
+ * Seed data includes documents with needs_review=true (Coastal Catering
+ * and Oakwood Property Management) so there should be reviewable uploads.
  */
 
 import {
@@ -21,7 +23,7 @@ const demo: DemoDefinition = {
   id: "recent-uploads",
   title: "Review Recent Document Uploads",
   description:
-    "Scroll through recent uploads, paginate between pages, open a document preview, accept it, navigate to the next item, and close.",
+    "Scroll through recent uploads, open a document that needs review, pass review on it, and close.",
   tags: ["uploads", "documents", "recent", "dashboard", "review", "preview", "approve"],
   category: "Dashboard",
   hasSideEffects: true,
@@ -49,124 +51,105 @@ const demo: DemoDefinition = {
       return;
     }
 
-    // ---- Scroll down to show all upload rows on the current page ----
-    console.log("-> Scrolling down to show all uploads...");
-    // Find the uploads card container
-    const uploadsCard = page.locator('text=Recent Uploads').locator('xpath=ancestor::*[contains(@class,"card")]').first();
+    // ---- Browse the upload rows ----
+    console.log("-> Browsing upload rows...");
+    // Upload rows are buttons inside the card
+    const uploadCard = page.locator('text=Recent Uploads').locator('xpath=ancestor::*[contains(@class,"card")]').first();
+    const uploadRows = uploadCard.locator('button[type="button"]');
+    const uploadCount = await uploadRows.count();
 
-    // Hover over the last visible upload row to show the full list
-    const uploadButtons = uploadsCard.locator('button[type="button"]');
-    const uploadCount = await uploadButtons.count();
-
-    if (uploadCount > 0) {
-      // Hover over first upload
-      console.log("-> Hovering over first upload...");
-      await uploadButtons.first().scrollIntoViewIfNeeded();
-      await injectCursor(page);
-      await cursorMove(page, 'text=Recent Uploads', 0);
+    if (uploadCount > 1) {
+      // Hover over a couple of rows to show the list
+      await cursorMove(page, 'button[type="button"].hover\\:bg-muted\\/50', 0);
       await wait(PAUSE.SHORT);
+      await cursorMove(page, 'button[type="button"].hover\\:bg-muted\\/50', 1);
+      await wait(PAUSE.SHORT);
+    }
 
-      // Scroll the last visible item into view
-      if (uploadCount > 3) {
-        const lastBtn = uploadButtons.nth(uploadCount - 1);
-        await lastBtn.scrollIntoViewIfNeeded();
+    // ---- Paginate if there's more than one page ----
+    const nextPageBtn = uploadCard.locator('button:has(svg.lucide-chevron-right)');
+    if (await nextPageBtn.isVisible().catch(() => false)) {
+      const isDisabled = await nextPageBtn.isDisabled();
+      if (!isDisabled) {
+        console.log("-> Paginating to next page...");
+        await nextPageBtn.scrollIntoViewIfNeeded();
         await injectCursor(page);
-        await wait(PAUSE.MEDIUM);
-      }
-    }
+        await cursorClick(page, 'button:has(svg.lucide-chevron-right)');
+        await wait(PAUSE.READ);
 
-    // ---- Paginate to next page ----
-    console.log("-> Looking for pagination...");
-    const paginationContainer = uploadsCard.locator('.flex.items-center.justify-end.gap-2');
-    if (await paginationContainer.isVisible().catch(() => false)) {
-      const paginationBtns = paginationContainer.locator("button");
-      const btnCount = await paginationBtns.count();
-
-      if (btnCount >= 2) {
-        const nextBtn = paginationBtns.nth(1);
-        const isNextDisabled = await nextBtn.isDisabled();
-
-        if (!isNextDisabled) {
-          console.log("-> Going to next page of uploads...");
-          await paginationContainer.scrollIntoViewIfNeeded();
-          await injectCursor(page);
-          await nextBtn.click();
-          await wait(PAUSE.READ);
-
-          // Show items on second page
+        // Go back to first page
+        console.log("-> Going back to first page...");
+        const prevPageBtn = uploadCard.locator('button:has(svg.lucide-chevron-left)');
+        if (await prevPageBtn.isVisible().catch(() => false) && !(await prevPageBtn.isDisabled())) {
+          await cursorClick(page, 'button:has(svg.lucide-chevron-left)');
           await wait(PAUSE.MEDIUM);
-
-          // Go back to first page
-          console.log("-> Going back to first page...");
-          const prevBtn = paginationBtns.nth(0);
-          if (!(await prevBtn.isDisabled())) {
-            await prevBtn.click();
-            await wait(PAUSE.MEDIUM);
-          }
         }
       }
     }
 
-    // ---- Click a row to open the document preview modal ----
-    if (uploadCount > 0) {
-      console.log("-> Clicking an upload to open document preview...");
-      // Scroll back to top of uploads
-      await uploadsHeader.scrollIntoViewIfNeeded();
+    // ---- Find and click a row with "Review" badge ----
+    console.log("-> Looking for an upload that needs review...");
+    const reviewRow = uploadCard.locator('button:has-text("Review")').first();
+    if (await reviewRow.isVisible().catch(() => false)) {
+      await reviewRow.scrollIntoViewIfNeeded();
       await injectCursor(page);
-      await wait(PAUSE.SHORT);
-
-      // Click the first upload row
-      await uploadButtons.first().click();
-      await wait(PAUSE.LONG);
-
-      // ---- Show the document preview modal ----
-      console.log("-> Document preview modal open...");
-      await wait(PAUSE.READ);
-
-      // ---- Accept/approve the document ----
-      // Look for "Pass Review" or "Mark Received" button
-      const passBtn = page.locator('[role="dialog"] button:has-text("Pass Review")');
-      const markReceivedBtn = page.locator('[role="dialog"] button:has-text("Mark Received")');
-
-      if (await passBtn.isVisible().catch(() => false)) {
-        console.log("-> Approving document (Pass Review)...");
-        await cursorClick(page, '[role="dialog"] button:has-text("Pass Review")');
-        await wait(PAUSE.LONG);
-      } else if (await markReceivedBtn.isVisible().catch(() => false)) {
-        console.log("-> Marking document as received...");
-        await cursorClick(page, '[role="dialog"] button:has-text("Mark Received")');
-        await wait(PAUSE.LONG);
-      }
-
-      // ---- Navigate to next item in the modal ----
-      // The modal has prev/next navigation via ChevronRight button
-      const nextItemBtn = page.locator('[role="dialog"] button:has(svg.lucide-chevron-right)').first();
-      if (await nextItemBtn.isVisible().catch(() => false)) {
-        const isDisabled = await nextItemBtn.isDisabled();
-        if (!isDisabled) {
-          console.log("-> Navigating to next document in modal...");
-          await nextItemBtn.click();
-          await wait(PAUSE.LONG);
-
-          // Show the next document
-          await wait(PAUSE.READ);
-        }
-      }
-
-      // ---- Close the modal ----
-      console.log("-> Closing document preview modal...");
-      // Look for the X close button in the dialog
-      const closeBtn = page.locator('[role="dialog"] button:has(svg.lucide-x)').first();
-      if (await closeBtn.isVisible().catch(() => false)) {
-        await closeBtn.click();
-      } else {
-        await page.keyboard.press("Escape");
-      }
+      await cursorMove(page, 'button:has-text("Review")');
       await wait(PAUSE.MEDIUM);
+
+      console.log("-> Opening document that needs review...");
+      await cursorClick(page, 'button:has-text("Review")');
+    } else {
+      // Fallback: click first upload row
+      console.log("-> No review-needed rows found — opening first document...");
+      await uploadRows.first().scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await cursorClick(page, 'button[type="button"].hover\\:bg-muted\\/50', 0);
     }
+    await wait(PAUSE.LONG);
+
+    // ---- Document preview modal ----
+    const dialog = page.locator('[role="dialog"]');
+    await dialog.waitFor({ state: "visible", timeout: 5000 });
+    console.log("-> Document preview modal opened...");
+    await wait(PAUSE.MEDIUM);
+
+    // ---- Review the assessment alert if visible ----
+    const assessmentAlert = dialog.locator('.bg-amber-500\\/10, .bg-red-500\\/10, .bg-green-500\\/10').first();
+    if (await assessmentAlert.isVisible().catch(() => false)) {
+      console.log("-> Reviewing assessment...");
+      await cursorMove(page, '[role="dialog"] .bg-amber-500\\/10, [role="dialog"] .bg-red-500\\/10, [role="dialog"] .bg-green-500\\/10');
+      await wait(PAUSE.READ);
+    }
+
+    // ---- Click "Pass Review" button ----
+    const passReviewBtn = dialog.locator('button:has-text("Pass Review")').first();
+    if (await passReviewBtn.isVisible().catch(() => false)) {
+      console.log("-> Clicking Pass Review...");
+      await cursorClick(page, '[role="dialog"] button:has-text("Pass Review")');
+      await wait(PAUSE.LONG);
+      console.log("-> Review passed successfully.");
+      await wait(PAUSE.MEDIUM);
+    } else {
+      console.log("-> No review needed for this document.");
+      await wait(PAUSE.READ);
+    }
+
+    // ---- Navigate to next item in the modal ----
+    const nextItemBtn = dialog.locator('button:has(svg.lucide-chevron-right)').first();
+    if (await nextItemBtn.isVisible().catch(() => false) && !(await nextItemBtn.isDisabled())) {
+      console.log("-> Navigating to next document...");
+      await cursorClick(page, '[role="dialog"] button:has(svg.lucide-chevron-right)');
+      await wait(PAUSE.LONG);
+      await wait(PAUSE.READ);
+    }
+
+    // ---- Close the modal ----
+    console.log("-> Closing document preview modal...");
+    await page.keyboard.press("Escape");
+    await wait(PAUSE.MEDIUM);
 
     console.log("-> Recent uploads demo complete.");
-    await wait(PAUSE.READ);
+    await wait(PAUSE.SHORT);
   },
 };
 

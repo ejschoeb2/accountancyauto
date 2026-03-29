@@ -65,6 +65,7 @@ export async function PUT(
       .from('client_deadline_overrides')
       .upsert(
         {
+          org_id: orgId,
           client_id: clientId,
           filing_type_id,
           override_date,

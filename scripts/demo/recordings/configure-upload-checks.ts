@@ -1,21 +1,9 @@
 /**
  * Recording: Configure Upload Validation Checks
  *
- * Navigate to /settings, stay on General tab, find the Upload Checks card.
- * Demonstrates all four upload check modes and the two sub-options that
- * appear when verification is enabled:
- *
- *   Modes:
- *   - "Verify & extract metadata" (both) — full processing
- *   - "Verify uploads only" (verify) — flags mismatches but no OCR
- *   - "Extract metadata only" (extract) — OCR but no mismatch detection
- *   - "No processing" (none) — filename keywords only
- *
- *   Sub-options (visible when mode includes verification):
- *   - "Reject mismatched HMRC documents" — auto-reject wrong tax year P60/P45/SA302
- *   - "Auto-confirm verified uploads" — mark verified uploads as received automatically
- *
- * Also shows the data privacy info banner and the "Test uploads" button.
+ * Navigate to /settings, scroll down past Client Portal to the Upload
+ * Checks card, and interact with all three dropdowns within that card.
+ * Never touches the Client Portal section.
  */
 
 import {
@@ -33,21 +21,8 @@ const demo: DemoDefinition = {
   id: "configure-upload-checks",
   title: "Configure Upload Validation Checks",
   description:
-    "Set how document uploads are validated -- choose from four processing modes (verify & extract, verify only, extract only, or none), then configure sub-options like rejecting mismatched HMRC documents and auto-confirming verified uploads.",
-  tags: [
-    "upload",
-    "validation",
-    "checks",
-    "settings",
-    "auto",
-    "manual",
-    "review",
-    "reject",
-    "verify",
-    "extract",
-    "metadata",
-    "OCR",
-  ],
+    "Set how document uploads are validated -- choose a processing mode, configure rejection of mismatched documents, and auto-confirmation of verified uploads.",
+  tags: ["upload", "validation", "checks", "settings", "verify", "extract", "metadata"],
   category: "Settings",
   hasSideEffects: true,
 
@@ -55,182 +30,87 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/settings");
 
-    // ─── General tab is the default ───
+    // ─── Immediately scroll down to Upload Checks (past Client Portal) ───
     console.log("-> Scrolling to Upload Checks card...");
-    const heading = page.locator('h2:has-text("Upload Checks")');
-    await heading.scrollIntoViewIfNeeded();
+    const uploadChecksHeading = page.locator('h2:has-text("Upload Checks")');
+    // Scroll the page down to ensure Upload Checks is visible
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
+    await uploadChecksHeading.waitFor({ state: "visible", timeout: 10000 });
+    await uploadChecksHeading.scrollIntoViewIfNeeded();
     await injectCursor(page);
     await wait(PAUSE.SHORT);
 
-    // ─── View the card heading ───
+    // Point at the heading
     await cursorMove(page, 'h2:has-text("Upload Checks")');
     await wait(PAUSE.MEDIUM);
 
-    // ─── Read the description explaining what upload checks do ───
-    console.log("-> Reading upload checks description...");
-    const descText = page.locator(
-      'p:has-text("Control what processing runs")'
-    );
-    if (await descText.isVisible().catch(() => false)) {
-      await cursorMove(page, 'p:has-text("Control what processing runs")');
-      await wait(PAUSE.READ);
-    }
+    // Scope all interactions to the Upload Checks card
+    const card = uploadChecksHeading.locator('xpath=ancestor::*[contains(@class,"card")]').first();
 
-    // ─── View the data privacy info banner ───
-    console.log("-> Viewing data privacy info...");
-    const privacyBanner = page.locator(
-      'strong:has-text("Your data stays private")'
-    );
-    if (await privacyBanner.isVisible().catch(() => false)) {
-      await cursorMove(page, 'strong:has-text("Your data stays private")');
-      await wait(PAUSE.READ);
-    }
+    // ─── Dropdown 1: Main mode ───
+    console.log("-> Opening upload check mode dropdown...");
+    const allDropdowns = card.locator('button[role="combobox"]');
+    const modeDropdown = allDropdowns.first();
+    await modeDropdown.scrollIntoViewIfNeeded();
+    await injectCursor(page);
+    await cursorMove(page, '#filing-upload-check-mode, h2:has-text("Upload Checks")');
+    await wait(PAUSE.SHORT);
+    await modeDropdown.click();
+    await wait(PAUSE.SHORT);
 
-    // ─── Show the "Test uploads" button if visible ───
-    const testUploadsBtn = page.locator('a:has-text("Test uploads")');
-    if (await testUploadsBtn.isVisible().catch(() => false)) {
-      console.log("-> Showing Test uploads button...");
-      await cursorMove(page, 'a:has-text("Test uploads")');
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ─── Open the main mode dropdown ───
-    // The UploadChecksCard uses a SelectTrigger with w-72 class directly on the button
-    console.log('-> Opening upload check mode dropdown...');
-    await cursorClick(page, 'button[role="combobox"].w-72');
-    await wait(PAUSE.MEDIUM);
-
-    // ─── Show all four options by hovering ───
-    console.log('-> Viewing all mode options...');
-    const optionLabels = [
-      "Verify & extract metadata",
-      "Verify uploads only",
-      "Extract metadata only",
-      "No processing",
-    ];
-    for (const label of optionLabels) {
-      const opt = page.locator(`[role="option"]:has-text("${label}")`);
-      if (await opt.isVisible().catch(() => false)) {
-        await cursorMove(page, `[role="option"]:has-text("${label}")`);
-        await wait(PAUSE.SHORT);
-      }
-    }
-
-    // ─── Select "Verify & extract metadata" (the fullest mode) ───
+    // Select "Verify & extract metadata"
     console.log('-> Selecting "Verify & extract metadata"...');
-    const bothOption = page.locator(
-      '[role="option"]:has-text("Verify & extract metadata")'
-    );
+    const bothOption = page.locator('[role="option"]:has-text("Verify & extract metadata")');
     if (await bothOption.isVisible()) {
-      await cursorClick(
-        page,
-        '[role="option"]:has-text("Verify & extract metadata")'
-      );
+      await cursorClick(page, '[role="option"]:has-text("Verify & extract metadata")');
     } else {
       await cursorClick(page, '[role="option"]', 0);
     }
-    await wait(PAUSE.MEDIUM);
-
-    // ─── Wait for Saved indicator ───
-    const savedIndicator = page.locator('text="Saved"');
-    await savedIndicator
-      .waitFor({ timeout: 5000 })
-      .catch(() => {});
     await wait(PAUSE.SHORT);
 
-    // ─── Show the "Reject mismatched HMRC documents" sub-option ───
-    console.log("-> Viewing reject mismatched HMRC documents option...");
-    const rejectHeading = page.locator(
-      'p:has-text("Reject mismatched HMRC documents")'
-    );
-    if (await rejectHeading.isVisible().catch(() => false)) {
-      await rejectHeading.scrollIntoViewIfNeeded();
-      await cursorMove(
-        page,
-        'p:has-text("Reject mismatched HMRC documents")'
-      );
-      await wait(PAUSE.READ);
+    // ─── Dropdown 2: Reject mismatched HMRC documents ───
+    // Re-query dropdowns since sub-options may have appeared
+    console.log("-> Opening Reject mismatched HMRC documents dropdown...");
+    const updatedDropdowns = card.locator('button[role="combobox"]');
+    const dropdownCount = await updatedDropdowns.count();
 
-      // Read the description underneath
-      const rejectDesc = page.locator(
-        'p:has-text("portal uploads of HMRC documents")'
-      );
-      if (await rejectDesc.isVisible().catch(() => false)) {
-        await cursorMove(
-          page,
-          'p:has-text("portal uploads of HMRC documents")'
-        );
-        await wait(PAUSE.READ);
-      }
+    if (dropdownCount > 1) {
+      const rejectDropdown = updatedDropdowns.nth(1);
+      await rejectDropdown.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await rejectDropdown.click();
+      await wait(PAUSE.SHORT);
 
-      // Toggle it to Enabled
-      console.log("-> Enabling reject mismatched uploads...");
-      const rejectSelect = rejectHeading
-        .locator("xpath=ancestor::div[contains(@class,'space-y')]")
-        .locator('button[role="combobox"].w-56');
-      if (await rejectSelect.isVisible().catch(() => false)) {
-        await rejectSelect.click();
-        await wait(PAUSE.SHORT);
-        const enabledOption = page.locator(
-          '[role="option"]:has-text("Enabled (reject wrong documents)")'
-        );
-        if (await enabledOption.isVisible().catch(() => false)) {
-          await cursorClick(
-            page,
-            '[role="option"]:has-text("Enabled (reject wrong documents)")'
-          );
-          await wait(PAUSE.MEDIUM);
-        }
+      const enabledOption = page.locator('[role="option"]:has-text("Enabled")').first();
+      if (await enabledOption.isVisible()) {
+        await cursorClick(page, '[role="option"]:has-text("Enabled")');
       }
+      await wait(PAUSE.SHORT);
     }
 
-    // ─── Show the "Auto-confirm verified uploads" sub-option ───
-    console.log("-> Viewing auto-confirm verified uploads option...");
-    const autoConfirmHeading = page.locator(
-      'p:has-text("Auto-confirm verified uploads")'
-    );
-    if (await autoConfirmHeading.isVisible().catch(() => false)) {
-      await autoConfirmHeading.scrollIntoViewIfNeeded();
-      await cursorMove(
-        page,
-        'p:has-text("Auto-confirm verified uploads")'
-      );
-      await wait(PAUSE.READ);
+    // ─── Dropdown 3: Auto-confirm verified uploads ───
+    const finalDropdowns = card.locator('button[role="combobox"]');
+    const finalCount = await finalDropdowns.count();
 
-      // Read the description underneath
-      const autoDesc = page.locator(
-        'p:has-text("Verified")'
-      );
-      if (await autoDesc.first().isVisible().catch(() => false)) {
-        await cursorMove(page, 'p:has-text("pending for manual confirmation")');
-        await wait(PAUSE.READ);
-      }
+    if (finalCount > 2) {
+      console.log("-> Opening Auto-confirm verified uploads dropdown...");
+      const autoDropdown = finalDropdowns.nth(2);
+      await autoDropdown.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await autoDropdown.click();
+      await wait(PAUSE.SHORT);
 
-      // Toggle it to Enabled
-      console.log("-> Enabling auto-confirm...");
-      const autoSelect = autoConfirmHeading
-        .locator("xpath=ancestor::div[contains(@class,'space-y')]")
-        .locator('button[role="combobox"].w-56');
-      if (await autoSelect.isVisible().catch(() => false)) {
-        await autoSelect.click();
-        await wait(PAUSE.SHORT);
-        const enabledOption = page.locator(
-          '[role="option"]:has-text("Enabled")'
-        );
-        if (await enabledOption.isVisible().catch(() => false)) {
-          await cursorClick(
-            page,
-            '[role="option"]:has-text("Enabled")',
-            0
-          );
-          await wait(PAUSE.MEDIUM);
-        }
+      const enabledOption = page.locator('[role="option"]:has-text("Enabled")').first();
+      if (await enabledOption.isVisible()) {
+        await cursorClick(page, '[role="option"]:has-text("Enabled")');
       }
+      await wait(PAUSE.SHORT);
     }
 
-    // ─── Brief pause on the final state ───
-    console.log("-> Done — all upload check options demonstrated.");
-    await wait(PAUSE.READ);
+    console.log("-> Done — all upload check options configured.");
+    await wait(PAUSE.MEDIUM);
   },
 };
 

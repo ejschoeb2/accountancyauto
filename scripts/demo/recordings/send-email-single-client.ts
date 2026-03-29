@@ -93,12 +93,24 @@ const demo: DemoDefinition = {
 
     // ---- Show the email content with personalised variables ----
     console.log("-> Reviewing email content...");
+    await wait(PAUSE.MEDIUM);
+
+    // ---- Scroll down within the dialog to show the full email content ----
+    console.log("-> Scrolling down to see the full email...");
+    const dialogContent = page.locator('[role="dialog"]').first();
+    await dialogContent.evaluate((el) => {
+      const scrollable = el.querySelector('[data-slot="dialog-content"]') || el;
+      scrollable.scrollTop = scrollable.scrollHeight;
+    });
+    await injectCursor(page);
     await wait(PAUSE.READ);
 
     // ---- Click Next to preview ----
     console.log("-> Proceeding to preview...");
     const nextBtn = page.locator('[role="dialog"] button:has-text("Next")').first();
     if (await nextBtn.isVisible()) {
+      await nextBtn.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await cursorClick(page, '[role="dialog"] button:has-text("Next")');
       await wait(PAUSE.LONG);
     }

@@ -18,6 +18,8 @@ import {
   RotateCcw,
   RefreshCw,
   Loader2,
+  BookOpen,
+  Rocket,
 } from 'lucide-react';
 import { ButtonBase } from '@/components/ui/button-base';
 import { buttonBaseVariants } from '@/components/ui/button-base';
@@ -48,6 +50,20 @@ interface TodoBoxProps {
 // ---------------------------------------------------------------------------
 
 const onboardingSteps = [
+  {
+    key: 'hasVisitedGuides' as const,
+    label: 'Browse the guides',
+    description: 'Explore tutorials, articles, and walkthroughs to learn how Prompt works.',
+    href: '/guides',
+    icon: BookOpen,
+  },
+  {
+    key: 'hasReadGettingStarted' as const,
+    label: 'Read the Getting Started guide',
+    description: 'A step-by-step walkthrough of setting up your organisation, adding clients, and sending your first reminders.',
+    href: '/guides/getting-started-with-prompt',
+    icon: Rocket,
+  },
   {
     key: 'hasReviewedProgress' as const,
     label: 'Review client progress',
@@ -677,7 +693,11 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
           setPreviewDoc(null);
           onDataChange();
         }}
-        onMarkedReceived={() => onDataChange()}
+        onMarkedReceived={(docId) => {
+          // Dismiss the doc review item after pass review or mark received
+          setDismissed((prev) => new Set(prev).add(`doc-${docId}`));
+          onDataChange();
+        }}
       />
 
       {/* Sent email detail modal (for failed deliveries) */}
@@ -693,6 +713,13 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
           if (newIdx >= 0 && newIdx < emailModalEntries.length) {
             setEmailModalEntry(emailModalEntries[newIdx]);
           }
+        }}
+        onRefresh={() => {
+          // Dismiss the failed delivery item after successful resend
+          if (emailModalEntry) {
+            setDismissed((prev) => new Set(prev).add(`failed-${emailModalEntry.id}`));
+          }
+          onDataChange();
         }}
         hideNavigation
       />

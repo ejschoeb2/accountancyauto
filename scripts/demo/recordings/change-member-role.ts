@@ -7,6 +7,7 @@
  *
  * Requires: seed-demo-data.ts to have created James Wilson (member)
  * and Sophie Chen (admin) as real auth users linked to the org.
+ * Run `npm run seed:demo` before recording.
  */
 
 import {
@@ -34,7 +35,6 @@ const demo: DemoDefinition = {
     await navigateTo(page, "/settings");
 
     // General tab is the default — Team card should be visible
-    // Wait for the team card to load (the member list with "Change role" buttons)
     console.log("-> Waiting for team card to load...");
     await page.waitForSelector('h2:has-text("Team")', { timeout: 15000 });
     await wait(PAUSE.MEDIUM);
@@ -45,13 +45,32 @@ const demo: DemoDefinition = {
     await injectCursor(page);
     await wait(PAUSE.SHORT);
 
-    // Wait for real team members to appear (active members with "Change role" buttons)
-    // The seed data creates James Wilson (member) and Sophie Chen (admin) as real users
-    console.log("-> Waiting for team members to load...");
-    await page.waitForSelector('button:has-text("Change role")', {
-      timeout: 15000,
-    });
-    await wait(PAUSE.MEDIUM);
+    // Wait for team members to fully load — look for active member names
+    // Seeded members: James Wilson (member), Sophie Chen (admin)
+    console.log("-> Waiting for active team members to load...");
+
+    // Give the team list time to fetch and render active members
+    await page.waitForLoadState("networkidle");
+    await wait(PAUSE.LONG);
+
+    // Check if "Change role" buttons exist (only shown for active members)
+    const changeRoleBtns = page.locator('button:has-text("Change role")');
+    let btnCount = await changeRoleBtns.count();
+
+    if (btnCount === 0) {
+      // Try waiting longer — the team member query can be slow
+      console.log("-> No Change role buttons yet — waiting longer...");
+      try {
+        await page.waitForSelector('button:has-text("Change role")', { timeout: 15000 });
+        btnCount = await changeRoleBtns.count();
+      } catch {
+        console.log("-> No active team members found. Run `npm run seed:demo` first.");
+        console.log("-> Showing team card as-is...");
+        await cursorMove(page, 'h2:has-text("Team")');
+        await wait(PAUSE.READ);
+        return;
+      }
+    }
 
     // Hover over the Members heading to draw attention to the list
     console.log("-> Viewing team members...");
@@ -66,18 +85,15 @@ const demo: DemoDefinition = {
       await wait(PAUSE.MEDIUM);
     }
 
-    // Find a team member who is NOT the current user (buttons are disabled for your own row).
-    // Look for an enabled "Change role" button — disabled ones belong to the current user's row.
-    console.log("-> Looking for an enabled Change role button on a team member row...");
-    const changeRoleBtns = page.locator('button:has-text("Change role")');
-    const btnCount = await changeRoleBtns.count();
+    // Find an enabled "Change role" button (disabled ones belong to the current user's row)
+    console.log("-> Looking for an enabled Change role button...");
     let clickedChangeRole = false;
 
     for (let i = 0; i < btnCount; i++) {
       const btn = changeRoleBtns.nth(i);
       const isDisabled = await btn.isDisabled().catch(() => true);
       if (!isDisabled) {
-        // Found an enabled button — get the member name from the same row
+        // Get the member name from the same row
         const row = btn.locator('xpath=ancestor::div[contains(@class,"flex items-center justify-between")]');
         const memberName = await row.locator('span.font-medium').first().textContent().catch(() => "team member");
         console.log(`-> Found ${memberName} — clicking Change role...`);
@@ -87,18 +103,18 @@ const demo: DemoDefinition = {
         if (await nameEl.isVisible().catch(() => false)) {
           await nameEl.scrollIntoViewIfNeeded();
           await injectCursor(page);
+          await cursorMove(page, 'button:has-text("Change role")', i);
           await wait(PAUSE.MEDIUM);
         }
 
-        await btn.scrollIntoViewIfNeeded();
-        await btn.click();
+        await cursorClick(page, 'button:has-text("Change role")', i);
         clickedChangeRole = true;
         break;
       }
     }
 
     if (!clickedChangeRole) {
-      console.log("-> No enabled Change role buttons found (only one active member?) — ending demo.");
+      console.log("-> No enabled Change role buttons found — ending demo.");
       await wait(PAUSE.READ);
       return;
     }
@@ -109,19 +125,19 @@ const demo: DemoDefinition = {
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
     await wait(PAUSE.MEDIUM);
 
-    // Read the dialog description to show what's happening
+    // Read the dialog description
     const dialogDesc = page.locator('[role="dialog"] p, [role="dialog"] [data-description]');
     if (await dialogDesc.first().isVisible().catch(() => false)) {
       await cursorMove(page, '[role="dialog"] p, [role="dialog"] [data-description]');
       await wait(PAUSE.READ);
     }
 
-    // The dialog has a Select for the new role — click to open it
+    // Open the role selector
     console.log("-> Opening role selector...");
     await cursorClick(page, '[role="dialog"] button[role="combobox"]');
     await wait(PAUSE.SHORT);
 
-    // Wait for dropdown options to appear
+    // Wait for dropdown options
     await page.waitForSelector('[role="option"]', { timeout: 5000 });
     await wait(PAUSE.SHORT);
 
@@ -131,12 +147,11 @@ const demo: DemoDefinition = {
       console.log("-> Selecting Admin role...");
       await cursorClick(page, '[role="option"]:has-text("Admin")');
     } else {
-      // Fallback: click the first option
       await cursorClick(page, '[role="option"]', 0);
     }
     await wait(PAUSE.MEDIUM);
 
-    // Click the Confirm button to save the change
+    // Click Confirm to save the change
     console.log("-> Confirming role change...");
     await cursorClick(
       page,
@@ -145,7 +160,7 @@ const demo: DemoDefinition = {
     await wait(PAUSE.READ);
 
     // The dialog should close and the member list refreshes
-    console.log("-> Role changed successfully — pausing for viewer...");
+    console.log("-> Role changed successfully.");
     await wait(PAUSE.READ);
   },
 };

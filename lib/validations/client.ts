@@ -42,6 +42,7 @@ export const createClientSchema = z.object({
   vat_stagger_group: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional().nullable(),
   vat_scheme: z.enum(["Standard", "Flat Rate", "Cash Accounting", "Annual Accounting"]).optional().nullable(),
   display_name: z.string().trim().max(200, "Display name must be 200 characters or fewer").optional().nullable(),
+  filing_type_ids: z.array(z.string()).optional(),
 });
 
 export type CreateClientInput = z.infer<typeof createClientSchema>;

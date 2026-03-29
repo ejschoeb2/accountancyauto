@@ -22,20 +22,9 @@ dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env.local") });
 const args = process.argv.slice(2);
 const skipUpload = args.includes("--no-upload");
 
-// The 12 demos that were previously failing
+// Demos that need re-recording
 const FAILED_IDS = [
-  "add-client-manually",
-  "mark-filing-complete",
-  "mark-records-received",
-  "override-deadline",
   "pause-resume-client",
-  "delete-email-template",
-  "configure-filing-types",
-  "setup-custom-domain",
-  "change-member-role",
-  "remove-team-member",
-  "configure-upload-checks",
-  "client-portal-upload",
 ];
 
 // ─── Supabase config ────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Check, ClipboardCheck, FileText, ListChecks, Send, Rocket } from 'lucide-react';
+import { Check, ClipboardCheck, FileText, ListChecks, Send, Rocket, BookOpen } from 'lucide-react';
 import type { OnboardingProgress } from '@/lib/dashboard/onboarding';
 import { markOnboardingComplete } from '@/app/actions/settings';
 import Link from 'next/link';
@@ -15,6 +15,20 @@ interface GettingStartedProps {
 }
 
 const steps = [
+  {
+    key: 'hasVisitedGuides' as const,
+    label: 'Browse the guides',
+    description: 'Explore tutorials, articles, and walkthroughs to learn how Prompt works.',
+    href: '/guides',
+    icon: BookOpen,
+  },
+  {
+    key: 'hasReadGettingStarted' as const,
+    label: 'Read the Getting Started guide',
+    description: 'A step-by-step walkthrough of setting up your organisation, adding clients, and sending your first reminders.',
+    href: '/guides/getting-started-with-prompt',
+    icon: Rocket,
+  },
   {
     key: 'hasReviewedProgress' as const,
     label: 'Review client progress',

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useTransition, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { Upload, Pencil, X as XIcon, Plus, Loader2, Trash2, AlertTriangle, XCircle, CircleCheck, CircleMinus, ClipboardCheck, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -62,7 +62,6 @@ const CsvImportDialog = dynamic(() => import("./csv-import-dialog").then(m => ({
 const CreateClientDialog = dynamic(() => import("./create-client-dialog").then(m => ({ default: m.CreateClientDialog })), { ssr: false });
 import {
   type Client,
-  updateClientMetadata,
   deleteClients,
 } from "@/app/actions/clients";
 import {
@@ -174,8 +173,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isPending, startTransition] = useTransition();
   const [isDeleting, setIsDeleting] = useState(false);
   const [filingToggleLoading, setFilingToggleLoading] = useState<Set<string>>(new Set());
   const [deactivateConfirm, setDeactivateConfirm] = useState<{ clientId: string; filingTypeId: string } | null>(null);
@@ -648,9 +645,21 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
 
   // Filter and sort data based on tag filters + status filter + sort option
   const filteredData = useMemo(() => {
-    let filtered = data.filter((client) => {
-      // In deadline view, always filter by the selected client type (columns depend on it)
-      if (viewMode === 'status' && client.client_type !== deadlineClientType) {
+    // Apply name search first so it takes priority over all other filters
+    let pool = data;
+    if (globalFilter) {
+      const search = globalFilter.toLowerCase();
+      pool = data.filter((client) => {
+        const name = (client.display_name || client.company_name || "").toLowerCase();
+        const company = (client.company_name || "").toLowerCase();
+        return name.includes(search) || company.includes(search);
+      });
+    }
+
+    let filtered = pool.filter((client) => {
+      // In deadline view, filter by selected client type — but skip when
+      // searching so results aren't hidden by the wrong tab
+      if (viewMode === 'status' && !globalFilter && client.client_type !== deadlineClientType) {
         return false;
       }
       // Paused filter
@@ -730,7 +739,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
     });
 
     return sorted;
-  }, [data, viewMode, deadlineClientType, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, localStatusMap, sortBy, dateFrom, dateTo]);
+  }, [data, viewMode, deadlineClientType, globalFilter, activeTypeFilters, activeVatFilter, activeVatStaggerFilters, activeStatusFilters, pausedFilter, localStatusMap, sortBy, dateFrom, dateTo]);
 
   // Auto-switch client type tab when searching in status view
   // If the search matches clients of a single type, switch to that type tab
@@ -763,36 +772,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
       .map((idx) => filteredData[parseInt(idx)])
       .filter(Boolean);
   }, [rowSelection, filteredData]);
-
-  // Handle cell edit
-  const handleCellEdit = useCallback(
-    async (clientId: string, field: keyof Client, value: unknown) => {
-      // Optimistic update
-      const previousData = [...data];
-      setData((prev) =>
-        prev.map((client) =>
-          client.id === clientId ? { ...client, [field]: value } : client
-        )
-      );
-
-      try {
-        await updateClientMetadata(clientId, { [field]: value });
-
-        // Fields that affect filing assignments/deadlines need a server refresh
-        const filingAffectingFields: (keyof Client)[] = ['vat_registered', 'vat_stagger_group', 'year_end_date'];
-        if (filingAffectingFields.includes(field)) {
-          router.refresh();
-        }
-      } catch (error) {
-        // Revert on error
-        setData(previousData);
-        const message = error instanceof Error ? error.message : "Failed to update";
-        toast.error(message);
-        throw error;
-      }
-    },
-    [data, router]
-  );
 
 
   // Handle status update
@@ -1280,19 +1259,8 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }) => {
           const client = row.original;
-          return (
-            <EditableCell
-              value={client.client_type}
-              type="select"
-              options={CLIENT_TYPE_OPTIONS}
-              isEditMode={isEditMode}
-              onSave={async (value) => {
-                startTransition(async () => {
-                  await handleCellEdit(client.id, "client_type", value);
-                });
-              }}
-            />
-          );
+          const option = CLIENT_TYPE_OPTIONS.find((opt) => opt.value === client.client_type);
+          return <span className="text-muted-foreground">{option?.label || client.client_type || "—"}</span>;
         },
       },
       {
@@ -1304,17 +1272,14 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }) => {
           const client = row.original;
-          return (
-            <EditableCell
-              value={client.vat_registered}
-              type="boolean"
-              isEditMode={isEditMode}
-              onSave={async (value) => {
-                startTransition(async () => {
-                  await handleCellEdit(client.id, "vat_registered", value);
-                });
-              }}
-            />
+          return client.vat_registered ? (
+            <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center">
+              <span className="text-sm font-medium text-green-600">Yes</span>
+            </div>
+          ) : (
+            <div className="px-3 py-2 rounded-md bg-status-danger/10 inline-flex items-center">
+              <span className="text-sm font-medium text-status-danger">No</span>
+            </div>
           );
         },
       },
@@ -1327,23 +1292,11 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }) => {
           const client = row.original;
-          // Only show if VAT registered
           if (!client.vat_registered) {
             return <span className="text-muted-foreground">—</span>;
           }
-          return (
-            <EditableCell
-              value={client.vat_stagger_group?.toString() ?? null}
-              type="select"
-              options={VAT_STAGGER_GROUP_OPTIONS}
-              isEditMode={isEditMode}
-              onSave={async (value) => {
-                startTransition(async () => {
-                  await handleCellEdit(client.id, "vat_stagger_group", value ? parseInt(value as string) : null);
-                });
-              }}
-            />
-          );
+          const option = VAT_STAGGER_GROUP_OPTIONS.find((opt) => opt.value === client.vat_stagger_group?.toString());
+          return <span className="text-muted-foreground">{option?.label || "—"}</span>;
         },
       },
       {
@@ -1355,18 +1308,12 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }) => {
           const client = row.original;
-          return (
-            <EditableCell
-              value={client.year_end_date}
-              type="date"
-              isEditMode={isEditMode}
-              onSave={async (value) => {
-                startTransition(async () => {
-                  await handleCellEdit(client.id, "year_end_date", value);
-                });
-              }}
-            />
-          );
+          if (!client.year_end_date) return <span className="text-muted-foreground">—</span>;
+          try {
+            return <span className="text-muted-foreground">{format(new Date(client.year_end_date), "d MMM yyyy")}</span>;
+          } catch {
+            return <span className="text-muted-foreground">{client.year_end_date}</span>;
+          }
         },
       },
       {
@@ -1422,56 +1369,17 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         ),
         cell: ({ row }) => {
           const client = row.original;
-          const info = localStatusMap[client.id];
-
-          // View mode
-          if (!isEditMode) {
-            if (!client.reminders_paused) {
-              return (
-                <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center">
-                  <span className="text-sm font-medium text-green-600">Active</span>
-                </div>
-              );
-            }
+          if (!client.reminders_paused) {
             return (
-              <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
-                <span className="text-sm font-medium text-status-neutral">Paused</span>
+              <div className="px-3 py-2 rounded-md bg-green-500/10 inline-flex items-center">
+                <span className="text-sm font-medium text-green-600">Active</span>
               </div>
             );
           }
-
-          // Edit mode: show select for all clients
           return (
-            <EditableCell
-              value={client.reminders_paused ? "true" : "false"}
-              type="select"
-              options={[
-                { value: "false", label: "Active" },
-                { value: "true", label: "Paused" },
-              ]}
-              isEditMode={isEditMode}
-              onSave={async (value) => {
-                const newPaused = value === "true";
-                const previousData = [...data];
-                setData((prev) =>
-                  prev.map((c) =>
-                    c.id === client.id ? { ...c, reminders_paused: newPaused } : c
-                  )
-                );
-                try {
-                  const response = await fetch(`/api/clients/${client.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reminders_paused: newPaused }),
-                  });
-                  if (!response.ok) throw new Error('Failed to update reminders status');
-                  toast.success(newPaused ? 'Reminders paused' : 'Reminders resumed');
-                } catch (error) {
-                  setData(previousData);
-                  toast.error(error instanceof Error ? error.message : 'Failed to update');
-                }
-              }}
-            />
+            <div className="px-3 py-2 rounded-md bg-status-neutral/10 inline-flex items-center">
+              <span className="text-sm font-medium text-status-neutral">Paused</span>
+            </div>
           );
         },
         enableSorting: false,
@@ -1512,7 +1420,7 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
         enableSorting: false,
       },
     ],
-    [handleCellEdit, localStatusMap, isEditMode]
+    [localStatusMap]
   );
 
   const table = useReactTable({
@@ -1672,15 +1580,6 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
               >
                 <Upload className="h-5 w-5" />
                 Import CSV
-              </IconButtonWithText>
-              <IconButtonWithText
-                type="button"
-                variant={isEditMode ? "amber" : "violet"}
-                onClick={() => setIsEditMode(!isEditMode)}
-                title={isEditMode ? "Exit edit mode" : "Enter edit mode"}
-              >
-                {isEditMode ? <XIcon className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
-                {isEditMode ? "Done" : "Edit"}
               </IconButtonWithText>
               <IconButtonWithText
                 type="button"
@@ -1909,10 +1808,10 @@ export function ClientTable({ initialData, statusMap, filingStatusMap, activeFil
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className={`group ${isEditMode || deadlineEditMode !== null ? 'cursor-default' : 'cursor-pointer'} ${viewMode === 'status' ? '[&>td]:hover:bg-muted/50' : 'hover:bg-muted/50'} transition-colors`}
+                  className={`group ${deadlineEditMode !== null ? 'cursor-default' : 'cursor-pointer'} ${viewMode === 'status' ? '[&>td]:hover:bg-muted/50' : 'hover:bg-muted/50'} transition-colors`}
                   onClick={(e) => {
                     // Don't navigate if in edit mode
-                    if (isEditMode || deadlineEditMode !== null) {
+                    if (deadlineEditMode !== null) {
                       return;
                     }
                     // Don't navigate if clicking on checkbox/button, input, select, or button elements

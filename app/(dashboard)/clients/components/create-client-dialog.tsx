@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { AlertCircle, Loader2, X, Plus } from "lucide-react";
+import { AlertCircle, Loader2, X, Plus, ArrowRight, ArrowLeft } from "lucide-react";
 
 import {
   Dialog,
@@ -21,9 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ButtonBase } from "@/components/ui/button-base";
+import { Checkbox } from "@/components/ui/checkbox";
 import { createClient } from "@/lib/supabase/client";
+import {
+  FILING_TYPES_BY_CLIENT_TYPE,
+  FILING_TYPE_LABELS,
+} from "@/lib/constants/filing-types";
 
 import type { Client } from "@/app/actions/clients";
+import type { FilingTypeId } from "@/lib/types/database";
 
 interface CreateClientDialogProps {
   open: boolean;
@@ -60,6 +66,7 @@ const VAT_STAGGER_GROUP_OPTIONS = [
 const labelClass = "text-xs font-semibold text-muted-foreground uppercase tracking-wide";
 
 export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReached }: CreateClientDialogProps) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [companyName, setCompanyName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -68,6 +75,7 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
   const [vatRegistered, setVatRegistered] = useState("");
   const [vatStaggerGroup, setVatStaggerGroup] = useState("");
   const [vatScheme, setVatScheme] = useState("");
+  const [selectedFilingTypes, setSelectedFilingTypes] = useState<Set<FilingTypeId>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
 
   // Client limit state
@@ -77,6 +85,17 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
 
   const atLimit = clientLimit !== null && currentClientCount >= clientLimit;
   const nearLimit = clientLimit !== null && !atLimit && currentClientCount >= clientLimit - 3;
+
+  // Compute default filing types for the selected business type
+  const defaultFilingTypes = useMemo(() => {
+    if (!clientType) return [];
+    const types = FILING_TYPES_BY_CLIENT_TYPE[clientType] ?? [];
+    // Exclude VAT return if not VAT registered
+    if (vatRegistered !== "yes") {
+      return types.filter((t) => t !== "vat_return");
+    }
+    return types;
+  }, [clientType, vatRegistered]);
 
   // Fetch client limit when dialog opens
   useEffect(() => {
@@ -89,6 +108,8 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
       setVatRegistered("");
       setVatStaggerGroup("");
       setVatScheme("");
+      setSelectedFilingTypes(new Set());
+      setStep(1);
       setLimitLoaded(false);
       return;
     }
@@ -123,8 +144,25 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
     fetchLimit();
   }, [open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // When moving to step 2, seed the selection with defaults
+  function goToStep2() {
+    setSelectedFilingTypes(new Set(defaultFilingTypes));
+    setStep(2);
+  }
+
+  function toggleFilingType(id: FilingTypeId) {
+    setSelectedFilingTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  const handleSubmit = async () => {
     setIsLoading(true);
 
     try {
@@ -133,6 +171,7 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
         primary_email: email,
         client_type: clientType,
         vat_registered: vatRegistered === "yes",
+        filing_type_ids: Array.from(selectedFilingTypes),
       };
 
       if (displayName.trim()) {
@@ -186,120 +225,100 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
     }
   };
 
+  const step1Valid = companyName.trim() && email.trim() && clientType;
+
+  // All filing types that could apply to this business type (for the picker)
+  const allApplicableFilingTypes = useMemo(() => {
+    if (!clientType) return [];
+    return FILING_TYPES_BY_CLIENT_TYPE[clientType] ?? [];
+  }, [clientType]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Add Client</DialogTitle>
+          <DialogTitle>
+            {step === 1 ? "Add Client" : "Configure Deadlines"}
+          </DialogTitle>
           <DialogDescription>
-            Add a new client to your practice.
+            {step === 1
+              ? "Add a new client to your practice."
+              : `Select which deadlines apply to ${companyName}.`}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Client limit warnings */}
-          {limitLoaded && atLimit && (
-            <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
-              <AlertCircle className="size-4 mt-0.5 shrink-0" />
-              <span>
-                You&apos;ve reached your plan limit of <strong>{clientLimit}</strong> clients
-                ({currentClientCount}/{clientLimit} used). Upgrade your plan to add more.
-              </span>
-            </div>
-          )}
-          {limitLoaded && nearLimit && (
-            <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 border border-amber-200 text-amber-800 rounded-lg">
-              <AlertCircle className="size-4 mt-0.5 shrink-0" />
-              <span>
-                You&apos;re close to your plan limit ({currentClientCount}/{clientLimit} clients used).
-              </span>
-            </div>
-          )}
+        {step === 1 ? (
+          <div className="space-y-4">
+            {/* Client limit warnings */}
+            {limitLoaded && atLimit && (
+              <div className="flex items-start gap-2 text-sm p-3 bg-red-500/10 border border-red-200 text-red-800 rounded-lg">
+                <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                <span>
+                  You&apos;ve reached your plan limit of <strong>{clientLimit}</strong> clients
+                  ({currentClientCount}/{clientLimit} used). Upgrade your plan to add more.
+                </span>
+              </div>
+            )}
+            {limitLoaded && nearLimit && (
+              <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 border border-amber-200 text-amber-800 rounded-lg">
+                <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                <span>
+                  You&apos;re close to your plan limit ({currentClientCount}/{clientLimit} clients used).
+                </span>
+              </div>
+            )}
 
-          {/* Client Name */}
-          <div className="space-y-1.5">
-            <label htmlFor="company-name" className={labelClass}>
-              Client Name *
-            </label>
-            <Input
-              id="company-name"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="e.g. Acme Ltd"
-              required
-            />
-          </div>
-
-          {/* Display Name */}
-          <div className="space-y-1.5">
-            <label htmlFor="display-name" className={labelClass}>
-              Display Name
-            </label>
-            <Input
-              id="display-name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Optional - shown in table if set"
-            />
-          </div>
-
-          {/* Email */}
-          <div className="space-y-1.5">
-            <label htmlFor="email" className={labelClass}>
-              Email *
-            </label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. client@example.com"
-              required
-            />
-          </div>
-
-          {/* Client Type */}
-          <div className="space-y-1.5">
-            <label className={labelClass}>Client Type *</label>
-            <Select value={clientType} onValueChange={setClientType} required>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select client type..." />
-              </SelectTrigger>
-              <SelectContent>
-                {CLIENT_TYPE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Year End Date — not applicable for Individual clients */}
-          {clientType !== "Individual" && (
+            {/* Client Name */}
             <div className="space-y-1.5">
-              <label htmlFor="year-end-date" className={labelClass}>
-                Year End Date
+              <label htmlFor="company-name" className={labelClass}>
+                Client Name *
               </label>
               <Input
-                id="year-end-date"
-                type="date"
-                value={yearEndDate}
-                onChange={(e) => setYearEndDate(e.target.value)}
+                id="company-name"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="e.g. Acme Ltd"
+                required
               />
             </div>
-          )}
 
-          {/* VAT fields — not applicable for Individual clients */}
-          {clientType !== "Individual" && (
+            {/* Display Name */}
             <div className="space-y-1.5">
-              <label className={labelClass}>VAT Registered</label>
-              <Select value={vatRegistered} onValueChange={setVatRegistered}>
+              <label htmlFor="display-name" className={labelClass}>
+                Display Name
+              </label>
+              <Input
+                id="display-name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Optional - shown in table if set"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label htmlFor="email" className={labelClass}>
+                Email *
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. client@example.com"
+                required
+              />
+            </div>
+
+            {/* Client Type */}
+            <div className="space-y-1.5">
+              <label className={labelClass}>Client Type *</label>
+              <Select value={clientType} onValueChange={setClientType} required>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select VAT status..." />
+                  <SelectValue placeholder="Select client type..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {VAT_REGISTERED_OPTIONS.map((opt) => (
+                  {CLIENT_TYPE_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
@@ -307,20 +326,32 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
                 </SelectContent>
               </Select>
             </div>
-          )}
 
-          {/* VAT sub-fields - only shown when VAT registered and not Individual */}
-          {clientType !== "Individual" && vatRegistered === "yes" && (
-            <>
-              {/* VAT Stagger Group */}
+            {/* Year End Date — not applicable for Individual clients */}
+            {clientType !== "Individual" && (
               <div className="space-y-1.5">
-                <label className={labelClass}>VAT Stagger Group</label>
-                <Select value={vatStaggerGroup} onValueChange={setVatStaggerGroup}>
+                <label htmlFor="year-end-date" className={labelClass}>
+                  Year End Date
+                </label>
+                <Input
+                  id="year-end-date"
+                  type="date"
+                  value={yearEndDate}
+                  onChange={(e) => setYearEndDate(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* VAT fields — not applicable for Individual clients */}
+            {clientType !== "Individual" && (
+              <div className="space-y-1.5">
+                <label className={labelClass}>VAT Registered</label>
+                <Select value={vatRegistered} onValueChange={setVatRegistered}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select stagger group..." />
+                    <SelectValue placeholder="Select VAT status..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {VAT_STAGGER_GROUP_OPTIONS.map((opt) => (
+                    {VAT_REGISTERED_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -328,47 +359,133 @@ export function CreateClientDialog({ open, onOpenChange, onCreated, onLimitReach
                   </SelectContent>
                 </Select>
               </div>
+            )}
 
-              {/* VAT Scheme */}
-              <div className="space-y-1.5">
-                <label className={labelClass}>VAT Scheme</label>
-                <Select value={vatScheme} onValueChange={setVatScheme}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select VAT scheme..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {VAT_SCHEME_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* VAT sub-fields - only shown when VAT registered and not Individual */}
+            {clientType !== "Individual" && vatRegistered === "yes" && (
+              <>
+                {/* VAT Stagger Group */}
+                <div className="space-y-1.5">
+                  <label className={labelClass}>VAT Stagger Group</label>
+                  <Select value={vatStaggerGroup} onValueChange={setVatStaggerGroup}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select stagger group..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VAT_STAGGER_GROUP_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* VAT Scheme */}
+                <div className="space-y-1.5">
+                  <label className={labelClass}>VAT Scheme</label>
+                  <Select value={vatScheme} onValueChange={setVatScheme}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select VAT scheme..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VAT_SCHEME_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            <DialogFooter>
+              <ButtonBase
+                type="button"
+                onClick={() => onOpenChange(false)}
+                buttonType="icon-text"
+                variant="destructive"
+              >
+                <X className="size-4" />
+                Cancel
+              </ButtonBase>
+              <ButtonBase
+                type="button"
+                onClick={goToStep2}
+                buttonType="icon-text"
+                variant="blue"
+                disabled={!step1Valid || atLimit}
+              >
+                Next
+                <ArrowRight className="size-4" />
+              </ButtonBase>
+            </DialogFooter>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              These are the default deadlines for a <strong>{clientType}</strong>.
+              Uncheck any that don&apos;t apply to this client.
+            </p>
+
+            <div className="space-y-1">
+              {allApplicableFilingTypes.map((ftId) => {
+                const isDefault = defaultFilingTypes.includes(ftId);
+                const isChecked = selectedFilingTypes.has(ftId);
+
+                return (
+                  <label
+                    key={ftId}
+                    className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  >
+                    <Checkbox
+                      checked={isChecked}
+                      onCheckedChange={() => toggleFilingType(ftId)}
+                      variant={isChecked ? "blue" : "neutral"}
+                      size="sm"
+                    />
+                    <span className="text-sm font-medium">
+                      {FILING_TYPE_LABELS[ftId] ?? ftId}
+                    </span>
+                    {!isDefault && isChecked && (
+                      <span className="text-xs text-muted-foreground ml-auto">added</span>
+                    )}
+                  </label>
+                );
+              })}
+            </div>
+
+            {selectedFilingTypes.size === 0 && (
+              <div className="flex items-start gap-2 text-sm p-3 bg-amber-500/10 border border-amber-200 text-amber-800 rounded-lg">
+                <AlertCircle className="size-4 mt-0.5 shrink-0" />
+                <span>No deadlines selected. The client will be created without any tracked deadlines.</span>
               </div>
-            </>
-          )}
+            )}
 
-          <DialogFooter>
-            <ButtonBase
-              type="button"
-              onClick={() => onOpenChange(false)}
-              buttonType="icon-text"
-              variant="destructive"
-            >
-              <X className="size-4" />
-              Cancel
-            </ButtonBase>
-            <ButtonBase
-              type="submit"
-              buttonType="icon-text"
-              variant="green"
-              disabled={isLoading || atLimit || !companyName.trim() || !email.trim() || !clientType}
-            >
-              {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              Create
-            </ButtonBase>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <ButtonBase
+                type="button"
+                onClick={() => setStep(1)}
+                buttonType="icon-text"
+                variant="neutral"
+              >
+                <ArrowLeft className="size-4" />
+                Back
+              </ButtonBase>
+              <ButtonBase
+                type="button"
+                onClick={handleSubmit}
+                buttonType="icon-text"
+                variant="green"
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                Create
+              </ButtonBase>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

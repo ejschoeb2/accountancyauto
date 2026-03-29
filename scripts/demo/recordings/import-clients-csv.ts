@@ -1,9 +1,9 @@
 /**
  * Recording: Import Clients from CSV
  *
- * Login, navigate to /clients, open the Import CSV dialog, upload a CSV
- * with 4 clients via sessionStorage seeding, go through all import steps
- * (column mapping, review/edit, confirm), and actually complete the import.
+ * Login, navigate to /clients, open the Import CSV dialog, show the upload
+ * drop zone with cursor interaction, seed CSV data via sessionStorage,
+ * navigate to the import page, go through column mapping → review → confirm.
  */
 
 import {
@@ -12,6 +12,7 @@ import {
   navigateTo,
   cursorClick,
   cursorMove,
+  cursorType,
   wait,
   PAUSE,
   injectCursor,
@@ -48,16 +49,23 @@ const demo: DemoDefinition = {
     await cursorMove(page, '[role="dialog"]');
     await wait(PAUSE.READ);
 
-    // ---- Show the drag-and-drop zone ----
+    // ---- Interact with the drag-and-drop upload zone ----
     console.log("-> Showing the upload drop zone...");
     const dropZone = page.locator('[role="dialog"] .border-dashed');
     if (await dropZone.isVisible().catch(() => false)) {
+      // Move cursor to the drop zone prominently
       await cursorMove(page, '[role="dialog"] .border-dashed');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
+
+      // Click the drop zone to simulate file selection interaction
+      await cursorClick(page, '[role="dialog"] .border-dashed');
+      await wait(PAUSE.MEDIUM);
     }
 
+    await wait(PAUSE.READ);
+
     // ---- Close the dialog (we'll seed data and navigate to import page) ----
-    console.log("-> Closing dialog to seed CSV data...");
+    console.log("-> Closing dialog to proceed with import...");
     await page.keyboard.press("Escape");
     await wait(PAUSE.SHORT);
 
@@ -112,13 +120,12 @@ const demo: DemoDefinition = {
       }
     }
 
-    // ---- Click Continue to go to edit-data step ----
-    console.log("-> Clicking Continue to review data...");
-    const continueBtn = page.locator('button:has-text("Continue")').first();
-    if (await continueBtn.isVisible().catch(() => false)) {
-      await cursorClick(page, 'button:has-text("Continue")');
-      await wait(PAUSE.LONG);
-    }
+    // ---- Click "Review Data" to go to edit-data step ----
+    console.log("-> Clicking Review Data to proceed...");
+    const reviewDataBtn = page.locator('button:has-text("Review Data")').first();
+    await reviewDataBtn.waitFor({ state: "visible", timeout: 5000 });
+    await cursorClick(page, 'button:has-text("Review Data")');
+    await wait(PAUSE.LONG);
 
     // ---- Step 2: Review/Edit Data ----
     console.log("-> Step 2: Reviewing imported data...");
@@ -142,31 +149,35 @@ const demo: DemoDefinition = {
     }
 
     // ---- Click Import to actually import the clients ----
-    console.log("-> Clicking Import to confirm the import...");
+    console.log("-> Clicking Import to confirm...");
+    // Button text is "Import X Clients" — match on partial text
     const importBtn = page.locator('button:has-text("Import")').last();
     if (await importBtn.isVisible().catch(() => false)) {
       await importBtn.scrollIntoViewIfNeeded();
       await injectCursor(page);
-      await cursorClick(page, 'button:has-text("Import")');
+      await cursorClick(page, 'button:has-text("Import"):not(:has-text("CSV"))');
       await wait(PAUSE.LONG);
     }
 
     // ---- Step 3: Results ----
     console.log("-> Showing import results...");
+    // Wait for the import to complete and results to appear
+    const resultHeading = page.locator('h2:has-text("Import Complete")');
+    await resultHeading.waitFor({ state: "visible", timeout: 15000 }).catch(() => {});
     await wait(PAUSE.LONG);
 
-    // Look for success message or results summary
+    // Show success message
     const successText = page.locator('text=successfully').first();
     if (await successText.isVisible().catch(() => false)) {
       await cursorMove(page, 'text=successfully');
       await wait(PAUSE.READ);
     }
 
-    // Look for "Go to Clients" or similar button
-    const goToClientsBtn = page.locator('button:has-text("Go to Clients"), a:has-text("Go to Clients"), button:has-text("View Clients")').first();
+    // Click "Go to Clients" to finish
+    const goToClientsBtn = page.locator('button:has-text("Go to Clients")').first();
     if (await goToClientsBtn.isVisible().catch(() => false)) {
-      console.log("-> Clicking to return to clients page...");
-      await cursorClick(page, 'button:has-text("Go to Clients"), a:has-text("Go to Clients"), button:has-text("View Clients")');
+      console.log("-> Clicking Go to Clients...");
+      await cursorClick(page, 'button:has-text("Go to Clients")');
       await wait(PAUSE.LONG);
     }
 

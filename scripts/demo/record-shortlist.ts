@@ -19,18 +19,20 @@
 import path from "path";
 import fs from "fs";
 import { execSync } from "child_process";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
 import { startRecording, stopRecording } from "./helpers";
+
+dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env.local") });
 
 const SHORTLIST_IDS = [
   "upcoming-deadlines-widget",
-  "workload-forecast",
   "todo-list",
-  "send-now-email",
   "check-client-deadlines",
 ];
 
 // Seconds to trim from the start of each recording (login sequence)
-const TRIM_SECONDS = 10;
+const TRIM_SECONDS = 11;
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const OUT_DIR = path.join(ROOT, "out");
@@ -153,6 +155,38 @@ async function main() {
 
   // Clean up concat list
   if (fs.existsSync(concatListPath)) fs.unlinkSync(concatListPath);
+
+  // ── Upload to Supabase ─────────────────────────────────────────────────
+  const skipUpload = args.includes("--no-upload");
+  if (!skipUpload && fs.existsSync(outputPath)) {
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (SUPABASE_URL && SERVICE_ROLE_KEY) {
+      console.log("\n━━━ Uploading hero-loop.mp4 to Supabase ━━━\n");
+      const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      const BUCKET = "videos";
+
+      // Ensure bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets();
+      if (!buckets?.some((b) => b.name === BUCKET)) {
+        await supabase.storage.createBucket(BUCKET, { public: true });
+      }
+
+      const buffer = fs.readFileSync(outputPath);
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload("hero-loop.mp4", buffer, { contentType: "video/mp4", upsert: true });
+
+      if (error) {
+        console.error(`  ✗ Upload failed: ${error.message}`);
+      } else {
+        console.log(`  ✓ Uploaded to Supabase: videos/hero-loop.mp4`);
+      }
+    } else {
+      console.log("\n⚠ Missing Supabase env vars — skipping upload");
+    }
+  }
 
   console.log("\n━━━ Done ━━━");
 }

@@ -5,7 +5,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgId, getOrgContext } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { updateClientMetadataSchema, clientTypeSchema } from "@/lib/validations/client";
-import { z } from "zod";
 import { calculateFilingTypeStatus, type TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 
 // Client type matching the database schema
@@ -34,13 +33,6 @@ export type ClientMetadata = Pick<
   "primary_email" | "phone" | "client_type" | "year_end_date" | "vat_registered" | "vat_stagger_group" | "vat_scheme" | "reminders_paused" | "records_received_for" | "completed_for"
 >;
 
-// Bulk update fields (only fields that can be bulk-edited)
-export interface BulkUpdateFields {
-  client_type?: "Limited Company" | "Partnership" | "LLP" | "Individual" | null;
-  year_end_date?: string | null;
-  vat_registered?: boolean;
-  vat_stagger_group?: 1 | 2 | 3 | null;
-}
 
 /**
  * Fetch all clients from Supabase, ordered by company_name
@@ -100,55 +92,6 @@ export async function updateClientMetadata(
   return updatedClient;
 }
 
-// Bulk update validation schema
-const bulkUpdateFieldsSchema = z.object({
-  client_type: z.enum(["Limited Company", "Partnership", "LLP", "Individual"]).optional().nullable(),
-  year_end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  vat_registered: z.boolean().optional(),
-  vat_stagger_group: z.number().int().min(1).max(3).optional().nullable(),
-});
-
-/**
- * Bulk update multiple clients
- * Only allows updating: year_end_date, vat_registered, vat_stagger_group
- * Client type must be set individually
- */
-export async function bulkUpdateClients(
-  clientIds: string[],
-  updates: BulkUpdateFields
-): Promise<{ success: boolean; count: number }> {
-  // Enforce billing: block mutations when subscription is inactive
-  const orgId = await getOrgId();
-  await requireWriteAccess(orgId);
-
-  const supabase = await createClient();
-
-  // Validate that only bulk-editable fields are included
-  const validationResult = bulkUpdateFieldsSchema.safeParse(updates);
-  
-  if (!validationResult.success) {
-    throw new Error(
-      `Validation failed: ${validationResult.error.issues.map((e: { message: string }) => e.message).join(", ")}`
-    );
-  }
-
-  // Build updates array for RPC call
-  const updatesArray = clientIds.map((id) => ({
-    id,
-    metadata: validationResult.data,
-  }));
-
-  // Call the bulk_update_client_metadata Postgres function
-  const { error } = await supabase.rpc("bulk_update_client_metadata", {
-    updates: updatesArray,
-  });
-
-  if (error) {
-    throw new Error(`Failed to bulk update clients: ${error.message}`);
-  }
-
-  return { success: true, count: clientIds.length };
-}
 
 /**
  * Reassign all clients from one accountant to another within the same org.

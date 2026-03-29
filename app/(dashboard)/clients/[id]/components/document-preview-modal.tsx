@@ -392,6 +392,7 @@ export function DocumentPreviewModal({ doc, clientId, onClose, onDeleted, client
       setNeedsReview(false);
       setValidationWarnings(null);
       toast.success('Review flag cleared');
+      onMarkedReceived?.(doc.id);
     });
   };
 

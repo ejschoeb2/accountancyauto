@@ -1,9 +1,9 @@
 /**
  * Recording: View Upload Activity Log
  *
- * Navigate to /activity, switch to the Uploads tab, search by client
- * name, apply filters (filing type, verdict), change sort order, and
- * browse the uploads table.
+ * Navigate to /activity, switch to the Uploads tab, browse the table,
+ * click on an upload row to open the preview modal, then paginate
+ * through documents using next/previous buttons.
  */
 
 import {
@@ -11,7 +11,6 @@ import {
   login,
   navigateTo,
   cursorClick,
-  cursorType,
   cursorMove,
   wait,
   PAUSE,
@@ -22,8 +21,8 @@ const demo: DemoDefinition = {
   id: "view-upload-activity",
   title: "View Upload Activity Log",
   description:
-    "Switch to the Uploads tab on the Activity page, search by client name, filter by filing type and validation verdict, and change the sort order.",
-  tags: ["uploads", "activity", "log", "documents", "validation", "status", "filter", "sort", "search"],
+    "View all document uploads with their validation status. Click on an upload to preview it and navigate between documents in the modal.",
+  tags: ["uploads", "activity", "log", "documents", "validation", "status"],
   category: "Documents",
   hasSideEffects: false,
 
@@ -31,16 +30,12 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/activity");
 
-    // ─── View the Activity page header ───
-    console.log("-> Viewing Activity page...");
-    await wait(PAUSE.MEDIUM);
-
     // ─── Switch to Uploads tab ───
     console.log("-> Switching to Uploads tab...");
     await cursorClick(page, 'button:has-text("Uploads")');
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
-    await wait(PAUSE.LONG);
+    await wait(PAUSE.MEDIUM);
 
     // ─── Wait for table to load ───
     const uploadsTable = page.locator("table");
@@ -49,134 +44,74 @@ const demo: DemoDefinition = {
     // Check for empty state
     const emptyState = page.locator('text="No portal uploads yet"');
     if (await emptyState.isVisible()) {
-      console.log("-> No uploads available — showing empty state.");
+      console.log("-> No uploads available.");
       await wait(PAUSE.READ);
       return;
     }
 
     // ─── Browse the table ───
     console.log("-> Browsing uploads table...");
-    await cursorMove(page, "table tbody tr", 0);
-    await wait(PAUSE.MEDIUM);
-
-    if ((await page.locator("table tbody tr").count()) > 1) {
+    const rowCount = await page.locator("table tbody tr").count();
+    if (rowCount > 0) {
+      await cursorMove(page, "table tbody tr", 0);
+      await wait(PAUSE.SHORT);
+    }
+    if (rowCount > 1) {
       await cursorMove(page, "table tbody tr", 1);
       await wait(PAUSE.SHORT);
     }
+    if (rowCount > 2) {
+      await cursorMove(page, "table tbody tr", 2);
+      await wait(PAUSE.SHORT);
+    }
     await wait(PAUSE.MEDIUM);
 
-    // ─── Search by client name ───
-    console.log("-> Searching by client name...");
-    const searchInput = page.locator('input[placeholder="Search by client name..."]');
-    if (await searchInput.isVisible()) {
-      await cursorType(
-        page,
-        'input[placeholder="Search by client name..."]',
-        "Coastal",
-        { delay: 40 }
-      );
+    // ─── Click on a row to open the preview modal ───
+    console.log("-> Opening upload preview modal...");
+    if (rowCount > 0) {
+      await cursorClick(page, "table tbody tr", 0);
       await wait(PAUSE.LONG);
 
-      // View search results
-      console.log("-> Viewing search results for 'Coastal'...");
-      await wait(PAUSE.READ);
+      const dialog = page.locator('[role="dialog"]');
+      if (await dialog.isVisible().catch(() => false)) {
+        console.log("-> Preview modal open — viewing document details...");
+        await wait(PAUSE.READ);
 
-      // Clear search
-      console.log("-> Clearing search...");
-      const clearBtn = page.locator('input[placeholder="Search by client name..."] ~ button').first();
-      if (await clearBtn.isVisible()) {
-        await cursorClick(page, 'input[placeholder="Search by client name..."] ~ button');
-      } else {
-        await searchInput.fill("");
-      }
-      await wait(PAUSE.MEDIUM);
-    }
+        // ─── Navigate to next document ───
+        const nextBtn = dialog.locator('button:has(svg.lucide-chevron-right)').first();
+        if (await nextBtn.isVisible().catch(() => false) && !(await nextBtn.isDisabled())) {
+          console.log("-> Navigating to next document...");
+          await cursorClick(page, '[role="dialog"] button:has(svg.lucide-chevron-right)');
+          await wait(PAUSE.LONG);
+          await wait(PAUSE.MEDIUM);
+        }
 
-    // ─── Open filters panel ───
-    console.log("-> Opening filters panel...");
-    const filterBtn = page.locator('button:has-text("Filter")').first();
-    if (await filterBtn.isVisible()) {
-      await cursorClick(page, 'button:has-text("Filter")');
-      await wait(PAUSE.LONG);
-    }
+        // ─── Navigate to next again if possible ───
+        if (await nextBtn.isVisible().catch(() => false) && !(await nextBtn.isDisabled())) {
+          console.log("-> Navigating to next document...");
+          await cursorClick(page, '[role="dialog"] button:has(svg.lucide-chevron-right)');
+          await wait(PAUSE.LONG);
+          await wait(PAUSE.MEDIUM);
+        }
 
-    // ─── Filter by filing type — Corp Tax ───
-    console.log("-> Filtering by filing type (Corp Tax)...");
-    const corpTaxChip = page.locator('button:has-text("Corp Tax")').first();
-    if (await corpTaxChip.isVisible()) {
-      await cursorClick(page, 'button:has-text("Corp Tax")');
-      await wait(PAUSE.MEDIUM);
-    }
+        // ─── Go back with previous button ───
+        const prevBtn = dialog.locator('button:has(svg.lucide-chevron-left)').first();
+        if (await prevBtn.isVisible().catch(() => false) && !(await prevBtn.isDisabled())) {
+          console.log("-> Going back to previous document...");
+          await cursorClick(page, '[role="dialog"] button:has(svg.lucide-chevron-left)');
+          await wait(PAUSE.LONG);
+          await wait(PAUSE.MEDIUM);
+        }
 
-    // ─── View filtered results ───
-    console.log("-> Viewing filtered results...");
-    await wait(PAUSE.READ);
-
-    // ─── Also filter by verdict — Review needed ───
-    console.log("-> Also filtering by verdict (Review needed)...");
-    const reviewChip = page.locator('button:has-text("Review needed")').first();
-    if (await reviewChip.isVisible()) {
-      await cursorClick(page, 'button:has-text("Review needed")');
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ─── View combined filter results ───
-    await wait(PAUSE.READ);
-
-    // ─── Clear all filters ───
-    console.log("-> Clearing all filters...");
-    const clearAll = page.locator('button:has-text("Clear all")').first();
-    if (await clearAll.isVisible()) {
-      await cursorClick(page, 'button:has-text("Clear all")');
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ─── Close filters ───
-    console.log("-> Closing filters panel...");
-    const closeFilters = page.locator('button:has-text("Close Filters")').first();
-    if (await closeFilters.isVisible()) {
-      await cursorClick(page, 'button:has-text("Close Filters")');
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ─── Change sort order ───
-    console.log("-> Changing sort order to Client Name (A-Z)...");
-    const sortSelect = page.locator('[data-slot="select-trigger"]').last();
-    if (await sortSelect.isVisible()) {
-      await cursorClick(page, '[data-slot="select-trigger"]');
-      await wait(PAUSE.SHORT);
-
-      const clientAZ = page.locator('[role="option"]:has-text("Client Name (A-Z)")').first();
-      if (await clientAZ.isVisible()) {
-        await cursorClick(page, '[role="option"]:has-text("Client Name (A-Z)")');
-      } else {
+        // ─── Close modal ───
+        console.log("-> Closing preview modal...");
         await page.keyboard.press("Escape");
+        await wait(PAUSE.SHORT);
       }
-      await wait(PAUSE.LONG);
     }
 
-    // ─── View sorted results ───
-    console.log("-> Viewing sorted results...");
-    await wait(PAUSE.READ);
-
-    // ─── Change sort to Received (Earliest) to show oldest uploads ───
-    console.log("-> Changing sort to Received (Earliest)...");
-    const sortSelect2 = page.locator('[data-slot="select-trigger"]').last();
-    if (await sortSelect2.isVisible()) {
-      await cursorClick(page, '[data-slot="select-trigger"]');
-      await wait(PAUSE.SHORT);
-
-      const receivedEarliest = page.locator('[role="option"]:has-text("Received (Earliest)")').first();
-      if (await receivedEarliest.isVisible()) {
-        await cursorClick(page, '[role="option"]:has-text("Received (Earliest)")');
-      } else {
-        await page.keyboard.press("Escape");
-      }
-      await wait(PAUSE.MEDIUM);
-    }
-
-    await wait(PAUSE.READ);
     console.log("-> Upload activity log demo complete.");
+    await wait(PAUSE.SHORT);
   },
 };
 

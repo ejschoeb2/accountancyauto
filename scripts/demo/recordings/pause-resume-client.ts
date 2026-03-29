@@ -1,9 +1,8 @@
 /**
  * Recording: Pause & Resume a Client's Reminders
  *
- * Navigate to a specific client's detail page (not the first row),
- * click Pause Reminders, show the paused state, then Resume Reminders.
- * Simple flow: clients page -> click client name -> pause -> resume.
+ * Navigate to Northern Logistics Group's detail page (Limited Company),
+ * pause reminders, then resume them.
  */
 
 import {
@@ -11,6 +10,7 @@ import {
   login,
   navigateTo,
   cursorClick,
+  cursorType,
   cursorMove,
   wait,
   PAUSE,
@@ -30,96 +30,54 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Search for Thames Valley Consulting (on track, not paused) ----
-    console.log("-> Searching for Thames Valley Consulting...");
+    // ---- Ensure "Limited Company" type is selected ----
+    await page.waitForLoadState("networkidle");
+    const lcToggle = page.locator('button:has-text("Limited Company")');
+    await lcToggle.waitFor({ state: "visible", timeout: 10000 });
+    await cursorClick(page, 'button:has-text("Limited Company")');
+    await wait(PAUSE.SHORT);
+
+    // ---- Search for Northern Logistics ----
+    console.log("-> Searching for Northern Logistics...");
     const searchInput = page.locator('input[placeholder="Search by client name..."]');
-    await searchInput.waitFor({ state: "visible", timeout: 5000 });
-    await searchInput.fill("Thames Valley");
+    await searchInput.waitFor({ state: "visible", timeout: 15000 });
+    await cursorType(page, 'input[placeholder="Search by client name..."]', "Northern Logistics", { delay: 25 });
     await wait(PAUSE.LONG);
 
-    // ---- Click on the client name to go to detail page ----
-    console.log("-> Clicking on Thames Valley Consulting to open detail page...");
-    const clientRow = page.locator('table tbody tr').first();
-    await clientRow.waitFor({ state: "visible", timeout: 5000 });
-    await cursorClick(page, "table tbody tr", 0);
+    // ---- Click on the client name ----
+    console.log("-> Opening client detail page...");
+    const clientNameCell = page.locator('td:has(> span.text-muted-foreground)').first();
+    await clientNameCell.waitFor({ state: "visible", timeout: 5000 });
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL(/\/clients\/[a-f0-9-]+/, { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
-    await wait(PAUSE.LONG);
+    await wait(PAUSE.MEDIUM);
 
-    // ---- Show the client header and action buttons ----
-    console.log("-> Showing client detail page...");
-    await cursorMove(page, "h1");
+    // ---- Pause Reminders ----
+    console.log("-> Clicking Pause Reminders...");
+    await page.locator('button:has-text("Pause Reminders")').waitFor({ state: "visible", timeout: 10000 });
+    await cursorMove(page, 'button:has-text("Pause Reminders")');
+    await wait(PAUSE.MEDIUM);
+    await cursorClick(page, 'button:has-text("Pause Reminders")');
+
+    // Wait for button to swap to Resume
+    await page.locator('button:has-text("Resume Reminders")').waitFor({ state: "visible", timeout: 30000 });
+    await injectCursor(page);
     await wait(PAUSE.READ);
 
-    // ---- Wait for Pause/Resume button to appear ----
-    await page.locator('button:has-text("Pause Reminders"), button:has-text("Resume Reminders")').first().waitFor({ state: "visible", timeout: 10000 });
+    // ---- Resume Reminders ----
+    console.log("-> Clicking Resume Reminders...");
+    await cursorMove(page, 'button:has-text("Resume Reminders")');
+    await wait(PAUSE.MEDIUM);
+    await cursorClick(page, 'button:has-text("Resume Reminders")');
 
-    const pauseBtn = page.locator('button:has-text("Pause Reminders")');
-    const resumeBtn = page.locator('button:has-text("Resume Reminders")');
-
-    if (await pauseBtn.isVisible().catch(() => false)) {
-      // Client is active — pause it first
-      console.log("-> Clicking Pause Reminders...");
-      await cursorClick(page, 'button:has-text("Pause Reminders")');
-      await page.waitForLoadState("networkidle");
-      await wait(PAUSE.LONG);
-
-      // ---- Show the paused state ----
-      console.log("-> Reminders paused — showing paused indicator...");
-      await cursorMove(page, "h1");
-      await wait(PAUSE.READ);
-
-      // The button should now say "Resume Reminders"
-      await page.locator('button:has-text("Resume Reminders")').waitFor({ state: "visible", timeout: 10000 });
-
-      // Show the Resume button
-      console.log("-> Showing Resume Reminders button...");
-      await cursorMove(page, 'button:has-text("Resume Reminders")');
-      await wait(PAUSE.READ);
-
-      // ---- Click Resume Reminders ----
-      console.log("-> Clicking Resume Reminders...");
-      await cursorClick(page, 'button:has-text("Resume Reminders")');
-      await page.waitForLoadState("networkidle");
-      await wait(PAUSE.LONG);
-
-      // Show the resumed state
-      console.log("-> Reminders resumed.");
-      await wait(PAUSE.MEDIUM);
-
-      // Verify the Pause button is back
-      await page.locator('button:has-text("Pause Reminders")').waitFor({ state: "visible", timeout: 10000 });
-      await cursorMove(page, 'button:has-text("Pause Reminders")');
-      await wait(PAUSE.READ);
-    } else if (await resumeBtn.isVisible().catch(() => false)) {
-      // Client is already paused — resume first, then pause and resume
-      console.log("-> Client is already paused — clicking Resume Reminders...");
-      await cursorClick(page, 'button:has-text("Resume Reminders")');
-      await page.waitForLoadState("networkidle");
-      await wait(PAUSE.LONG);
-
-      // Now pause it
-      console.log("-> Now pausing to demonstrate the flow...");
-      await page.locator('button:has-text("Pause Reminders")').waitFor({ state: "visible", timeout: 10000 });
-      await cursorClick(page, 'button:has-text("Pause Reminders")');
-      await page.waitForLoadState("networkidle");
-      await wait(PAUSE.LONG);
-
-      // Show paused state
-      console.log("-> Showing paused state...");
-      await cursorMove(page, "h1");
-      await wait(PAUSE.READ);
-
-      // Resume
-      console.log("-> Resuming reminders...");
-      await page.locator('button:has-text("Resume Reminders")').waitFor({ state: "visible", timeout: 10000 });
-      await cursorClick(page, 'button:has-text("Resume Reminders")');
-      await wait(PAUSE.LONG);
-    }
-
-    console.log("-> Pause/resume demo complete.");
+    // Wait for button to swap back to Pause
+    await page.locator('button:has-text("Pause Reminders")').waitFor({ state: "visible", timeout: 30000 });
+    await injectCursor(page);
     await wait(PAUSE.READ);
+
+    console.log("-> Done.");
   },
 };
 

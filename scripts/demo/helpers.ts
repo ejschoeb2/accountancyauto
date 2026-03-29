@@ -226,7 +226,7 @@ export async function startRecording(): Promise<DemoSession> {
 }
 
 // Seconds to trim from the start of each recording (login sequence)
-export const TRIM_SECONDS = 10;
+export const TRIM_SECONDS = 11;
 
 /** Close browser and rename the recorded video to the target filename */
 export async function stopRecording(session: DemoSession, outputName: string) {

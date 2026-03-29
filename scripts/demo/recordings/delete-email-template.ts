@@ -1,9 +1,12 @@
 /**
  * Recording: Delete an Email Template
  *
- * Navigate to /templates, click the delete button on a template row
- * to show the browser confirmation dialog. Stops before confirming.
- * Alternatively, opens the editor and clicks the Delete button there.
+ * Navigate to /templates, find the "Monthly VAT Reminder" custom template
+ * (created by the create-email-template recording), open the editor,
+ * click Delete, confirm, and show the result.
+ *
+ * Requires: create-email-template recording to have run first to create
+ * the "Monthly VAT Reminder" template.
  */
 
 import {
@@ -14,6 +17,7 @@ import {
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
@@ -34,25 +38,45 @@ const demo: DemoDefinition = {
     await page.waitForLoadState("networkidle");
     await wait(PAUSE.MEDIUM);
 
-    // ---- Browse the templates table ----
-    console.log("-> Browsing templates...");
-    const templateRows = page.locator("table tbody tr, tbody tr.cursor-pointer");
-    const rowCount = await templateRows.count();
+    // ---- Find the "Monthly VAT Reminder" template ----
+    console.log("-> Looking for Monthly VAT Reminder template...");
+    const vatRow = page.locator('table tbody tr:has-text("Monthly VAT Reminder"), tbody tr.cursor-pointer:has-text("Monthly VAT Reminder")').first();
+    let targetRow;
 
-    if (rowCount === 0) {
-      console.log("-> No templates found, ending demo...");
-      await wait(PAUSE.READ);
-      return;
+    if (await vatRow.isVisible().catch(() => false)) {
+      console.log("-> Found Monthly VAT Reminder template.");
+      targetRow = vatRow;
+    } else {
+      // Fallback: pick the last custom template (custom templates are usually at the bottom)
+      console.log("-> Monthly VAT Reminder not found — selecting last template...");
+      const allRows = page.locator("table tbody tr, tbody tr.cursor-pointer");
+      const rowCount = await allRows.count();
+      if (rowCount === 0) {
+        console.log("-> No templates found, ending demo...");
+        await wait(PAUSE.READ);
+        return;
+      }
+      targetRow = allRows.nth(rowCount - 1);
     }
 
-    // ---- Show the delete button on the first row ----
-    console.log("-> Hovering over template row to reveal delete button...");
-    await cursorMove(page, "table tbody tr, tbody tr.cursor-pointer", 0);
-    await wait(PAUSE.SHORT);
+    // ---- Hover over the template row ----
+    console.log("-> Hovering over template row...");
+    const box = await targetRow.boundingBox();
+    if (box) {
+      await injectCursor(page);
+      await page.evaluate(
+        ({ x, y }) => {
+          const el = document.getElementById("demo-cursor");
+          if (el) { el.style.top = y + "px"; el.style.left = x + "px"; }
+        },
+        { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+      );
+      await wait(PAUSE.MEDIUM);
+    }
 
-    // ---- Open the template editor to use the Delete button there ----
-    console.log("-> Opening template editor to show delete option...");
-    await cursorClick(page, "table tbody tr, tbody tr.cursor-pointer", 0);
+    // ---- Open the template editor ----
+    console.log("-> Opening template editor...");
+    await targetRow.click();
     await wait(PAUSE.MEDIUM);
 
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
@@ -69,7 +93,6 @@ const demo: DemoDefinition = {
 
       // ---- Wait for the delete confirmation dialog ----
       console.log("-> Delete confirmation dialog shown...");
-      // The second dialog (delete confirmation) should appear
       const confirmDialog = page.locator('[role="dialog"]:has-text("Delete Template")');
       await confirmDialog.waitFor({ state: "visible", timeout: 5000 });
       await wait(PAUSE.MEDIUM);
@@ -88,31 +111,27 @@ const demo: DemoDefinition = {
         await wait(PAUSE.READ);
       }
 
-      // ---- Hover over the Delete confirmation button but DON'T click ----
-      console.log("-> Showing destructive Delete button (not clicking)...");
-      // The delete confirmation dialog has Cancel and Delete buttons in a DialogFooter
-      // The Delete button is a ButtonBase variant="destructive" containing a Trash2 icon + "Delete" text
+      // ---- Click Delete to actually confirm the deletion ----
+      console.log("-> Confirming template deletion...");
       const confirmDeleteBtn = page
         .locator('[role="dialog"]:has-text("cannot be undone") button:has-text("Delete")')
         .first();
       if (await confirmDeleteBtn.isVisible().catch(() => false)) {
-        await cursorMove(
+        await cursorClick(
           page,
           '[role="dialog"]:has-text("cannot be undone") button:has-text("Delete")'
         );
-        await wait(PAUSE.MEDIUM);
+        await wait(PAUSE.LONG);
       }
-
-      // ---- Dismiss confirmation dialog ----
-      console.log("-> Pressing Escape to dismiss confirmation...");
-      await page.keyboard.press('Escape');
-      await wait(PAUSE.SHORT);
     }
 
-    console.log(
-      "-> Template deletion demo complete -- pausing for viewer..."
-    );
+    // ---- Show the result — template should be removed from the list ----
+    console.log("-> Template deleted — showing updated list...");
+    await page.waitForLoadState("networkidle");
+    await injectCursor(page);
     await wait(PAUSE.READ);
+
+    console.log("-> Delete email template demo complete.");
   },
 };
 

@@ -1,9 +1,10 @@
 /**
  * Recording: Activate a Deadline from a Client's Detail Page
  *
- * Navigate to a client detail page that has an inactive deadline,
- * find the inactive filing card, toggle it to active, and show
- * the updated state.
+ * Navigate to Thames Valley Consulting's detail page, scroll to Filing
+ * Management, find the Companies House filing card, deactivate it to
+ * show the inactive state, then re-activate it with the cursor guiding
+ * the viewer through each step.
  */
 
 import {
@@ -21,8 +22,8 @@ const demo: DemoDefinition = {
   id: "activate-deadline-for-client",
   title: "Activate a Deadline from a Client's Detail Page",
   description:
-    "Go to a client's detail page, find an inactive deadline in the Filing Management section, and activate it by toggling the Active checkbox.",
-  tags: ["activate", "deadline", "client", "filing", "detail page"],
+    "From a client's detail page, activate an inactive deadline for that client. Prompt calculates the deadline date and begins scheduling reminders automatically.",
+  tags: ["activate", "deadline", "client", "assign", "filing type"],
   category: "Deadlines",
   hasSideEffects: true,
 
@@ -30,94 +31,99 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Find a client that likely has an inactive deadline ----
-    // Sarah Mitchell is an Individual — she won't have Corp Tax / CT600 / Companies House
-    // Those will show as inactive filings on her page
-    console.log("-> Looking for Sarah Mitchell (Individual client)...");
-    const sarahRow = page.locator('table tbody tr:has-text("Sarah Mitchell")').first();
-    if (await sarahRow.isVisible()) {
-      await cursorClick(page, 'table tbody tr:has-text("Sarah Mitchell") td', 1);
-    } else {
-      // Fallback: click any client
-      await cursorClick(page, "table tbody tr td", 1);
-    }
+    // ---- Search for Thames Valley Consulting ----
+    console.log("-> Searching for Thames Valley Consulting...");
+    const searchInput = page.locator('input[placeholder="Search by client name..."]');
+    await searchInput.waitFor({ state: "visible", timeout: 15000 });
+    await searchInput.fill("Thames Valley");
+    await wait(PAUSE.LONG);
 
+    // ---- Click on the client name ----
+    console.log("-> Clicking on Thames Valley Consulting...");
+    const clientNameCell = page.locator('td:has(> span.text-muted-foreground)').first();
+    await clientNameCell.waitFor({ state: "visible", timeout: 5000 });
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
     await wait(PAUSE.LONG);
 
-    // ---- View the client detail page ----
-    console.log("-> On client detail page...");
-    await wait(PAUSE.READ);
-
-    // ---- Scroll down to Filing Management section ----
-    console.log("-> Scrolling to Filing Management section...");
-    const filingSection = page.locator('h2:has-text("Filing Management")').first();
-    if (await filingSection.isVisible()) {
-      await filingSection.scrollIntoViewIfNeeded();
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // ---- Find an inactive filing card ----
-    // Inactive filings have an "Active" checkbox label with the checkbox unchecked
-    // They appear with opacity-60 styling
-    console.log("-> Looking for an inactive deadline...");
+    // ---- Show the client name ----
+    console.log("-> On Thames Valley Consulting detail page...");
+    await cursorMove(page, "h1");
     await wait(PAUSE.MEDIUM);
 
-    // The filing cards have "Active" labels next to CheckButton toggles
-    // Look for a card that has an unchecked Active toggle (the filing is inactive)
-    const activeLabels = page.locator('label:has-text("Active")');
-    const labelCount = await activeLabels.count();
+    // ---- Scroll to Filing Management ----
+    console.log("-> Scrolling to Filing Management...");
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
+    const filingSection = page.locator('h2:has-text("Filing Management")');
+    await filingSection.waitFor({ state: "visible", timeout: 10000 });
+    await filingSection.scrollIntoViewIfNeeded();
+    await injectCursor(page);
+    await wait(PAUSE.MEDIUM);
 
-    let activatedOne = false;
-    for (let i = 0; i < labelCount; i++) {
-      // Find the checkbox associated with this "Active" label
-      const labelEl = activeLabels.nth(i);
-      const parentDiv = labelEl.locator(".."); // parent element
-      const checkbox = parentDiv.locator('[role="checkbox"]').first();
+    // Wait for filing cards
+    await page.locator('[id^="filing-"]').first().waitFor({ state: "visible", timeout: 10000 });
 
-      if (await checkbox.isVisible()) {
-        const isChecked = await checkbox.getAttribute("data-state");
-        if (isChecked === "unchecked") {
-          console.log("-> Found an inactive deadline — activating...");
+    // ---- Find the Companies House filing card ----
+    console.log("-> Looking for Companies House filing card...");
+    const companiesHouseCard = page.locator('#filing-companies_house');
+    const activeToggle = companiesHouseCard.locator('[role="checkbox"][aria-label*="active"]');
 
-          // Scroll this card into view
-          await labelEl.scrollIntoViewIfNeeded();
-          await wait(PAUSE.SHORT);
+    if (await companiesHouseCard.isVisible().catch(() => false)) {
+      await companiesHouseCard.scrollIntoViewIfNeeded();
+      await injectCursor(page);
 
-          // Show the inactive state
-          await cursorMove(page, 'label:has-text("Active")', i);
-          await wait(PAUSE.READ);
+      // ---- Move cursor to the Active toggle to highlight it ----
+      console.log("-> Pointing to the Active toggle on Companies House...");
+      await cursorMove(page, '#filing-companies_house [role="checkbox"][aria-label*="active"]');
+      await wait(PAUSE.READ);
 
-          // Click the checkbox to activate
-          await cursorClick(page, 'label:has-text("Active")', i);
-          await wait(PAUSE.LONG);
+      // ---- Check if it's currently active ----
+      const isChecked = await activeToggle.getAttribute("data-state");
 
-          activatedOne = true;
-          break;
-        }
-      }
-    }
+      if (isChecked === "checked") {
+        // Deactivate first to show the inactive state
+        console.log("-> Deactivating Companies House to show inactive state...");
+        await cursorClick(page, '#filing-companies_house [role="checkbox"][aria-label*="active"]');
+        await page.waitForLoadState("networkidle");
+        await injectCursor(page);
+        await wait(PAUSE.LONG);
 
-    if (!activatedOne) {
-      // If all filings are already active, just hover over one to show the toggle
-      console.log("-> All filings are already active — showing Active toggle...");
-      if (labelCount > 0) {
-        await cursorMove(page, 'label:has-text("Active")', 0);
+        // Show the inactive state — the card should look dimmed/greyed
+        console.log("-> Companies House is now inactive...");
+        await cursorMove(page, '#filing-companies_house');
         await wait(PAUSE.READ);
       }
+
+      // ---- Now activate it — this is the main demo action ----
+      console.log("-> Activating Companies House deadline...");
+      await cursorMove(page, '#filing-companies_house [role="checkbox"][aria-label*="active"]');
+      await wait(PAUSE.MEDIUM);
+      await cursorClick(page, '#filing-companies_house [role="checkbox"][aria-label*="active"]');
+      await page.waitForLoadState("networkidle");
+      await injectCursor(page);
+      await wait(PAUSE.LONG);
+
+      // ---- Show the activated state ----
+      console.log("-> Companies House deadline is now active...");
+      await cursorMove(page, '#filing-companies_house');
+      await wait(PAUSE.READ);
+    } else {
+      // Fallback: use whatever filing card is available
+      console.log("-> Companies House card not found, using first filing card...");
+      const firstToggle = page.locator('[role="checkbox"][aria-label*="active"]').first();
+      if (await firstToggle.isVisible().catch(() => false)) {
+        await cursorMove(page, '[role="checkbox"][aria-label*="active"]');
+        await wait(PAUSE.READ);
+        await cursorClick(page, '[role="checkbox"][aria-label*="active"]');
+        await wait(PAUSE.LONG);
+      }
     }
 
-    // ---- Show the result — the filing card is now active ----
-    console.log("-> Deadline is now active for this client...");
-    await wait(PAUSE.READ);
-
-    // ---- Scroll up to show the page title ----
-    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
-    await wait(PAUSE.MEDIUM);
-
-    console.log("-> Activate deadline from client page demo complete.");
+    console.log("-> Activate deadline demo complete.");
     await wait(PAUSE.SHORT);
   },
 };

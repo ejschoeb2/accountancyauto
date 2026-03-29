@@ -17,6 +17,7 @@ import {
 } from "@/app/(marketing)/guides/data";
 import type { Guide, GuideCategory, GuideType } from "@/app/(marketing)/guides/data";
 import { guideIllustrations } from "@/components/marketing/guide-illustrations";
+import { OnboardingTracker } from "./components/onboarding-tracker";
 
 // ─── Tutorial card (video, autoplay in viewport) ────────────────────────────
 
@@ -103,7 +104,7 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
               muted
               playsInline
               preload="metadata"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           </div>
         </div>
@@ -117,10 +118,12 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
 const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
   const colors = categoryColors[guide.category];
   const hasLink = !!guide.href;
+  const hasVideo = !!guide.videoPath;
   const Illustration = guideIllustrations[guide.id];
   const [isHovered, setIsHovered] = useState(false);
   const [isInView, setIsInView] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const card = cardRef.current;
@@ -132,6 +135,35 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
     observer.observe(card);
     return () => observer.disconnect();
   }, [Illustration]);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    const video = videoRef.current;
+    if (!card || !video) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) video.play().catch(() => {});
+        else video.pause();
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    const video = videoRef.current;
+    if (!card || !video) return;
+    const preloader = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) { video.preload = "auto"; preloader.disconnect(); }
+      },
+      { rootMargin: "1500px" },
+    );
+    preloader.observe(card);
+    return () => preloader.disconnect();
+  }, []);
 
   const isActive = isHovered || isInView;
 
@@ -173,8 +205,22 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
           )}
         </div>
 
-        {/* Right side — illustration, screenshot, or placeholder */}
-        {Illustration ? (
+        {/* Right side — video, illustration, screenshot, or placeholder */}
+        {hasVideo ? (
+          <div className="md:w-[65%] shrink-0 p-5">
+            <div className="aspect-[16/10] bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
+              <video
+                ref={videoRef}
+                src={guide.videoPath}
+                controls
+                muted
+                playsInline
+                preload="metadata"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          </div>
+        ) : Illustration ? (
           <div className="md:w-[55%] shrink-0 p-5">
             <div className="aspect-[16/10] bg-muted/30 rounded-xl overflow-hidden border border-border/40">
               <Illustration isHovered={isActive} />
@@ -186,7 +232,7 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
               <img
                 src={guide.imagePath}
                 alt={guide.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           </div>
@@ -212,38 +258,89 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
 
 const LongformGuideCard = ({ guide, index }: { guide: Guide; index: number }) => {
   const colors = categoryColors[guide.category];
+  const hasVideo = !!guide.videoPath;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    const video = videoRef.current;
+    if (!card || !video) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) video.play().catch(() => {});
+        else video.pause();
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    const video = videoRef.current;
+    if (!card || !video) return;
+    const preloader = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) { video.preload = "auto"; preloader.disconnect(); }
+      },
+      { rootMargin: "1500px" },
+    );
+    preloader.observe(card);
+    return () => preloader.disconnect();
+  }, []);
 
   return (
     <Link href={guide.href!} className="block">
       <motion.div
+        ref={cardRef}
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-60px" }}
         transition={{ type: "spring", stiffness: 90, damping: 18 }}
         className="group bg-card border border-border/60 rounded-2xl overflow-hidden shadow-md shadow-black/[0.07] hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
       >
-        <div className="px-8 py-7">
-          <div className="flex items-center gap-2 mb-3">
-            <span
-              className={`inline-block text-[11px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full ${colors.bg} ${colors.text}`}
-            >
-              {guide.category}
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700">
-              <BookOpen size={10} />
-              Guide
+        <div className={hasVideo ? "flex flex-col md:flex-row" : ""}>
+          <div className={`flex flex-col justify-center px-8 py-7 ${hasVideo ? "flex-1" : ""}`}>
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className={`inline-block text-[11px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full ${colors.bg} ${colors.text}`}
+              >
+                {guide.category}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold tracking-wide uppercase px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700">
+                <BookOpen size={10} />
+                Guide
+              </span>
+            </div>
+            <h2 className="text-lg font-bold text-foreground leading-snug tracking-tight mb-3">
+              {guide.title}
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {guide.description}
+            </p>
+            <span className="inline-flex items-center gap-1.5 mt-5 text-sm font-semibold text-violet-600 group-hover:gap-2.5 transition-all duration-200">
+              Read guide
+              <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </span>
           </div>
-          <h2 className="text-lg font-bold text-foreground leading-snug tracking-tight mb-3">
-            {guide.title}
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {guide.description}
-          </p>
-          <span className="inline-flex items-center gap-1.5 mt-5 text-sm font-semibold text-violet-600 group-hover:gap-2.5 transition-all duration-200">
-            Read guide
-            <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5" />
-          </span>
+
+          {hasVideo && (
+            <div className="md:w-[65%] shrink-0 p-5">
+              <div className="aspect-[16/10] bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
+                <video
+                  ref={videoRef}
+                  src={guide.videoPath}
+                  controls
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </motion.div>
     </Link>
@@ -487,6 +584,7 @@ function GuidesContent() {
 export default function GuidesPage() {
   return (
     <Suspense>
+      <OnboardingTracker step="guides" />
       <GuidesContent />
     </Suspense>
   );

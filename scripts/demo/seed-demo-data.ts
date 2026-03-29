@@ -116,54 +116,65 @@ async function seed() {
     console.log(`  ~ User already exists: ${DEMO_EMAIL} (${userId})`);
   }
 
-  // Organisation
-  const ORG_SLUG = "thornton-associates";
-  const { data: existingOrg } = await supabase
-    .from("organisations")
-    .select("id")
-    .eq("slug", ORG_SLUG)
-    .maybeSingle();
-
+  // Organisation — use the user's existing org if they already belong to one,
+  // otherwise create a new "Thornton & Associates" org. This prevents creating
+  // a second org that the user never sees (getOrgContext picks the first by
+  // created_at).
   let orgId: string;
 
-  if (existingOrg) {
-    orgId = existingOrg.id;
-    console.log(`  ~ Organisation already exists: ${ORG_SLUG} (${orgId})`);
-  } else {
-    const { data: newOrg, error: orgError } = await supabase
-      .from("organisations")
-      .insert({
-        name: "Thornton & Associates",
-        slug: ORG_SLUG,
-        plan_tier: "firm",
-        subscription_status: "active",
-        client_portal_enabled: true,
-      })
-      .select("id")
-      .single();
-    if (orgError) {
-      console.error("  Failed to create org:", orgError.message);
-      process.exit(1);
-    }
-    orgId = newOrg.id;
-    console.log(`  + Created organisation: Thornton & Associates (${orgId})`);
-  }
-
-  // Link user to org
-  const { data: existingLink } = await supabase
+  const { data: existingUserOrg } = await supabase
     .from("user_organisations")
-    .select("id")
+    .select("org_id")
     .eq("user_id", userId)
-    .eq("org_id", orgId)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
-  if (!existingLink) {
+  if (existingUserOrg) {
+    orgId = existingUserOrg.org_id;
+    console.log(`  ~ User already belongs to org: ${orgId} — seeding into it`);
+
+    // Ensure the org has firm-tier features enabled for demos
+    await supabase
+      .from("organisations")
+      .update({ plan_tier: "firm", subscription_status: "active", client_portal_enabled: true })
+      .eq("id", orgId);
+  } else {
+    const ORG_SLUG = "thornton-associates";
+    const { data: existingOrg } = await supabase
+      .from("organisations")
+      .select("id")
+      .eq("slug", ORG_SLUG)
+      .maybeSingle();
+
+    if (existingOrg) {
+      orgId = existingOrg.id;
+      console.log(`  ~ Organisation already exists: ${ORG_SLUG} (${orgId})`);
+    } else {
+      const { data: newOrg, error: orgError } = await supabase
+        .from("organisations")
+        .insert({
+          name: "Thornton & Associates",
+          slug: ORG_SLUG,
+          plan_tier: "firm",
+          subscription_status: "active",
+          client_portal_enabled: true,
+        })
+        .select("id")
+        .single();
+      if (orgError) {
+        console.error("  Failed to create org:", orgError.message);
+        process.exit(1);
+      }
+      orgId = newOrg.id;
+      console.log(`  + Created organisation: Thornton & Associates (${orgId})`);
+    }
+
+    // Link user to org
     await supabase
       .from("user_organisations")
       .insert({ user_id: userId, org_id: orgId, role: "admin" });
     console.log("  + Linked user to org as admin");
-  } else {
-    console.log("  ~ User already linked to org");
   }
 
   // ── 1b. Team members (real auth users) ────────────────────────────────

@@ -79,7 +79,7 @@ export function DeleteAccountCard() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <ButtonBase
-                    variant="muted"
+                    variant="blue"
                     buttonType="icon-text"
                     disabled={loading}
                     onClick={() => setDialogOpen(false)}

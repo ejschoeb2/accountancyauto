@@ -1,8 +1,9 @@
 /**
  * Recording: View a Client's Detail Page
  *
- * Click a client row in the table, tour the detail page sections:
- * header actions, client details, filing management, and compliance.
+ * Search for Brighton Digital (has queued emails, overrides, and rich data),
+ * click their name to open the detail page, tour all sections, and toggle
+ * between emails and documents on a filing card.
  */
 
 import {
@@ -10,9 +11,11 @@ import {
   login,
   navigateTo,
   cursorClick,
+  cursorType,
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
@@ -28,11 +31,21 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Click on the first client row ----
-    console.log("-> Clicking on a client row...");
-    await cursorClick(page, "table tbody tr", 0);
+    // ---- Search for Brighton Digital (has queued emails and overrides) ----
+    console.log("-> Searching for Brighton Digital...");
+    const searchInput = page.locator('input[placeholder="Search by client name..."]');
+    await searchInput.waitFor({ state: "visible", timeout: 15000 });
+    await cursorType(page, 'input[placeholder="Search by client name..."]', "Brighton", { delay: 30 });
+    await wait(PAUSE.LONG);
+
+    // ---- Click on the client name cell ----
+    console.log("-> Clicking on Brighton Digital...");
+    const clientNameCell = page.locator('td:has(> span.text-muted-foreground)').first();
+    await clientNameCell.waitFor({ state: "visible", timeout: 5000 });
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
+    await injectCursor(page);
     await wait(PAUSE.LONG);
 
     // ---- Tour the page header ----
@@ -53,13 +66,18 @@ const demo: DemoDefinition = {
     await cursorMove(page, 'h2:has-text("Client Details")');
     await wait(PAUSE.READ);
 
-    // ---- Tour Filing Management section ----
+    // ---- Scroll down to Filing Management section ----
     console.log("-> Scrolling to Filing Management...");
     const filingSection = page.locator('h2:has-text("Filing Management")');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
+
     if (await filingSection.isVisible()) {
       await filingSection.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await cursorMove(page, 'h2:has-text("Filing Management")');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
 
       // Show a filing card
       const filingCard = page.locator('[id^="filing-"]').first();
@@ -69,13 +87,61 @@ const demo: DemoDefinition = {
       }
     }
 
-    // ---- Tour Compliance section ----
-    console.log("-> Scrolling to Compliance section...");
-    const complianceSection = page.locator('h2:has-text("Compliance")');
-    if (await complianceSection.isVisible()) {
-      await complianceSection.scrollIntoViewIfNeeded();
-      await cursorMove(page, 'h2:has-text("Compliance")');
+    // ---- Scroll all the way down to the bottom ----
+    console.log("-> Scrolling to bottom of page...");
+    await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }));
+    await wait(PAUSE.LONG);
+
+    // ---- Scroll back up to the top ----
+    console.log("-> Scrolling back to top...");
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    await wait(PAUSE.LONG);
+
+    // ---- Toggle between Documents and Emails on a filing card ----
+    console.log("-> Toggling between Documents and Emails view...");
+
+    // Scroll back to filing management
+    if (await filingSection.isVisible()) {
+      await filingSection.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await wait(PAUSE.SHORT);
+    }
+
+    // Find the Documents/Emails toggle on the Companies House card (has queued emails)
+    const companiesHouseCard = page.locator('#filing-companies_house');
+    const emailsToggle = companiesHouseCard.locator('button:has-text("Emails")').first();
+
+    if (await emailsToggle.isVisible().catch(() => false)) {
+      await emailsToggle.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await cursorClick(page, '#filing-companies_house button:has-text("Emails")');
       await wait(PAUSE.READ);
+
+      console.log("-> Viewing email history for this deadline...");
+      await wait(PAUSE.MEDIUM);
+
+      // Switch back to Documents
+      console.log("-> Switching back to Documents...");
+      const docsToggle = companiesHouseCard.locator('button:has-text("Documents")').first();
+      if (await docsToggle.isVisible().catch(() => false)) {
+        await cursorClick(page, '#filing-companies_house button:has-text("Documents")');
+        await wait(PAUSE.READ);
+      }
+    } else {
+      // Fallback: try first filing card
+      const anyEmailsToggle = page.locator('[id^="filing-"] button:has-text("Emails")').first();
+      if (await anyEmailsToggle.isVisible().catch(() => false)) {
+        await anyEmailsToggle.scrollIntoViewIfNeeded();
+        await injectCursor(page);
+        await cursorClick(page, '[id^="filing-"] button:has-text("Emails")');
+        await wait(PAUSE.READ);
+
+        console.log("-> Viewing email history...");
+        await wait(PAUSE.MEDIUM);
+
+        await cursorClick(page, '[id^="filing-"] button:has-text("Documents")');
+        await wait(PAUSE.READ);
+      }
     }
 
     console.log("-> Client detail page tour complete.");

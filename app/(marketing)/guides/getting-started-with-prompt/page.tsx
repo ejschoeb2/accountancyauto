@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { MarketingNav } from "@/components/marketing/nav";
 import { FooterSection } from "@/components/marketing/footer-section";
+import { OnboardingTracker } from "../components/onboarding-tracker";
 
 export const metadata: Metadata = {
   title: "Getting Started with Prompt — Guides",
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export default function GettingStartedPage() {
   return (
     <main className="min-h-screen">
+      <OnboardingTracker step="getting-started" />
       <MarketingNav />
 
       <section className="pt-10 lg:pt-14 pb-20 lg:pb-28">

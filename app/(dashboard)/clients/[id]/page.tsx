@@ -140,7 +140,10 @@ export default function ClientPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reminders_paused: !client!.reminders_paused }),
       });
-      if (!response.ok) throw new Error('Failed to update reminders status');
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to update reminders status');
+      }
       const result = await response.json();
       const updated = result.data || result;
       setClient(updated);

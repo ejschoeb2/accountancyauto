@@ -57,30 +57,28 @@ const demo: DemoDefinition = {
     const sendEmailBtn = page.locator('button:has-text("Send Email")').first();
     await sendEmailBtn.waitFor({ state: "visible", timeout: 5000 });
     await cursorClick(page, 'button:has-text("Send Email")');
-    await wait(PAUSE.LONG);
+    await wait(PAUSE.MEDIUM);
 
     // ─── Wait for dialog ───
     console.log("-> Send Email modal opened...");
     await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
-    await wait(PAUSE.MEDIUM);
+    await wait(PAUSE.SHORT);
 
-    // ─── Select filing context ───
+    // ─── Select filing context (faster) ───
     console.log("-> Selecting filing context...");
-    // The filing context is a Select component
-    const filingSelect = page.locator('[role="dialog"] .space-y-2 button[role="combobox"], [role="dialog"] [data-slot="select-trigger"]').first();
+    const filingSelect = page.locator('[role="dialog"] [data-slot="select-trigger"]').first();
     if (await filingSelect.isVisible()) {
       await cursorClick(page, '[role="dialog"] [data-slot="select-trigger"]', 0);
-      await wait(PAUSE.SHORT);
+      await wait(300);
 
-      // Select "Corporation Tax Payment" from the dropdown
+      // Select "Corporation Tax" from the dropdown
       const corpTaxOption = page.locator('[role="option"]:has-text("Corporation Tax")').first();
       if (await corpTaxOption.isVisible()) {
         await cursorClick(page, '[role="option"]:has-text("Corporation Tax")');
       } else {
-        // Fall back to picking second option (first is "None")
         await cursorClick(page, '[role="option"]', 1);
       }
-      await wait(PAUSE.LONG);
+      await wait(PAUSE.MEDIUM);
     }
 
     // ─── Show the green portal link confirmation ───
@@ -88,25 +86,24 @@ const demo: DemoDefinition = {
     const portalConfirm = page.locator('[role="dialog"] .bg-green-500\\/10').first();
     if (await portalConfirm.isVisible()) {
       await cursorMove(page, '[role="dialog"] .bg-green-500\\/10');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.SHORT);
     }
 
-    // ─── Select email template ───
+    // ─── Select email template (faster) ───
     console.log("-> Selecting email template...");
     const templateSelect = page.locator('[role="dialog"] [data-slot="select-trigger"]').nth(1);
     if (await templateSelect.isVisible()) {
       await cursorClick(page, '[role="dialog"] [data-slot="select-trigger"]', 1);
-      await wait(PAUSE.SHORT);
+      await wait(300);
 
       // Select "Friendly First Reminder" template
       const friendlyOption = page.locator('[role="option"]:has-text("Friendly First Reminder")').first();
       if (await friendlyOption.isVisible()) {
         await cursorClick(page, '[role="option"]:has-text("Friendly First Reminder")');
       } else {
-        // Fall back to first real template (skip "No template")
         await cursorClick(page, '[role="option"]', 1);
       }
-      await wait(PAUSE.LONG);
+      await wait(PAUSE.MEDIUM);
     }
 
     // ─── Show the populated email editor with template content ───
@@ -117,15 +114,22 @@ const demo: DemoDefinition = {
     const subjectInput = page.locator('[role="dialog"] input[placeholder*="ubject"]').first();
     if (await subjectInput.isVisible()) {
       await cursorMove(page, '[role="dialog"] input[placeholder*="ubject"]');
-      await wait(PAUSE.MEDIUM);
+      await wait(PAUSE.SHORT);
     }
 
     // ─── Hover over the body editor to show placeholder pills ───
     const editorDiv = page.locator('[role="dialog"] .tiptap, [role="dialog"] [contenteditable="true"]').first();
     if (await editorDiv.isVisible()) {
       await cursorMove(page, '[role="dialog"] .tiptap, [role="dialog"] [contenteditable="true"]');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
     }
+
+    // ─── Scroll down to the Next button so cursor hovers over it properly ───
+    console.log("-> Scrolling to Next button...");
+    const nextBtn = page.locator('[role="dialog"] button:has-text("Next")');
+    await nextBtn.scrollIntoViewIfNeeded();
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
 
     // ─── Click Next to proceed to preview ───
     console.log("-> Clicking Next to preview...");
@@ -146,12 +150,10 @@ const demo: DemoDefinition = {
 
     // ─── Wait for sending to complete ───
     console.log("-> Waiting for emails to be sent...");
-    // Wait for the results screen (shows "Send Complete")
     const resultsTitle = page.locator('[role="dialog"]:has-text("Send Complete")');
     try {
       await resultsTitle.waitFor({ state: "visible", timeout: 30000 });
     } catch {
-      // If it takes too long, just wait
       await wait(5000);
     }
     await wait(PAUSE.READ);

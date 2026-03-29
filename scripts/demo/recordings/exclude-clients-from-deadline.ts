@@ -2,8 +2,8 @@
  * Recording: Exclude Clients from a Deadline
  *
  * Open a filing type's schedule editor, scroll to the "Applies To"
- * (Client Exclusions) section, search for clients, and toggle
- * exclusions on/off.
+ * (Client Exclusions) section, and untick several clients to exclude
+ * them from receiving reminders for this deadline.
  */
 
 import {
@@ -12,9 +12,9 @@ import {
   navigateTo,
   cursorClick,
   cursorMove,
-  cursorType,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
@@ -37,81 +37,104 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/deadlines");
 
-    // ─── Open the first filing type edit page ───
-    console.log("→ Opening first filing type schedule...");
-    const firstCard = page.locator(".grid a").first();
-    await firstCard.waitFor({ state: "visible", timeout: 5000 });
-    await cursorClick(page, ".grid a", 0);
+    // ─── Open an active filing type with reminders ───
+    console.log("→ Opening a filing type schedule...");
+    const cardWithReminders = page.locator('.grid a:has-text("Reminders:")').first();
+    if (await cardWithReminders.isVisible().catch(() => false)) {
+      await cursorClick(page, '.grid a:has-text("Reminders:")');
+    } else {
+      await cursorClick(page, ".grid a", 0);
+    }
     await page.waitForURL("**/deadlines/**/edit**");
     await page.waitForLoadState("networkidle");
+    await injectCursor(page);
     await wait(PAUSE.LONG);
 
-    // ─── Scroll to the Applies To / Client Exclusions section ───
+    // ─── Scroll down to the Applies To / Client Exclusions section ───
+    // Must scroll past Reminder Steps and any Document Requirements sections
     console.log("→ Scrolling to Applies To section...");
-    const appliesToHeading = page.locator('h2:has-text("Applies To")');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
+
+    // Find the last "Applies To" heading (the exclusions one, not the client selector)
+    const appliesToHeadings = page.locator('h2:has-text("Applies To")');
+    const headingCount = await appliesToHeadings.count();
+    const appliesToHeading = appliesToHeadings.nth(headingCount - 1);
     await appliesToHeading.scrollIntoViewIfNeeded();
-    await wait(PAUSE.LONG);
+    await injectCursor(page);
+    await wait(PAUSE.MEDIUM);
 
     // ─── View the exclusions list ───
     console.log("→ Viewing client exclusions list...");
+    await cursorMove(page, 'h2:has-text("Applies To")');
     await wait(PAUSE.READ);
 
-    // ─── Search for a specific client ───
-    console.log("→ Searching for a client to exclude...");
-    const searchInput = page
-      .locator('h2:has-text("Applies To")')
-      .locator("~ div input[placeholder='Search clients...'], .. .. input[placeholder='Search clients...']")
-      .last();
+    // ─── Scope to the Applies To card to avoid clicking document rows ───
+    const appliesToCard = appliesToHeading.locator('xpath=ancestor::*[contains(@class,"card")]').first();
+    const clientRows = appliesToCard.locator('.cursor-pointer');
 
-    // Use a broader selector that finds the search within the Applies To card
-    const exclusionSearch = page.locator("input[placeholder='Search clients...']").last();
-    if (await exclusionSearch.isVisible()) {
-      await cursorType(page, "input[placeholder='Search clients...']", "Ltd", {
-        delay: 40,
-        index: (await page.locator("input[placeholder='Search clients...']").count()) - 1,
-      });
+    // ─── Exclude clients by unticking them ───
+    const count = await clientRows.count();
+
+    // Exclude the first client
+    if (count > 0) {
+      console.log("→ Excluding first client...");
+      await clientRows.nth(0).scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await cursorClick(page, `h2:has-text("Applies To") >> xpath=ancestor::*[contains(@class,"card")] >> .cursor-pointer >> nth=0`);
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Toggle exclusion on the first visible client ───
-    console.log("→ Excluding a client...");
-    const clientRow = page.locator(".hover\\:bg-muted\\/50.cursor-pointer").last();
-    if (await clientRow.isVisible()) {
-      // Click to exclude (toggle off)
-      const allRows = page.locator(".hover\\:bg-muted\\/50.cursor-pointer");
-      const count = await allRows.count();
-      if (count > 0) {
-        await cursorClick(page, ".hover\\:bg-muted\\/50.cursor-pointer", count - 1);
-        await wait(PAUSE.MEDIUM);
-      }
-    }
-
-    // ─── Toggle another client ───
-    console.log("→ Excluding another client...");
-    const allRows2 = page.locator(".hover\\:bg-muted\\/50.cursor-pointer");
-    const count2 = await allRows2.count();
-    if (count2 > 1) {
-      await cursorClick(page, ".hover\\:bg-muted\\/50.cursor-pointer", count2 - 2);
+    // Exclude the second client
+    if (count > 1) {
+      console.log("→ Excluding second client...");
+      await clientRows.nth(1).scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await clientRows.nth(1).click();
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Show the excluded count text ───
+    // Exclude the third client
+    if (count > 2) {
+      console.log("→ Excluding third client...");
+      await clientRows.nth(2).scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await clientRows.nth(2).click();
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // Exclude a fourth client
+    if (count > 3) {
+      console.log("→ Excluding fourth client...");
+      await clientRows.nth(3).scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await clientRows.nth(3).click();
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // Scroll down to exclude one more further down the list
+    if (count > 6) {
+      console.log("→ Scrolling down to exclude another client...");
+      await clientRows.nth(6).scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await wait(PAUSE.SHORT);
+      await clientRows.nth(6).click();
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // ─── Show the exclusion summary ───
     console.log("→ Viewing exclusion summary...");
+    await appliesToHeading.scrollIntoViewIfNeeded();
+    await injectCursor(page);
     await wait(PAUSE.READ);
 
-    // ─── Clear search and re-include one client ───
-    console.log("→ Clearing search...");
-    if (await exclusionSearch.isVisible()) {
-      await exclusionSearch.fill("");
-      await wait(PAUSE.MEDIUM);
-    }
-
-    // Re-include the first excluded client
+    // ─── Re-include one client to show toggling works both ways ───
     console.log("→ Re-including a client...");
-    const allRows3 = page.locator(".hover\\:bg-muted\\/50.cursor-pointer");
-    const count3 = await allRows3.count();
-    if (count3 > 0) {
-      await cursorClick(page, ".hover\\:bg-muted\\/50.cursor-pointer", count3 - 1);
+    if (count > 0) {
+      await clientRows.nth(0).scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await clientRows.nth(0).click();
       await wait(PAUSE.MEDIUM);
     }
 

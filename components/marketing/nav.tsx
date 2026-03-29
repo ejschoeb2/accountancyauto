@@ -53,10 +53,10 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
 
           {/* Nav links — desktop only */}
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+            <a href="/about" className="hover:text-foreground transition-colors">About</a>
             <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a>
-            <a href="/news" className="hover:text-foreground transition-colors">News</a>
             <a href="/guides" className="hover:text-foreground transition-colors">Guides</a>
+            <a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a>
           </nav>
 
           {/* Actions */}
@@ -104,6 +104,13 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
         {mobileOpen && (
           <div className="md:hidden border-t border-border/40 py-4 flex flex-col gap-1">
             <a
+              href="/about"
+              onClick={() => setMobileOpen(false)}
+              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
+            >
+              About
+            </a>
+            <a
               href="/#features"
               onClick={() => setMobileOpen(false)}
               className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
@@ -111,25 +118,18 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
               Features
             </a>
             <a
-              href="/#pricing"
-              onClick={() => setMobileOpen(false)}
-              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
-            >
-              Pricing
-            </a>
-            <a
-              href="/news"
-              onClick={() => setMobileOpen(false)}
-              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
-            >
-              News
-            </a>
-            <a
               href="/guides"
               onClick={() => setMobileOpen(false)}
               className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
             >
               Guides
+            </a>
+            <a
+              href="/#pricing"
+              onClick={() => setMobileOpen(false)}
+              className="px-2 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg transition-colors"
+            >
+              Pricing
             </a>
             {!hideSignup && (
               <div className="mt-3 pt-3 border-t border-border/40">

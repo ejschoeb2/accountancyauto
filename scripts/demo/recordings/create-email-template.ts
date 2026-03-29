@@ -182,13 +182,13 @@ const demo: DemoDefinition = {
 
     // ---- Show the final result ----
     console.log("-> Showing final template with all placeholders...");
-    await wait(PAUSE.READ);
+    await wait(PAUSE.MEDIUM);
 
     // ---- Show the portal link info banner ----
     const portalInfo = page.locator('[role="dialog"] .bg-amber-500\\/10').first();
     if (await portalInfo.isVisible()) {
       await cursorMove(page, '[role="dialog"] .bg-amber-500\\/10');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
     }
 
     // ---- Click Create to save ----

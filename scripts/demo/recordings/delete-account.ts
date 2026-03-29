@@ -14,6 +14,7 @@ import {
   cursorMove,
   wait,
   PAUSE,
+  injectCursor,
 } from "../helpers";
 
 const demo: DemoDefinition = {
@@ -28,19 +29,20 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/settings");
 
-    // ─── General tab is the default ───
+    // ─── Scroll quickly to Delete Account card ───
     console.log("→ Scrolling to Delete Account card...");
     const deleteHeading = page.locator('h2:has-text("Delete Account")');
     await deleteHeading.scrollIntoViewIfNeeded();
-    await wait(PAUSE.SHORT);
+    await injectCursor(page);
+    await wait(300);
 
     await cursorMove(page, 'h2:has-text("Delete Account")');
-    await wait(PAUSE.MEDIUM);
+    await wait(PAUSE.SHORT);
 
     // ─── Read the card description ───
     console.log("→ Reading delete account description...");
     await cursorMove(page, 'p:has-text("Permanently delete your account")');
-    await wait(PAUSE.READ);
+    await wait(PAUSE.MEDIUM);
 
     // ─── Click the Delete account button to open the AlertDialog ───
     console.log("→ Opening delete confirmation dialog...");

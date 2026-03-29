@@ -16,6 +16,7 @@
     "record:demo": "tsx scripts/record-demo.ts",
     "record:all": "tsx scripts/demo/record-all.ts",
     "record:list": "tsx scripts/demo/record-all.ts --list",
+    "record:failed": "tsx scripts/demo/record-failed.ts",
     "record:shortlist": "tsx scripts/demo/record-shortlist.ts",
     "record:send-now-email": "tsx scripts/demo/record-send-now-email.ts",
     "seed:demo": "tsx scripts/demo/seed-demo-data.ts",

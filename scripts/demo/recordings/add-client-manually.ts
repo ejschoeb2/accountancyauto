@@ -91,7 +91,14 @@ const demo: DemoDefinition = {
       '[role="dialog"] button[role="combobox"]:has-text("Select VAT status")'
     );
     await wait(PAUSE.SHORT);
-    await cursorClick(page, '[role="option"]:has-text("Registered")');
+    // Use text-is to match exactly "Registered" and not "Not Registered"
+    const registeredOption = page.locator('[role="option"]').filter({ hasText: /^Registered$/ });
+    if (await registeredOption.isVisible().catch(() => false)) {
+      await registeredOption.click();
+    } else {
+      // Fallback: click the option that starts with "Registered"
+      await cursorClick(page, '[role="option"]:text-is("Registered")');
+    }
     await wait(PAUSE.LONG);
 
     // Scroll dialog down to reveal VAT sub-fields that appear after setting VAT = registered
@@ -126,9 +133,16 @@ const demo: DemoDefinition = {
     await cursorClick(page, '[role="option"]:has-text("Standard")');
     await wait(PAUSE.MEDIUM);
 
+    // ---- Scroll to see the Create button ----
+    console.log("-> Scrolling to Create button...");
+    await dialogContent.evaluate((el) => el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }));
+    await wait(PAUSE.SHORT);
+
     // ---- Review the filled form ----
     console.log("-> Reviewing form before submission...");
-    await cursorMove(page, '[role="dialog"]');
+    const createBtn = page.locator('[role="dialog"] button:has-text("Create")');
+    await createBtn.scrollIntoViewIfNeeded();
+    await cursorMove(page, '[role="dialog"] button:has-text("Create")');
     await wait(PAUSE.READ);
 
     // ---- Submit and wait for success ----

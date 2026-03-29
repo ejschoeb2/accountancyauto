@@ -30,18 +30,26 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
+    // ---- Ensure "Limited Company" type is selected ----
+    console.log("-> Switching to Limited Company toggle...");
+    await page.waitForLoadState("networkidle");
+    const lcToggle = page.locator('button:has-text("Limited Company")');
+    await lcToggle.waitFor({ state: "visible", timeout: 10000 });
+    await cursorClick(page, 'button:has-text("Limited Company")');
+    await wait(PAUSE.SHORT);
+
     // ---- Search for Greenfield Architects (has completed filings) ----
     console.log("-> Searching for Greenfield Architects...");
     const searchInput = page.locator('input[placeholder="Search by client name..."]');
-    await searchInput.waitFor({ state: "visible", timeout: 5000 });
+    await searchInput.waitFor({ state: "visible", timeout: 15000 });
     await searchInput.fill("Greenfield");
     await wait(PAUSE.LONG);
 
-    // ---- Navigate to client detail page ----
+    // ---- Click on the client name to navigate to the detail page ----
     console.log("-> Clicking on Greenfield Architects...");
-    const clientRow = page.locator('table tbody tr').first();
-    await clientRow.waitFor({ state: "visible", timeout: 5000 });
-    await cursorClick(page, "table tbody tr", 0);
+    const clientNameCell = page.locator('td:has(> span.text-muted-foreground)').first();
+    await clientNameCell.waitFor({ state: "visible", timeout: 5000 });
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
@@ -50,6 +58,10 @@ const demo: DemoDefinition = {
     // ---- Scroll to Filing Management ----
     console.log("-> Scrolling to Filing Management...");
     const filingSection = page.locator('h2:has-text("Filing Management")');
+    // The section might be below the fold — scroll the page down first
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
     await filingSection.waitFor({ state: "visible", timeout: 10000 });
     await filingSection.scrollIntoViewIfNeeded();
     await injectCursor(page);
@@ -58,6 +70,36 @@ const demo: DemoDefinition = {
     // ---- Wait for filing cards to load ----
     await page.locator('[id^="filing-"]').first().waitFor({ state: "visible", timeout: 10000 });
     await wait(PAUSE.MEDIUM);
+
+    // ---- Re-establish records received + completed state ----
+    // The DocumentCard syncs records_received_for with actual document state
+    // on load, clearing seeded values. We must re-tick received then completed
+    // for the Roll Over button to appear.
+    console.log("-> Ensuring filing is marked as received and completed...");
+    const firstCard = page.locator('[id^="filing-"]').first();
+    const receivedBtn = firstCard.locator('button[aria-label*="documents as received"]').first();
+    if (await receivedBtn.isVisible().catch(() => false)) {
+      const isChecked = await receivedBtn.getAttribute('aria-checked');
+      if (isChecked !== 'true') {
+        console.log("-> Clicking received checkbox...");
+        await receivedBtn.click();
+        await page.waitForLoadState("networkidle");
+        await wait(PAUSE.LONG);
+      }
+    }
+
+    // Now click completed if not already completed
+    const completedBtn = firstCard.locator('button[aria-label*="as completed"]').first();
+    if (await completedBtn.isVisible().catch(() => false)) {
+      const isDisabled = await completedBtn.isDisabled();
+      const isChecked = await completedBtn.getAttribute('aria-checked');
+      if (!isDisabled && isChecked !== 'true') {
+        console.log("-> Clicking completed checkbox...");
+        await completedBtn.click();
+        await page.waitForLoadState("networkidle");
+        await wait(PAUSE.LONG);
+      }
+    }
 
     // ---- Find a Roll Over button (appears on completed filings) ----
     console.log("-> Looking for a Roll Over button on a completed filing...");

@@ -85,14 +85,6 @@ export const demos: DemoEntry[] = [
     hasSideEffects: false,
   },
   {
-    id: "edit-client-inline",
-    title: "Edit Client Details Inline",
-    description: "Switch to data view, then click on an editable cell in the table to change a year end date directly.",
-    tags: ["edit", "inline", "client", "table", "update", "quick edit", "data view"],
-    category: "Clients",
-    hasSideEffects: true,
-  },
-  {
     id: "client-detail-page",
     title: "View a Client's Detail Page",
     description: "View a client's full detail page — edit details, mark records received, check sent and queued emails, deactivate deadlines, generate portal links, and more.",
@@ -180,14 +172,6 @@ export const demos: DemoEntry[] = [
     category: "Clients",
     hasSideEffects: false,
   },
-  {
-    id: "bulk-edit-filing-status",
-    title: "Edit Client Progress Quickly",
-    description: "Switch into edit progress mode on the client deadlines table to quickly update any client's filing status inline — mark records received, complete filings, and roll over deadlines.",
-    tags: ["bulk", "status", "received", "completed", "filing", "clients"],
-    category: "Clients",
-    hasSideEffects: true,
-  },
 
   // ───────────────────────────────────────────
   // Emails
@@ -210,9 +194,9 @@ export const demos: DemoEntry[] = [
   },
   {
     id: "view-email-activity",
-    title: "View Email Activity & Delivery Logs",
-    description: "Browse all sent emails with delivery statuses and bounce information — a complete history of every email Prompt has already sent.",
-    tags: ["activity", "email", "logs", "sent", "queued", "delivery", "status"],
+    title: "View Sent Email Activity",
+    description: "Browse all sent emails with delivery statuses — a complete history of every email Prompt has sent.",
+    tags: ["activity", "email", "logs", "sent", "delivery", "status"],
     category: "Emails",
     hasSideEffects: false,
   },
@@ -329,14 +313,6 @@ export const demos: DemoEntry[] = [
   // Settings
   // ───────────────────────────────────────────
   {
-    id: "setup-custom-domain",
-    title: "Set Up a Custom Sending Domain",
-    description: "Set up a custom sending domain so clients see emails from your practice. The settings page includes DNS setup instructions for the main domain providers.",
-    tags: ["domain", "custom", "dns", "dkim", "spf", "email", "settings", "branding"],
-    category: "Settings",
-    hasSideEffects: true,
-  },
-  {
     id: "change-member-role",
     title: "Change a Team Member's Role",
     description: "View team members and change a member's role between admin and member.",
@@ -400,14 +376,6 @@ export const demos: DemoEntry[] = [
   // ───────────────────────────────────────────
   // Client Portal
   // ───────────────────────────────────────────
-  {
-    id: "client-portal-upload",
-    title: "Upload Documents via the Client Portal",
-    description: "The portal experience from the client's perspective: open a link, see which documents are outstanding, and drag-and-drop to upload. Works on any device, no account required.",
-    tags: ["portal", "upload", "client", "documents", "checklist", "drag drop"],
-    category: "Client Portal",
-    hasSideEffects: true,
-  },
 ];
 
 /** Get all unique categories in display order */

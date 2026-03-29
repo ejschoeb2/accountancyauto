@@ -1,9 +1,9 @@
 /**
  * Recording: Edit a Deadline's Reminder Schedule
  *
- * Click a filing type card on /deadlines to open the edit page,
- * change the required documents for a step, add a new reminder step
- * with a template, and save the changes.
+ * Navigate to /deadlines, click on an existing active deadline card to
+ * open its schedule edit page, modify a reminder step's timing, add a new
+ * reminder step with a template, and save.
  */
 
 import {
@@ -21,7 +21,7 @@ const demo: DemoDefinition = {
   id: "edit-reminder-schedule",
   title: "Edit a Deadline's Reminder Schedule",
   description:
-    "Open a filing type's schedule editor to change required documents, add a new reminder step with an email template, and save the changes.",
+    "Open an existing deadline's schedule editor to adjust step timing, change email templates, add new reminder steps, and save changes.",
   tags: [
     "schedule",
     "reminder",
@@ -30,7 +30,6 @@ const demo: DemoDefinition = {
     "timing",
     "deadline",
     "configure",
-    "documents",
   ],
   category: "Deadlines",
   hasSideEffects: true,
@@ -39,56 +38,68 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/deadlines");
 
-    // ─── Click the first active filing type card to open edit page ───
-    console.log("-> Clicking first filing type card...");
-    const firstCard = page.locator("a[href*='/deadlines/']").first();
-    await firstCard.waitFor({ state: "visible", timeout: 5000 });
-    await cursorClick(page, "a[href*='/deadlines/']", 0);
+    // ─── Click an active deadline card that has reminders configured ───
+    // The grid contains filing type cards as <a> links. Active cards with
+    // schedules have href like /deadlines/{uuid}/edit. We want to click one
+    // that shows "Reminders:" (i.e. has a schedule configured).
+    console.log("-> Looking for a deadline card with reminders...");
+    await page.waitForLoadState("networkidle");
+    await wait(PAUSE.MEDIUM);
+
+    // Look for cards that have reminder text (indicating they have a schedule)
+    const cardWithReminders = page.locator('.grid a:has-text("Reminders:")').first();
+    if (await cardWithReminders.isVisible().catch(() => false)) {
+      await cursorMove(page, '.grid a:has-text("Reminders:")');
+      await wait(PAUSE.MEDIUM);
+      await cursorClick(page, '.grid a:has-text("Reminders:")');
+    } else {
+      // Fallback: click first card in the grid (skip the Create Deadline button)
+      await cursorClick(page, ".grid a", 0);
+    }
+
     await page.waitForURL("**/deadlines/**/edit**");
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
     await wait(PAUSE.LONG);
 
-    // ─── View the edit page header ───
+    // ─── View the page heading ───
     console.log("-> Viewing schedule edit page...");
-    await wait(PAUSE.READ);
+    await cursorMove(page, "h1");
+    await wait(PAUSE.MEDIUM);
 
-    // ─── Scroll down to view document requirements ───
-    console.log("-> Reviewing document requirements...");
-    const docSection = page.locator('h2:has-text("Document"), h2:has-text("Required Documents")').first();
-    if (await docSection.isVisible()) {
-      await docSection.scrollIntoViewIfNeeded();
-      await wait(PAUSE.MEDIUM);
-
-      // Toggle a document checkbox if available
-      const docCheckbox = page.locator('[role="checkbox"]').first();
-      if (await docCheckbox.isVisible()) {
-        await cursorClick(page, '[role="checkbox"]', 0);
-        await wait(PAUSE.MEDIUM);
-      }
-    }
-
-    // ─── Scroll down to Reminder Steps section ───
-    console.log("-> Scrolling to Reminder Steps section...");
+    // ─── Scroll to Reminder Steps section ───
+    console.log("-> Scrolling to Reminder Steps...");
     const stepsHeading = page.locator('h2:has-text("Reminder Steps")');
     if (await stepsHeading.isVisible()) {
       await stepsHeading.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Modify the template on the first step ───
-    console.log("-> Changing email template on first step...");
-    const templateSelect = page.locator('[id^="steps."][id$=".email_template_id"]').first();
-    if (await templateSelect.isVisible()) {
-      await cursorClick(page, '[id^="steps."][id$=".email_template_id"]', 0);
+    // ─── View the existing steps ───
+    console.log("-> Viewing existing reminder steps...");
+    await cursorMove(page, 'h2:has-text("Reminder Steps")');
+    await wait(PAUSE.READ);
+
+    // ─── Change the delay on the first step ───
+    // Steps use a Select with options: 7 days, 14 days, 30 days, Custom
+    // Scope selects to the Reminder Steps card to avoid the disabled filing_type_id dropdown
+    console.log("-> Changing timing on first step...");
+    const stepsCard = page.locator('h2:has-text("Reminder Steps")').locator('xpath=ancestor::*[contains(@class,"card")]').first();
+    const stepSelects = stepsCard.locator('[data-slot="select-trigger"]');
+    const firstStepDelay = stepSelects.first();
+    if (await firstStepDelay.isVisible().catch(() => false)) {
+      await firstStepDelay.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await firstStepDelay.click();
       await wait(PAUSE.SHORT);
-      // Pick a template (skip "No template")
-      const options = page.locator('[role="option"]');
-      const optCount = await options.count();
-      if (optCount > 1) {
-        await cursorClick(page, '[role="option"]', 1);
+
+      // Pick 14 days
+      const fourteenDays = page.locator('[role="option"]:has-text("14")').first();
+      if (await fourteenDays.isVisible()) {
+        await cursorClick(page, '[role="option"]:has-text("14")');
       } else {
-        await page.keyboard.press("Escape");
+        await cursorClick(page, '[role="option"]', 1);
       }
       await wait(PAUSE.MEDIUM);
     }
@@ -98,60 +109,76 @@ const demo: DemoDefinition = {
     const addStepBtn = page.locator('button:has-text("Add Step")').first();
     if (await addStepBtn.isVisible()) {
       await addStepBtn.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await wait(PAUSE.SHORT);
       await cursorClick(page, 'button:has-text("Add Step")');
-      await wait(PAUSE.LONG);
+      await wait(PAUSE.MEDIUM);
     }
 
-    // ─── Configure the new step ───
-    console.log("-> Configuring new step delay...");
-    // Find the last delay select (the newly added step)
-    const delaySelects = page.locator('[data-slot="select-trigger"]');
-    const selectCount = await delaySelects.count();
-    if (selectCount > 0) {
-      // The last select in the steps area should be the new step's delay
-      const lastDelayIdx = selectCount - 1;
-      await cursorClick(page, '[data-slot="select-trigger"]', lastDelayIdx);
-      await wait(PAUSE.SHORT);
+    // ─── Configure the new step's delay to 7 days ───
+    console.log("-> Setting new step to 7 days...");
+    // Re-query after adding a step
+    const updatedStepSelects = stepsCard.locator('[data-slot="select-trigger"]');
+    const updatedSelectCount = await updatedStepSelects.count();
+    if (updatedSelectCount > 0) {
+      // Each step has 2 selects (delay + template). New step's delay is second-to-last.
+      const lastDelayIdx = updatedSelectCount - 2;
+      if (lastDelayIdx >= 0) {
+        const newDelaySelect = updatedStepSelects.nth(lastDelayIdx);
+        await newDelaySelect.scrollIntoViewIfNeeded();
+        await injectCursor(page);
+        await newDelaySelect.click();
+        await wait(PAUSE.SHORT);
 
-      const fourteenDays = page.locator('[role="option"]:has-text("14")').first();
-      if (await fourteenDays.isVisible()) {
-        await cursorClick(page, '[role="option"]:has-text("14")');
-      } else {
-        // Pick any option
-        await cursorClick(page, '[role="option"]', 1);
+        const sevenDays = page.locator('[role="option"]:has-text("7")').first();
+        if (await sevenDays.isVisible()) {
+          await cursorClick(page, '[role="option"]:has-text("7")');
+        } else {
+          await cursorClick(page, '[role="option"]', 0);
+        }
+        await wait(PAUSE.MEDIUM);
       }
-      await wait(PAUSE.MEDIUM);
     }
 
     // ─── Select a template for the new step ───
     console.log("-> Selecting template for new step...");
-    const newTemplateSelect = page.locator('[id^="steps."][id$=".email_template_id"]').last();
-    if (await newTemplateSelect.isVisible()) {
-      await cursorClick(page, '[id^="steps."][id$=".email_template_id"]');
+    const templateSelects = page.locator('[id^="steps."][id$=".email_template_id"]');
+    const templateCount = await templateSelects.count();
+    if (templateCount > 0) {
+      const lastTemplate = templateSelects.last();
+      await lastTemplate.scrollIntoViewIfNeeded();
+      await injectCursor(page);
+      await cursorClick(page, '[id^="steps."][id$=".email_template_id"]', templateCount - 1);
       await wait(PAUSE.SHORT);
-      const templateOptions = page.locator('[role="option"]');
-      const templateCount = await templateOptions.count();
-      if (templateCount > 2) {
-        // Pick the second real template
-        await cursorClick(page, '[role="option"]', 2);
-      } else if (templateCount > 1) {
-        await cursorClick(page, '[role="option"]', 1);
+
+      // Pick "Urgent Final Notice" if visible, otherwise second option
+      const urgentOption = page.locator('[role="option"]:has-text("Urgent Final Notice")').first();
+      if (await urgentOption.isVisible()) {
+        await cursorClick(page, '[role="option"]:has-text("Urgent Final Notice")');
       } else {
-        await page.keyboard.press("Escape");
+        const options = page.locator('[role="option"]');
+        const optCount = await options.count();
+        if (optCount > 1) {
+          await cursorClick(page, '[role="option"]', 1);
+        } else if (optCount > 0) {
+          await cursorClick(page, '[role="option"]', 0);
+        } else {
+          await page.keyboard.press("Escape");
+        }
       }
       await wait(PAUSE.MEDIUM);
     }
 
-    // ─── View the configured steps ───
-    console.log("-> Viewing configured reminder steps...");
+    // ─── View the final configuration ───
+    console.log("-> Viewing final configuration...");
     await wait(PAUSE.READ);
 
-    // ─── Scroll up and save changes ───
+    // ─── Save changes ───
     console.log("-> Saving changes...");
     const saveBtn = page.locator('button:has-text("Save")').first();
     if (await saveBtn.isVisible()) {
       await saveBtn.scrollIntoViewIfNeeded();
+      await injectCursor(page);
       await wait(PAUSE.SHORT);
       await cursorClick(page, 'button:has-text("Save")');
       await wait(PAUSE.LONG);
@@ -161,7 +188,7 @@ const demo: DemoDefinition = {
     await injectCursor(page);
 
     console.log("-> Schedule editing complete — changes saved.");
-    await wait(PAUSE.READ);
+    await wait(PAUSE.MEDIUM);
   },
 };
 

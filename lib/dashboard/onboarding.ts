@@ -1,6 +1,8 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface OnboardingProgress {
+  hasVisitedGuides: boolean;
+  hasReadGettingStarted: boolean;
   hasReviewedProgress: boolean;
   hasCheckedTemplates: boolean;
   hasCheckedQueue: boolean;
@@ -22,9 +24,9 @@ export interface GoFurtherProgress {
 export async function getOnboardingProgress(
   supabase: SupabaseClient
 ): Promise<OnboardingProgress> {
-  const [emailRes, dismissedRes, progressReviewedRes, templatesVisitedRes, activityVisitedRes] =
+  const [emailRes, dismissedRes, progressReviewedRes, templatesVisitedRes, activityVisitedRes, guidesVisitedRes, gettingStartedReadRes] =
     await Promise.all([
-      // Step 4: Has sent at least one email (data-derived)
+      // Has sent at least one email (data-derived)
       supabase
         .from('email_log')
         .select('id', { count: 'exact', head: true })
@@ -39,7 +41,7 @@ export async function getOnboardingProgress(
         .is('user_id', null)
         .maybeSingle(),
 
-      // Step 1: Has reviewed client progress (explicit)
+      // Has reviewed client progress (explicit)
       supabase
         .from('app_settings')
         .select('value')
@@ -47,7 +49,7 @@ export async function getOnboardingProgress(
         .is('user_id', null)
         .maybeSingle(),
 
-      // Step 2: Has visited templates page (explicit)
+      // Has visited templates page (explicit)
       supabase
         .from('app_settings')
         .select('value')
@@ -55,16 +57,34 @@ export async function getOnboardingProgress(
         .is('user_id', null)
         .maybeSingle(),
 
-      // Step 3: Has visited activity page (explicit)
+      // Has visited activity page (explicit)
       supabase
         .from('app_settings')
         .select('value')
         .eq('key', 'activity_visited')
         .is('user_id', null)
         .maybeSingle(),
+
+      // Has visited guides page
+      supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'guides_visited')
+        .is('user_id', null)
+        .maybeSingle(),
+
+      // Has read getting started guide
+      supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'getting_started_read')
+        .is('user_id', null)
+        .maybeSingle(),
     ]);
 
   return {
+    hasVisitedGuides: guidesVisitedRes.data?.value === 'true',
+    hasReadGettingStarted: gettingStartedReadRes.data?.value === 'true',
     hasReviewedProgress: progressReviewedRes.data?.value === 'true',
     hasCheckedTemplates: templatesVisitedRes.data?.value === 'true',
     hasCheckedQueue: activityVisitedRes.data?.value === 'true',

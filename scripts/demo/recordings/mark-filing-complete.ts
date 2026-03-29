@@ -1,11 +1,10 @@
 /**
  * Recording: Mark a Filing as Complete
  *
- * Navigate to "Coastal Catering Services LLP" which has records_received
- * for corporation_tax_payment and ct600_filing. The Completed checkbox is
- * only enabled when records_received is true, so this client is the right
- * choice. Scroll to filing management, find a filing card with records
- * received, and click the Completed checkbox.
+ * Navigate to Coastal Catering Services LLP which has records_received
+ * for ct600_filing. Mark records as received if needed (DocumentCard
+ * can clear seeded state), then clearly move cursor to the Completed
+ * checkbox and click it.
  */
 
 import {
@@ -13,11 +12,11 @@ import {
   login,
   navigateTo,
   cursorClick,
+  cursorType,
   cursorMove,
   wait,
   PAUSE,
   injectCursor,
-  BASE_URL,
 } from "../helpers";
 
 const demo: DemoDefinition = {
@@ -33,18 +32,18 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Search for "Coastal Catering" which has records received ----
+    // ---- Search for Coastal Catering ----
     console.log("-> Searching for Coastal Catering Services LLP...");
     const searchInput = page.locator('input[placeholder="Search by client name..."]');
-    await searchInput.waitFor({ state: "visible", timeout: 5000 });
-    await searchInput.fill("Coastal Catering");
+    await searchInput.waitFor({ state: "visible", timeout: 10000 });
+    await cursorType(page, 'input[placeholder="Search by client name..."]', "Coastal Catering");
     await wait(PAUSE.LONG);
 
-    // ---- Click on the client row to navigate to detail page ----
+    // ---- Click on the client ----
     console.log("-> Clicking on Coastal Catering...");
-    const clientRow = page.locator('table tbody tr').first();
-    await clientRow.waitFor({ state: "visible", timeout: 5000 });
-    await cursorClick(page, "table tbody tr", 0);
+    const clientNameCell = page.locator('td:has(> span.text-muted-foreground)').first();
+    await clientNameCell.waitFor({ state: "visible", timeout: 5000 });
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL(/\/clients\/[a-f0-9-]+/, { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
@@ -53,68 +52,86 @@ const demo: DemoDefinition = {
     // ---- Scroll to Filing Management ----
     console.log("-> Scrolling to Filing Management...");
     const filingSection = page.locator('h2:has-text("Filing Management")');
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
     await filingSection.waitFor({ state: "visible", timeout: 10000 });
     await filingSection.scrollIntoViewIfNeeded();
     await injectCursor(page);
     await wait(PAUSE.MEDIUM);
 
-    // ---- Find a filing card — look for one that has records received (violet status text) ----
-    console.log("-> Locating a filing card with records received...");
-    // Coastal Catering has records received for corporation_tax_payment and ct600_filing
-    // The filing card shows "Documents received — awaiting filing"
-    const receivedCards = page.locator('[id^="filing-"]');
-    const cardCount = await receivedCards.count();
+    // ---- Find a filing card that's not already completed ----
+    // Try ct600_filing first (may not be completed yet), fall back to corporation_tax_payment
+    console.log("-> Locating a filing card to complete...");
+    let targetCardId = '#filing-ct600_filing';
+    let targetCard = page.locator(targetCardId);
 
-    let targetCardIndex = 0;
-    for (let i = 0; i < cardCount; i++) {
-      const cardText = await receivedCards.nth(i).textContent().catch(() => '');
-      if (cardText && cardText.includes('Documents received')) {
-        targetCardIndex = i;
-        break;
-      }
+    if (!(await targetCard.isVisible().catch(() => false))) {
+      targetCardId = '#filing-corporation_tax_payment';
+      targetCard = page.locator(targetCardId);
     }
 
-    const targetCard = receivedCards.nth(targetCardIndex);
+    await targetCard.waitFor({ state: "visible", timeout: 10000 });
     await targetCard.scrollIntoViewIfNeeded();
     await injectCursor(page);
-    await cursorMove(page, `[id^="filing-"] >> nth=${targetCardIndex}`);
-    await wait(PAUSE.READ);
-
-    // ---- Show the current state — records received but not completed ----
-    console.log("-> Filing has records received — Completed checkbox is enabled...");
     await wait(PAUSE.MEDIUM);
 
-    // ---- Click the Completed checkbox ----
-    // The Completed checkbox label is inside the filing card
-    console.log("-> Clicking the Completed checkbox...");
-    const completedLabel = targetCard.locator('label:has-text("Completed")').first();
-    if (await completedLabel.isVisible().catch(() => false)) {
-      await completedLabel.scrollIntoViewIfNeeded();
-      await injectCursor(page);
-      // Click the label to toggle
-      await completedLabel.click();
-      await wait(PAUSE.LONG);
-    } else {
-      // Fallback: click the CheckButton with Completed aria-label
-      const completedCheckbox = targetCard.locator('[aria-label*="completed"]').first();
-      if (await completedCheckbox.isVisible().catch(() => false)) {
-        await completedCheckbox.click();
+    // Show the card
+    await cursorMove(page, targetCardId);
+    await wait(PAUSE.READ);
+
+    // ---- Ensure records are marked as received ----
+    // DocumentCard syncs records_received_for on load and can clear seeded values
+    console.log("-> Marking records as received...");
+    const receivedBtn = targetCard.locator('button[aria-label*="documents as received"]').first();
+    if (await receivedBtn.isVisible().catch(() => false)) {
+      const isChecked = await receivedBtn.getAttribute('aria-checked');
+      if (isChecked !== 'true') {
+        await cursorMove(page, `${targetCardId} button[aria-label*="documents as received"]`);
+        await wait(PAUSE.MEDIUM);
+        await receivedBtn.click();
+        await page.waitForLoadState("networkidle");
+        await wait(PAUSE.LONG);
         await wait(PAUSE.LONG);
       }
     }
 
-    // ---- Show the result — filing now shows green "Completed" status ----
+    // ---- Now clearly show and click the Completed checkbox ----
+    console.log("-> Moving cursor to Completed checkbox...");
+    const completedBtn = targetCard.locator('button[aria-label*="as completed"]').first();
+    await completedBtn.waitFor({ state: "visible", timeout: 5000 });
+    await completedBtn.scrollIntoViewIfNeeded();
+    await injectCursor(page);
+
+    // Move cursor to the checkbox area slowly and obviously
+    await cursorMove(page, `${targetCardId} button[aria-label*="as completed"]`);
+    await wait(PAUSE.READ);
+
+    // ---- Click the Completed checkbox ----
+    console.log("-> Clicking the Completed checkbox...");
+    const isDisabled = await completedBtn.isDisabled().catch(() => true);
+    if (!isDisabled) {
+      await cursorClick(page, `${targetCardId} button[aria-label*="as completed"]`);
+    } else {
+      // Fallback: force click the label
+      console.log("-> Button disabled, using label click...");
+      const completedLabel = targetCard.locator('label:has-text("Completed")').first();
+      await completedLabel.click({ force: true });
+    }
+    await wait(PAUSE.LONG);
+
+    // ---- Show the result ----
     console.log("-> Filing marked as complete — reviewing result...");
     await targetCard.scrollIntoViewIfNeeded();
     await injectCursor(page);
-    await cursorMove(page, `[id^="filing-"] >> nth=${targetCardIndex}`);
+    await cursorMove(page, targetCardId);
     await wait(PAUSE.READ);
 
-    // Show that the Roll Over button is now available
+    // Show Roll Over button if available
     const rollOverBtn = targetCard.locator('button:has-text("Roll Over")');
     if (await rollOverBtn.isVisible().catch(() => false)) {
       console.log("-> Roll Over button is now available...");
-      await cursorMove(page, `[id^="filing-"] >> nth=${targetCardIndex} >> button:has-text("Roll Over")`);
+      await cursorMove(page, `${targetCardId} button:has-text("Roll Over")`);
       await wait(PAUSE.READ);
     }
 

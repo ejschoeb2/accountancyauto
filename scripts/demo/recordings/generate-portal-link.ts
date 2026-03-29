@@ -1,10 +1,8 @@
 /**
  * Recording: Generate a Client Portal Link
  *
- * Navigate to "Oakwood Property Management Ltd" (approaching, has records
- * received for corp tax — so it has document requirements), scroll to filing
- * management, and generate an upload link for a filing type that has
- * document requirements.
+ * Navigate to the clients table, click on a client (not Oakwood — use a
+ * different one), scroll to Filing Management, and generate an upload link.
  */
 
 import {
@@ -31,18 +29,11 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Search for Oakwood Property Management (has document requirements) ----
-    console.log("-> Searching for Oakwood Property Management...");
-    const searchInput = page.locator('input[placeholder="Search by client name..."]');
-    await searchInput.waitFor({ state: "visible", timeout: 5000 });
-    await searchInput.fill("Oakwood");
-    await wait(PAUSE.LONG);
-
-    // ---- Navigate to client detail page ----
-    console.log("-> Clicking on Oakwood Property Management...");
-    const clientRow = page.locator('table tbody tr').first();
-    await clientRow.waitFor({ state: "visible", timeout: 5000 });
-    await cursorClick(page, "table tbody tr", 0);
+    // ---- Click on a client from the table ----
+    console.log("-> Clicking on a client...");
+    const clientNameCell = page.locator('td:has(> span.text-muted-foreground)').first();
+    await clientNameCell.waitFor({ state: "visible", timeout: 5000 });
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);
@@ -50,6 +41,10 @@ const demo: DemoDefinition = {
 
     // ---- Scroll to Filing Management ----
     console.log("-> Scrolling to filing management...");
+    // Scroll down to ensure the section is in the viewport
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+    await injectCursor(page);
+    await wait(PAUSE.SHORT);
     const filingSection = page.locator('h2:has-text("Filing Management")');
     await filingSection.waitFor({ state: "visible", timeout: 10000 });
     await filingSection.scrollIntoViewIfNeeded();
@@ -72,11 +67,11 @@ const demo: DemoDefinition = {
       if (!isDisabled) {
         await btn.scrollIntoViewIfNeeded();
         await injectCursor(page);
-        await wait(PAUSE.MEDIUM);
+        await wait(PAUSE.SHORT);
 
         // Show the button before clicking
         await cursorMove(page, `button:has-text("Generate Upload Link") >> nth=${i}`);
-        await wait(PAUSE.READ);
+        await wait(PAUSE.MEDIUM);
 
         // Click to generate the link
         console.log("-> Clicking Generate Upload Link...");
@@ -106,7 +101,7 @@ const demo: DemoDefinition = {
     }
 
     if (!clickedBtn) {
-      console.log("-> All Generate Upload Link buttons are disabled (no document requirements).");
+      console.log("-> All Generate Upload Link buttons are disabled.");
       await cursorMove(page, '[id^="filing-"]');
       await wait(PAUSE.READ);
       return;
@@ -116,7 +111,7 @@ const demo: DemoDefinition = {
     console.log("-> Portal link generated — reviewing...");
     await wait(PAUSE.MEDIUM);
 
-    // The portal URL should appear in a read-only input with font-mono class
+    // The portal URL should appear in a read-only input
     const portalUrlInput = page.locator('input[readonly]').first();
     if (await portalUrlInput.isVisible().catch(() => false)) {
       await portalUrlInput.scrollIntoViewIfNeeded();
@@ -125,15 +120,15 @@ const demo: DemoDefinition = {
       await wait(PAUSE.READ);
     }
 
-    // Look for copy button or expiry info
+    // Look for expiry info
     const expiryText = page.locator('text=Expires').first();
     if (await expiryText.isVisible().catch(() => false)) {
       await cursorMove(page, 'text=Expires');
-      await wait(PAUSE.READ);
+      await wait(PAUSE.MEDIUM);
     }
 
     console.log("-> Generate portal link demo complete.");
-    await wait(PAUSE.READ);
+    await wait(PAUSE.MEDIUM);
   },
 };
 

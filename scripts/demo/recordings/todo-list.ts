@@ -26,7 +26,7 @@ const demo: DemoDefinition = {
     "See the prioritised to-do list: failed emails first, then documents needing review, then client actions. Open an email, review a document, and navigate to HMRC filing.",
   tags: ["todo", "tasks", "checklist", "dashboard", "email", "documents", "priority"],
   category: "Dashboard",
-  hasSideEffects: false,
+  hasSideEffects: true,
 
   async record({ page }) {
     await login(page);
@@ -72,18 +72,22 @@ const demo: DemoDefinition = {
       // Show the email detail modal — it contains resend button
       await wait(PAUSE.READ);
 
-      // Look for resend button in the modal
+      // Click resend to demonstrate auto-removal from todo list
       const resendBtn = page.locator('[role="dialog"] button:has-text("Resend")');
       if (await resendBtn.isVisible().catch(() => false)) {
-        console.log("-> Pointing out the Resend button...");
-        await cursorMove(page, '[role="dialog"] button:has-text("Resend")');
-        await wait(PAUSE.READ);
-      }
+        console.log("-> Clicking Resend to fix the failed delivery...");
+        await cursorClick(page, '[role="dialog"] button:has-text("Resend")');
+        await wait(PAUSE.LONG);
 
-      // Close the modal
-      console.log("-> Closing email modal...");
-      await page.keyboard.press("Escape");
-      await wait(PAUSE.MEDIUM);
+        // Modal closes automatically after resend — item removed from todo
+        console.log("-> Email resent — item removed from to-do list.");
+        await wait(PAUSE.READ);
+      } else {
+        // Close the modal if no resend button
+        console.log("-> Closing email modal...");
+        await page.keyboard.press("Escape");
+        await wait(PAUSE.MEDIUM);
+      }
     } else {
       console.log("-> No failed delivery rows found, skipping email modal.");
     }
@@ -100,25 +104,16 @@ const demo: DemoDefinition = {
       // Show the document preview modal content
       await wait(PAUSE.READ);
 
-      // Point out the Pass Review / Mark Received button (accept)
+      // Click Pass Review to demonstrate auto-removal from todo list
       const passBtn = page.locator('[role="dialog"] button:has-text("Pass Review")');
-      const markReceivedBtn = page.locator('[role="dialog"] button:has-text("Mark Received")');
       if (await passBtn.isVisible().catch(() => false)) {
-        console.log("-> Showing Pass Review (accept) button...");
-        await cursorMove(page, '[role="dialog"] button:has-text("Pass Review")');
-        await wait(PAUSE.READ);
-      } else if (await markReceivedBtn.isVisible().catch(() => false)) {
-        console.log("-> Showing Mark Received button...");
-        await cursorMove(page, '[role="dialog"] button:has-text("Mark Received")');
-        await wait(PAUSE.READ);
-      }
+        console.log("-> Clicking Pass Review to approve the document...");
+        await cursorClick(page, '[role="dialog"] button:has-text("Pass Review")');
+        await wait(PAUSE.LONG);
 
-      // Point out the Reject button
-      const rejectBtn = page.locator('[role="dialog"] button:has-text("Reject")');
-      if (await rejectBtn.isVisible().catch(() => false)) {
-        console.log("-> Showing Reject button...");
-        await cursorMove(page, '[role="dialog"] button:has-text("Reject")');
-        await wait(PAUSE.MEDIUM);
+        // Item is removed from todo list after review passes
+        console.log("-> Document reviewed — item removed from to-do list.");
+        await wait(PAUSE.READ);
       }
 
       // Close the modal

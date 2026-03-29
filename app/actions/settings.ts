@@ -415,6 +415,36 @@ export async function markActivityVisited(): Promise<{ error?: string }> {
   return {};
 }
 
+export async function markGuidesVisited(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { org_id: orgId, user_id: null, key: "guides_visited", value: "true" },
+      { onConflict: "org_id,user_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function markGettingStartedRead(): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  const { error } = await supabase
+    .from("app_settings")
+    .upsert(
+      { org_id: orgId, user_id: null, key: "getting_started_read", value: "true" },
+      { onConflict: "org_id,user_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  return {};
+}
+
 // --- Progress Review ---
 
 export async function markProgressReviewed(): Promise<{ error?: string }> {

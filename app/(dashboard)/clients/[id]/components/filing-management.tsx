@@ -217,7 +217,8 @@ export function FilingManagement({ clientId, onUpdate, highlightFiling }: Filing
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save override');
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to save override');
       }
 
       // Refresh filings to get updated override
@@ -827,20 +828,22 @@ export function FilingManagement({ clientId, onUpdate, highlightFiling }: Filing
 
       {/* Rollover Confirmation Dialog */}
       <Dialog open={showRolloverDialog} onOpenChange={setShowRolloverDialog}>
-        <DialogContent>
+        <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Roll Over to Next Cycle?</DialogTitle>
-            <DialogDescription className="space-y-2">
-              <p>This will:</p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>Advance year-end date to next year (for annual filings)</li>
-                <li>Clear "records received" and "completed" status</li>
-                <li>Cancel scheduled reminders for this cycle</li>
-                <li>Generate new reminders for the next cycle</li>
-              </ul>
-              <p className="text-red-600 font-medium mt-3">
-                This action cannot be undone.
-              </p>
+            <DialogDescription asChild>
+              <div className="text-muted-foreground text-sm space-y-2">
+                <p>This will:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li>Advance year-end date to next year (for annual filings)</li>
+                  <li>Clear &quot;records received&quot; and &quot;completed&quot; status</li>
+                  <li>Cancel scheduled reminders for this cycle</li>
+                  <li>Generate new reminders for the next cycle</li>
+                </ul>
+                <p className="text-red-600 font-medium mt-3">
+                  This action cannot be undone.
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

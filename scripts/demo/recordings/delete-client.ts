@@ -29,13 +29,39 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Navigate to a client detail page (use last row to pick a less important client) ----
-    console.log("-> Clicking on a client row...");
-    const rows = page.locator('table tbody tr');
+    // ---- Navigate to a client detail page ----
+    // Use the last row to pick a less important client for deletion
+    console.log("-> Selecting a client to delete...");
+    const rows = page.locator("table tbody tr");
+    await rows.first().waitFor({ state: "visible", timeout: 10000 });
     const rowCount = await rows.count();
-    // Click the last row to avoid deleting an important client for other demos
-    const targetRow = rowCount > 1 ? rowCount - 1 : 0;
-    await cursorClick(page, "table tbody tr", targetRow);
+    const targetIdx = rowCount > 1 ? rowCount - 1 : 0;
+
+    // Pause to let the viewer see the client list first
+    await wait(PAUSE.MEDIUM);
+
+    // Get the target row and its name cell (second td, after checkbox)
+    const targetRow = rows.nth(targetIdx);
+    const nameCell = targetRow.locator("td").nth(1);
+
+    // Hover over the client name before clicking
+    console.log("-> Hovering over client name...");
+    const box = await nameCell.boundingBox();
+    if (box) {
+      await injectCursor(page);
+      await page.evaluate(
+        ({ x, y }) => {
+          const el = document.getElementById("demo-cursor");
+          if (el) { el.style.top = y + "px"; el.style.left = x + "px"; }
+        },
+        { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+      );
+      await wait(PAUSE.MEDIUM);
+    }
+
+    // Click the client name cell
+    console.log("-> Clicking on client name...");
+    await nameCell.click();
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);

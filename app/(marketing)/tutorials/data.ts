@@ -112,15 +112,6 @@ export const tutorials: Tutorial[] = [
     searchTags: ["search", "filter", "sort", "find", "table"],
   },
   {
-    id: "edit-client-inline",
-    title: "Edit Client Details Inline",
-    description:
-      "Sometimes you just need to fix a year end date or update a detail without navigating away from the client list. Inline editing lets you change client information directly in the table — just click a cell, make the change, and move on. This tutorial shows which fields are editable and how the save works.",
-    category: "Clients",
-    videoPath: `${STORAGE_BASE}/tutorials/edit-client-inline.mp4`,
-    searchTags: ["edit", "inline", "table", "year end", "quick edit"],
-  },
-  {
     id: "client-detail-page",
     title: "View a Client's Detail Page",
     description:
@@ -250,9 +241,9 @@ export const tutorials: Tutorial[] = [
   },
   {
     id: "view-email-activity",
-    title: "View Email Activity & Delivery Logs",
+    title: "View Sent Email Activity",
     description:
-      "The email activity log gives you full visibility into what Prompt has sent and when. You can see delivery statuses, bounce information, and a complete history of every email that's gone out — which is invaluable for answering client queries about whether they received a reminder or for auditing your communication trail.",
+      "The email activity log gives you full visibility into every email Prompt has sent. Browse delivery statuses, see when each email was delivered, and check for bounces — invaluable for answering client queries or auditing your communication trail.",
     category: "Emails",
     videoPath: `${STORAGE_BASE}/tutorials/view-email-activity.mp4`,
     searchTags: ["activity", "logs", "delivery", "sent", "history"],
@@ -373,15 +364,6 @@ export const tutorials: Tutorial[] = [
   },
 
   // ─── Settings ────────────────────────────────────────────
-  {
-    id: "setup-custom-domain",
-    title: "Set Up a Custom Sending Domain",
-    description:
-      "By default, emails are sent from a Prompt address, but setting up a custom sending domain means your clients see emails coming from your own practice domain. This improves deliverability and builds trust. The setup involves adding a few DNS records, and this tutorial walks through the entire configuration.",
-    category: "Settings",
-    videoPath: `${STORAGE_BASE}/tutorials/setup-custom-domain.mp4`,
-    searchTags: ["domain", "dns", "email", "custom", "sending"],
-  },
   {
     id: "change-member-role",
     title: "Change a Team Member's Role",

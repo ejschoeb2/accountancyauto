@@ -30,15 +30,9 @@ const demo: DemoDefinition = {
     await login(page);
     await navigateTo(page, "/clients");
 
-    // ---- Navigate to a client detail page ----
+    // ---- Navigate to a client detail page by clicking the client name ----
     console.log("-> Clicking on a client name to open detail page...");
-    // Click on a client name link in the table (not a deadline cell)
-    const clientLink = page.locator('table tbody tr td a').first();
-    if (await clientLink.isVisible().catch(() => false)) {
-      await cursorClick(page, 'table tbody tr td a');
-    } else {
-      await cursorClick(page, "table tbody tr", 0);
-    }
+    await cursorClick(page, 'td:has(> span.text-muted-foreground)', 0);
     await page.waitForURL("**/clients/**", { timeout: 10000 });
     await page.waitForLoadState("networkidle");
     await injectCursor(page);

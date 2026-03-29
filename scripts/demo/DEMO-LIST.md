@@ -34,7 +34,6 @@ Mark with ~~strikethrough~~ or just delete the row to remove.
 | 8 | add-client-manually | Add a Client Manually | Open dialog, fill name/email/type/year end/VAT, submit |
 | 9 | import-clients-csv | Import Clients from CSV | Open import dialog, drag-and-drop CSV, complete remaining improt steps | NEEDS CHANGING
 | 10 | search-and-filter-clients | Change to client data table, Search & Filter the Client Table | Search bar, status filter, filing type filter, sort options | NEEDS CHANGING
-| 11 | edit-client-inline | Change to client data table, Edit Client Details Inline | Click editable cell in table, change year end directly | NEEDS CHANGING
 | 12 | client-detail-page | View a Client's Detail Page | Tour: header, client details, filing management, compliance |
 | 13 | edit-client-details | Edit Client Details (Detail Page) | Click Edit, change type/email, save |
 | 14 | mark-filing-complete | Mark a Filing as Complete | On filing card, click Complete checkbox |
@@ -89,7 +88,6 @@ Mark with ~~strikethrough~~ or just delete the row to remove.
 
 | # | ID | Title | What it shows |
 |---|---|---|---|
-| 47 | setup-custom-domain | Set Up a Custom Sending Domain | Settings > Email tab, enter domain, view DNS records |
 | 48a | change-member-role | Change a Team Member's Role | Settings > General, change member role |
 | 48b | remove-team-member | Remove a Team Member | Settings > General, remove member from team |
 | 49 | connect-storage | Connect Cloud Storage | Settings > General, browse GDrive/OneDrive/Dropbox options |

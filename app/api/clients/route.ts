@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { company_name, primary_email, client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme, display_name } = result.data;
+  const { company_name, primary_email, client_type, year_end_date, vat_registered, vat_stagger_group, vat_scheme, display_name, filing_type_ids } = result.data;
 
   const supabase = await createClient();
 
@@ -123,33 +123,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Auto-create filing assignments based on client_type
+  // Create filing assignments — use explicit list if provided, else auto-assign by client_type
   if (data && client_type) {
-    const { data: filingTypes } = await supabase
-      .from("filing_types")
-      .select("id, applicable_client_types");
+    if (filing_type_ids && filing_type_ids.length > 0) {
+      // Use the explicitly selected filing types from the dialog
+      const assignmentsToInsert = filing_type_ids.map((ftId) => ({
+        org_id: orgId,
+        client_id: data.id,
+        filing_type_id: ftId,
+        is_active: true,
+      }));
 
-    if (filingTypes && filingTypes.length > 0) {
-      const applicable = filingTypes.filter((ft) => {
-        if (!ft.applicable_client_types.includes(client_type)) return false;
-        if (ft.id === "vat_return") return vat_registered === true;
-        return true;
-      });
+      const { error: assignError } = await supabase
+        .from("client_filing_assignments")
+        .insert(assignmentsToInsert);
 
-      if (applicable.length > 0) {
-        const assignmentsToInsert = applicable.map((ft) => ({
-          org_id: orgId,
-          client_id: data.id,
-          filing_type_id: ft.id,
-          is_active: true,
-        }));
+      if (assignError) {
+        console.error("Failed to assign filing types:", assignError.message);
+      }
+    } else {
+      // Fallback: auto-assign based on client_type (e.g. CSV import)
+      const { data: filingTypes } = await supabase
+        .from("filing_types")
+        .select("id, applicable_client_types");
 
-        const { error: assignError } = await supabase
-          .from("client_filing_assignments")
-          .insert(assignmentsToInsert);
+      if (filingTypes && filingTypes.length > 0) {
+        const applicable = filingTypes.filter((ft) => {
+          if (!ft.applicable_client_types.includes(client_type)) return false;
+          if (ft.id === "vat_return") return vat_registered === true;
+          return true;
+        });
 
-        if (assignError) {
-          console.error("Failed to auto-assign filing types:", assignError.message);
+        if (applicable.length > 0) {
+          const assignmentsToInsert = applicable.map((ft) => ({
+            org_id: orgId,
+            client_id: data.id,
+            filing_type_id: ft.id,
+            is_active: true,
+          }));
+
+          const { error: assignError } = await supabase
+            .from("client_filing_assignments")
+            .insert(assignmentsToInsert);
+
+          if (assignError) {
+            console.error("Failed to auto-assign filing types:", assignError.message);
+          }
         }
       }
     }
