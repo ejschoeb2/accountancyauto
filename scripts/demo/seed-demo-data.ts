@@ -1635,7 +1635,7 @@ async function seed() {
     `  - Team members: ${Object.keys(teamMemberIds).length}`
   );
   console.log(
-    `  - Organisation: Thornton & Associates (${ORG_SLUG})`
+    `  - Organisation: Thornton & Associates (thornton-associates)`
   );
   console.log(
     `  - Clients:     ${Object.keys(clientIds).length}`
