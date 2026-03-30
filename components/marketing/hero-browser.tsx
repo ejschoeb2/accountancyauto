@@ -111,8 +111,15 @@ export const HeroBrowser = ({
               playsInline
             />
           </motion.div>
-          {/* Frosted glass overlay — always visible */}
-          <div className="absolute inset-0 backdrop-blur-[2px] pointer-events-none" />
+          {/* Frosted glass overlay — lighter when hovered */}
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            animate={{
+              backdropFilter: isHovered ? "blur(1px)" : "blur(2px)",
+              backgroundColor: isHovered ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.08)",
+            }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          />
           {/* CTA overlay — fades in when browser is expanded */}
           <AnimatePresence>
             {isHovered && (
@@ -123,10 +130,15 @@ export const HeroBrowser = ({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
               >
-                <div className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-foreground shadow-lg shadow-black/10">
+                <motion.div
+                  className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-foreground shadow-lg shadow-black/10 pointer-events-auto cursor-pointer"
+                  whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,1)" }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                >
                   <Play size={14} className="fill-current" />
                   See tutorials
-                </div>
+                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
