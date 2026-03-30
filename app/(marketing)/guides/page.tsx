@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X, SlidersHorizontal, Play, FileText, BookOpen, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -66,12 +65,8 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
   }, []);
 
   return (
-    <motion.div
+    <div
       ref={cardRef}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ type: "spring", stiffness: 90, damping: 18 }}
       className="group bg-card border border-border/60 rounded-2xl overflow-hidden shadow-md shadow-black/[0.07] hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
     >
       <div className="flex flex-col md:flex-row">
@@ -102,6 +97,7 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
               src={guide.videoPath}
               controls
               muted
+              loop
               playsInline
               preload="metadata"
               className="w-full h-full object-cover"
@@ -109,7 +105,7 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
@@ -168,12 +164,8 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
   const isActive = isHovered || isInView;
 
   const content = (
-    <motion.div
+    <div
       ref={cardRef}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ type: "spring", stiffness: 90, damping: 18 }}
       className="group bg-card border border-border/60 rounded-2xl overflow-hidden shadow-md shadow-black/[0.07] hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -214,6 +206,7 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
                 src={guide.videoPath}
                 controls
                 muted
+                loop
                 playsInline
                 preload="metadata"
                 className="w-full h-full object-cover"
@@ -244,7 +237,7 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 
   if (hasLink) {
@@ -293,12 +286,8 @@ const LongformGuideCard = ({ guide, index }: { guide: Guide; index: number }) =>
 
   return (
     <Link href={guide.href!} className="block">
-      <motion.div
+      <div
         ref={cardRef}
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-60px" }}
-        transition={{ type: "spring", stiffness: 90, damping: 18 }}
         className="group bg-card border border-border/60 rounded-2xl overflow-hidden shadow-md shadow-black/[0.07] hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300"
       >
         <div className={hasVideo ? "flex flex-col md:flex-row" : ""}>
@@ -334,6 +323,7 @@ const LongformGuideCard = ({ guide, index }: { guide: Guide; index: number }) =>
                   src={guide.videoPath}
                   controls
                   muted
+                  loop
                   playsInline
                   preload="metadata"
                   className="w-full h-full object-cover"
@@ -342,7 +332,7 @@ const LongformGuideCard = ({ guide, index }: { guide: Guide; index: number }) =>
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </Link>
   );
 };
@@ -362,13 +352,9 @@ const GuideCard = ({ guide, index }: { guide: Guide; index: number }) => {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 function GuidesContent() {
-  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<GuideCategory | null>(null);
-  const [activeType, setActiveType] = useState<GuideType | null>(() => {
-    const t = searchParams.get("type");
-    return t && (guideTypes as readonly string[]).includes(t) ? (t as GuideType) : null;
-  });
+  const [activeType, setActiveType] = useState<GuideType | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const filteredGuides = useMemo(() => {

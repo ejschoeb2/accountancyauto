@@ -64,7 +64,7 @@ export const HeroBrowser = ({
     <motion.div
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
-      onClick={() => router.push("/guides?type=tutorial")}
+      onClick={() => router.push("/guides")}
       className="absolute right-0 top-1/2 z-[5] cursor-pointer"
       style={{
         width: BROWSER_WIDTH,
