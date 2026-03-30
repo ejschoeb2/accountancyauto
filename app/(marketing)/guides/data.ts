@@ -65,10 +65,8 @@ export const categoryColors: Record<GuideCategory, { bg: string; text: string }>
 
 export const guides: Guide[] = [
   // ═══════════════════════════════════════════════════════════
-  // ARTICLES
+  // GETTING STARTED — first thing a new user should see
   // ═══════════════════════════════════════════════════════════
-
-  // ─── Getting Started ────────────────────────────────────
   {
     id: "getting-started-with-prompt",
     title: "Getting Started with Prompt",
@@ -80,7 +78,33 @@ export const guides: Guide[] = [
     searchTags: ["setup", "onboarding", "organisation", "wizard", "getting started", "new"],
   },
 
-  // ─── Clients & Deadlines ────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // ADDING CLIENTS — the first actions a user will take
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "add-client-manually",
+    title: "Add a Single Client Manually",
+    description:
+      "The add client dialog lets you bring a single client into Prompt by entering their company name, contact email, entity type, year end, and VAT registration details. Deadline dates are automatically calculated from the information you enter — so as soon as you save, the client's filing schedule is ready to go.",
+    category: "Clients",
+    type: "tutorial",
+    videoPath: `${STORAGE_BASE}/tutorials/add-client-manually.mp4`,
+    searchTags: ["add", "create", "new client", "onboard"],
+  },
+  {
+    id: "import-clients-csv",
+    title: "Import Clients from CSV",
+    description:
+      "The CSV import lets you bring your entire client list into Prompt in one go — upload your file, map the columns, and Prompt handles validation and onboarding. Clients will automatically be rolled forward for any deadlines where you're already past the current deadline date, so they start tracking the next period. If a client's business type doesn't have any active deadlines configured, that client will be imported with no deadlines until you set them up.",
+    category: "Clients",
+    type: "tutorial",
+    videoPath: `${STORAGE_BASE}/tutorials/import-clients-csv.mp4`,
+    searchTags: ["import", "csv", "bulk", "upload", "spreadsheet"],
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // UNDERSTANDING THE BASICS — context for what they just did
+  // ═══════════════════════════════════════════════════════════
   {
     id: "understanding-client-fields",
     title: "Understanding Client Fields",
@@ -100,15 +124,6 @@ export const guides: Guide[] = [
     searchTags: ["deadlines", "calculation", "formula", "hmrc", "companies house", "corporation tax", "ct600", "vat", "self assessment"],
   },
   {
-    id: "vat-stagger-groups-explained",
-    title: "VAT Stagger Groups Explained",
-    description:
-      "HMRC assigns every VAT-registered business to one of three stagger groups, each with different quarter-end dates. Group 1 ends in March, June, September, and December. Group 2 ends in January, April, July, and October. Group 3 ends in February, May, August, and November. HMRC uses stagger groups to spread the volume of VAT returns across the year rather than having every business file at the same time, which helps both HMRC's processing capacity and the accounting profession's workload distribution.",
-    category: "Deadlines",
-    type: "article",
-    searchTags: ["vat", "stagger", "groups", "quarters", "hmrc", "return dates"],
-  },
-  {
     id: "traffic-light-status-system",
     title: "The Traffic-Light Status System",
     description:
@@ -119,92 +134,9 @@ export const guides: Guide[] = [
     searchTags: ["traffic light", "status", "colours", "urgency", "overdue", "critical", "complete"],
   },
 
-  // ─── Email Templates ────────────────────────────────────
-  {
-    id: "writing-effective-email-templates",
-    title: "Writing Effective Email Templates",
-    description:
-      "The most effective reminder sequences use different templates at different stages — light and informative early on, firmer in the middle, and clearly urgent near the deadline. This guide covers the available template variables (client name, deadline type, deadline date, upload link), strategies for escalating tone across a sequence, and best practices for subject lines that actually get opened.",
-    category: "Email Templates",
-    type: "guide",
-    href: "/guides/writing-effective-email-templates",
-    searchTags: ["templates", "writing", "variables", "tone", "subject lines", "best practices", "effective"],
-  },
-
-  // ─── Client Portal ──────────────────────────────────────
-  {
-    id: "how-the-client-portal-works",
-    title: "How the Client Portal Works",
-    description:
-      "The client portal gives your clients a simple, no-login page to upload documents. Every reminder email includes a unique portal link tied to a specific client and filing. When clicked, the client sees exactly which documents are still outstanding and can upload them directly from their browser — on any device, no account required. Portal links are time-limited — each link's expiry is set automatically based on the reminder schedule, typically lasting until the next reminder step or 30 days if it's the final step. Links can also be revoked manually at any time.",
-    category: "Client Portal",
-    type: "article",
-    href: "/guides/how-the-client-portal-works",
-    videoPath: `${STORAGE_BASE}/tutorials/enable-client-portal.mp4`,
-    searchTags: ["portal", "upload", "link", "client experience", "no login", "secure", "enable"],
-  },
-  {
-    id: "managing-portal-documents-and-checklists",
-    title: "Managing Portal Documents & Checklists",
-    description:
-      "Every document uploaded through the portal is tracked against the client and filing it belongs to. You can view, download, and manage uploads from the client detail page, and mark documents as received manually when clients send records by email or post. Each filing type has a default document checklist, but you can customise it per client — adding, removing, or relabelling items to match that client's specific requirements.",
-    category: "Client Portal",
-    type: "guide",
-    href: "/guides/managing-portal-documents-and-checklists",
-    videoPath: `${STORAGE_BASE}/tutorials/generate-portal-link.mp4`,
-    searchTags: ["documents", "checklist", "manage", "customise", "manual", "received", "portal link", "generate"],
-  },
-
-  // ─── Documents ──────────────────────────────────────────
-  {
-    id: "document-guide",
-    title: "Document Guide",
-    description:
-      "A comprehensive reference for every document your practice may request from clients — what it is, where to find it, and why it's needed. Covers all filing types including Self Assessment, CT600, Companies House, VAT, and more. Share this guide directly with clients who are unsure what to upload.",
-    category: "Documents",
-    type: "article",
-    href: "/guides/documents",
-    searchTags: ["document", "guide", "reference", "what to upload", "filing types", "required documents"],
-  },
-  {
-    id: "understanding-document-verdicts",
-    title: "Understanding Document Verdicts",
-    description:
-      "When a document is uploaded and the practice has configured upload checks to run automatic analysis, Prompt assigns a verdict — Verified (green), Likely match (amber), Low confidence (red), or Review needed (amber). Verdicts are determined by a classification pipeline that extracts text content and matches it against known document type patterns, combined with validation rules that check tax years, employer names, and PAYE references. Each verdict level indicates how confidently the system matched the document to what was requested. You can filter by verdict in the activity log and clear review flags after manual inspection.",
-    category: "Documents",
-    type: "article",
-    href: "/guides/understanding-document-verdicts",
-    searchTags: ["verdicts", "verified", "review needed", "low confidence", "classification", "validation"],
-  },
-
-  // ─── Settings ───────────────────────────────────────────
-  {
-    id: "managing-your-team-and-settings",
-    title: "Managing Your Team & Settings",
-    description:
-      "Prompt supports multi-user teams with role-based access. Admins have full access to settings, billing, templates, and deadlines, while Members can manage clients and documents but can't change organisation-level configuration. This guide covers inviting team members, understanding the Admin and Member roles, updating organisation settings like your practice name and sender identity, and removing team members when they leave.",
-    category: "Settings",
-    type: "guide",
-    href: "/guides/managing-your-team-and-settings",
-    videoPath: `${STORAGE_BASE}/tutorials/invite-team-member.mp4`,
-    searchTags: ["team", "roles", "admin", "member", "permissions", "organisation", "settings", "invite"],
-  },
-  {
-    id: "connecting-cloud-storage",
-    title: "Connecting Cloud Storage",
-    description:
-      "Prompt integrates with Dropbox, Google Drive, and Microsoft OneDrive so that uploaded documents are automatically synced to your existing cloud storage. Documents are organised into client and filing subfolders, and Prompt only writes files — it never deletes from your storage. This guide covers the connection process, how re-authorisation works, and how the integration sits alongside Prompt's built-in document hosting.",
-    category: "Settings",
-    type: "guide",
-    href: "/guides/connecting-cloud-storage",
-    searchTags: ["storage", "cloud", "dropbox", "google drive", "onedrive", "sync", "integration"],
-  },
-
   // ═══════════════════════════════════════════════════════════
-  // TUTORIALS (video)
+  // DASHBOARD — understanding what you see every day
   // ═══════════════════════════════════════════════════════════
-
-  // ─── Dashboard ──────────────────────────────────────────
   {
     id: "upcoming-deadlines-widget",
     title: "Use the Upcoming Deadlines Widget",
@@ -246,27 +178,9 @@ export const guides: Guide[] = [
     searchTags: ["uploads", "documents", "preview", "recent"],
   },
 
-  // ─── Clients ────────────────────────────────────────────
-  {
-    id: "add-client-manually",
-    title: "Add a Single Client Manually",
-    description:
-      "The add client dialog lets you bring a single client into Prompt by entering their company name, contact email, entity type, year end, and VAT registration details. Deadline dates are automatically calculated from the information you enter — so as soon as you save, the client's filing schedule is ready to go.",
-    category: "Clients",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/add-client-manually.mp4`,
-    searchTags: ["add", "create", "new client", "onboard"],
-  },
-  {
-    id: "import-clients-csv",
-    title: "Import Clients from CSV",
-    description:
-      "The CSV import lets you bring your entire client list into Prompt in one go — upload your file, map the columns, and Prompt handles validation and onboarding. Clients will automatically be rolled forward for any deadlines where you're already past the current deadline date, so they start tracking the next period. If a client's business type doesn't have any active deadlines configured, that client will be imported with no deadlines until you set them up.",
-    category: "Clients",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/import-clients-csv.mp4`,
-    searchTags: ["import", "csv", "bulk", "upload", "spreadsheet"],
-  },
+  // ═══════════════════════════════════════════════════════════
+  // CLIENT MANAGEMENT — day-to-day client work
+  // ═══════════════════════════════════════════════════════════
   {
     id: "search-and-filter-clients",
     title: "Search & Filter the Client Table",
@@ -298,16 +212,6 @@ export const guides: Guide[] = [
     searchTags: ["edit", "update", "modify", "client details"],
   },
   {
-    id: "mark-filing-complete",
-    title: "Mark a Filing as Complete",
-    description:
-      "When you're ready to file, a button takes you directly to HMRC or Companies House so you can submit. After submitting, mark the filing as complete in Prompt to update the client's compliance status. Once marked complete, you're given the option to roll over, which sets up the reminders and deadlines for the next filing cycle automatically.",
-    category: "Clients",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/mark-filing-complete.mp4`,
-    searchTags: ["complete", "done", "filing", "checkbox", "status"],
-  },
-  {
     id: "mark-records-received",
     title: "Mark Records as Received",
     description:
@@ -318,14 +222,14 @@ export const guides: Guide[] = [
     searchTags: ["records", "received", "documents", "toggle"],
   },
   {
-    id: "override-deadline",
-    title: "Override a Filing Deadline",
+    id: "mark-filing-complete",
+    title: "Mark a Filing as Complete",
     description:
-      "Sometimes a deadline doesn't follow the standard formula — maybe HMRC has granted an extension, or a client's circumstances have changed. Overriding a deadline lets you set a custom date for any individual filing, complete with a reason for the change. All reminders for that deadline are automatically rescheduled so they remain the correctly configured time period before the new deadline date, keeping the full reminder sequence intact.",
+      "When you're ready to file, a button takes you directly to HMRC or Companies House so you can submit. After submitting, mark the filing as complete in Prompt to update the client's compliance status. Once marked complete, you're given the option to roll over, which sets up the reminders and deadlines for the next filing cycle automatically.",
     category: "Clients",
     type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/override-deadline.mp4`,
-    searchTags: ["override", "deadline", "custom date", "extend"],
+    videoPath: `${STORAGE_BASE}/tutorials/mark-filing-complete.mp4`,
+    searchTags: ["complete", "done", "filing", "checkbox", "status"],
   },
   {
     id: "rollover-filing",
@@ -338,6 +242,16 @@ export const guides: Guide[] = [
     searchTags: ["rollover", "next period", "renew", "new year"],
   },
   {
+    id: "override-deadline",
+    title: "Override a Filing Deadline",
+    description:
+      "Sometimes a deadline doesn't follow the standard formula — maybe HMRC has granted an extension, or a client's circumstances have changed. Overriding a deadline lets you set a custom date for any individual filing, complete with a reason for the change. All reminders for that deadline are automatically rescheduled so they remain the correctly configured time period before the new deadline date, keeping the full reminder sequence intact.",
+    category: "Clients",
+    type: "tutorial",
+    videoPath: `${STORAGE_BASE}/tutorials/override-deadline.mp4`,
+    searchTags: ["override", "deadline", "custom date", "extend"],
+  },
+  {
     id: "pause-resume-client",
     title: "Pause & Resume Reminders",
     description:
@@ -347,37 +261,30 @@ export const guides: Guide[] = [
     videoPath: `${STORAGE_BASE}/tutorials/pause-resume-client.mp4`,
     searchTags: ["pause", "resume", "stop", "reminders", "hold"],
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // EMAILS — sending and monitoring
+  // ═══════════════════════════════════════════════════════════
   {
-    id: "delete-client",
-    title: "Delete a Client",
+    id: "view-queued-emails",
+    title: "Preview & Manage Queued Emails",
     description:
-      "When a client leaves your practice for good, deleting them removes their record and all associated filings from Prompt. The deletion process includes a confirmation step so you understand what's permanent and what to consider before removing a client.",
-    category: "Clients",
+      "Before automated reminders are sent, they sit in a queue where you can review them. Preview the exact content each client will receive and intervene if needed — send an email early, cancel it, or let it go out on schedule.",
+    category: "Emails",
     type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/delete-client.mp4`,
-    searchTags: ["delete", "remove", "client"],
+    videoPath: `${STORAGE_BASE}/tutorials/view-queued-emails.mp4`,
+    searchTags: ["queued", "pending", "preview", "send now", "cancel"],
   },
   {
-    id: "bulk-delete-clients",
-    title: "Bulk Delete Clients",
+    id: "view-email-activity",
+    title: "View Sent Email Activity",
     description:
-      "Select multiple clients from the table and remove them in a single action — useful after a migration, a practice split, or end-of-year housekeeping. A confirmation step ensures nothing is removed by accident.",
-    category: "Clients",
+      "The email activity log gives you full visibility into every email Prompt has sent. Browse delivery statuses, see when each email was delivered, and check for bounces — invaluable for answering client queries about whether they received a reminder or for auditing your communication trail.",
+    category: "Emails",
     type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/bulk-delete-clients.mp4`,
-    searchTags: ["bulk", "delete", "multiple", "select", "mass"],
+    videoPath: `${STORAGE_BASE}/tutorials/view-email-activity.mp4`,
+    searchTags: ["activity", "logs", "delivery", "sent", "history"],
   },
-  {
-    id: "dsar-export",
-    title: "Export Client Data (DSAR)",
-    description:
-      "Under GDPR, clients have the right to request a copy of all data you hold on them. The DSAR export bundles everything Prompt stores for a given client — contact details, filing history, email logs, and uploaded documents — into a single downloadable package, making compliance straightforward.",
-    category: "Clients",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/dsar-export.mp4`,
-    searchTags: ["gdpr", "export", "data", "dsar", "download", "privacy"],
-  },
-  // ─── Emails ─────────────────────────────────────────────
   {
     id: "adhoc-email",
     title: "Send an Ad-hoc Email",
@@ -398,28 +305,20 @@ export const guides: Guide[] = [
     videoPath: `${STORAGE_BASE}/tutorials/send-email-single-client.mp4`,
     searchTags: ["send", "email", "single", "client", "compose"],
   },
-  {
-    id: "view-email-activity",
-    title: "View Sent Email Activity",
-    description:
-      "The email activity log gives you full visibility into every email Prompt has sent. Browse delivery statuses, see when each email was delivered, and check for bounces — invaluable for answering client queries about whether they received a reminder or for auditing your communication trail.",
-    category: "Emails",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/view-email-activity.mp4`,
-    searchTags: ["activity", "logs", "delivery", "sent", "history"],
-  },
-  {
-    id: "view-queued-emails",
-    title: "Preview & Manage Queued Emails",
-    description:
-      "Before automated reminders are sent, they sit in a queue where you can review them. Preview the exact content each client will receive and intervene if needed — send an email early, cancel it, or let it go out on schedule.",
-    category: "Emails",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/view-queued-emails.mp4`,
-    searchTags: ["queued", "pending", "preview", "send now", "cancel"],
-  },
 
-  // ─── Email Templates ────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // EMAIL TEMPLATES — customising your communications
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "writing-effective-email-templates",
+    title: "Writing Effective Email Templates",
+    description:
+      "The most effective reminder sequences use different templates at different stages — light and informative early on, firmer in the middle, and clearly urgent near the deadline. This guide covers the available template variables (client name, deadline type, deadline date, upload link), strategies for escalating tone across a sequence, and best practices for subject lines that actually get opened.",
+    category: "Email Templates",
+    type: "guide",
+    href: "/guides/writing-effective-email-templates",
+    searchTags: ["templates", "writing", "variables", "tone", "subject lines", "best practices", "effective"],
+  },
   {
     id: "create-email-template",
     title: "Create a Custom Email Template",
@@ -461,7 +360,9 @@ export const guides: Guide[] = [
     searchTags: ["delete", "remove", "template"],
   },
 
-  // ─── Deadlines ──────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // DEADLINES — configuring and managing schedules
+  // ═══════════════════════════════════════════════════════════
   {
     id: "configure-filing-types",
     title: "Choose Active Filing Types",
@@ -481,6 +382,15 @@ export const guides: Guide[] = [
     type: "tutorial",
     videoPath: `${STORAGE_BASE}/tutorials/edit-reminder-schedule.mp4`,
     searchTags: ["schedule", "reminder", "edit", "delay", "steps"],
+  },
+  {
+    id: "vat-stagger-groups-explained",
+    title: "VAT Stagger Groups Explained",
+    description:
+      "HMRC assigns every VAT-registered business to one of three stagger groups, each with different quarter-end dates. Group 1 ends in March, June, September, and December. Group 2 ends in January, April, July, and October. Group 3 ends in February, May, August, and November. HMRC uses stagger groups to spread the volume of VAT returns across the year rather than having every business file at the same time, which helps both HMRC's processing capacity and the accounting profession's workload distribution.",
+    category: "Deadlines",
+    type: "article",
+    searchTags: ["vat", "stagger", "groups", "quarters", "hmrc", "return dates"],
   },
   {
     id: "activate-deadline-for-client",
@@ -513,7 +423,9 @@ export const guides: Guide[] = [
     searchTags: ["create", "custom", "deadline", "new", "schedule"],
   },
 
-  // ─── Documents ──────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // DOCUMENTS — uploads and review
+  // ═══════════════════════════════════════════════════════════
   {
     id: "review-document-upload",
     title: "Review & Approve an Upload",
@@ -534,8 +446,67 @@ export const guides: Guide[] = [
     videoPath: `${STORAGE_BASE}/tutorials/view-upload-activity.mp4`,
     searchTags: ["activity", "uploads", "log", "search", "filter"],
   },
+  {
+    id: "document-guide",
+    title: "Document Guide",
+    description:
+      "A comprehensive reference for every document your practice may request from clients — what it is, where to find it, and why it's needed. Covers all filing types including Self Assessment, CT600, Companies House, VAT, and more. Share this guide directly with clients who are unsure what to upload.",
+    category: "Documents",
+    type: "article",
+    href: "/guides/documents",
+    searchTags: ["document", "guide", "reference", "what to upload", "filing types", "required documents"],
+  },
+  {
+    id: "understanding-document-verdicts",
+    title: "Understanding Document Verdicts",
+    description:
+      "When a document is uploaded and the practice has configured upload checks to run automatic analysis, Prompt assigns a verdict — Verified (green), Likely match (amber), Low confidence (red), or Review needed (amber). Verdicts are determined by a classification pipeline that extracts text content and matches it against known document type patterns, combined with validation rules that check tax years, employer names, and PAYE references. Each verdict level indicates how confidently the system matched the document to what was requested. You can filter by verdict in the activity log and clear review flags after manual inspection.",
+    category: "Documents",
+    type: "article",
+    href: "/guides/understanding-document-verdicts",
+    searchTags: ["verdicts", "verified", "review needed", "low confidence", "classification", "validation"],
+  },
 
-  // ─── Settings ───────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // CLIENT PORTAL — portal setup and management
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "how-the-client-portal-works",
+    title: "How the Client Portal Works",
+    description:
+      "The client portal gives your clients a simple, no-login page to upload documents. Every reminder email includes a unique portal link tied to a specific client and filing. When clicked, the client sees exactly which documents are still outstanding and can upload them directly from their browser — on any device, no account required. Portal links are time-limited — each link's expiry is set automatically based on the reminder schedule, typically lasting until the next reminder step or 30 days if it's the final step. Links can also be revoked manually at any time.",
+    category: "Client Portal",
+    type: "article",
+    href: "/guides/how-the-client-portal-works",
+    videoPath: `${STORAGE_BASE}/tutorials/enable-client-portal.mp4`,
+    searchTags: ["portal", "upload", "link", "client experience", "no login", "secure", "enable"],
+  },
+  {
+    id: "managing-portal-documents-and-checklists",
+    title: "Managing Portal Documents & Checklists",
+    description:
+      "Every document uploaded through the portal is tracked against the client and filing it belongs to. You can view, download, and manage uploads from the client detail page, and mark documents as received manually when clients send records by email or post. Each filing type has a default document checklist, but you can customise it per client — adding, removing, or relabelling items to match that client's specific requirements.",
+    category: "Client Portal",
+    type: "guide",
+    href: "/guides/managing-portal-documents-and-checklists",
+    videoPath: `${STORAGE_BASE}/tutorials/generate-portal-link.mp4`,
+    searchTags: ["documents", "checklist", "manage", "customise", "manual", "received", "portal link", "generate"],
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // SETTINGS — team, domain, storage, upload checks
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "managing-your-team-and-settings",
+    title: "Managing Your Team & Settings",
+    description:
+      "Prompt supports multi-user teams with role-based access. Admins have full access to settings, billing, templates, and deadlines, while Members can manage clients and documents but can't change organisation-level configuration. This guide covers inviting team members, understanding the Admin and Member roles, updating organisation settings like your practice name and sender identity, and removing team members when they leave.",
+    category: "Settings",
+    type: "guide",
+    href: "/guides/managing-your-team-and-settings",
+    videoPath: `${STORAGE_BASE}/tutorials/invite-team-member.mp4`,
+    searchTags: ["team", "roles", "admin", "member", "permissions", "organisation", "settings", "invite"],
+  },
   {
     id: "setup-custom-domain",
     title: "Setting Up a Custom Sending Domain",
@@ -545,6 +516,26 @@ export const guides: Guide[] = [
     type: "guide",
     href: "/guides/setting-up-a-custom-sending-domain",
     searchTags: ["domain", "dns", "email", "custom", "sending", "dkim", "spf"],
+  },
+  {
+    id: "connecting-cloud-storage",
+    title: "Connecting Cloud Storage",
+    description:
+      "Prompt integrates with Dropbox, Google Drive, and Microsoft OneDrive so that uploaded documents are automatically synced to your existing cloud storage. Documents are organised into client and filing subfolders, and Prompt only writes files — it never deletes from your storage. This guide covers the connection process, how re-authorisation works, and how the integration sits alongside Prompt's built-in document hosting.",
+    category: "Settings",
+    type: "guide",
+    href: "/guides/connecting-cloud-storage",
+    searchTags: ["storage", "cloud", "dropbox", "google drive", "onedrive", "sync", "integration"],
+  },
+  {
+    id: "configure-upload-checks",
+    title: "Configure Upload Checks",
+    description:
+      "Upload checks control how Prompt validates documents as they come in. You can configure whether uploads are automatically accepted, require manual review, or are analysed using document classification that extracts text and matches against known document patterns. Options include checking file types and sizes, verifying tax years and employer names, matching PAYE references, and setting whether unverified documents are held for review or accepted with a warning. Choose the right combination for your practice's risk tolerance.",
+    category: "Settings",
+    type: "tutorial",
+    videoPath: `${STORAGE_BASE}/tutorials/configure-upload-checks.mp4`,
+    searchTags: ["upload", "checks", "validation", "configure"],
   },
   {
     id: "change-member-role",
@@ -566,15 +557,53 @@ export const guides: Guide[] = [
     videoPath: `${STORAGE_BASE}/tutorials/remove-team-member.mp4`,
     searchTags: ["team", "remove", "member", "delete"],
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // BILLING & ACCOUNT — less common actions
+  // ═══════════════════════════════════════════════════════════
   {
-    id: "configure-upload-checks",
-    title: "Configure Upload Checks",
+    id: "view-billing-plan",
+    title: "View Your Plan & Usage",
     description:
-      "Upload checks control how Prompt validates documents as they come in. You can configure whether uploads are automatically accepted, require manual review, or are analysed using document classification that extracts text and matches against known document patterns. Options include checking file types and sizes, verifying tax years and employer names, matching PAYE references, and setting whether unverified documents are held for review or accepted with a warning. Choose the right combination for your practice's risk tolerance.",
-    category: "Settings",
+      "The billing page shows your current subscription tier, what's included, and how much of your plan limits you're using — including client count and team seats. This tutorial covers where to find this information and how to read the usage indicators so you always know where you stand.",
+    category: "Billing",
     type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/configure-upload-checks.mp4`,
-    searchTags: ["upload", "checks", "validation", "configure"],
+    videoPath: `${STORAGE_BASE}/tutorials/view-billing-plan.mp4`,
+    searchTags: ["billing", "plan", "usage", "subscription"],
+  },
+  {
+    id: "dsar-export",
+    title: "Export Client Data (DSAR)",
+    description:
+      "Under GDPR, clients have the right to request a copy of all data you hold on them. The DSAR export bundles everything Prompt stores for a given client — contact details, filing history, email logs, and uploaded documents — into a single downloadable package, making compliance straightforward.",
+    category: "Clients",
+    type: "tutorial",
+    videoPath: `${STORAGE_BASE}/tutorials/dsar-export.mp4`,
+    searchTags: ["gdpr", "export", "data", "dsar", "download", "privacy"],
+  },
+
+  // ═══════════════════════════════════════════════════════════
+  // DESTRUCTIVE / RARE — bottom of the list
+  // ═══════════════════════════════════════════════════════════
+  {
+    id: "delete-client",
+    title: "Delete a Client",
+    description:
+      "When a client leaves your practice for good, deleting them removes their record and all associated filings from Prompt. The deletion process includes a confirmation step so you understand what's permanent and what to consider before removing a client.",
+    category: "Clients",
+    type: "tutorial",
+    videoPath: `${STORAGE_BASE}/tutorials/delete-client.mp4`,
+    searchTags: ["delete", "remove", "client"],
+  },
+  {
+    id: "bulk-delete-clients",
+    title: "Bulk Delete Clients",
+    description:
+      "Select multiple clients from the table and remove them in a single action — useful after a migration, a practice split, or end-of-year housekeeping. A confirmation step ensures nothing is removed by accident.",
+    category: "Clients",
+    type: "tutorial",
+    videoPath: `${STORAGE_BASE}/tutorials/bulk-delete-clients.mp4`,
+    searchTags: ["bulk", "delete", "multiple", "select", "mass"],
   },
   {
     id: "delete-account",
@@ -586,17 +615,4 @@ export const guides: Guide[] = [
     videoPath: `${STORAGE_BASE}/tutorials/delete-account.mp4`,
     searchTags: ["delete", "account", "remove", "close"],
   },
-
-  // ─── Billing ────────────────────────────────────────────
-  {
-    id: "view-billing-plan",
-    title: "View Your Plan & Usage",
-    description:
-      "The billing page shows your current subscription tier, what's included, and how much of your plan limits you're using — including client count and team seats. This tutorial covers where to find this information and how to read the usage indicators so you always know where you stand.",
-    category: "Billing",
-    type: "tutorial",
-    videoPath: `${STORAGE_BASE}/tutorials/view-billing-plan.mp4`,
-    searchTags: ["billing", "plan", "usage", "subscription"],
-  },
-
 ];
