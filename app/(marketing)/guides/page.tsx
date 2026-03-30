@@ -96,7 +96,7 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
         </div>
 
         <div className="md:w-[65%] shrink-0 p-5">
-          <div className="aspect-[16/10] bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
+          <div className="aspect-video bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
             <video
               ref={videoRef}
               src={guide.videoPath}
@@ -104,7 +104,7 @@ const TutorialCard = ({ guide, index }: { guide: Guide; index: number }) => {
               muted
               playsInline
               preload="metadata"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover"
             />
           </div>
         </div>
@@ -208,7 +208,7 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
         {/* Right side — video, illustration, screenshot, or placeholder */}
         {hasVideo ? (
           <div className="md:w-[65%] shrink-0 p-5">
-            <div className="aspect-[16/10] bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
+            <div className="aspect-video bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
               <video
                 ref={videoRef}
                 src={guide.videoPath}
@@ -216,7 +216,7 @@ const ArticleCard = ({ guide, index }: { guide: Guide; index: number }) => {
                 muted
                 playsInline
                 preload="metadata"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
           </div>
@@ -328,7 +328,7 @@ const LongformGuideCard = ({ guide, index }: { guide: Guide; index: number }) =>
 
           {hasVideo && (
             <div className="md:w-[65%] shrink-0 p-5">
-              <div className="aspect-[16/10] bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
+              <div className="aspect-video bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
                 <video
                   ref={videoRef}
                   src={guide.videoPath}
@@ -336,7 +336,7 @@ const LongformGuideCard = ({ guide, index }: { guide: Guide; index: number }) =>
                   muted
                   playsInline
                   preload="metadata"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
               </div>
             </div>

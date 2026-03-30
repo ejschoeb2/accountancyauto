@@ -254,6 +254,17 @@ export const DocumentCollectionSection = () => (
         </div>
       </div>
 
+      {/* CTA to guides */}
+      <div className="mt-12 text-center">
+        <a
+          href="/guides?type=tutorial"
+          className="inline-flex items-center gap-2 rounded-full bg-violet-600 px-7 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/30 hover:bg-violet-700 hover:shadow-violet-500/50 active:scale-95 transition-all duration-200"
+        >
+          See them in action
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+
     </div>
   </section>
 );

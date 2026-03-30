@@ -43,7 +43,7 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
   return (
     <header className="bg-background">
       <div className="max-w-screen-xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+        <div className="relative flex items-center justify-between h-16">
 
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 shrink-0">
@@ -51,8 +51,8 @@ export const MarketingNav = ({ hideLogin, hideSignup, signupLabel = "Sign up", s
             <span className="font-bold text-lg text-foreground">Prompt</span>
           </a>
 
-          {/* Nav links — desktop only */}
-          <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+          {/* Nav links — desktop only, centered absolutely */}
+          <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground absolute left-1/2 -translate-x-1/2">
             <a href="/about" className="hover:text-foreground transition-colors">About</a>
             <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="/guides" className="hover:text-foreground transition-colors">Guides</a>

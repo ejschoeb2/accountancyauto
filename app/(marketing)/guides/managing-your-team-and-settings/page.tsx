@@ -50,13 +50,13 @@ export default function ManagingTeamAndSettingsPage() {
 
           {/* Tutorial video */}
           <div className="mb-12">
-            <div className="aspect-[16/10] bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
+            <div className="aspect-video bg-muted rounded-xl overflow-hidden border border-border/60 shadow-sm shadow-black/5">
               <video
                 src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/videos/tutorials/invite-team-member.mp4`}
                 controls
                 playsInline
                 preload="metadata"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-cover"
               />
             </div>
           </div>

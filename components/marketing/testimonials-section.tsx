@@ -4,25 +4,19 @@ import { Quote } from "lucide-react";
 
 interface Testimonial {
   quote: string;
-  author: string;
-  role: string;
   company: string;
 }
 
 const testimonials: Testimonial[] = [
   {
     quote:
-      "We used to spend hours every week chasing clients for documents and checking deadlines. Prompt replaced all of that — reminders go out automatically, uploads come back organised, and nothing slips through. It's genuinely changed how we run the practice.",
-    author: "Sarah Mitchell",
-    role: "Practice Manager",
-    company: "Peninsula Accounting",
+      "Prompt has been a real game changer for our practice. I no longer have those last-minute panics about missed deadlines, and everything feels far more organised from the client's point of view. Instead of scrambling to send emails at the last minute, we're now giving clients proper notice, which they really appreciate.\n\nWhat I like most is that the emails can still be personalised, so it doesn't feel automated or impersonal. Clients know it's still coming from me, and that trust we've built hasn't been lost. I just wish I'd had something like this years ago.",
+    company: "Peninsula Accounting Ltd",
   },
   {
     quote:
-      "We started using Prompt to handle Self Assessment reminders for our medical professionals. Within the first month, our on-time submission rate jumped noticeably. The automated sequences mean we set it once and forget it — clients get nudged at the right time without us lifting a finger.",
-    author: "James Hargreaves",
-    role: "Director",
-    company: "Dolor Medical",
+      "Keeping on top of deadlines, especially with the growing regulatory pressure, has felt like an uphill struggle over the last few years. It's been all too easy for things to slip through the cracks and lead to penalties.\n\nSince installing Prompt, everything feels much more organised and under control. Ethan was great in guiding us through the setup, which made the whole process straightforward and manageable.\n\nWe started with the core features so we could get up and running quickly, and we're looking forward to exploring more of what it can do as we get used to it.",
+    company: "Dolor Group",
   },
 ];
 
@@ -51,16 +45,19 @@ export const TestimonialsSection = () => (
               className="text-violet-500/30 mb-5 shrink-0"
             />
 
-            <blockquote className="text-[15px] text-muted-foreground leading-relaxed mb-8">
-              &ldquo;{t.quote}&rdquo;
+            <blockquote className="text-[15px] text-muted-foreground leading-relaxed mb-8 space-y-4">
+              {t.quote.split("\n\n").map((para, i) => (
+                <p key={i}>
+                  {i === 0 && <>&ldquo;</>}
+                  {para}
+                  {i === t.quote.split("\n\n").length - 1 && <>&rdquo;</>}
+                </p>
+              ))}
             </blockquote>
 
             <div>
               <p className="text-sm font-semibold text-foreground">
-                {t.author}
-              </p>
-              <p className="text-[13px] text-muted-foreground">
-                {t.role}, {t.company}
+                {t.company}
               </p>
             </div>
           </div>
