@@ -9,17 +9,12 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   FileText,
-  ListChecks,
-  Send,
   ExternalLink,
   Mail,
   RotateCcw,
   RefreshCw,
   Loader2,
-  BookOpen,
-  Rocket,
 } from 'lucide-react';
 import { ButtonBase } from '@/components/ui/button-base';
 import { buttonBaseVariants } from '@/components/ui/button-base';
@@ -33,7 +28,7 @@ import { DocumentPreviewModal } from '@/app/(dashboard)/clients/[id]/components/
 import type { ClientDocument } from '@/app/(dashboard)/clients/[id]/components/document-preview-modal';
 import { SentEmailDetailModal } from '@/app/(dashboard)/email-logs/components/sent-email-detail-modal';
 import { createClient } from '@/lib/supabase/client';
-import Link from 'next/link';
+
 import { toast } from 'sonner';
 
 interface TodoBoxProps {
@@ -53,44 +48,32 @@ const onboardingSteps = [
   {
     key: 'hasVisitedGuides' as const,
     label: 'Browse the guides',
-    description: 'Explore tutorials, articles, and walkthroughs to learn how Prompt works.',
     href: '/guides',
-    icon: BookOpen,
   },
   {
     key: 'hasReadGettingStarted' as const,
     label: 'Read the Getting Started guide',
-    description: 'A step-by-step walkthrough of setting up your organisation, adding clients, and sending your first reminders.',
     href: '/guides/getting-started-with-prompt',
-    icon: Rocket,
   },
   {
     key: 'hasReviewedProgress' as const,
     label: 'Review client progress',
-    description: 'Check each client\'s deadline status and mark any documents already received.',
     href: '/clients?view=deadlines&editProgress=true',
-    icon: ClipboardList,
   },
   {
     key: 'hasCheckedTemplates' as const,
     label: 'Check reminder schedules & email templates',
-    description: 'Review the default reminder schedules and email templates — customise them to match your practice.',
     href: '/templates',
-    icon: FileText,
   },
   {
     key: 'hasCheckedQueue' as const,
     label: 'Check queued emails',
-    description: 'See which reminder emails are queued for your clients before they go out.',
     href: '/activity',
-    icon: ListChecks,
   },
   {
     key: 'hasEmailSent' as const,
     label: 'Send your first reminder',
-    description: 'Send a deadline reminder email to one of your clients from the queue.',
     href: '/activity?view=queued',
-    icon: Send,
   },
 ];
 
@@ -488,41 +471,44 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
             <div className="space-y-0">
               {/* Getting started items */}
               {incompleteOnboarding.map((step) => {
-                const Icon = step.icon;
                 const showBorder = !isFirstRow;
                 isFirstRow = false;
                 return (
-                  <Link
+                  <div
                     key={step.key}
-                    href={step.href}
                     className={`flex items-center gap-4 px-5 py-3.5 hover:bg-muted/50 transition-colors ${showBorder ? 'border-t' : ''}`}
                   >
-                    <div className="size-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                      <Icon className="size-4 text-green-600" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        {step.label}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {step.description}
-                      </p>
-                    </div>
-                    <div className="px-2.5 py-1 rounded-md bg-green-500/10 shrink-0">
-                      <span className="text-xs font-medium text-green-600">Get started</span>
-                    </div>
-                  </Link>
+                    {/* Checkbox (unchecked — completes automatically on visit) */}
+                    <CheckButton
+                      checked={false}
+                      variant="default"
+                      disabled
+                      aria-label="Not yet completed"
+                    />
+
+                    {/* Label */}
+                    <p className="text-sm font-medium min-w-0 flex-1 truncate">
+                      {step.label}
+                    </p>
+
+                    {/* Divider */}
+                    <div className="h-6 border-r border-gray-300 dark:border-gray-700 shrink-0" />
+
+                    {/* Take me there button */}
+                    <ButtonBase
+                      variant="blue"
+                      buttonType="icon-text"
+                      className="shrink-0"
+                      onClick={() => {
+                        window.open(step.href, '_self');
+                      }}
+                    >
+                      <ExternalLink className="size-4" />
+                      Take me there
+                    </ButtonBase>
+                  </div>
                 );
               })}
-
-              {/* Section divider if both sections present */}
-              {incompleteOnboarding.length > 0 && visibleItems.length > 0 && (
-                <div className="px-5 py-2 bg-muted/30 border-t">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Client Actions
-                  </p>
-                </div>
-              )}
 
               {/* Unified to-do items */}
               {pageItems.map((item) => {
