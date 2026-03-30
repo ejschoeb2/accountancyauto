@@ -48,31 +48,37 @@ const onboardingSteps = [
   {
     key: 'hasVisitedGuides' as const,
     label: 'Browse the guides',
+    description: 'Explore tutorials, articles, and walkthroughs to learn how Prompt works.',
     href: '/guides',
   },
   {
     key: 'hasReadGettingStarted' as const,
     label: 'Read the Getting Started guide',
+    description: 'A step-by-step walkthrough of setting up your organisation, adding clients, and sending your first reminders.',
     href: '/guides/getting-started-with-prompt',
   },
   {
     key: 'hasReviewedProgress' as const,
     label: 'Review client progress',
+    description: 'Check each client\'s deadline status and mark any documents already received.',
     href: '/clients?view=deadlines&editProgress=true',
   },
   {
     key: 'hasCheckedTemplates' as const,
     label: 'Check reminder schedules & email templates',
+    description: 'Review the default reminder schedules and email templates — customise them to match your practice.',
     href: '/templates',
   },
   {
     key: 'hasCheckedQueue' as const,
     label: 'Check queued emails',
+    description: 'See which reminder emails are queued for your clients before they go out.',
     href: '/activity',
   },
   {
     key: 'hasEmailSent' as const,
     label: 'Send your first reminder',
+    description: 'Send a deadline reminder email to one of your clients from the queue.',
     href: '/activity?view=queued',
   },
 ];
@@ -81,7 +87,7 @@ const onboardingSteps = [
 // Unified to-do item types
 // ---------------------------------------------------------------------------
 
-type TodoKind = 'client-action' | 'doc-review' | 'failed-delivery';
+type TodoKind = 'onboarding' | 'client-action' | 'doc-review' | 'failed-delivery';
 
 interface TodoItem {
   id: string;
@@ -107,6 +113,8 @@ interface TodoItem {
   badgeBg?: string;
   badgeText?: string;
   badgeLabel?: string;
+  // Onboarding specific
+  onboardingDescription?: string;
 }
 
 /** Map filing_type_id to the appropriate government portal URL */
@@ -147,8 +155,18 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
 
   // --- Onboarding items ---
   const showOnboarding = onboarding && !onboarding.dismissed;
-  const incompleteOnboarding = showOnboarding
-    ? onboardingSteps.filter((s) => !onboarding[s.key])
+  const onboardingItems: TodoItem[] = showOnboarding
+    ? onboardingSteps
+        .filter((s) => !onboarding[s.key])
+        .map((s) => ({
+          id: `onboarding-${s.key}`,
+          kind: 'onboarding' as const,
+          sentence: s.label,
+          ctaLabel: 'Take me there',
+          ctaHref: s.href,
+          ctaExternal: false,
+          onboardingDescription: s.description,
+        }))
     : [];
 
   // --- Build unified to-do list ---
@@ -233,8 +251,8 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
     badgeLabel: email.delivery_status === 'bounced' ? 'Bounced' : 'Failed',
   }));
 
-  // Merge: failed deliveries first, then doc reviews, then client actions (by urgency)
-  const allItems = [...failedItems, ...docReviewItems, ...clientItems];
+  // Merge: onboarding first, then failed deliveries, doc reviews, client actions (by urgency)
+  const allItems = [...onboardingItems, ...failedItems, ...docReviewItems, ...clientItems];
 
   const visibleItems = allItems.filter((item) => !dismissed.has(item.id));
   const totalPages = Math.max(1, Math.ceil(visibleItems.length / PAGE_SIZE));
@@ -442,7 +460,7 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
     }
   };
 
-  const hasAnything = incompleteOnboarding.length > 0 || visibleItems.length > 0;
+  const hasAnything = visibleItems.length > 0;
 
   // Track whether the first visible row has been rendered (to skip top border)
   let isFirstRow = true;
@@ -469,48 +487,7 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
             </div>
           ) : (
             <div className="space-y-0">
-              {/* Getting started items */}
-              {incompleteOnboarding.map((step) => {
-                const showBorder = !isFirstRow;
-                isFirstRow = false;
-                return (
-                  <div
-                    key={step.key}
-                    className={`flex items-center gap-4 px-5 py-3.5 hover:bg-muted/50 transition-colors ${showBorder ? 'border-t' : ''}`}
-                  >
-                    {/* Checkbox (unchecked — completes automatically on visit) */}
-                    <CheckButton
-                      checked={false}
-                      variant="default"
-                      disabled
-                      aria-label="Not yet completed"
-                    />
-
-                    {/* Label */}
-                    <p className="text-sm font-medium min-w-0 flex-1 truncate">
-                      {step.label}
-                    </p>
-
-                    {/* Divider */}
-                    <div className="h-6 border-r border-gray-300 dark:border-gray-700 shrink-0" />
-
-                    {/* Take me there button */}
-                    <ButtonBase
-                      variant="blue"
-                      buttonType="icon-text"
-                      className="shrink-0"
-                      onClick={() => {
-                        window.open(step.href, '_self');
-                      }}
-                    >
-                      <ExternalLink className="size-4" />
-                      Take me there
-                    </ButtonBase>
-                  </div>
-                );
-              })}
-
-              {/* Unified to-do items */}
+              {/* Unified to-do items (onboarding + client actions + doc reviews + failed deliveries) */}
               {pageItems.map((item) => {
                 const showBorder = !isFirstRow;
                 isFirstRow = false;
@@ -524,70 +501,79 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
                   >
                     {/* Checkbox */}
                     <CheckButton
-                      checked={isCompleted}
-                      variant={isCompleted ? 'success' : 'default'}
-                      onCheckedChange={() => handleTick(item)}
-                      disabled={!!itemLoading || isCompleted}
-                      aria-label="Mark as done"
+                      checked={item.kind === 'onboarding' ? false : isCompleted}
+                      variant={isCompleted && item.kind !== 'onboarding' ? 'success' : 'default'}
+                      onCheckedChange={item.kind === 'onboarding' ? undefined : () => handleTick(item)}
+                      disabled={item.kind === 'onboarding' || !!itemLoading || isCompleted}
+                      aria-label={item.kind === 'onboarding' ? 'Not yet completed' : 'Mark as done'}
                     />
 
                     {/* Action sentence */}
-                    <p className={`text-sm font-medium min-w-0 flex-1 truncate transition-colors duration-300 ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
-                      {item.sentence}
-                    </p>
-
-                    {/* Badge area */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isCompleted ? (
-                        /* Completed state — matches TrafficLightBadge green style with full ring */
-                        <TrafficLightBadge
-                          status="green"
-                          docReceived={item.docRequired ?? 0}
-                          docRequired={item.docRequired ?? 0}
-                        />
-                      ) : (
-                        <>
-                          {/* Days remaining (client actions only) */}
-                          {item.kind === 'client-action' && (() => {
-                            const deadlineLabel = formatDeadlineLabel(item.daysUntilDeadline);
-                            if (!deadlineLabel) return null;
-                            return (
-                              <span className={`text-sm font-medium whitespace-nowrap ${
-                                (item.daysUntilDeadline ?? 0) < 0
-                                  ? 'text-status-danger'
-                                  : (item.daysUntilDeadline ?? 0) <= 3
-                                  ? 'text-status-danger'
-                                  : (item.daysUntilDeadline ?? 0) <= 7
-                                  ? 'text-amber-500'
-                                  : (item.daysUntilDeadline ?? 0) <= 14
-                                  ? 'text-status-warning'
-                                  : 'text-muted-foreground'
-                              }`}>
-                                {deadlineLabel}
-                              </span>
-                            );
-                          })()}
-
-                          {/* Traffic light badge for client actions */}
-                          {item.kind === 'client-action' && item.status && (
-                            <TrafficLightBadge
-                              status={item.status}
-                              docReceived={item.docReceived}
-                              docRequired={item.docRequired}
-                            />
-                          )}
-
-                          {/* Custom badge for doc reviews / failed deliveries */}
-                          {item.kind !== 'client-action' && item.badgeLabel && (
-                            <div className={`px-3 py-2 rounded-md inline-flex items-center ${item.badgeBg}`}>
-                              <span className={`text-sm font-medium ${item.badgeText}`}>
-                                {item.badgeLabel}
-                              </span>
-                            </div>
-                          )}
-                        </>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium truncate transition-colors duration-300 ${isCompleted && item.kind !== 'onboarding' ? 'line-through text-muted-foreground' : ''}`}>
+                        {item.sentence}
+                      </p>
+                      {item.kind === 'onboarding' && item.onboardingDescription && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {item.onboardingDescription}
+                        </p>
                       )}
                     </div>
+
+                    {/* Badge area (skip for onboarding) */}
+                    {item.kind !== 'onboarding' && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isCompleted ? (
+                          /* Completed state — matches TrafficLightBadge green style with full ring */
+                          <TrafficLightBadge
+                            status="green"
+                            docReceived={item.docRequired ?? 0}
+                            docRequired={item.docRequired ?? 0}
+                          />
+                        ) : (
+                          <>
+                            {/* Days remaining (client actions only) */}
+                            {item.kind === 'client-action' && (() => {
+                              const deadlineLabel = formatDeadlineLabel(item.daysUntilDeadline);
+                              if (!deadlineLabel) return null;
+                              return (
+                                <span className={`text-sm font-medium whitespace-nowrap ${
+                                  (item.daysUntilDeadline ?? 0) < 0
+                                    ? 'text-status-danger'
+                                    : (item.daysUntilDeadline ?? 0) <= 3
+                                    ? 'text-status-danger'
+                                    : (item.daysUntilDeadline ?? 0) <= 7
+                                    ? 'text-amber-500'
+                                    : (item.daysUntilDeadline ?? 0) <= 14
+                                    ? 'text-status-warning'
+                                    : 'text-muted-foreground'
+                                }`}>
+                                  {deadlineLabel}
+                                </span>
+                              );
+                            })()}
+
+                            {/* Traffic light badge for client actions */}
+                            {item.kind === 'client-action' && item.status && (
+                              <TrafficLightBadge
+                                status={item.status}
+                                docReceived={item.docReceived}
+                                docRequired={item.docRequired}
+                              />
+                            )}
+
+                            {/* Custom badge for doc reviews / failed deliveries */}
+                            {item.kind !== 'client-action' && item.badgeLabel && (
+                              <div className={`px-3 py-2 rounded-md inline-flex items-center ${item.badgeBg}`}>
+                                <span className={`text-sm font-medium ${item.badgeText}`}>
+                                  {item.badgeLabel}
+                                </span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     {/* Divider */}
                     <div className="h-6 border-r border-gray-300 dark:border-gray-700 shrink-0" />
@@ -626,7 +612,7 @@ export function TodoBox({ metrics, clients, onboarding, docsNeedingReview, faile
                     ) : (
                       /* Normal state — CTA button */
                       <ButtonBase
-                        variant="blue"
+                        variant={item.kind === 'onboarding' ? 'green' : 'blue'}
                         buttonType="icon-text"
                         onClick={() => handleCta(item)}
                         disabled={!!itemLoading || loadingDocId === item.docId}
