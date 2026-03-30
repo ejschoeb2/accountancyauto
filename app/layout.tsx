@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -44,6 +45,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${figtree.variable} ${jetbrainsMono.variable}`}>
       <body className="antialiased">
         {children}
+        <Analytics />
         <Toaster />
       </body>
     </html>
