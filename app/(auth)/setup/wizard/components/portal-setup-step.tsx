@@ -29,8 +29,10 @@ export function PortalSetupStep({
   storageError,
   onBeforeStorageConnect,
 }: PortalSetupStepProps) {
-  const [part, setPart] = useState<1 | 2 | 3>(1);
-  const [portalEnabled, setPortalEnabled] = useState(false);
+  // If returning from a storage OAuth redirect, skip straight to the storage step (part 2)
+  const returningFromOAuth = !!(storageConnected || storageError);
+  const [part, setPart] = useState<1 | 2 | 3>(returningFromOAuth ? 2 : 1);
+  const [portalEnabled, setPortalEnabled] = useState(returningFromOAuth ? true : false);
 
   if (part === 1) {
     return (
