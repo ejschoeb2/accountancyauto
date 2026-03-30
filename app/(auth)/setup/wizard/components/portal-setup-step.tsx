@@ -10,6 +10,7 @@ interface PortalSetupStepProps {
   onComplete: (portalEnabled: boolean) => void;
   onBack: () => void;
   initialPortalSelection?: "yes" | "no";
+  initialPart?: 1 | 2 | 3;
   initialUploadCheckMode?: UploadCheckMode;
   initialAutoReceive?: boolean;
   initialRejectMismatched?: boolean;
@@ -22,6 +23,7 @@ export function PortalSetupStep({
   onComplete,
   onBack,
   initialPortalSelection,
+  initialPart,
   initialUploadCheckMode,
   initialAutoReceive,
   initialRejectMismatched,
@@ -29,10 +31,11 @@ export function PortalSetupStep({
   storageError,
   onBeforeStorageConnect,
 }: PortalSetupStepProps) {
-  // If returning from a storage OAuth redirect, skip straight to the storage step (part 2)
+  // Determine starting part: use initialPart from draft, fall back to storageConnected detection
   const returningFromOAuth = !!(storageConnected || storageError);
-  const [part, setPart] = useState<1 | 2 | 3>(returningFromOAuth ? 2 : 1);
-  const [portalEnabled, setPortalEnabled] = useState(returningFromOAuth ? true : false);
+  const startPart = initialPart ?? (returningFromOAuth ? 2 : 1);
+  const [part, setPart] = useState<1 | 2 | 3>(startPart);
+  const [portalEnabled, setPortalEnabled] = useState(startPart >= 2);
 
   if (part === 1) {
     return (

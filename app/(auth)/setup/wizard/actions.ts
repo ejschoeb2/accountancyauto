@@ -29,6 +29,7 @@ export interface SetupDraft {
   selectedClientTypes?: string[];
   disabledDocuments?: string[]; // Array of "filingTypeId::documentTypeId" keys
   joiningExistingOrg?: boolean;
+  portalSubStep?: number; // 1 = portal choice, 2 = storage, 3 = upload checks
   updatedAt: string;
   /** Injected by getSetupDraft() from user_organisations — not stored in DB */
   orgId?: string;

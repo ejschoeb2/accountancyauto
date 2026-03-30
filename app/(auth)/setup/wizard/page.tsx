@@ -231,6 +231,8 @@ export default function WizardPage() {
   // ── Client portal ─────────────────────────────────────────────────────────
   // Tracks the user's choice made during the wizard; true = storage step shown
   const [clientPortalEnabled, setClientPortalEnabled] = useState(true);
+  // Tracks which sub-step within the portal flow (1=choice, 2=storage, 3=upload checks)
+  const [portalSubStep, setPortalSubStep] = useState<1 | 2 | 3 | undefined>(undefined);
   // Tracks whether the user has already visited the portal step (for restoring selection)
   const [portalSelection, setPortalSelection] = useState<"yes" | "no" | undefined>(undefined);
 
@@ -287,6 +289,7 @@ export default function WizardPage() {
     if (draft.selectedClientTypes) setSelectedClientTypes(draft.selectedClientTypes);
     if (draft.disabledDocuments) setDisabledDocuments(draft.disabledDocuments);
     if (draft.joiningExistingOrg) setIsJoiningExistingOrg(true);
+    if (draft.portalSubStep) setPortalSubStep(draft.portalSubStep as 1 | 2 | 3);
     setOrgCreated(true);
   }
 
@@ -307,6 +310,7 @@ export default function WizardPage() {
       selectedClientTypes,
       disabledDocuments,
       joiningExistingOrg: isJoiningExistingOrg || undefined,
+      portalSubStep,
       updatedAt: new Date().toISOString(),
     };
   }
@@ -1132,10 +1136,12 @@ export default function WizardPage() {
             onComplete={(enabled) => {
               setClientPortalEnabled(enabled);
               setPortalSelection(enabled ? "yes" : "no");
+              setPortalSubStep(undefined);
               setAdminStep("complete");
             }}
             onBack={() => advanceToStep("email")}
             initialPortalSelection={portalSelection}
+            initialPart={portalSubStep}
             initialUploadCheckMode={uploadCheckSelection}
             initialAutoReceive={autoReceiveSelection}
             initialRejectMismatched={rejectMismatchedSelection}
@@ -1143,8 +1149,10 @@ export default function WizardPage() {
             storageError={storageError}
             onBeforeStorageConnect={async () => {
               isNavigatingAway.current = true;
+              setPortalSubStep(2);
               const draft = collectCurrentState();
               draft.step = "portal";
+              draft.portalSubStep = 2;
               await saveSetupDraft(draft);
             }}
           />
