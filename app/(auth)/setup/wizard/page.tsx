@@ -658,6 +658,13 @@ export default function WizardPage() {
     setDashboardUrl(url);
     setIsCompleting(false);
 
+    // Re-fetch email settings so going back from portal shows saved values
+    prefetchConfigDefaults();
+
+    // Record that the email step was completed at the "settings" sub-step
+    // so going back from portal returns to email identity, not domain setup
+    setEmailInitialSubStep("settings");
+
     // Advance to the portal step (admin) or complete step (member)
     if (userType === "new-admin") {
       advanceToStep("portal");

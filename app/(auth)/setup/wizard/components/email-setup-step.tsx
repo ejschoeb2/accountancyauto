@@ -134,10 +134,19 @@ export function EmailSetupStep({
     returnPathVerified: null,
   });
 
-  // ── Email identity state (blank by default so user must fill them in) ───
-  const [senderName, setSenderName] = useState("");
-  const [senderLocalPart, setSenderLocalPart] = useState("");
-  const [replyTo, setReplyTo] = useState("");
+  // ── Email identity state ────────────────────────────────────────────────
+  // When returning to this step (initialState="settings"), restore saved values
+  // from defaultEmailSettings so the user sees what they previously entered.
+  const hasSavedSettings = initialState === "settings";
+  const [senderName, setSenderName] = useState(
+    hasSavedSettings ? defaultEmailSettings.senderName : "",
+  );
+  const [senderLocalPart, setSenderLocalPart] = useState(
+    hasSavedSettings ? defaultEmailSettings.senderAddress.split("@")[0] : "",
+  );
+  const [replyTo, setReplyTo] = useState(
+    hasSavedSettings ? defaultEmailSettings.replyTo : "",
+  );
 
   // ── Send settings state ─────────────────────────────────────────────────
   const [sendHour, setSendHour] = useState(String(defaultSendHour));
