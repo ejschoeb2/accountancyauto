@@ -57,10 +57,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // even before CSRF validation (worst case: wrong redirect target, not a
   // security issue since no tokens are granted on error paths).
   const stateParam = request.nextUrl.searchParams.get('state');
-  let fromWizard = stateParam?.startsWith('wizard_') ?? false;
+  const isPopup = stateParam?.startsWith('popup_') ?? false;
+  let fromWizard = isPopup
+    ? stateParam?.startsWith('popup_wizard_') ?? false
+    : stateParam?.startsWith('wizard_') ?? false;
 
   /** Build an error redirect URL, routing to wizard or settings as appropriate. */
   function errorUrl(code: string, orgSlug?: string | null): string {
+    if (isPopup) {
+      return buildRedirectUrl(`/oauth-complete?error=${code}`, orgSlug, request.url);
+    }
     const path = fromWizard
       ? `/setup/wizard?storage_error=${code}`
       : `/settings?tab=storage&error=${code}`;
@@ -111,7 +117,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // DB state is authoritative after CSRF passes — correct fromWizard if needed
-  if (!fromWizard && org.dropbox_oauth_state.startsWith('wizard_')) {
+  if (!fromWizard && org.dropbox_oauth_state.includes('wizard_')) {
     fromWizard = true;
   }
 
@@ -190,8 +196,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
-  const successPath = fromWizard
-    ? '/setup/wizard?storage_connected=dropbox'
-    : '/settings?tab=storage&connected=dropbox';
+  const successPath = isPopup
+    ? '/oauth-complete?connected=dropbox'
+    : fromWizard
+      ? '/setup/wizard?storage_connected=dropbox'
+      : '/settings?tab=storage&connected=dropbox';
   return NextResponse.redirect(buildRedirectUrl(successPath, org?.slug, request.url));
 }

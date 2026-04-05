@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { updateGoogleDriveFolderId } from "@/app/actions/settings";
 import { getStorageInfoForWizard, resetStorageForWizard } from "../actions";
+import { openOAuthPopup } from "@/lib/oauth-popup";
 
 type TroubleshootProvider = "google_drive" | "onedrive" | "dropbox" | null;
 
@@ -196,9 +197,26 @@ export function StorageSetupStep({
     });
   }
 
+  const [popupConnected, setPopupConnected] = useState<string | null>(null);
+  const [popupError, setPopupError] = useState<string | null>(null);
+
+  // Merge popup results with prop-based results
+  const effectiveConnected = storageConnected || popupConnected;
+  const effectiveError = storageError || popupError;
+
   async function connectProvider(url: string) {
     await onBeforeProviderConnect();
-    window.location.href = url;
+    openOAuthPopup(url, (result) => {
+      if (result.connected) {
+        setPopupConnected(result.connected);
+        setPopupError(null);
+        // Refresh storage info to reflect new connection
+        getStorageInfoForWizard().then((data) => setInfo(data));
+      } else if (result.error) {
+        setPopupError(result.error);
+        setPopupConnected(null);
+      }
+    });
   }
 
   if (isLoading) {
@@ -246,7 +264,7 @@ export function StorageSetupStep({
         </div>
 
         {/* Banners */}
-        {storageError === "conditional_access_blocked" && (
+        {effectiveError === "conditional_access_blocked" && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10">
             <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-600">
@@ -255,12 +273,12 @@ export function StorageSetupStep({
             </p>
           </div>
         )}
-        {storageError && storageError !== "conditional_access_blocked" && (
+        {effectiveError && effectiveError !== "conditional_access_blocked" && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10">
             <AlertTriangle className="size-5 text-red-500 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm text-red-500">Connection failed. Please try again.</p>
-              <p className="text-xs text-red-400 font-mono">Error: {storageError}</p>
+              <p className="text-xs text-red-400 font-mono">Error: {effectiveError}</p>
             </div>
           </div>
         )}
@@ -284,19 +302,19 @@ export function StorageSetupStep({
             </div>
           </div>
         )}
-        {storageConnected === "google_drive" && (
+        {effectiveConnected === "google_drive" && (
           <div className="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl">
             <CheckCircle className="size-5 text-green-600 shrink-0" />
             <p className="text-sm text-green-600">Google Drive connected successfully.</p>
           </div>
         )}
-        {storageConnected === "onedrive" && (
+        {effectiveConnected === "onedrive" && (
           <div className="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl">
             <CheckCircle className="size-5 text-green-600 shrink-0" />
             <p className="text-sm text-green-600">OneDrive connected successfully.</p>
           </div>
         )}
-        {storageConnected === "dropbox" && (
+        {effectiveConnected === "dropbox" && (
           <div className="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl">
             <CheckCircle className="size-5 text-green-600 shrink-0" />
             <p className="text-sm text-green-600">Dropbox connected successfully.</p>

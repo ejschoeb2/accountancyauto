@@ -39,9 +39,15 @@ function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requ
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const stateFromUrl = request.nextUrl.searchParams.get('state');
-  let fromWizard = stateFromUrl?.startsWith('wizard_') ?? false;
+  const isPopup = stateFromUrl?.startsWith('popup_') ?? false;
+  let fromWizard = isPopup
+    ? stateFromUrl?.startsWith('popup_wizard_') ?? false
+    : stateFromUrl?.startsWith('wizard_') ?? false;
 
   function errorUrl(code: string, orgSlug?: string | null): string {
+    if (isPopup) {
+      return buildRedirectUrl(`/oauth-complete?error=${code}`, orgSlug, request.url);
+    }
     const path = fromWizard
       ? `/setup/wizard?storage_error=${code}`
       : `/settings?tab=storage&error=${code}`;
@@ -85,7 +91,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // DB state is authoritative after CSRF passes — correct fromWizard if needed
-  if (!fromWizard && org.ms_oauth_state.startsWith('wizard_')) {
+  if (!fromWizard && org.ms_oauth_state.includes('wizard_')) {
     fromWizard = true;
   }
 
@@ -140,8 +146,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
-  const successPath = fromWizard
-    ? '/setup/wizard?storage_connected=onedrive'
-    : '/settings?tab=storage&connected=onedrive';
+  const successPath = isPopup
+    ? '/oauth-complete?connected=onedrive'
+    : fromWizard
+      ? '/setup/wizard?storage_connected=onedrive'
+      : '/settings?tab=storage&connected=onedrive';
   return NextResponse.redirect(buildRedirectUrl(successPath, org?.slug, request.url));
 }

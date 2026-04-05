@@ -43,8 +43,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Format: "wizard_<uuid>" when coming from the setup wizard, else "<uuid>".
     // Dropbox returns state unchanged in the callback, so this is more reliable
     // than a cookie (avoids cross-site cookie delivery issues).
+    const isPopup = request.nextUrl.searchParams.get('popup') === '1';
     const uuid = crypto.randomUUID();
-    const state = fromWizard ? `wizard_${uuid}` : uuid;
+    let state = fromWizard ? `wizard_${uuid}` : uuid;
+    if (isPopup) state = `popup_${state}`;
 
     // ── Store CSRF state in DB (organisations.dropbox_oauth_state) ────────
     const admin = createAdminClient();

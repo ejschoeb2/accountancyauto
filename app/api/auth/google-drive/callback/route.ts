@@ -50,9 +50,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const stateParam = request.nextUrl.searchParams.get('state');
   // Determine origin from URL state param; after CSRF validation the DB state
   // is used as an authoritative fallback (see below).
-  let fromWizard = stateParam?.startsWith('wizard_') ?? false;
+  const isPopup = stateParam?.startsWith('popup_') ?? false;
+  let fromWizard = isPopup
+    ? stateParam?.startsWith('popup_wizard_') ?? false
+    : stateParam?.startsWith('wizard_') ?? false;
 
   function errorUrl(code: string, orgSlug?: string | null): string {
+    if (isPopup) {
+      return buildRedirectUrl(`/oauth-complete?error=${code}`, orgSlug, request.url);
+    }
     const path = fromWizard
       ? `/setup/wizard?storage_error=${code}`
       : `/settings?tab=storage&error=${code}`;
@@ -104,7 +110,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // After CSRF validation passes, the DB state is authoritative. Use it as a
   // fallback in case the URL state param was somehow decoded differently.
-  if (!fromWizard && org.google_oauth_state.startsWith('wizard_')) {
+  if (!fromWizard && org.google_oauth_state.includes('wizard_')) {
     console.warn('[google-drive/callback] fromWizard corrected via DB state');
     fromWizard = true;
   }
@@ -204,9 +210,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Success redirect ─────────────────────────────────────────────────────
-  const successPath = fromWizard
-    ? '/setup/wizard?storage_connected=google_drive'
-    : '/settings?tab=storage&connected=google_drive';
+  const successPath = isPopup
+    ? '/oauth-complete?connected=google_drive'
+    : fromWizard
+      ? '/setup/wizard?storage_connected=google_drive'
+      : '/settings?tab=storage&connected=google_drive';
   const redirectTarget = buildRedirectUrl(successPath, org?.slug, request.url);
   console.log('[google-drive/callback] success — fromWizard=%s, slug=%s, redirect=%s',
     fromWizard, org?.slug ?? 'null', redirectTarget);

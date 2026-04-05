@@ -15,6 +15,7 @@ import {
   updateGoogleDriveFolderId,
 } from "@/app/actions/settings";
 import { DisconnectConfirmModal } from "./disconnect-confirm-modal";
+import { openOAuthPopup } from "@/lib/oauth-popup";
 
 interface StorageCardProps {
   storageBackend: string | null;
@@ -52,9 +53,25 @@ function StorageCardInner({
   const [dropboxModalOpen, setDropboxModalOpen] = useState(false);
   const [dropboxDocCount, setDropboxDocCount] = useState<number | null>(null);
 
+  const [popupConnected, setPopupConnected] = useState<string | null>(null);
+  const [popupError, setPopupError] = useState<string | null>(null);
+
   const searchParams = useSearchParams();
-  const error = searchParams.get("error");
-  const connected = searchParams.get("connected");
+  const error = searchParams.get("error") || popupError;
+  const connected = searchParams.get("connected") || popupConnected;
+
+  function connectViaPopup(url: string) {
+    openOAuthPopup(url, (result) => {
+      if (result.connected) {
+        setPopupConnected(result.connected);
+        setPopupError(null);
+        router.refresh();
+      } else if (result.error) {
+        setPopupError(result.error);
+        setPopupConnected(null);
+      }
+    });
+  }
 
   async function handleGoogleDisconnect() {
     startGoogleTransition(async () => {
@@ -238,7 +255,7 @@ function StorageCardInner({
                       <ButtonBase
                         variant="violet"
                         buttonType="icon-text"
-                        onClick={() => (window.location.href = "/api/auth/google-drive/connect")}
+                        onClick={() => connectViaPopup("/api/auth/google-drive/connect")}
                       >
                         <HardDrive className="size-4" />
                         Reconnect
@@ -266,7 +283,7 @@ function StorageCardInner({
                   <ButtonBase
                     variant="violet"
                     buttonType="icon-text"
-                    onClick={() => (window.location.href = "/api/auth/google-drive/connect")}
+                    onClick={() => connectViaPopup("/api/auth/google-drive/connect")}
                     disabled={anyProviderConnected}
                   >
                     <HardDrive className="size-4" />
@@ -357,7 +374,7 @@ function StorageCardInner({
                       <ButtonBase
                         variant="violet"
                         buttonType="icon-text"
-                        onClick={() => (window.location.href = "/api/auth/onedrive/connect")}
+                        onClick={() => connectViaPopup("/api/auth/onedrive/connect")}
                       >
                         <HardDrive className="size-4" />
                         Reconnect
@@ -385,7 +402,7 @@ function StorageCardInner({
                   <ButtonBase
                     variant="violet"
                     buttonType="icon-text"
-                    onClick={() => (window.location.href = "/api/auth/onedrive/connect")}
+                    onClick={() => connectViaPopup("/api/auth/onedrive/connect")}
                     disabled={anyProviderConnected}
                   >
                     <HardDrive className="size-4" />
@@ -424,7 +441,7 @@ function StorageCardInner({
                       <ButtonBase
                         variant="violet"
                         buttonType="icon-text"
-                        onClick={() => (window.location.href = "/api/auth/dropbox/connect")}
+                        onClick={() => connectViaPopup("/api/auth/dropbox/connect")}
                       >
                         <HardDrive className="size-4" />
                         Reconnect
@@ -452,7 +469,7 @@ function StorageCardInner({
                   <ButtonBase
                     variant="violet"
                     buttonType="icon-text"
-                    onClick={() => (window.location.href = "/api/auth/dropbox/connect")}
+                    onClick={() => connectViaPopup("/api/auth/dropbox/connect")}
                     disabled={anyProviderConnected}
                   >
                     <HardDrive className="size-4" />

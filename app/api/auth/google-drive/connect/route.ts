@@ -58,8 +58,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Format: "wizard_<hex>" when coming from the setup wizard, else "<hex>".
     // Google returns state unchanged in the callback, so this is more reliable
     // than a cookie (avoids cross-subdomain cookie delivery issues).
+    const isPopup = request.nextUrl.searchParams.get('popup') === '1';
     const csrf = crypto.randomBytes(32).toString('hex');
-    const state = fromWizard ? `wizard_${csrf}` : csrf;
+    let state = fromWizard ? `wizard_${csrf}` : csrf;
+    if (isPopup) state = `popup_${state}`;
 
     // ── Store CSRF state in DB (organisations.google_oauth_state) ────────
     const admin = createAdminClient();
