@@ -7,18 +7,26 @@ import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { checkClientLimit } from "@/lib/billing/usage-limits";
 import { rebuildQueueForClient } from "@/lib/reminders/queue-builder";
 import { logger } from '@/lib/logger';
+import { DEFAULT_PAGE_SIZE } from "@/lib/config/limits";
 
 /**
  * GET /api/clients
- * Returns all clients (id, company_name, client_type) for selection lists
+ * Returns clients (id, company_name, client_type) with optional pagination.
+ * Query params: limit (default 500), offset (default 0)
+ * Response header X-Total-Count contains the total number of clients.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const limit = parseInt(searchParams.get('limit') || String(DEFAULT_PAGE_SIZE), 10);
+  const offset = parseInt(searchParams.get('offset') || '0', 10);
+
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from("clients")
-    .select("id, company_name, client_type")
-    .order("company_name");
+    .select("id, company_name, client_type", { count: 'exact' })
+    .order("company_name")
+    .range(offset, offset + limit - 1);
 
   if (error) {
     logger.error("Error fetching clients:", { error: (error as any)?.message ?? String(error) });
@@ -28,7 +36,9 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(data ?? []);
+  const response = NextResponse.json(data ?? []);
+  response.headers.set('X-Total-Count', String(count ?? 0));
+  return response;
 }
 
 /**

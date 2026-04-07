@@ -88,6 +88,14 @@ export async function getDashboardMetrics(
     (reminders || []).map((r) => `${r.client_id}_${r.filing_type_id}`)
   );
 
+  // Build index for O(n+m) lookup instead of O(n*m) nested filter
+  const assignmentsByClient = new Map<string, typeof assignments>();
+  for (const assignment of assignments || []) {
+    const existing = assignmentsByClient.get(assignment.client_id) || [];
+    existing.push(assignment);
+    assignmentsByClient.set(assignment.client_id, existing);
+  }
+
   // Calculate traffic-light status for each client
   let overdueCount = 0;
   let criticalCount = 0;
@@ -99,10 +107,8 @@ export async function getDashboardMetrics(
   let inactiveCount = 0;
 
   for (const client of clients || []) {
-    // Get client's active filings
-    const clientAssignments = (assignments || []).filter(
-      (a) => a.client_id === client.id
-    );
+    // Get client's active filings via index
+    const clientAssignments = assignmentsByClient.get(client.id) || [];
 
     // Build filings array using deadline calculators
     const filings = clientAssignments

@@ -4,9 +4,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptToken } from "@/lib/crypto/tokens";
 import { ServerClient } from "postmark";
 import { logger } from '@/lib/logger';
+import { CRON_MAX_DURATION } from "@/lib/config/limits";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
+// Allow 5 minutes for cron execution — see lib/config/limits.ts
+export const maxDuration = CRON_MAX_DURATION;
 
 // 7 days in milliseconds — threshold for escalation alert (AUDIT-026)
 const ESCALATION_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { checkClientLimit } from "@/lib/billing/usage-limits";
 import { z } from "zod";
 import { logger } from '@/lib/logger';
+import { MAX_CSV_FILE_SIZE } from "@/lib/config/limits";
 
 /**
  * Summary of the CSV import operation
@@ -47,7 +48,7 @@ export interface CsvImportResult {
   };
 }
 
-const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+const MAX_FILE_SIZE = MAX_CSV_FILE_SIZE;
 
 /**
  * Import client metadata from a CSV file.

@@ -3,8 +3,10 @@ import { timingSafeEqual } from 'crypto';
 import { createServiceClient } from '@/lib/supabase/service';
 import { sendRetentionFlaggedEmail } from '@/lib/documents/notifications';
 import { logger } from '@/lib/logger';
+import { CRON_MAX_DURATION } from '@/lib/config/limits';
 
-export const maxDuration = 300;
+// Allow 5 minutes for cron execution — see lib/config/limits.ts
+export const maxDuration = CRON_MAX_DURATION;
 
 export async function GET(request: NextRequest) {
   // AUDIT-025: Execution metadata

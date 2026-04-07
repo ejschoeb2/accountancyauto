@@ -5,12 +5,13 @@ import { sendRichEmailForOrg } from '@/lib/email/sender';
 import { sleepBackoff, CircuitOpenError, getCircuitState } from '@/lib/email/circuit-breaker';
 import { addMinutes } from 'date-fns';
 import { logger } from '@/lib/logger';
+import { CRON_MAX_DURATION } from '@/lib/config/limits';
 
 // Force dynamic for cron
 export const dynamic = 'force-dynamic';
 
-// Allow 5 minutes for cron execution (Vercel Pro limit)
-export const maxDuration = 300;
+// Allow 5 minutes for cron execution — see lib/config/limits.ts
+export const maxDuration = CRON_MAX_DURATION;
 
 // AUDIT-054: Structured error type for cron error classification
 interface CronError {

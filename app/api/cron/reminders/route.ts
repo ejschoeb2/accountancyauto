@@ -3,9 +3,10 @@ import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { processRemindersForUser, ProcessResult } from '@/lib/reminders/scheduler';
 import { logger } from '@/lib/logger';
+import { CRON_MAX_DURATION } from '@/lib/config/limits';
 
-// Allow 5 minutes for cron execution (Vercel Pro limit)
-export const maxDuration = 300;
+// Allow 5 minutes for cron execution — see lib/config/limits.ts
+export const maxDuration = CRON_MAX_DURATION;
 
 // AUDIT-054: Structured error type for cron error classification
 interface CronError {
