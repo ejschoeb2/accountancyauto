@@ -26,7 +26,10 @@
     "reset:demo": "tsx scripts/demo/reset-demo-data.ts",
     "reset-and-seed:demo": "tsx scripts/demo/reset-demo-data.ts && tsx scripts/demo/seed-demo-data.ts",
     "upload:videos": "tsx scripts/upload-videos.ts",
-    "capture:guide-screenshots": "tsx scripts/demo/capture-guide-screenshots.ts"
+    "capture:guide-screenshots": "tsx scripts/demo/capture-guide-screenshots.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
     "@sentry/nextjs": "^8.0.0",
