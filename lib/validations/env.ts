@@ -16,7 +16,29 @@ const envSchema = z.object({
 
   // Cron (optional - not needed for demo mode)
   CRON_SECRET: z.string().optional(),
+
+  // Stripe (optional - billing feature)
+  STRIPE_SECRET_KEY: z.string().optional(),
 });
+
+function warnOnProductionSecretsInDev(data: z.infer<typeof envSchema>) {
+  if (process.env.NODE_ENV !== "development") return;
+
+  if (data.STRIPE_SECRET_KEY && !data.STRIPE_SECRET_KEY.startsWith("sk_test_")) {
+    console.warn(
+      "WARNING: Using production Stripe key in development. Set STRIPE_SECRET_KEY to a sk_test_ key to avoid accidental charges."
+    );
+  }
+
+  if (
+    data.POSTMARK_SERVER_TOKEN &&
+    !data.POSTMARK_SERVER_TOKEN.toLowerCase().includes("test")
+  ) {
+    console.warn(
+      "WARNING: Using what appears to be a production Postmark token in development. Emails sent will reach real recipients."
+    );
+  }
+}
 
 export function validateEnv() {
   const result = envSchema.safeParse(process.env);
@@ -28,6 +50,8 @@ export function validateEnv() {
     });
     process.exit(1);
   }
+
+  warnOnProductionSecretsInDev(result.data);
 
   return result.data;
 }

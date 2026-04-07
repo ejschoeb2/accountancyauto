@@ -47,3 +47,17 @@ next-env.d.ts
 # video assets — hosted in Supabase Storage, uploaded via: npm run upload:videos
 /public/hero-loop.mp4
 /public/tutorials/
+
+# Editor configs
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+
+# OS files
+Thumbs.db
+
+# Claude worktrees
+.claude/worktrees/
+
+# Logs
+*.log
