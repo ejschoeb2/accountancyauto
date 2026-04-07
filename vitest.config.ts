@@ -4,6 +4,12 @@ import path from 'path'
 export default defineConfig({
   test: {
     globals: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary'],
+      include: ['lib/**/*.ts', 'app/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/*.test.tsx', '**/node_modules/**'],
+    },
   },
   resolve: {
     alias: {
