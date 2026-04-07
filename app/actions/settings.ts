@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgId, getOrgContext } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
+import { logger } from '@/lib/logger';
+import { writeAuditLog } from '@/lib/audit/log';
 
 // --- Email Settings type (shared) ---
 
@@ -251,6 +253,15 @@ export async function updateEmailSettings(
       return { error: error.message };
     }
   }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'app_settings',
+    new_values: { sender_name: settings.senderName, sender_address: settings.senderAddress, reply_to: settings.replyTo },
+  });
 
   return {};
 }
@@ -582,6 +593,18 @@ export async function updatePostmarkSettings(token: string, senderDomain: string
     })
     .eq('id', orgId);
   if (error) return { error: error.message };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'organisations',
+    row_id: orgId,
+    new_values: { postmark_sender_domain: senderDomain.trim() || null },
+  });
+
   return {};
 }
 
@@ -613,6 +636,18 @@ export async function updateGoogleDriveFolderId(input: string): Promise<{ error?
     .update({ google_drive_folder_id: folderId })
     .eq('id', orgId);
   if (error) return { error: error.message };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'organisations',
+    row_id: orgId,
+    new_values: { google_drive_folder_id: folderId },
+  });
+
   revalidatePath('/settings');
   return {};
 }
@@ -631,6 +666,18 @@ export async function disconnectGoogleDrive(): Promise<{ error?: string }> {
     google_drive_folder_id: null,
   }).eq('id', orgId);
   if (error) return { error: `Disconnect failed: ${error.message}` };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'organisations',
+    row_id: orgId,
+    metadata: { disconnected_backend: 'google_drive' },
+  });
+
   revalidatePath('/settings');
   return {};
 }
@@ -649,6 +696,18 @@ export async function disconnectOneDrive(): Promise<{ error?: string }> {
     ms_home_account_id: null,
   }).eq('id', orgId);
   if (error) return { error: `Disconnect failed: ${error.message}` };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'organisations',
+    row_id: orgId,
+    metadata: { disconnected_backend: 'onedrive' },
+  });
+
   revalidatePath('/settings');
   return {};
 }
@@ -669,6 +728,18 @@ export async function disconnectDropbox(): Promise<{ error?: string }> {
   }).eq('id', orgId);
 
   if (error) return { error: error.message };
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'organisations',
+    row_id: orgId,
+    metadata: { disconnected_backend: 'dropbox' },
+  });
+
   revalidatePath('/settings');
   return {};
 }

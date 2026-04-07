@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { sendInviteEmail } from "@/lib/billing/notifications";
 import { logger } from '@/lib/logger';
+import { writeAuditLog } from '@/lib/audit/log';
 
 export interface TeamMember {
   id: string;
@@ -219,6 +220,14 @@ export async function sendInvite(
     };
   }
 
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: inviterUser?.id,
+    action: 'create',
+    table_name: 'invitations',
+    new_values: { email, role },
+  });
+
   return {};
 }
 
@@ -281,6 +290,16 @@ export async function removeTeamMember(
     return { error: "Failed to remove team member." };
   }
 
+  const supabase = await createClient();
+  const { data: { user: callerUser } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: callerUser?.id,
+    action: 'delete',
+    table_name: 'user_organisations',
+    metadata: { removed_user_id: targetUserId },
+  });
+
   return {};
 }
 
@@ -333,6 +352,16 @@ export async function changeRole(
     logger.error("changeRole: failed to update role:", { error: (updateError as any)?.message ?? String(updateError) });
     return { error: "Failed to update role." };
   }
+
+  const supabase = await createClient();
+  const { data: { user: callerUser } } = await supabase.auth.getUser();
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: callerUser?.id,
+    action: 'update',
+    table_name: 'user_organisations',
+    metadata: { target_user_id: targetUserId, new_role: newRole },
+  });
 
   return {};
 }

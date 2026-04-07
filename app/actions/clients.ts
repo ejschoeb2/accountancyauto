@@ -7,6 +7,7 @@ import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { updateClientMetadataSchema, clientTypeSchema } from "@/lib/validations/client";
 import { calculateFilingTypeStatus, type TrafficLightStatus } from "@/lib/dashboard/traffic-light";
 import { logger } from '@/lib/logger';
+import { writeAuditLog } from '@/lib/audit/log';
 
 // Client type matching the database schema
 export interface Client {
@@ -65,10 +66,11 @@ export async function updateClientMetadata(
   await requireWriteAccess(orgId);
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Validate input with Zod schema
   const validationResult = updateClientMetadataSchema.safeParse(data);
-  
+
   if (!validationResult.success) {
     throw new Error(
       `Validation failed: ${validationResult.error.issues.map((e: { message: string }) => e.message).join(", ")}`
@@ -89,6 +91,15 @@ export async function updateClientMetadata(
   if (error) {
     throw new Error(`Failed to update client: ${error.message}`);
   }
+
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'clients',
+    row_id: clientId,
+    new_values: validationResult.data,
+  });
 
   return updatedClient;
 }
@@ -154,6 +165,18 @@ export async function reassignClients(
     return { error: "Failed to reassign clients. Please try again." };
   }
 
+  // Get caller's user_id for audit log
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'update',
+    table_name: 'clients',
+    metadata: { from_user_id: fromUserId, to_user_id: toUserId, reassigned: count ?? 0 },
+  });
+
   return { reassigned: count ?? 0 };
 }
 
@@ -168,6 +191,7 @@ export async function deleteClients(
   await requireWriteAccess(orgId);
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   const { error, count } = await supabase
     .from("clients")
@@ -177,6 +201,14 @@ export async function deleteClients(
   if (error) {
     throw new Error(`Failed to delete clients: ${error.message}`);
   }
+
+  await writeAuditLog({
+    org_id: orgId,
+    user_id: user?.id,
+    action: 'bulk_delete',
+    table_name: 'clients',
+    metadata: { client_ids: clientIds, count: count || 0 },
+  });
 
   return { success: true, count: count || 0 };
 }
