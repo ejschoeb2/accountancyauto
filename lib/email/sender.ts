@@ -9,6 +9,7 @@ import { render } from '@react-email/render';
 import { ServerClient } from 'postmark';
 import { createHmac } from 'crypto';
 import { postmarkClient } from './client';
+import { withCircuitBreaker } from './circuit-breaker';
 import ReminderEmail from './templates/reminder';
 import { getUserEmailSettings, type EmailSettings } from '@/app/actions/settings';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -188,8 +189,8 @@ export async function sendReminderEmail(
       })
     );
 
-    // Send via Postmark
-    const result = await postmarkClient.sendEmail({
+    // Send via Postmark (wrapped in circuit breaker)
+    const result = await withCircuitBreaker(() => postmarkClient.sendEmail({
       From: emailFrom.from,
       To: params.to,
       ReplyTo: emailFrom.replyTo,
@@ -199,7 +200,7 @@ export async function sendReminderEmail(
       MessageStream: 'outbound',
       TrackOpens: false,
       TrackLinks: 'None' as any,
-    });
+    }));
 
     return {
       messageId: result.MessageID,
@@ -254,8 +255,8 @@ export async function sendRichEmail(
       headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
     }
 
-    // Send via Postmark (no React Email rendering needed - already done)
-    const result = await client.sendEmail({
+    // Send via Postmark (no React Email rendering needed - already done; wrapped in circuit breaker)
+    const result = await withCircuitBreaker(() => client.sendEmail({
       From: emailFrom.from,
       To: params.to,
       ReplyTo: emailFrom.replyTo,
@@ -268,7 +269,7 @@ export async function sendRichEmail(
       Headers: Object.keys(headers).length > 0
         ? Object.entries(headers).map(([Name, Value]) => ({ Name, Value }))
         : undefined,
-    });
+    }));
 
     return {
       messageId: result.MessageID,
@@ -324,8 +325,8 @@ export async function sendRichEmailForOrg(
       headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
     }
 
-    // Send via org-specific Postmark client
-    const result = await client.sendEmail({
+    // Send via org-specific Postmark client (wrapped in circuit breaker)
+    const result = await withCircuitBreaker(() => client.sendEmail({
       From: emailFrom.from,
       To: params.to,
       ReplyTo: emailFrom.replyTo,
@@ -338,7 +339,7 @@ export async function sendRichEmailForOrg(
       Headers: Object.keys(headers).length > 0
         ? Object.entries(headers).map(([Name, Value]) => ({ Name, Value }))
         : undefined,
-    });
+    }));
 
     return {
       messageId: result.MessageID,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendRichEmailForOrg } from '@/lib/email/sender';
+import { sleepBackoff, CircuitOpenError, getCircuitState } from '@/lib/email/circuit-breaker';
 import { addMinutes } from 'date-fns';
 import { logger } from '@/lib/logger';
 
@@ -279,6 +280,49 @@ async function processOrgEmails(
       }
 
       try {
+        // AUDIT-035: Exponential backoff before retry attempts.
+        // attempt_count on reminder_queue tracks how many times we've tried.
+        // First attempt (attempt_count = 0 or null): no delay.
+        // Second attempt (attempt_count = 1): ~1 s delay; third: ~2 s, etc.
+        const priorAttempts = reminder.attempt_count ?? 0;
+        if (priorAttempts > 0) {
+          logger.info('Applying backoff before retry attempt', {
+            cron: 'send-emails',
+            orgName: org.name,
+            reminderId: reminder.id,
+            priorAttempts,
+          });
+          await sleepBackoff(priorAttempts);
+        }
+
+        // Log circuit breaker state before sending (for observability)
+        const circuitState = getCircuitState();
+        if (circuitState !== 'CLOSED') {
+          logger.warn('Circuit breaker not CLOSED before send', {
+            cron: 'send-emails',
+            orgName: org.name,
+            circuitState,
+          });
+        }
+
+        // AUDIT-048: Determine first_attempted_at and attempt_count for email_log.
+        // We query the existing log entries for this reminder to know if this is
+        // the first attempt or a retry.
+        const { data: existingLogs } = await adminClient
+          .from('email_log')
+          .select('first_attempted_at, attempt_count')
+          .eq('reminder_queue_id', reminder.id)
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        const isFirstAttempt = !existingLogs || existingLogs.length === 0;
+        const firstAttemptedAt = isFirstAttempt
+          ? new Date().toISOString()
+          : existingLogs![0].first_attempted_at;
+        const attemptCount = isFirstAttempt
+          ? 1
+          : (existingLogs![0].attempt_count ?? 1) + 1;
+
         // Send HTML email via Postmark using org's credentials + per-user sender settings
         const sendResult = await sendRichEmailForOrg({
           to: client.primary_email,
@@ -305,7 +349,7 @@ async function processOrgEmails(
           throw new Error(`Failed to update reminder_queue: ${updateError.message}`);
         }
 
-        // Insert email_log entry for successful send
+        // Insert email_log entry for successful send (with delivery metrics)
         const { error: logError } = await adminClient
           .from('email_log')
           .insert({
@@ -317,6 +361,8 @@ async function processOrgEmails(
             recipient_email: client.primary_email,
             subject: reminder.resolved_subject,
             delivery_status: 'sent',
+            first_attempted_at: firstAttemptedAt,
+            attempt_count: attemptCount,
           });
 
         if (logError) {
@@ -331,13 +377,20 @@ async function processOrgEmails(
 
         result.sent++;
       } catch (error) {
+        const isCircuitOpen = error instanceof CircuitOpenError;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        logger.error('Failed to send email for reminder', { cron: 'send-emails', orgName: org.name, reminderId: reminder.id, error: errorMessage });
+        logger.error('Failed to send email for reminder', {
+          cron: 'send-emails',
+          orgName: org.name,
+          reminderId: reminder.id,
+          error: errorMessage,
+          circuitOpen: isCircuitOpen,
+        });
         result.errors.push({
           org_id: org.id,
           code: 'SEND_FAILED',
           message: `[${org.name}] Failed to send to ${client.primary_email}: ${errorMessage}`,
-          retryable: true,
+          retryable: !isCircuitOpen, // Circuit-open errors are retryable once circuit resets
         });
 
         const MAX_SEND_ATTEMPTS = 5;
@@ -357,7 +410,23 @@ async function processOrgEmails(
           logger.warn('Reminder exceeded max send attempts — marking failed', { cron: 'send-emails', orgName: org.name, reminderId: reminder.id });
         }
 
-        // Insert email_log entry for failed send
+        // AUDIT-048: Determine first_attempted_at and attempt_count for failed email_log entry
+        const { data: existingFailLogs } = await adminClient
+          .from('email_log')
+          .select('first_attempted_at, attempt_count')
+          .eq('reminder_queue_id', reminder.id)
+          .order('created_at', { ascending: true })
+          .limit(1);
+
+        const isFirstFailAttempt = !existingFailLogs || existingFailLogs.length === 0;
+        const failFirstAttemptedAt = isFirstFailAttempt
+          ? new Date().toISOString()
+          : existingFailLogs![0].first_attempted_at;
+        const failAttemptCount = isFirstFailAttempt
+          ? 1
+          : (existingFailLogs![0].attempt_count ?? 1) + 1;
+
+        // Insert email_log entry for failed send (with delivery metrics)
         await adminClient
           .from('email_log')
           .insert({
@@ -371,6 +440,8 @@ async function processOrgEmails(
             bounce_description: exhausted
               ? `${errorMessage} (max attempts reached)`
               : errorMessage,
+            first_attempted_at: failFirstAttemptedAt,
+            attempt_count: failAttemptCount,
           });
 
         result.failed++;
