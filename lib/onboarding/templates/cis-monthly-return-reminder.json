@@ -1,0 +1,63 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Dear ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "client_name", "label": "Client Name" } },
+        { "text": ",", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Your ", "type": "text" },
+        { "text": "CIS Monthly Return", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " is due by ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "deadline", "label": "Deadline" } },
+        { "text": " (", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "days_until_deadline", "label": "Days Until Deadline" } },
+        { "text": " days remaining).", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Please provide details of all payments made to subcontractors during this period, including:", "type": "text" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Subcontractor names and UTR numbers", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Gross payment amounts", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- CIS deductions made", "type": "text" }]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Late filing incurs a £100 penalty from HMRC, increasing with further delays. Please send this information through promptly.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "Kind regards,", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "placeholder", "attrs": { "id": "accountant_name", "label": "Accountant Name" } }
+      ]
+    }
+  ]
+}

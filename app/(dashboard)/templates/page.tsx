@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { TemplatesView } from './components/templates-view'
 import { getClientPortalEnabled, markTemplatesVisited } from '@/app/actions/settings'
-import type { EmailTemplate } from '@/lib/types/database'
+import type { EmailTemplate, TipTapNode } from '@/lib/types/database'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -12,11 +12,12 @@ export const metadata: Metadata = {
 /**
  * Recursively checks whether a TipTap JSON body contains a portal_link placeholder.
  */
-function templateHasPortalLink(bodyJson: any): boolean {
+function templateHasPortalLink(bodyJson: TipTapNode | unknown): boolean {
   if (!bodyJson || typeof bodyJson !== 'object') return false
-  if (bodyJson.type === 'placeholder' && bodyJson.attrs?.id === 'portal_link') return true
-  if (Array.isArray(bodyJson.content)) {
-    return bodyJson.content.some((child: any) => templateHasPortalLink(child))
+  const node = bodyJson as TipTapNode
+  if (node.type === 'placeholder' && (node.attrs as Record<string, unknown>)?.id === 'portal_link') return true
+  if (Array.isArray(node.content)) {
+    return node.content.some((child) => templateHasPortalLink(child))
   }
   return false
 }

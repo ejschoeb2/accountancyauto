@@ -1,0 +1,71 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Dear ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "client_name", "label": "Client Name" } },
+        { "text": ",", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "The ", "type": "text" },
+        { "text": "Self Assessment", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " deadline of ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "deadline", "label": "Deadline" } },
+        { "text": " is approaching. You have ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "days_until_deadline", "label": "Days Until Deadline" } },
+        { "text": " days remaining.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "To prepare your tax return, we will need:", "type": "text" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- P60 / P45 from any employment", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Self-employment income and expenses", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Rental income details (if applicable)", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Dividend vouchers and investment income", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Gift Aid donations and pension contributions", "type": "text" }]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Please gather these documents and send them through at your earliest convenience. Early submission helps avoid the last-minute rush and ensures any tax owed is calculated in good time.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "Warm regards,", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "placeholder", "attrs": { "id": "accountant_name", "label": "Accountant Name" } }
+      ]
+    }
+  ]
+}

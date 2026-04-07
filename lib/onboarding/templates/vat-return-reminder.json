@@ -1,0 +1,67 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Dear ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "client_name", "label": "Client Name" } },
+        { "text": ",", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Your ", "type": "text" },
+        { "text": "VAT Return", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " is due for submission and payment by ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "deadline", "label": "Deadline" } },
+        { "text": ". We have ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "days_until_deadline", "label": "Days Until Deadline" } },
+        { "text": " days to get this filed.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Please ensure we have the following for the quarter:", "type": "text" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- All sales invoices issued", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- All purchase invoices and receipts", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Bank statements covering the VAT period", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Any import/EU transactions", "type": "text" }]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "If you use bookkeeping software, please ensure your records are up to date and grant us access if you haven't already.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "Best regards,", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "placeholder", "attrs": { "id": "accountant_name", "label": "Accountant Name" } }
+      ]
+    }
+  ]
+}

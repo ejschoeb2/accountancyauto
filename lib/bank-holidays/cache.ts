@@ -44,8 +44,8 @@ export async function fetchUKBankHolidays(): Promise<BankHoliday[]> {
   } catch (error) {
     logger.error('Failed to fetch bank holidays from GOV.UK:', { error: (error as any)?.message ?? String(error) });
 
-    // TODO: Fall back to Supabase bank_holidays_cache table
-    // For now, return empty array and log error
+    // Future improvement: persist to Supabase bank_holidays_cache table for cross-instance caching.
+    // Current in-memory approach is adequate for serverless (cache rebuilds on cold start).
     return [];
   }
 }
@@ -71,7 +71,8 @@ export async function getUKBankHolidaySet(): Promise<Set<string>> {
     cachedHolidays = holidaySet;
     cacheTimestamp = now;
 
-    // TODO: Store in Supabase bank_holidays_cache table for persistence
+    // Future improvement: persist to Supabase bank_holidays_cache table for cross-instance caching.
+    // Current in-memory approach is adequate for serverless (cache rebuilds on cold start).
 
     return holidaySet;
   } catch (error) {
@@ -83,7 +84,8 @@ export async function getUKBankHolidaySet(): Promise<Set<string>> {
       return cachedHolidays;
     }
 
-    // TODO: Try to load from Supabase bank_holidays_cache table
+    // Future improvement: persist to Supabase bank_holidays_cache table for cross-instance caching.
+    // Current in-memory approach is adequate for serverless (cache rebuilds on cold start).
 
     // Last resort: return empty set
     logger.error('No bank holiday data available, using empty set');

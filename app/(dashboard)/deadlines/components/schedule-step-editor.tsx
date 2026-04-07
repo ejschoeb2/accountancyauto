@@ -27,7 +27,7 @@ import { SubjectLineEditor } from "../../templates/components/subject-line-edito
 import { PlaceholderDropdown } from "../../templates/components/placeholder-dropdown";
 import { EditorToolbar } from "../../templates/components/template-editor-toolbar";
 import type { ScheduleInput } from "@/lib/validations/schedule";
-import type { TipTapDocument, EmailTemplate } from "@/lib/types/database";
+import type { TipTapDocument, TipTapNode, EmailTemplate } from "@/lib/types/database";
 import { filterTemplatesByFilingType } from "@/lib/templates/filter";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -57,25 +57,25 @@ export function ScheduleStepAddButton({ onAdd }: { onAdd: () => void }) {
 
 // Simple component to render TipTap JSON as read-only preview
 function EmailBodyPreview({ content }: { content: TipTapDocument }) {
-  const renderNode = (node: any, index: number): React.ReactNode => {
+  const renderNode = (node: TipTapNode, index: number): React.ReactNode => {
     switch (node.type) {
       case 'paragraph':
         return (
           <p key={index} className="mb-2 last:mb-0">
-            {node.content?.map((child: any, i: number) => renderNode(child, i)) || <br />}
+            {node.content?.map((child, i) => renderNode(child, i)) || <br />}
           </p>
         );
       case 'text':
         let text = <span key={index}>{node.text}</span>;
         if (node.marks) {
-          node.marks.forEach((mark: any) => {
+          node.marks.forEach((mark) => {
             if (mark.type === 'bold') {
               text = <strong key={index}>{text}</strong>;
             } else if (mark.type === 'italic') {
               text = <em key={index}>{text}</em>;
             } else if (mark.type === 'link') {
               text = (
-                <a key={index} href={mark.attrs.href} className="text-primary underline">
+                <a key={index} href={mark.attrs?.href as string} className="text-primary underline">
                   {text}
                 </a>
               );
@@ -86,25 +86,25 @@ function EmailBodyPreview({ content }: { content: TipTapDocument }) {
       case 'placeholder':
         return (
           <span key={index} className="inline-flex items-center rounded-md bg-sky-500/10 text-sky-600 px-3 py-1 text-sm font-medium">
-            {node.attrs.label}
+            {node.attrs?.label as string}
           </span>
         );
       case 'bulletList':
         return (
           <ul key={index} className="list-disc pl-6 mb-2">
-            {node.content?.map((child: any, i: number) => renderNode(child, i))}
+            {node.content?.map((child, i) => renderNode(child, i))}
           </ul>
         );
       case 'orderedList':
         return (
           <ol key={index} className="list-decimal pl-6 mb-2">
-            {node.content?.map((child: any, i: number) => renderNode(child, i))}
+            {node.content?.map((child, i) => renderNode(child, i))}
           </ol>
         );
       case 'listItem':
         return (
           <li key={index}>
-            {node.content?.map((child: any, i: number) => renderNode(child, i))}
+            {node.content?.map((child, i) => renderNode(child, i))}
           </li>
         );
       case 'hardBreak':
@@ -177,7 +177,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType, 
   const [editSubject, setEditSubject] = useState("");
   const [editBodyJson, setEditBodyJson] = useState<TipTapDocument | null>(null);
   const [saving, setSaving] = useState(false);
-  const [editor, setEditor] = useState<any>(null);
+  const [editor, setEditor] = useState<unknown>(null);
   const [creatingForStepIndex, setCreatingForStepIndex] = useState<number | null>(null);
 
   // Refs for placeholder insertion and tracking

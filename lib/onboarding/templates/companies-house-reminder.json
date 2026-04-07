@@ -1,0 +1,53 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Dear ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "client_name", "label": "Client Name" } },
+        { "text": ",", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "This is a reminder that your ", "type": "text" },
+        { "text": "Companies House annual accounts", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " are due for filing by ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "deadline", "label": "Deadline" } },
+        { "text": ". There are ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "days_until_deadline", "label": "Days Until Deadline" } },
+        { "text": " days remaining.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Late filing with Companies House incurs automatic penalties starting at ", "type": "text" },
+        { "text": "£150", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " and increasing over time. Please ensure all year-end information has been provided so we can prepare and file your accounts promptly.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "If you believe your accounts have already been submitted, or if you have any queries, please let us know.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "Kind regards,", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "placeholder", "attrs": { "id": "accountant_name", "label": "Accountant Name" } }
+      ]
+    }
+  ]
+}

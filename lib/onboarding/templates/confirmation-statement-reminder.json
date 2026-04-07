@@ -1,0 +1,67 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Dear ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "client_name", "label": "Client Name" } },
+        { "text": ",", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Your ", "type": "text" },
+        { "text": "Confirmation Statement", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " is due to be filed with Companies House by ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "deadline", "label": "Deadline" } },
+        { "text": " (", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "days_until_deadline", "label": "Days Until Deadline" } },
+        { "text": " days remaining).", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "The Confirmation Statement confirms that the information Companies House holds about your company is correct and up to date. Please let us know if there have been any changes to:", "type": "text" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Registered office address", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Directors or company secretary", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Shareholders or share capital", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- SIC codes (nature of business)", "type": "text" }]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "If nothing has changed, we can file this on your behalf. Late filing may result in your company being struck off the register.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "Kind regards,", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "placeholder", "attrs": { "id": "accountant_name", "label": "Accountant Name" } }
+      ]
+    }
+  ]
+}

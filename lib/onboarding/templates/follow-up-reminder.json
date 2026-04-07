@@ -1,0 +1,64 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Dear ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "client_name", "label": "Client Name" } },
+        { "text": ",", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Further to our previous correspondence, I wanted to follow up regarding your ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "filing_type", "label": "Filing Type" } },
+        { "text": " which is due on ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "deadline", "label": "Deadline" } },
+        { "text": ". This is now just ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "days_until_deadline", "label": "Days Until Deadline" } },
+        { "text": " days away.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "We still require the following to complete your filing on time:", "type": "text" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Any outstanding invoices and receipts", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Bank statements for the relevant period", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Details of any significant transactions", "type": "text" }]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Please send these through as soon as possible", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " to allow us adequate time to prepare and submit your return before the deadline.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "Many thanks,", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "placeholder", "attrs": { "id": "accountant_name", "label": "Accountant Name" } }
+      ]
+    }
+  ]
+}

@@ -736,15 +736,15 @@ export async function getRecentUploads(
     return [];
   }
 
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    client_id: row.client_id,
+  return (data || []).map((row: Record<string, unknown> & { clients?: { company_name?: string }; document_types?: { label?: string } }) => ({
+    id: row.id as string,
+    client_id: row.client_id as string,
     client_name: row.clients?.company_name ?? 'Unknown',
-    original_filename: row.original_filename ?? 'Untitled',
+    original_filename: (row.original_filename as string | null) ?? 'Untitled',
     document_type_label: row.document_types?.label ?? null,
-    filing_type_id: row.filing_type_id,
-    needs_review: row.needs_review ?? false,
-    created_at: row.created_at,
+    filing_type_id: row.filing_type_id as string | null,
+    needs_review: (row.needs_review as boolean) ?? false,
+    created_at: row.created_at as string,
   }));
 }
 
@@ -790,14 +790,14 @@ export async function getDocsNeedingReview(
     return [];
   }
 
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    client_id: row.client_id,
+  return (data || []).map((row: Record<string, unknown> & { clients?: { company_name?: string }; document_types?: { label?: string } }) => ({
+    id: row.id as string,
+    client_id: row.client_id as string,
     client_name: row.clients?.company_name ?? 'Unknown',
-    original_filename: row.original_filename ?? 'Untitled',
+    original_filename: (row.original_filename as string | null) ?? 'Untitled',
     document_type_label: row.document_types?.label ?? null,
-    filing_type_id: row.filing_type_id,
-    created_at: row.created_at,
+    filing_type_id: row.filing_type_id as string | null,
+    created_at: row.created_at as string,
   }));
 }
 
@@ -846,15 +846,15 @@ export async function getFailedDeliveries(
     return [];
   }
 
-  return (data || []).map((row: any) => ({
-    id: row.id,
-    client_id: row.client_id,
+  return (data || []).map((row: Record<string, unknown> & { clients?: { company_name?: string } }) => ({
+    id: row.id as string,
+    client_id: row.client_id as string,
     client_name: row.clients?.company_name ?? 'Unknown',
-    recipient_email: row.recipient_email ?? '',
-    subject: row.subject ?? 'Untitled',
-    delivery_status: row.delivery_status,
-    sent_at: row.sent_at,
-    filing_type_id: row.filing_type_id ?? null,
-    send_type: row.send_type || 'scheduled',
+    recipient_email: (row.recipient_email as string | null) ?? '',
+    subject: (row.subject as string | null) ?? 'Untitled',
+    delivery_status: row.delivery_status as string,
+    sent_at: row.sent_at as string,
+    filing_type_id: (row.filing_type_id as string | null) ?? null,
+    send_type: (row.send_type as 'scheduled' | 'ad-hoc') || 'scheduled',
   }));
 }

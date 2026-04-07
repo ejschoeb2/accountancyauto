@@ -1,5 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from '@/lib/logger';
+import type { TipTapDocument } from '@/lib/types/database';
+
+// ---------------------------------------------------------------------------
+// Template body JSON — extracted to separate files to keep this file concise
+// ---------------------------------------------------------------------------
+
+import friendlyFirstReminderBody from './templates/friendly-first-reminder.json';
+import followUpReminderBody from './templates/follow-up-reminder.json';
+import urgentFinalNoticeBody from './templates/urgent-final-notice.json';
+import companiesHouseReminderBody from './templates/companies-house-reminder.json';
+import vatReturnReminderBody from './templates/vat-return-reminder.json';
+import mtdQuarterlyReminderBody from './templates/mtd-quarterly-reminder.json';
+import confirmationStatementReminderBody from './templates/confirmation-statement-reminder.json';
+import payrollP11dReminderBody from './templates/payroll-p11d-reminder.json';
+import cisMonthlyReturnReminderBody from './templates/cis-monthly-return-reminder.json';
+import selfAssessmentReminderBody from './templates/self-assessment-reminder.json';
 
 // ---------------------------------------------------------------------------
 // Default email template content
@@ -9,956 +25,52 @@ const TEMPLATES = [
   {
     name: "Friendly First Reminder",
     subject: "{{filing_type}} — deadline approaching for {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "I hope this email finds you well. This is a friendly reminder that your ",
-              type: "text",
-            },
-            {
-              type: "placeholder",
-              attrs: { id: "filing_type", label: "Filing Type" },
-            },
-            { text: " deadline is on ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: " (", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days from now).", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "To ensure everything is submitted on time, please send across any outstanding records or documents at your earliest convenience. If you have already done so, please disregard this message.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "If you have any questions, please don't hesitate to get in touch.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Kind regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    body_json: friendlyFirstReminderBody as TipTapDocument,
   },
-
   {
     name: "Follow-Up Reminder",
-    subject:
-      "Action needed: {{filing_type}} due {{deadline_short}} — {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Further to our previous correspondence, I wanted to follow up regarding your ",
-              type: "text",
-            },
-            {
-              type: "placeholder",
-              attrs: { id: "filing_type", label: "Filing Type" },
-            },
-            { text: " which is due on ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: ". This is now just ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days away.", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "We still require the following to complete your filing on time:",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Any outstanding invoices and receipts", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Bank statements for the relevant period", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "- Details of any significant transactions",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Please send these through as soon as possible",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            {
-              text: " to allow us adequate time to prepare and submit your return before the deadline.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Many thanks,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "Action needed: {{filing_type}} due {{deadline_short}} — {{client_name}}",
+    body_json: followUpReminderBody as TipTapDocument,
   },
-
   {
     name: "Urgent Final Notice",
-    subject:
-      "URGENT: {{filing_type}} deadline in {{days_until_deadline}} days — {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "This is an urgent reminder",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            { text: " that your ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "filing_type", label: "Filing Type" },
-            },
-            { text: " deadline is on ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: " — only ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days away.", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Late filing or payment may result in penalties and interest charges from HMRC. To avoid this, we need to receive any outstanding information ",
-              type: "text",
-            },
-            {
-              text: "immediately",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            { text: ".", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "If there are any circumstances preventing you from providing the required documents, please contact us today so we can discuss your options.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "URGENT: {{filing_type}} deadline in {{days_until_deadline}} days — {{client_name}}",
+    body_json: urgentFinalNoticeBody as TipTapDocument,
   },
-
   {
     name: "Companies House Reminder",
-    subject:
-      "Companies House accounts due {{deadline_short}} — {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "This is a reminder that your ",
-              type: "text",
-            },
-            {
-              text: "Companies House annual accounts",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            { text: " are due for filing by ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: ". There are ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days remaining.", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Late filing with Companies House incurs automatic penalties starting at ",
-              type: "text",
-            },
-            { text: "£150", type: "text", marks: [{ type: "bold" }] },
-            {
-              text: " and increasing over time. Please ensure all year-end information has been provided so we can prepare and file your accounts promptly.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "If you believe your accounts have already been submitted, or if you have any queries, please let us know.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Kind regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "Companies House accounts due {{deadline_short}} — {{client_name}}",
+    body_json: companiesHouseReminderBody as TipTapDocument,
   },
-
   {
     name: "VAT Return Reminder",
-    subject:
-      "VAT Return due {{deadline_short}} — records needed for {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            { text: "Your ", type: "text" },
-            { text: "VAT Return", type: "text", marks: [{ type: "bold" }] },
-            {
-              text: " is due for submission and payment by ",
-              type: "text",
-            },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: ". We have ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days to get this filed.", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Please ensure we have the following for the quarter:",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [{ text: "- All sales invoices issued", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- All purchase invoices and receipts", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "- Bank statements covering the VAT period",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Any import/EU transactions", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "If you use bookkeeping software, please ensure your records are up to date and grant us access if you haven't already.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Best regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "VAT Return due {{deadline_short}} — records needed for {{client_name}}",
+    body_json: vatReturnReminderBody as TipTapDocument,
   },
-
   {
     name: "MTD Quarterly Return Reminder",
-    subject:
-      "MTD Quarterly Return due {{deadline_short}} — {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            { text: "Your ", type: "text" },
-            {
-              text: "MTD Quarterly Return",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            {
-              text: " is due for digital submission to HMRC by ",
-              type: "text",
-            },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: " (", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days remaining).", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Under Making Tax Digital, quarterly updates must be submitted digitally through compatible software. To prepare your submission, please ensure we have:",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- All income received during the quarter", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- All business expenses and receipts", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "- Bank statements covering the quarter period",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "If your bookkeeping software is up to date, please let us know and we can submit on your behalf.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Kind regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "MTD Quarterly Return due {{deadline_short}} — {{client_name}}",
+    body_json: mtdQuarterlyReminderBody as TipTapDocument,
   },
-
   {
     name: "Confirmation Statement Reminder",
-    subject:
-      "Confirmation Statement due {{deadline_short}} — {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            { text: "Your ", type: "text" },
-            {
-              text: "Confirmation Statement",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            {
-              text: " is due to be filed with Companies House by ",
-              type: "text",
-            },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: " (", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days remaining).", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "The Confirmation Statement confirms that the information Companies House holds about your company is correct and up to date. Please let us know if there have been any changes to:",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Registered office address", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Directors or company secretary", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Shareholders or share capital", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- SIC codes (nature of business)", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "If nothing has changed, we can file this on your behalf. Late filing may result in your company being struck off the register.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Kind regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "Confirmation Statement due {{deadline_short}} — {{client_name}}",
+    body_json: confirmationStatementReminderBody as TipTapDocument,
   },
-
   {
     name: "Payroll & P11D Reminder",
-    subject:
-      "{{filing_type}} due {{deadline_short}} — {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            { text: "Your ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "filing_type", label: "Filing Type" },
-            },
-            { text: " deadline is ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: " (", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days remaining).", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Please ensure all payroll records are up to date and any employee benefits or expenses have been reported. If you have any queries about what needs to be included, please get in touch.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Kind regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "{{filing_type}} due {{deadline_short}} — {{client_name}}",
+    body_json: payrollP11dReminderBody as TipTapDocument,
   },
-
   {
     name: "CIS Monthly Return Reminder",
-    subject:
-      "CIS Monthly Return due {{deadline_short}} — {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            { text: "Your ", type: "text" },
-            {
-              text: "CIS Monthly Return",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            { text: " is due by ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: " (", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days remaining).", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Please provide details of all payments made to subcontractors during this period, including:",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Subcontractor names and UTR numbers", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Gross payment amounts", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- CIS deductions made", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Late filing incurs a £100 penalty from HMRC, increasing with further delays. Please send this information through promptly.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Kind regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "CIS Monthly Return due {{deadline_short}} — {{client_name}}",
+    body_json: cisMonthlyReturnReminderBody as TipTapDocument,
   },
-
   {
     name: "Self Assessment Reminder",
-    subject:
-      "Self Assessment tax return — {{days_until_deadline}} days left for {{client_name}}",
-    body_json: {
-      type: "doc",
-      content: [
-        {
-          type: "paragraph",
-          content: [
-            { text: "Dear ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "client_name", label: "Client Name" },
-            },
-            { text: ",", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            { text: "The ", type: "text" },
-            {
-              text: "Self Assessment",
-              type: "text",
-              marks: [{ type: "bold" }],
-            },
-            { text: " deadline of ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "deadline", label: "Deadline" },
-            },
-            { text: " is approaching. You have ", type: "text" },
-            {
-              type: "placeholder",
-              attrs: { id: "days_until_deadline", label: "Days Until Deadline" },
-            },
-            { text: " days remaining.", type: "text" },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "To prepare your tax return, we will need:",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- P60 / P45 from any employment", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Self-employment income and expenses", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "- Rental income details (if applicable)",
-              type: "text",
-            },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            { text: "- Dividend vouchers and investment income", type: "text" },
-          ],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "- Gift Aid donations and pension contributions",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [
-            {
-              text: "Please gather these documents and send them through at your earliest convenience. Early submission helps avoid the last-minute rush and ensures any tax owed is calculated in good time.",
-              type: "text",
-            },
-          ],
-        },
-        { type: "paragraph" },
-        {
-          type: "paragraph",
-          content: [{ text: "Warm regards,", type: "text" }],
-        },
-        {
-          type: "paragraph",
-          content: [
-            {
-              type: "placeholder",
-              attrs: { id: "accountant_name", label: "Accountant Name" },
-            },
-          ],
-        },
-      ],
-    },
+    subject: "Self Assessment tax return — {{days_until_deadline}} days left for {{client_name}}",
+    body_json: selfAssessmentReminderBody as TipTapDocument,
   },
 ];
 
@@ -971,7 +83,7 @@ const TEMPLATES = [
  * section before the sign-off (last 3 nodes: blank + sign-off text + accountant name).
  */
 function addPortalLinkSection(bodyJson: object): object {
-  const doc: any = JSON.parse(JSON.stringify(bodyJson));
+  const doc = JSON.parse(JSON.stringify(bodyJson)) as TipTapDocument;
   const portalNodes = [
     { type: "paragraph" },
     {
@@ -1185,7 +297,7 @@ export async function seedOrgDefaults(
       .select("id, name");
 
     if (tErr || !templates) {
-      logger.error("[seedOrgDefaults] Failed to insert templates:", { error: (tErr as any)?.message ?? String(tErr) });
+      logger.error("[seedOrgDefaults] Failed to insert templates:", { error: (tErr as Error)?.message ?? String(tErr) });
       return;
     }
 
@@ -1208,7 +320,7 @@ export async function seedOrgDefaults(
         .single();
 
       if (sErr || !schedule) {
-        logger.error(`[seedOrgDefaults] Failed to insert schedule "${sched.name}":`, { error: (sErr as any)?.message ?? String(sErr) });
+        logger.error(`[seedOrgDefaults] Failed to insert schedule "${sched.name}":`, { error: (sErr as Error)?.message ?? String(sErr) });
         continue;
       }
 
@@ -1238,7 +350,7 @@ export async function seedOrgDefaults(
           .insert(steps);
 
         if (stErr) {
-          logger.error(`[seedOrgDefaults] Failed to insert steps for "${sched.name}":`, { error: (stErr as any)?.message ?? String(stErr) });
+          logger.error(`[seedOrgDefaults] Failed to insert steps for "${sched.name}":`, { error: (stErr as Error)?.message ?? String(stErr) });
         }
       }
     }
@@ -1250,7 +362,7 @@ export async function seedOrgDefaults(
       .eq("is_seeded_default", true);
 
     if (ftErr) {
-      logger.error("[seedOrgDefaults] Failed to fetch default filing types:", { error: (ftErr as any)?.message ?? String(ftErr) });
+      logger.error("[seedOrgDefaults] Failed to fetch default filing types:", { error: (ftErr as Error)?.message ?? String(ftErr) });
     } else if (defaultFilingTypes && defaultFilingTypes.length > 0) {
       const selections = defaultFilingTypes.map((ft) => ({
         org_id: orgId,
@@ -1264,11 +376,11 @@ export async function seedOrgDefaults(
         .upsert(selections, { onConflict: "org_id,filing_type_id" });
 
       if (selErr) {
-        logger.error("[seedOrgDefaults] Failed to activate default filing types:", { error: (selErr as any)?.message ?? String(selErr) });
+        logger.error("[seedOrgDefaults] Failed to activate default filing types:", { error: (selErr as Error)?.message ?? String(selErr) });
       }
     }
   } catch (err) {
     // Non-fatal — org creation succeeded even if seeding fails
-    logger.error("[seedOrgDefaults] Unexpected error:", { error: (err as any)?.message ?? String(err) });
+    logger.error("[seedOrgDefaults] Unexpected error:", { error: (err as Error)?.message ?? String(err) });
   }
 }

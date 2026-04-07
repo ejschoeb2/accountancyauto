@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import { PlaceholderNode } from '../extensions/placeholder-node'
 import { PasteHandler } from '../extensions/paste-handler'
-import type { TipTapDocument } from '@/lib/types/database'
+import type { TipTapDocument, TipTapNode } from '@/lib/types/database'
 import { useEffect, forwardRef, useImperativeHandle } from 'react'
 import type { Editor } from '@tiptap/react'
 
@@ -27,8 +27,8 @@ const PLACEHOLDER_LABELS: Record<string, string> = {
 function normalizePlaceholders(doc: TipTapDocument): TipTapDocument {
   const PATTERN = /\{\{(\w+)\}\}/g
 
-  function processContent(nodes: any[]): any[] {
-    const result: any[] = []
+  function processContent(nodes: TipTapNode[]): TipTapNode[] {
+    const result: TipTapNode[] = []
     for (const node of nodes) {
       if (node.type === 'text' && typeof node.text === 'string' && PATTERN.test(node.text)) {
         // Split text around {{variable}} patterns

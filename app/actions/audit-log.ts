@@ -166,33 +166,35 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
   }
 
   // Transform the data to match AuditEntry interface, mapping reference data from lookups
-  const entries: AuditEntry[] = (data || []).map((row: any) => {
-    const client = clientMap.get(row.client_id);
-    const reminderQueueData = row.reminder_queue_id ? reminderQueueMap.get(row.reminder_queue_id) : null;
+  const entries: AuditEntry[] = (data || []).map((row: Record<string, unknown>) => {
+    const client = clientMap.get(row.client_id as string);
+    const reminderQueueData = row.reminder_queue_id ? reminderQueueMap.get(row.reminder_queue_id as string) : null;
 
+    const filingTypeId = row.filing_type_id as string | null;
+    const reminderQueueId = row.reminder_queue_id as string | null;
     return {
-      id: row.id,
-      sent_at: row.sent_at,
-      client_id: row.client_id,
+      id: row.id as string,
+      sent_at: row.sent_at as string,
+      client_id: row.client_id as string,
       client_name: client?.company_name || 'Unknown',
       client_type: client?.client_type || null,
-      filing_type_id: row.filing_type_id,
-      filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
+      filing_type_id: filingTypeId,
+      filing_type_name: filingTypeId ? (filingTypeMap.get(filingTypeId) || null) : null,
       deadline_date: reminderQueueData?.deadline_date || null,
       step_index: reminderQueueData?.step_index ?? null,
       template_name: (() => {
-        const rq = row.reminder_queue_id ? reminderQueueMap.get(row.reminder_queue_id) : null;
-        const scheduleId = row.filing_type_id ? filingTypeToScheduleId.get(row.filing_type_id) : rq?.template_id;
+        const rq = reminderQueueId ? reminderQueueMap.get(reminderQueueId) : null;
+        const scheduleId = filingTypeId ? filingTypeToScheduleId.get(filingTypeId) : rq?.template_id;
         const stepIndex = rq?.step_index;
         if (scheduleId && stepIndex != null) {
-          return stepTemplateNameMap.get(`${scheduleId}:${stepIndex}`) || scheduleMap.get(row.filing_type_id) || null;
+          return stepTemplateNameMap.get(`${scheduleId}:${stepIndex}`) || scheduleMap.get(filingTypeId ?? '') || null;
         }
-        return row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null;
+        return filingTypeId ? (scheduleMap.get(filingTypeId) || null) : null;
       })(),
-      delivery_status: row.delivery_status,
-      recipient_email: row.recipient_email,
-      subject: row.subject,
-      send_type: row.send_type || 'scheduled',
+      delivery_status: row.delivery_status as AuditEntry['delivery_status'],
+      recipient_email: row.recipient_email as string,
+      subject: row.subject as string,
+      send_type: (row.send_type as AuditEntry['send_type']) || 'scheduled',
     };
   });
 
@@ -290,7 +292,7 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
   );
   // Build step-level template subject lookup: (schedule_id:step_number) → email template subject
   const emailTemplateSubjectMap = new Map(
-    (emailTemplates || []).map((t: { id: string; name: string; subject?: string }) => [t.id, (t as any).subject || null])
+    (emailTemplates || []).map((t: { id: string; name: string; subject?: string }) => [t.id, t.subject ?? null])
   );
   const stepTemplateSubjectMap = new Map(
     (scheduleSteps || []).map((s: { schedule_id: string; step_number: number; email_template_id: string }) => [
@@ -364,37 +366,41 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
   }
 
   // Transform the data, mapping reference data from lookups
-  const reminders: QueuedReminder[] = (data || []).map((row: any) => {
-    const client = clientMap.get(row.client_id);
+  const reminders: QueuedReminder[] = (data || []).map((row: Record<string, unknown>) => {
+    const client = clientMap.get(row.client_id as string);
 
+    const rowFilingTypeId = row.filing_type_id as string | null;
+    const rowTemplateId = row.template_id as string | null;
+    const rowStepIndex = row.step_index as number | null;
+    const rowDeadlineDate = row.deadline_date as string | null;
     return {
-      id: row.id,
-      client_id: row.client_id,
+      id: row.id as string,
+      client_id: row.client_id as string,
       client_name: client?.company_name || 'Unknown',
       client_type: client?.client_type || null,
-      filing_type_id: row.filing_type_id,
-      filing_type_name: row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || null) : null,
-      template_id: row.template_id,
+      filing_type_id: rowFilingTypeId,
+      filing_type_name: rowFilingTypeId ? (filingTypeMap.get(rowFilingTypeId) || null) : null,
+      template_id: rowTemplateId,
       // Resolve the actual email template name for this specific step
       template_name: (() => {
-        const scheduleId = row.filing_type_id ? filingTypeToScheduleId.get(row.filing_type_id) : row.template_id;
-        if (scheduleId && row.step_index != null) {
-          return stepTemplateNameMap.get(`${scheduleId}:${row.step_index}`) || scheduleMap.get(row.filing_type_id) || null;
+        const scheduleId = rowFilingTypeId ? filingTypeToScheduleId.get(rowFilingTypeId) : rowTemplateId;
+        if (scheduleId && rowStepIndex != null) {
+          return stepTemplateNameMap.get(`${scheduleId}:${rowStepIndex}`) || scheduleMap.get(rowFilingTypeId ?? '') || null;
         }
-        return row.filing_type_id ? (scheduleMap.get(row.filing_type_id) || null) : null;
+        return rowFilingTypeId ? (scheduleMap.get(rowFilingTypeId) || null) : null;
       })(),
-      send_date: row.send_date,
-      deadline_date: row.deadline_date,
-      status: row.status,
-      subject: row.resolved_subject || (() => {
-        const scheduleId = row.filing_type_id ? filingTypeToScheduleId.get(row.filing_type_id) : row.template_id;
-        if (scheduleId && row.step_index != null) {
-          const templateSubject = stepTemplateSubjectMap.get(`${scheduleId}:${row.step_index}`);
+      send_date: row.send_date as string,
+      deadline_date: rowDeadlineDate,
+      status: row.status as QueuedReminder['status'],
+      subject: (row.resolved_subject as string | null) || (() => {
+        const scheduleId = rowFilingTypeId ? filingTypeToScheduleId.get(rowFilingTypeId) : rowTemplateId;
+        if (scheduleId && rowStepIndex != null) {
+          const templateSubject = stepTemplateSubjectMap.get(`${scheduleId}:${rowStepIndex}`);
           if (templateSubject) {
             // Resolve placeholders with available data
-            const filingTypeName = row.filing_type_id ? (filingTypeMap.get(row.filing_type_id) || '') : '';
-            const deadlineFormatted = row.deadline_date
-              ? new Date(row.deadline_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+            const filingTypeName = rowFilingTypeId ? (filingTypeMap.get(rowFilingTypeId) || '') : '';
+            const deadlineFormatted = rowDeadlineDate
+              ? new Date(rowDeadlineDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
               : '';
             return templateSubject
               .replace(/\{\{client_name\}\}/g, client?.company_name || '')
@@ -406,8 +412,8 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
         }
         return null;
       })(),
-      step_index: row.step_index,
-      created_at: row.created_at,
+      step_index: rowStepIndex as number,
+      created_at: row.created_at as string,
     };
   });
 
@@ -497,7 +503,7 @@ export async function previewQueuedEmail(
     }
 
     // Find the step matching reminder.step_index
-    const step = steps.find((s: any) => s.step_number === reminder.step_index);
+    const step = steps.find((s: { step_number: number; email_template_id: string }) => s.step_number === reminder.step_index);
     if (!step) {
       return { error: `Step ${reminder.step_index} not found in schedule` };
     }

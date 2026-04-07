@@ -1,0 +1,63 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Dear ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "client_name", "label": "Client Name" } },
+        { "text": ",", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Your ", "type": "text" },
+        { "text": "MTD Quarterly Return", "type": "text", "marks": [{ "type": "bold" }] },
+        { "text": " is due for digital submission to HMRC by ", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "deadline", "label": "Deadline" } },
+        { "text": " (", "type": "text" },
+        { "type": "placeholder", "attrs": { "id": "days_until_deadline", "label": "Days Until Deadline" } },
+        { "text": " days remaining).", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "Under Making Tax Digital, quarterly updates must be submitted digitally through compatible software. To prepare your submission, please ensure we have:", "type": "text" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- All income received during the quarter", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- All business expenses and receipts", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "- Bank statements covering the quarter period", "type": "text" }]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [
+        { "text": "If your bookkeeping software is up to date, please let us know and we can submit on your behalf.", "type": "text" }
+      ]
+    },
+    { "type": "paragraph" },
+    {
+      "type": "paragraph",
+      "content": [{ "text": "Kind regards,", "type": "text" }]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "placeholder", "attrs": { "id": "accountant_name", "label": "Accountant Name" } }
+      ]
+    }
+  ]
+}
