@@ -21,6 +21,7 @@ import { Readable } from 'stream';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { withTokenRefresh, type GoogleCredentials } from './token-refresh';
 import type { StorageProvider, UploadParams } from '@/lib/documents/storage';
+import { escapeDriveFolderName } from './utils';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ export class GoogleDriveProvider implements StorageProvider {
     name: string,
   ): Promise<string> {
     // Escape single quotes in folder name to avoid breaking the Drive query syntax
-    const escapedName = name.replace(/'/g, "\\'");
+    const escapedName = escapeDriveFolderName(name);
 
     const listResponse = await drive.files.list({
       q: `name='${escapedName}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,

@@ -24,6 +24,7 @@ import { auth } from '@googleapis/drive';
 import type { OAuth2Client } from 'google-auth-library';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { encryptToken, decryptToken } from '@/lib/crypto/tokens';
+import { isGoogleInvalidGrant, isTokenExpired } from './utils';
 
 /** Encrypted credential bundle passed by callers of withTokenRefresh. */
 export interface GoogleCredentials {
@@ -37,26 +38,9 @@ export interface GoogleCredentials {
   org_id: string;
 }
 
-/**
- * Detects whether an error is an invalid_grant response from the Google OAuth2 endpoint.
- *
- * invalid_grant is fatal — the refresh token cannot be used again. Callers must not retry.
- */
-function isInvalidGrant(err: unknown): boolean {
-  if (err && typeof err === 'object') {
-    // google-auth-library surfaces error as err.response.data.error
-    const anyErr = err as Record<string, unknown>;
-    const response = anyErr['response'] as Record<string, unknown> | undefined;
-    if (response) {
-      const data = response['data'] as Record<string, unknown> | undefined;
-      if (data?.['error'] === 'invalid_grant') return true;
-    }
-    // Also check direct error message for edge cases
-    const message = anyErr['message'];
-    if (typeof message === 'string' && message.includes('invalid_grant')) return true;
-  }
-  return false;
-}
+// isGoogleInvalidGrant is re-exported from utils for external use (e.g. tests).
+// The local alias below keeps call-sites in this file unchanged.
+const isInvalidGrant = isGoogleInvalidGrant;
 
 /**
  * Nullifies all Google token columns on organisations and sets storage_backend_status
@@ -107,9 +91,7 @@ export async function withTokenRefresh<T>(
   );
 
   // ── Proactive refresh: if token expires within 5 minutes, refresh now ──────────
-  const expiresAtMs = new Date(creds.expires_at).getTime();
-  const fiveMinutesMs = 5 * 60 * 1000;
-  const needsRefresh = expiresAtMs < Date.now() + fiveMinutesMs;
+  const needsRefresh = isTokenExpired(creds.expires_at);
 
   if (needsRefresh) {
     let refreshToken: string;

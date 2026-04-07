@@ -23,6 +23,7 @@ import { Dropbox, DropboxAuth } from 'dropbox';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { encryptToken, decryptToken } from '@/lib/crypto/tokens';
 import type { StorageProvider, UploadParams } from '@/lib/documents/storage';
+import { isDropboxUnrecoverableError, buildDropboxUploadPath } from './utils';
 
 // ── DropboxProvider ───────────────────────────────────────────────────────────
 
@@ -94,14 +95,7 @@ export class DropboxProvider implements StorageProvider {
       }
     } catch (err) {
       // Detect unrecoverable auth errors (revoked or permanently expired refresh token)
-      const errMsg = err instanceof Error ? err.message : String(err);
-      const isUnrecoverable =
-        errMsg.includes('invalid_grant') ||
-        errMsg.includes('expired_access_token') ||
-        errMsg.includes('Invalid refresh token') ||
-        errMsg.includes('Token has been revoked');
-
-      if (isUnrecoverable) {
+      if (isDropboxUnrecoverableError(err)) {
         // Signal re-auth required and clear tokens — never retry
         await admin
           .from('organisations')
@@ -133,10 +127,15 @@ export class DropboxProvider implements StorageProvider {
   async upload(params: UploadParams): Promise<{ storagePath: string }> {
     const { dbx } = await this.getAuthClient();
 
-    const ext = params.originalFilename.split('.').pop()?.toLowerCase() ?? 'bin';
     const uuid = crypto.randomUUID();
     const clientFolder = params.clientName ?? params.clientId;
-    const path = `/${clientFolder}/${params.filingTypeId}/${params.taxYear}/${uuid}.${ext}`;
+    const path = buildDropboxUploadPath(
+      clientFolder,
+      params.filingTypeId,
+      params.taxYear,
+      params.originalFilename,
+      uuid,
+    );
 
     await dbx.filesUpload({
       path,

@@ -26,6 +26,12 @@ import {
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PostgresMsalCachePlugin } from './msal-cache-plugin';
 import type { StorageProvider, UploadParams } from '@/lib/documents/storage';
+import {
+  buildOneDriveUploadUrl,
+  buildOneDriveDownloadMetaUrl,
+  buildOneDriveBytesUrl,
+  buildOneDriveDeleteUrl,
+} from './utils';
 
 export class OneDriveProvider implements StorageProvider {
   constructor(
@@ -139,18 +145,16 @@ export class OneDriveProvider implements StorageProvider {
     const accessToken = await this.getAccessToken();
 
     // Build URL-safe path segments — encode each segment individually to preserve slashes
-    const clientName = params.clientName ?? params.clientId;
-    const encodedPath = [
-      encodeURIComponent(clientName),
-      encodeURIComponent(params.filingTypeId),
-      encodeURIComponent(params.taxYear),
-      encodeURIComponent(params.originalFilename),
-    ].join('/');
-
     // Path-based PUT via approot: /me/drive/special/approot:/{path}:/content
     // Files.ReadWrite.AppFolder restricts access to the app's own folder — Prompt cannot
     // see any other files in the user's OneDrive.
-    const url = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodedPath}:/content`;
+    const clientName = params.clientName ?? params.clientId;
+    const url = buildOneDriveUploadUrl([
+      clientName,
+      params.filingTypeId,
+      params.taxYear,
+      params.originalFilename,
+    ]);
 
     const response = await fetch(url, {
       method: 'PUT',
@@ -185,7 +189,7 @@ export class OneDriveProvider implements StorageProvider {
     const accessToken = await this.getAccessToken();
 
     // Select only the fields we need — avoid fetching full item metadata
-    const url = `https://graph.microsoft.com/v1.0/me/drive/items/${storagePath}?$select=id,%40microsoft.graph.downloadUrl`;
+    const url = buildOneDriveDownloadMetaUrl(storagePath);
 
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -217,7 +221,7 @@ export class OneDriveProvider implements StorageProvider {
   async getBytes(storagePath: string): Promise<Buffer> {
     const accessToken = await this.getAccessToken();
 
-    const url = `https://graph.microsoft.com/v1.0/me/drive/items/${storagePath}/content`;
+    const url = buildOneDriveBytesUrl(storagePath);
 
     const response = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -240,7 +244,7 @@ export class OneDriveProvider implements StorageProvider {
   async delete(storagePath: string): Promise<void> {
     const accessToken = await this.getAccessToken();
 
-    const url = `https://graph.microsoft.com/v1.0/me/drive/items/${storagePath}`;
+    const url = buildOneDriveDeleteUrl(storagePath);
 
     const response = await fetch(url, {
       method: 'DELETE',
