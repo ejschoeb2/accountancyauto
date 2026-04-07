@@ -1,10 +1,52 @@
 'use server';
 
+/**
+ * Error convention:
+ * - Server actions throw on failure (Next.js catches via error boundaries)
+ * - Return { success, message } for operations where the caller needs to display a specific message
+ * - Never return { error } — either throw or return a success result
+ */
+
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendRichEmailForOrg } from '@/lib/email/sender';
 import { previewQueuedEmail } from '@/app/actions/audit-log';
 import { logger } from '@/lib/logger';
+
+// --- Shared helper ---
+
+/**
+ * Normalises the result of a reminder_queue status update into a consistent
+ * { success, message, count } shape. Centralises the try/catch and error
+ * logging pattern shared by cancelScheduling, pauseScheduling, and
+ * uncancelScheduling.
+ *
+ * Each caller executes its own filtered Supabase query (because each needs a
+ * different status guard: .neq / .in / .eq) and passes the awaited
+ * { error, count } result here along with a success message factory.
+ */
+async function updateReminderQueueStatus(
+  queryFn: () => Promise<{ error: { message: string } | null; count: number | null }>,
+  successMessage: (count: number) => string
+): Promise<{ success: boolean; message: string; count: number }> {
+  try {
+    const { error, count } = await queryFn();
+
+    if (error) {
+      logger.error('Error updating reminder queue status:', { error: (error as any)?.message ?? String(error) });
+      throw error;
+    }
+
+    return { success: true, message: successMessage(count || 0), count: count || 0 };
+  } catch (error) {
+    logger.error('Error in updateReminderQueueStatus:', { error: (error as any)?.message ?? String(error) });
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      count: 0,
+    };
+  }
+}
 
 export interface CancelSchedulingParams {
   reminderIds: string[];
@@ -21,39 +63,19 @@ export async function cancelScheduling(params: CancelSchedulingParams): Promise<
   const { reminderIds } = params;
 
   if (reminderIds.length === 0) {
-    return {
-      success: false,
-      message: 'No reminders selected',
-      cancelledCount: 0,
-    };
+    return { success: false, message: 'No reminders selected', cancelledCount: 0 };
   }
 
-  try {
-    // Update status to 'cancelled' for selected reminders
-    const { error, count } = await supabase
+  const result = await updateReminderQueueStatus(
+    () => supabase
       .from('reminder_queue')
       .update({ status: 'cancelled' })
       .in('id', reminderIds)
-      .neq('status', 'sent'); // Don't cancel already sent emails
+      .neq('status', 'sent'), // Don't cancel already sent emails
+    (count) => `Successfully cancelled ${count} scheduled email(s)`
+  );
 
-    if (error) {
-      logger.error('Error cancelling scheduling:', { error: (error as any)?.message ?? String(error) });
-      throw error;
-    }
-
-    return {
-      success: true,
-      message: `Successfully cancelled ${count || 0} scheduled email(s)`,
-      cancelledCount: count || 0,
-    };
-  } catch (error) {
-    logger.error('Error in cancelScheduling:', { error: (error as any)?.message ?? String(error) });
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-      cancelledCount: 0,
-    };
-  }
+  return { success: result.success, message: result.message, cancelledCount: result.count };
 }
 
 export interface PauseSchedulingParams {
@@ -71,39 +93,19 @@ export async function pauseScheduling(params: PauseSchedulingParams): Promise<Pa
   const { reminderIds } = params;
 
   if (reminderIds.length === 0) {
-    return {
-      success: false,
-      message: 'No reminders selected',
-      pausedCount: 0,
-    };
+    return { success: false, message: 'No reminders selected', pausedCount: 0 };
   }
 
-  try {
-    // Update status to 'paused' for scheduled/rescheduled reminders only
-    const { error, count } = await supabase
+  const result = await updateReminderQueueStatus(
+    () => supabase
       .from('reminder_queue')
       .update({ status: 'paused' })
       .in('id', reminderIds)
-      .in('status', ['scheduled', 'rescheduled']); // Only pause active reminders
+      .in('status', ['scheduled', 'rescheduled']), // Only pause active reminders
+    (count) => `Successfully paused ${count} email(s)`
+  );
 
-    if (error) {
-      logger.error('Error pausing scheduling:', { error: (error as any)?.message ?? String(error) });
-      throw error;
-    }
-
-    return {
-      success: true,
-      message: `Successfully paused ${count || 0} email(s)`,
-      pausedCount: count || 0,
-    };
-  } catch (error) {
-    logger.error('Error in pauseScheduling:', { error: (error as any)?.message ?? String(error) });
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-      pausedCount: 0,
-    };
-  }
+  return { success: result.success, message: result.message, pausedCount: result.count };
 }
 
 export interface UncancelSchedulingParams {
@@ -121,39 +123,19 @@ export async function uncancelScheduling(params: UncancelSchedulingParams): Prom
   const { reminderIds } = params;
 
   if (reminderIds.length === 0) {
-    return {
-      success: false,
-      message: 'No reminders selected',
-      uncancelledCount: 0,
-    };
+    return { success: false, message: 'No reminders selected', uncancelledCount: 0 };
   }
 
-  try {
-    // Update status to 'scheduled' for cancelled reminders only
-    const { error, count } = await supabase
+  const result = await updateReminderQueueStatus(
+    () => supabase
       .from('reminder_queue')
       .update({ status: 'scheduled' })
       .in('id', reminderIds)
-      .eq('status', 'cancelled'); // Only uncancel cancelled emails
+      .eq('status', 'cancelled'), // Only uncancel cancelled emails
+    (count) => `Successfully uncancelled ${count} email(s)`
+  );
 
-    if (error) {
-      logger.error('Error uncancelling scheduling:', { error: (error as any)?.message ?? String(error) });
-      throw error;
-    }
-
-    return {
-      success: true,
-      message: `Successfully uncancelled ${count || 0} email(s)`,
-      uncancelledCount: count || 0,
-    };
-  } catch (error) {
-    logger.error('Error in uncancelScheduling:', { error: (error as any)?.message ?? String(error) });
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Unknown error occurred',
-      uncancelledCount: 0,
-    };
-  }
+  return { success: result.success, message: result.message, uncancelledCount: result.count };
 }
 
 export interface RescheduleSpecificParams {

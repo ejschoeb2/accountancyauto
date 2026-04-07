@@ -1,5 +1,12 @@
 'use server';
 
+/**
+ * Error convention:
+ * - Server actions throw on failure (Next.js catches via error boundaries)
+ * - Return { success, message } for operations where the caller needs to display a specific message
+ * - Never return { error } — either throw or return a success result
+ */
+
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgId } from '@/lib/auth/org-context';
@@ -48,7 +55,8 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
   // Fetch filing types lookup (small reference table)
   const { data: filingTypes } = await supabase
     .from('filing_types')
-    .select('id, name');
+    .select('id, name')
+    .limit(1000);
   const filingTypeMap = new Map(
     (filingTypes || []).map((ft: { id: string; name: string }) => [ft.id, ft.name])
   );
@@ -56,7 +64,8 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
   // Fetch schedules lookup (small reference table)
   const { data: schedules } = await supabase
     .from('schedules')
-    .select('id, filing_type_id, name');
+    .select('id, filing_type_id, name')
+    .limit(1000);
   const scheduleMap = new Map(
     (schedules || []).map((s: { id: string; filing_type_id: string; name: string }) => [s.filing_type_id, s.name])
   );
@@ -64,10 +73,12 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
   // Build step-level template name lookup: (schedule_id:step_number) → email template name
   const { data: scheduleSteps } = await supabase
     .from('schedule_steps')
-    .select('schedule_id, step_number, email_template_id');
+    .select('schedule_id, step_number, email_template_id')
+    .limit(1000);
   const { data: emailTemplates } = await supabase
     .from('email_templates')
-    .select('id, name');
+    .select('id, name')
+    .limit(1000);
   const emailTemplateNameMap = new Map(
     (emailTemplates || []).map((t: { id: string; name: string }) => [t.id, t.name])
   );
