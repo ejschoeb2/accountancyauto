@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe/client";
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/stripe/create-portal-session
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    console.error("[create-portal-session] Error:", error);
+    logger.error("[create-portal-session] Error:", { error: (error as any)?.message ?? String(error) });
     const message =
       error instanceof Error
         ? error.message

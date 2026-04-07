@@ -1,5 +1,6 @@
 import { verifyPostmarkWebhook } from '@/lib/webhooks/postmark-verify';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
           .eq('postmark_message_id', event.MessageID);
 
         if (error) {
-          console.error('Failed to update delivery status:', error);
+          logger.error('Failed to update delivery status:', { error: (error as any)?.message ?? String(error) });
         }
         break;
       }
@@ -75,21 +76,21 @@ export async function POST(request: Request) {
           .eq('postmark_message_id', event.MessageID);
 
         if (error) {
-          console.error('Failed to update bounce status:', error);
+          logger.error('Failed to update bounce status:', { error: (error as any)?.message ?? String(error) });
         }
         break;
       }
 
       default:
         // Log unhandled event types for monitoring
-        console.warn(`Unhandled webhook event type: ${event.RecordType}`);
+        logger.warn(`Unhandled webhook event type: ${event.RecordType}`);
     }
 
     // Always return 200 to acknowledge receipt
     // Postmark will retry if we return non-200 status
     return Response.json({ received: true }, { status: 200 });
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    logger.error('Error processing webhook:', { error: (error as any)?.message ?? String(error) });
     // Still return 200 to prevent retries for processing errors
     return Response.json({ received: true }, { status: 200 });
   }

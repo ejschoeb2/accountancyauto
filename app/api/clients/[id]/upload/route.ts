@@ -7,6 +7,7 @@ import { classifyDocument } from '@/lib/documents/classify';
 import { runIntegrityChecks } from '@/lib/documents/integrity';
 import { calculateRetainUntil } from '@/lib/documents/metadata';
 import type { FilingTypeId } from '@/lib/types/database';
+import { logger } from '@/lib/logger';
 
 // Google Drive downloads may be large — allow up to 60 seconds on Vercel
 export const maxDuration = 60;
@@ -204,7 +205,7 @@ export async function POST(
       confidence: classification.confidence,
     });
   } catch (err) {
-    console.error('[Accountant Upload] Storage or DB error:', err);
+    logger.error('[Accountant Upload] Storage or DB error:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 });
   }
 }

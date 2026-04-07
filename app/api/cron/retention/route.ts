@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { createServiceClient } from '@/lib/supabase/service';
 import { sendRetentionFlaggedEmail } from '@/lib/documents/notifications';
+import { logger } from '@/lib/logger';
 
 export const maxDuration = 300;
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     .eq('retention_flagged', false);
 
   if (fetchError) {
-    console.error('[Retention Cron] Failed to fetch expired docs:', fetchError);
+    logger.error('[Retention Cron] Failed to fetch expired docs:', { error: (fetchError as any)?.message ?? String(fetchError) });
     return NextResponse.json({
       execution_id: executionId,
       started_at: startedAt,
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (!expiredDocs || expiredDocs.length === 0) {
-    console.log('[Retention Cron] No documents to flag');
+    logger.info('[Retention Cron] No documents to flag');
     return NextResponse.json({
       execution_id: executionId,
       started_at: startedAt,
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     .in('id', expiredDocs.map(d => d.id));
 
   if (updateError) {
-    console.error('[Retention Cron] Failed to flag documents:', updateError);
+    logger.error('[Retention Cron] Failed to flag documents:', { error: (updateError as any)?.message ?? String(updateError) });
     return NextResponse.json({
       execution_id: executionId,
       started_at: startedAt,
@@ -95,11 +96,11 @@ export async function GET(request: NextRequest) {
       await sendRetentionFlaggedEmail(orgId, normalised, supabase);
       orgsNotified++;
     } catch (err) {
-      console.error(`[Retention Cron] Failed to email org ${orgId}:`, err);
+      logger.error(`[Retention Cron] Failed to email org ${orgId}:`, { error: (err as any)?.message ?? String(err) });
     }
   }
 
-  console.log(`[Retention Cron] Flagged ${expiredDocs.length} documents across ${orgsNotified} orgs`);
+  logger.info(`[Retention Cron] Flagged ${expiredDocs.length} documents across ${orgsNotified} orgs`);
   return NextResponse.json({
     execution_id: executionId,
     started_at: startedAt,

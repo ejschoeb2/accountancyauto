@@ -50,6 +50,7 @@ import {
   getPostmarkSettings,
   type EmailSettings,
 } from "@/app/actions/settings";
+import { logger } from '@/lib/logger';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -320,7 +321,7 @@ export default function WizardPage() {
     if (orgCreated && nextStep !== "complete") {
       const draft = collectCurrentState();
       draft.step = nextStep;
-      saveSetupDraft(draft).catch((e) => console.warn("Draft save failed:", e));
+      saveSetupDraft(draft).catch((e) => logger.warn("Draft save failed:", e));
     }
     setAdminStep(nextStep);
   }
@@ -568,7 +569,7 @@ export default function WizardPage() {
         firmSlug: slug,
         selectedTier: tier,
         updatedAt: new Date().toISOString(),
-      }).catch((e) => console.warn("Draft save failed:", e));
+      }).catch((e) => logger.warn("Draft save failed:", e));
     } catch (err) {
       setPlanError(
         err instanceof Error
@@ -682,13 +683,13 @@ export default function WizardPage() {
     try {
       const result = await finaliseWizardSetup(clientPortalEnabled);
       if (result.error) {
-        console.error("finaliseWizardSetup returned error:", result.error);
+        logger.error("finaliseWizardSetup returned error", { error: String(result.error) });
         setCompleteError("Something went wrong finalising your setup. Please try again.");
         setIsLeavingWizard(false);
         return;
       }
     } catch (err) {
-      console.error("handleGoToDashboard setup error:", err);
+      logger.error("handleGoToDashboard setup error:", { error: (err as any)?.message ?? String(err) });
       setCompleteError("Something went wrong finalising your setup. Please try again.");
       setIsLeavingWizard(false);
       return;
@@ -1076,7 +1077,7 @@ export default function WizardPage() {
             onRowsChange={(rows) => {
               setSavedImportRows(rows);
               if (orgCreated && rows) {
-                saveDraftClients(rows).catch((e) => console.warn("Draft clients save failed:", e));
+                saveDraftClients(rows).catch((e) => logger.warn("Draft clients save failed:", e));
               }
             }}
             planClientLimit={selectedTier ? PLAN_TIERS.find((p) => p.key === selectedTier)?.clientLimit ?? null : null}
@@ -1122,7 +1123,7 @@ export default function WizardPage() {
                 selectedClientTypes: clientTypes,
                 disabledDocuments: disabledDocs,
                 updatedAt: new Date().toISOString(),
-              }).catch((e) => console.warn("Draft save failed:", e));
+              }).catch((e) => logger.warn("Draft save failed:", e));
               setAdminStep(nextStep);
             }}
             onBack={() => {

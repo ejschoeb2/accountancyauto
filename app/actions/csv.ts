@@ -5,6 +5,7 @@ import { csvRowSchema, type CsvValidationError } from "@/lib/validations/csv";
 import { createClient } from "@/lib/supabase/server";
 import { checkClientLimit } from "@/lib/billing/usage-limits";
 import { z } from "zod";
+import { logger } from '@/lib/logger';
 
 /**
  * Summary of the CSV import operation
@@ -104,7 +105,7 @@ export async function importClientMetadata(
     });
 
     if (parseResult.errors.length > 0) {
-      console.error("CSV parse errors:", parseResult.errors);
+      logger.error("CSV parse errors:", { error: parseResult.errors instanceof Error ? parseResult.errors.message : String(parseResult.errors) });
     }
 
     const rows = parseResult.data;
@@ -356,7 +357,7 @@ export async function importClientMetadata(
               .insert(assignmentsToInsert);
 
             if (assignError) {
-              console.error("Failed to auto-assign filing types:", assignError.message);
+              logger.error("Failed to auto-assign filing types:", { error: assignError.message });
               // Non-fatal: clients were created, assignments can be created later
             }
           }
@@ -370,7 +371,7 @@ export async function importClientMetadata(
     result.success = true;
     return result;
   } catch (error) {
-    console.error("CSV import error:", error);
+    logger.error("CSV import error:", { error: (error as any)?.message ?? String(error) });
     throw error instanceof Error
       ? error
       : new Error("An unexpected error occurred during import");

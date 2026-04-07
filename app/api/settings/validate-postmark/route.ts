@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ServerClient } from 'postmark';
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/settings/validate-postmark
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Postmark validation error:', error);
+    logger.error('Postmark validation error:', { error: (error as any)?.message ?? String(error) });
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

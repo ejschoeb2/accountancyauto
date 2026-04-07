@@ -23,6 +23,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
 import { auth } from '@googleapis/drive';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 /**
  * Constructs an OAuth2Client lazily at call time.
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .eq('id', orgId);
 
     if (stateError) {
-      console.error('[google-drive/connect] Failed to store CSRF state:', stateError);
+      logger.error('[google-drive/connect] Failed to store CSRF state:', { error: (stateError as any)?.message ?? String(stateError) });
       return NextResponse.redirect(errorUrl);
     }
 
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // ── Redirect to Google consent screen ────────────────────────────────
     return NextResponse.redirect(authUrl);
   } catch (err) {
-    console.error('[google-drive/connect] Error initiating OAuth flow:', err);
+    logger.error('[google-drive/connect] Error initiating OAuth flow:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.redirect(errorUrl);
   }
 }

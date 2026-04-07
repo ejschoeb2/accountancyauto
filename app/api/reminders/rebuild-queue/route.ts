@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildReminderQueue, buildCustomScheduleQueue } from '@/lib/reminders/queue-builder';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/reminders/rebuild-queue
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       skipped: filingResult.skipped + customResult.skipped,
     });
   } catch (error) {
-    console.error('Failed to rebuild queue:', error);
+    logger.error('Failed to rebuild queue:', { error: (error as any)?.message ?? String(error) });
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
   }

@@ -19,6 +19,7 @@
 import type { ICachePlugin, TokenCacheContext } from '@azure/msal-node';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { encryptToken, decryptToken } from '@/lib/crypto/tokens';
+import { logger } from '@/lib/logger';
 
 export class PostgresMsalCachePlugin implements ICachePlugin {
   constructor(private readonly orgId: string) {}
@@ -43,10 +44,7 @@ export class PostgresMsalCachePlugin implements ICachePlugin {
     if (error) {
       // Log but do not throw — MSAL will start with an empty cache on failure.
       // The next successful token acquisition will repopulate and persist the cache.
-      console.error(
-        `[PostgresMsalCachePlugin] Failed to load cache for org ${this.orgId}:`,
-        error.message,
-      );
+      logger.error("Failed to load MSAL cache", { orgId: this.orgId, error: error.message });
       return;
     }
 
@@ -82,10 +80,7 @@ export class PostgresMsalCachePlugin implements ICachePlugin {
       // Log but do not throw — a cache write failure is non-fatal; the token
       // was acquired successfully this session. The next silent token acquisition
       // will trigger another cache write attempt.
-      console.error(
-        `[PostgresMsalCachePlugin] Failed to persist cache for org ${this.orgId}:`,
-        error.message,
-      );
+      logger.error("Failed to persist MSAL cache", { orgId: this.orgId, error: error.message });
     }
   }
 }

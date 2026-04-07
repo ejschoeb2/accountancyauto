@@ -9,7 +9,7 @@
  * - ENCRYPTION_KEY env var: 64-character hex string (32 bytes = 256-bit key)
  * - Store ONLY in Vercel environment variables (encrypted at rest by Vercel)
  * - NEVER store in Supabase, app_settings, or source control
- * - Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ * - Generate: node -e "logger.info(require('crypto').randomBytes(32).toString('hex'))"
  *
  * Ciphertext format: `iv_hex:authTag_hex:encrypted_hex` (colon-delimited, all hex-encoded)
  * This self-contained format requires no external metadata for decryption.
@@ -19,6 +19,7 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { logger } from '@/lib/logger';
 
 const ALGORITHM = 'aes-256-gcm';
 
@@ -32,7 +33,7 @@ function getKey(): Buffer {
   if (!hex || hex.length !== 64) {
     throw new Error(
       'ENCRYPTION_KEY must be a 64-character hex string (32 bytes). ' +
-      'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+      'Generate with: node -e "logger.info(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
     );
   }
   return Buffer.from(hex, 'hex');

@@ -4,6 +4,7 @@ import { getOrgId } from "@/lib/auth/org-context";
 import { emailTemplateSchema } from "@/lib/validations/email-template";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import type { EmailTemplate } from "@/lib/types/database";
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/email-templates
@@ -38,7 +39,7 @@ export async function GET() {
   ]);
 
   if (templatesResult.error) {
-    console.error("Error fetching email templates:", templatesResult.error);
+    logger.error("Error fetching email templates:", { error: templatesResult.error instanceof Error ? templatesResult.error.message : String(templatesResult.error) });
     return NextResponse.json(
       { error: "Failed to fetch email templates" },
       { status: 500 }
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    console.error("Error creating email template:", error);
+    logger.error("Error creating email template:", { error: (error as any)?.message ?? String(error) });
 
     // Check for unique constraint violation
     if (error.code === "23505") {

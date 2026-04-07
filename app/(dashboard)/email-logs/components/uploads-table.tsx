@@ -28,6 +28,7 @@ import { Search, X, SlidersHorizontal, FileUp, ChevronLeft, ChevronRight, AlertT
 import { createClient } from '@/lib/supabase/client';
 import { DocumentPreviewModal, type ClientDocument } from '@/app/(dashboard)/clients/[id]/components/document-preview-modal';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -118,7 +119,7 @@ export function UploadsTable({ initialSort }: UploadsTableProps) {
       setData(result.data);
       setTotalCount(result.totalCount);
     } catch (err) {
-      console.error('Failed to load uploads:', err);
+      logger.error('Failed to load uploads:', { error: (err as any)?.message ?? String(err) });
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ import { drive as createDrive } from '@googleapis/drive';
 import { PostgresMsalCachePlugin } from '@/lib/storage/msal-cache-plugin';
 import { ConfidentialClientApplication, InteractionRequiredAuthError } from '@azure/msal-node';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 // App Router: force dynamic — reads portal token from URL params
 export const dynamic = 'force-dynamic';
@@ -249,7 +250,7 @@ export async function POST(
         storagePath: null,
       });
     } catch (err) {
-      console.error('[upload-session] Google Drive session initiation error:', err);
+      logger.error('[upload-session] Google Drive session initiation error:', { error: (err as any)?.message ?? String(err) });
       return NextResponse.json(
         { error: 'Failed to initiate Google Drive upload session' },
         { status: 500 }
@@ -302,7 +303,7 @@ export async function POST(
           { status: 500 }
         );
       }
-      console.error('[upload-session] OneDrive token acquisition error:', err);
+      logger.error('[upload-session] OneDrive token acquisition error:', { error: (err as any)?.message ?? String(err) });
       return NextResponse.json(
         { error: 'Failed to acquire OneDrive access token' },
         { status: 500 }
@@ -376,7 +377,7 @@ export async function POST(
         storagePath: null,
       });
     } catch (err) {
-      console.error('[upload-session] OneDrive session initiation error:', err);
+      logger.error('[upload-session] OneDrive session initiation error:', { error: (err as any)?.message ?? String(err) });
       return NextResponse.json(
         { error: 'Failed to initiate OneDrive upload session' },
         { status: 500 }

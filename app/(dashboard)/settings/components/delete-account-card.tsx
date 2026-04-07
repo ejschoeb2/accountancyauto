@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { logger } from '@/lib/logger';
 
 export function DeleteAccountCard() {
   const [loading, setLoading] = useState(false);
@@ -40,7 +41,7 @@ export function DeleteAccountCard() {
       // Redirect to homepage after deletion
       window.location.href = "/";
     } catch (err) {
-      console.error("Delete account error:", err);
+      logger.error("Delete account error:", { error: (err as any)?.message ?? String(err) });
       setError("Something went wrong. Please try again.");
       setLoading(false);
       setDialogOpen(false);

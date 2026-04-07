@@ -5,6 +5,7 @@ import { calculateDeadline } from '@/lib/deadlines/calculators';
 import type { FilingTypeStatus, FilingTypeId } from '@/lib/types/database';
 import type { Client } from '@/app/actions/clients';
 import { ALL_FILING_TYPE_IDS } from '@/lib/constants/filing-types';
+import { logger } from '@/lib/logger';
 
 export interface DashboardMetrics {
   overdueCount: number; // red
@@ -54,7 +55,7 @@ export async function getDashboardMetrics(
       `);
 
     if (clientsError) {
-      console.error('Error fetching clients:', clientsError);
+      logger.error('Error fetching clients:', { error: (clientsError as any)?.message ?? String(clientsError) });
       throw clientsError;
     }
 
@@ -162,7 +163,7 @@ export async function getDashboardMetrics(
           approachingCount++;
         }
       } catch (amberError) {
-        console.error('Error processing amber client:', client.id, amberError);
+        logger.error('Error processing amber client', { clientId: client.id, error: (amberError as any)?.message ?? String(amberError) });
         // Default to unsent count on error
         approachingCount++;
       }
@@ -235,7 +236,7 @@ export async function getDashboardMetrics(
       completionRate,
     };
   } catch (error) {
-    console.error('Error in getDashboardMetrics:', error);
+    logger.error('Error in getDashboardMetrics:', { error: (error as any)?.message ?? String(error) });
     throw error;
   }
 }
@@ -725,7 +726,7 @@ export async function getRecentUploads(
     .limit(limit);
 
   if (error) {
-    console.error('Error fetching recent uploads:', error);
+    logger.error('Error fetching recent uploads:', { error: (error as any)?.message ?? String(error) });
     return [];
   }
 
@@ -779,7 +780,7 @@ export async function getDocsNeedingReview(
     .limit(limit);
 
   if (error) {
-    console.error('Error fetching docs needing review:', error);
+    logger.error('Error fetching docs needing review:', { error: (error as any)?.message ?? String(error) });
     return [];
   }
 
@@ -835,7 +836,7 @@ export async function getFailedDeliveries(
     .limit(limit);
 
   if (error) {
-    console.error('Error fetching failed deliveries:', error);
+    logger.error('Error fetching failed deliveries:', { error: (error as any)?.message ?? String(error) });
     return [];
   }
 

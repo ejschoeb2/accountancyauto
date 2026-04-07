@@ -31,6 +31,7 @@ import type { TipTapDocument, EmailTemplate } from "@/lib/types/database";
 import { filterTemplatesByFilingType } from "@/lib/templates/filter";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { logger } from '@/lib/logger';
 
 interface ScheduleStepEditorProps {
   form: UseFormReturn<ScheduleInput>;
@@ -222,7 +223,7 @@ export function ScheduleStepEditor({ form, fieldArray, templates, scheduleType, 
               },
             }));
           })
-          .catch(err => console.error('Failed to load template:', err))
+          .catch(err => logger.error('Failed to load template:', err))
           .finally(() => {
             loadingRef.current.delete(id);
             setLoadingTemplates(prev => {

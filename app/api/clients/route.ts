@@ -6,6 +6,7 @@ import { createClientSchema } from "@/lib/validations/client";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { checkClientLimit } from "@/lib/billing/usage-limits";
 import { rebuildQueueForClient } from "@/lib/reminders/queue-builder";
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/clients
@@ -20,7 +21,7 @@ export async function GET() {
     .order("company_name");
 
   if (error) {
-    console.error("Error fetching clients:", error);
+    logger.error("Error fetching clients:", { error: (error as any)?.message ?? String(error) });
     return NextResponse.json(
       { error: "Failed to fetch clients" },
       { status: 500 }
@@ -116,9 +117,9 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
-    console.error("Error creating client:", error);
+    logger.error("Failed to create client", { error: error.message });
     return NextResponse.json(
-      { error: `Failed to create client: ${error.message}` },
+      { error: 'An internal error occurred' },
       { status: 500 }
     );
   }
@@ -139,7 +140,7 @@ export async function POST(request: NextRequest) {
         .insert(assignmentsToInsert);
 
       if (assignError) {
-        console.error("Failed to assign filing types:", assignError.message);
+        logger.error("Failed to assign filing types:", { error: assignError.message });
       }
     } else {
       // Fallback: auto-assign based on client_type (e.g. CSV import)
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
             .insert(assignmentsToInsert);
 
           if (assignError) {
-            console.error("Failed to auto-assign filing types:", assignError.message);
+            logger.error("Failed to auto-assign filing types:", { error: assignError.message });
           }
         }
       }
@@ -180,7 +181,7 @@ export async function POST(request: NextRequest) {
       const adminClient = createAdminClient();
       await rebuildQueueForClient(adminClient, data.id, orgId);
     } catch (rebuildErr) {
-      console.error("[clients route] Non-fatal: failed to build reminder queue for new client:", rebuildErr);
+      logger.error("[clients route] Non-fatal: failed to build reminder queue for new client:", { error: (rebuildErr as any)?.message ?? String(rebuildErr) });
     }
   }
 

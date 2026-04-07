@@ -11,6 +11,7 @@ import {
   checkDomainVerification,
 } from "@/lib/postmark/management";
 import type { EditableRow } from "./components/csv-import-step";
+import { logger } from '@/lib/logger';
 
 // ─── Setup draft persistence ─────────────────────────────────────────────────
 
@@ -958,7 +959,7 @@ export async function setupPostmarkForOrg(
       returnPathCnameValue,
     };
   } catch (err) {
-    console.error("setupPostmarkForOrg error:", err);
+    logger.error("setupPostmarkForOrg error:", { error: (err as any)?.message ?? String(err) });
     const raw = err instanceof Error ? err.message : "";
     let friendly = "Failed to configure email. Please try again.";
     if (raw.includes("createDomain failed")) {
@@ -1135,7 +1136,7 @@ export async function getFilingTypesForWizard(): Promise<Array<{
     .order("sort_order", { ascending: true });
 
   if (error) {
-    console.error("[getFilingTypesForWizard] Failed to fetch filing types:", error);
+    logger.error("[getFilingTypesForWizard] Failed to fetch filing types:", { error: (error as any)?.message ?? String(error) });
     return [];
   }
 
@@ -1221,7 +1222,7 @@ export async function getDocumentRequirementsForWizard(
     .order("sort_order", { ascending: true });
 
   if (error) {
-    console.error("[getDocumentRequirementsForWizard] Failed:", error);
+    logger.error("[getDocumentRequirementsForWizard] Failed:", { error: (error as any)?.message ?? String(error) });
     return {};
   }
 
@@ -1319,7 +1320,7 @@ export async function buildInitialQueue(): Promise<{ error?: string }> {
     await buildReminderQueue(admin, org);
     await buildCustomScheduleQueue(admin, org);
   } catch (err) {
-    console.error("buildInitialQueue error:", err);
+    logger.error("buildInitialQueue error:", { error: (err as any)?.message ?? String(err) });
     // Non-fatal: queue will be built on next cron run
   }
 
@@ -1452,7 +1453,7 @@ export async function finaliseWizardSetup(
       }
     }
   } catch (err) {
-    console.error("[finaliseWizardSetup] migrate draft clients error:", err);
+    logger.error("[finaliseWizardSetup] migrate draft clients error:", { error: (err as any)?.message ?? String(err) });
     // Non-fatal: continue with remaining steps
   }
 
@@ -1460,7 +1461,7 @@ export async function finaliseWizardSetup(
   try {
     await seedOrgDefaults(orgId, user.id, admin, portalEnabled);
   } catch (err) {
-    console.error("[finaliseWizardSetup] seed defaults error:", err);
+    logger.error("[finaliseWizardSetup] seed defaults error:", { error: (err as any)?.message ?? String(err) });
   }
 
   // 3. Build reminder queue (batch insert — single DB call, no timeout risk)
@@ -1469,7 +1470,7 @@ export async function finaliseWizardSetup(
     await buildReminderQueue(admin, org, user.id);
     await buildCustomScheduleQueue(admin, org, user.id);
   } catch (err) {
-    console.error("[finaliseWizardSetup] queue building error:", err);
+    logger.error("[finaliseWizardSetup] queue building error:", { error: (err as any)?.message ?? String(err) });
     // Non-fatal: cron will pick up any missed entries on next run
   }
 

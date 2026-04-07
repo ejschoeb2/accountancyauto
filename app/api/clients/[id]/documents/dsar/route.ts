@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSignedDownloadUrl, resolveProvider, type StorageBackend } from '@/lib/documents/storage';
 import JSZip from 'jszip';
+import { logger } from '@/lib/logger';
 
 export const maxDuration = 60;
 
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     d => d.storage_backend && d.storage_backend !== 'supabase'
   );
   if (!org && needsThirdPartyOrg) {
-    console.error('[DSAR] Cannot resolve org config for third-party documents', {
+    logger.error('[DSAR] Cannot resolve org config for third-party documents', {
       clientId,
       orgId: clientRow?.org_id,
     });
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         const { signedUrl } = await getSignedDownloadUrl(doc.storage_path);
         const response = await fetch(signedUrl);
         if (!response.ok) {
-          console.warn(`[DSAR] Failed to fetch document ${doc.id}: ${response.status}`);
+          logger.warn(`[DSAR] Failed to fetch document ${doc.id}: ${response.status}`);
           continue;
         }
         buffer = await response.arrayBuffer();
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       const safeFilename = `${doc.filing_type_id}/${doc.original_filename}`;
       zip.file(safeFilename, buffer);
     } catch (err) {
-      console.error(`[DSAR] Error fetching document ${doc.id} (backend: ${doc.storage_backend ?? 'supabase'}):`, err);
+      logger.error(`[DSAR] Error fetching document ${doc.id} (backend: ${doc.storage_backend ?? 'supabase'}):`, { error: (err as any)?.message ?? String(err) });
       // Continue — add remaining documents; omission is noted in server logs
     }
   }

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import { type NextRequest } from "next/server";
+import { logger } from '@/lib/logger';
 
 function getCookieDomain(): string | undefined {
   if (process.env.NODE_ENV !== "production") return undefined;
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
-      console.error("Auth callback error:", error.message, error);
+      logger.error("Auth callback error", { error: error.message });
       // If the PKCE code verifier is missing (e.g. cookies cleared between
       // signup and email click), the user's email is still confirmed on
       // Supabase's side — they just need to log in with their credentials.

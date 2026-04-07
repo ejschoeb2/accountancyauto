@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getOrgId } from '@/lib/auth/org-context';
 import { requireWriteAccess } from '@/lib/billing/read-only-mode';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
         .eq('id', id);
 
       if (error) {
-        console.error(`Error updating reminder ${id}:`, error);
+        logger.error(`Error updating reminder ${id}:`, { error: (error as any)?.message ?? String(error) });
         throw error;
       }
     });
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
       message: `Updated ${updates.length} reminder(s)`,
     });
   } catch (error) {
-    console.error('Error updating reminder statuses:', error);
+    logger.error('Error updating reminder statuses:', { error: (error as any)?.message ?? String(error) });
     return NextResponse.json(
       { error: 'Failed to update reminder statuses' },
       { status: 500 }

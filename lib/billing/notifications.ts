@@ -12,6 +12,7 @@
 
 import { ServerClient } from "postmark";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logger } from '@/lib/logger';
 
 /**
  * Send a payment-failed email (NOTF-02) to all admins of the given organisation.
@@ -38,10 +39,7 @@ export async function sendPaymentFailedEmail(
     .single();
 
   if (orgError || !org) {
-    console.error(
-      `sendPaymentFailedEmail: failed to fetch org ${orgId}:`,
-      orgError
-    );
+    logger.error(`sendPaymentFailedEmail: failed to fetch org ${orgId}:`, { error: (orgError as any)?.message ?? String(orgError) });
     return;
   }
 
@@ -57,10 +55,7 @@ export async function sendPaymentFailedEmail(
     .eq("role", "admin");
 
   if (membersError || !adminMemberships || adminMemberships.length === 0) {
-    console.warn(
-      `sendPaymentFailedEmail: no admin users found for org ${orgId}:`,
-      membersError
-    );
+    logger.warn(`sendPaymentFailedEmail: no admin users found for org ${orgId}:`, { error: (membersError as any)?.message ?? String(membersError) });
     return;
   }
 
@@ -74,24 +69,18 @@ export async function sendPaymentFailedEmail(
       } = await supabase.auth.admin.getUserById(membership.user_id);
 
       if (userError || !user?.email) {
-        console.warn(
-          `sendPaymentFailedEmail: could not resolve email for user ${membership.user_id}:`,
-          userError
-        );
+        logger.warn(`sendPaymentFailedEmail: could not resolve email for user ${membership.user_id}:`, { error: (userError as any)?.message ?? String(userError) });
         continue;
       }
 
       adminEmails.push(user.email);
     } catch (err) {
-      console.warn(
-        `sendPaymentFailedEmail: error fetching user ${membership.user_id}:`,
-        err
-      );
+      logger.warn(`sendPaymentFailedEmail: error fetching user ${membership.user_id}:`, { error: (err as any)?.message ?? String(err) });
     }
   }
 
   if (adminEmails.length === 0) {
-    console.warn(
+    logger.warn(
       `sendPaymentFailedEmail: no admin email addresses resolved for org ${orgId}`
     );
     return;
@@ -100,7 +89,7 @@ export async function sendPaymentFailedEmail(
   // Initialize Postmark client with platform token
   const postmarkToken = process.env.POSTMARK_SERVER_TOKEN;
   if (!postmarkToken) {
-    console.error(
+    logger.error(
       "sendPaymentFailedEmail: POSTMARK_SERVER_TOKEN not configured"
     );
     return;
@@ -127,15 +116,12 @@ export async function sendPaymentFailedEmail(
       });
       sentCount++;
     } catch (err) {
-      console.error(
-        `sendPaymentFailedEmail: failed to send to ${email}:`,
-        err
-      );
+      logger.error(`sendPaymentFailedEmail: failed to send to ${email}:`, { error: (err as any)?.message ?? String(err) });
       // Continue to next admin -- don't fail the whole batch
     }
   }
 
-  console.log(
+  logger.info(
     `sendPaymentFailedEmail: sent ${sentCount}/${adminEmails.length} emails for org ${orgId} (${orgName})`
   );
 }
@@ -170,10 +156,7 @@ export async function sendTrialEndingSoonEmail(
     .eq("role", "admin");
 
   if (membersError || !adminMemberships || adminMemberships.length === 0) {
-    console.warn(
-      `sendTrialEndingSoonEmail: no admin users found for org ${orgId}:`,
-      membersError
-    );
+    logger.warn(`sendTrialEndingSoonEmail: no admin users found for org ${orgId}:`, { error: (membersError as any)?.message ?? String(membersError) });
     return;
   }
 
@@ -187,24 +170,18 @@ export async function sendTrialEndingSoonEmail(
       } = await supabase.auth.admin.getUserById(membership.user_id);
 
       if (userError || !user?.email) {
-        console.warn(
-          `sendTrialEndingSoonEmail: could not resolve email for user ${membership.user_id}:`,
-          userError
-        );
+        logger.warn(`sendTrialEndingSoonEmail: could not resolve email for user ${membership.user_id}:`, { error: (userError as any)?.message ?? String(userError) });
         continue;
       }
 
       adminEmails.push(user.email);
     } catch (err) {
-      console.warn(
-        `sendTrialEndingSoonEmail: error fetching user ${membership.user_id}:`,
-        err
-      );
+      logger.warn(`sendTrialEndingSoonEmail: error fetching user ${membership.user_id}:`, { error: (err as any)?.message ?? String(err) });
     }
   }
 
   if (adminEmails.length === 0) {
-    console.warn(
+    logger.warn(
       `sendTrialEndingSoonEmail: no admin email addresses resolved for org ${orgId}`
     );
     return;
@@ -213,7 +190,7 @@ export async function sendTrialEndingSoonEmail(
   // Initialize Postmark client with platform token
   const postmarkToken = process.env.POSTMARK_SERVER_TOKEN;
   if (!postmarkToken) {
-    console.error(
+    logger.error(
       "sendTrialEndingSoonEmail: POSTMARK_SERVER_TOKEN not configured"
     );
     return;
@@ -248,15 +225,12 @@ export async function sendTrialEndingSoonEmail(
       });
       sentCount++;
     } catch (err) {
-      console.error(
-        `sendTrialEndingSoonEmail: failed to send to ${email}:`,
-        err
-      );
+      logger.error(`sendTrialEndingSoonEmail: failed to send to ${email}:`, { error: (err as any)?.message ?? String(err) });
       // Continue to next admin — don't fail the whole batch
     }
   }
 
-  console.log(
+  logger.info(
     `sendTrialEndingSoonEmail: sent ${sentCount}/${adminEmails.length} emails for org ${orgId} (${orgName})`
   );
 }
@@ -284,7 +258,7 @@ export async function sendInviteEmail(
 ): Promise<void> {
   const postmarkToken = process.env.POSTMARK_SERVER_TOKEN;
   if (!postmarkToken) {
-    console.error("sendInviteEmail: POSTMARK_SERVER_TOKEN not configured");
+    logger.error("sendInviteEmail: POSTMARK_SERVER_TOKEN not configured");
     throw new Error("Email service not configured.");
   }
 
@@ -302,7 +276,7 @@ export async function sendInviteEmail(
     TrackLinks: "None" as never,
   });
 
-  console.log(
+  logger.info(
     `sendInviteEmail: invite sent to ${recipientEmail} for org ${orgName}`
   );
 }

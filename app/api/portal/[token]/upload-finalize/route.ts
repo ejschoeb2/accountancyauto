@@ -5,6 +5,7 @@ import { calculateRetainUntil } from '@/lib/documents/metadata';
 import type { StorageBackend } from '@/lib/documents/storage';
 import type { FilingTypeId } from '@/lib/types/database';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 // App Router: force dynamic — reads portal token from URL params
 export const dynamic = 'force-dynamic';
@@ -130,7 +131,7 @@ export async function POST(
       confidence: classification.confidence,
     });
   } catch (err) {
-    console.error('[upload-finalize] DB insert error:', err);
+    logger.error('[upload-finalize] DB insert error:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.json(
       { error: 'Failed to record document. Please contact your accountant.' },
       { status: 500 }

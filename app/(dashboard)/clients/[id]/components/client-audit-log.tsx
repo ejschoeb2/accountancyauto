@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { getAuditLog, type AuditEntry } from '@/app/actions/audit-log';
 import { format } from 'date-fns';
+import { logger } from '@/lib/logger';
 
 interface ClientAuditLogProps {
   clientId: string;
@@ -52,7 +53,7 @@ export function ClientAuditLog({ clientId }: ClientAuditLogProps) {
       setData(result.data);
       setTotalCount(result.totalCount);
     } catch (error) {
-      console.error('Error fetching client audit log:', error);
+      logger.error('Error fetching client audit log:', { error: (error as any)?.message ?? String(error) });
     } finally {
       setLoading(false);
     }

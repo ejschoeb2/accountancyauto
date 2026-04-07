@@ -6,6 +6,7 @@ import { getOrgId, getOrgContext } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { updateClientMetadataSchema, clientTypeSchema } from "@/lib/validations/client";
 import { calculateFilingTypeStatus, type TrafficLightStatus } from "@/lib/dashboard/traffic-light";
+import { logger } from '@/lib/logger';
 
 // Client type matching the database schema
 export interface Client {
@@ -149,7 +150,7 @@ export async function reassignClients(
     .eq("owner_id", fromUserId);
 
   if (error) {
-    console.error("reassignClients: failed to update clients:", error);
+    logger.error("reassignClients: failed to update clients:", { error: (error as any)?.message ?? String(error) });
     return { error: "Failed to reassign clients. Please try again." };
   }
 

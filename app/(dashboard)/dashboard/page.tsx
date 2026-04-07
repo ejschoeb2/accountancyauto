@@ -12,6 +12,7 @@ import { WorkloadForecast } from './components/workload-forecast';
 import { TodoBox } from './components/todo-box';
 import { GoFurther } from './components/go-further';
 import { RecentUploads } from './components/recent-uploads';
+import { logger } from '@/lib/logger';
 
 function DashboardContent() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -64,7 +65,7 @@ function DashboardContent() {
       // Bump refreshKey so WorkloadForecast re-fetches its own data
       setRefreshKey((k) => k + 1);
     } catch (error) {
-      console.error('Error loading dashboard:', error);
+      logger.error('Error loading dashboard:', { error: (error as any)?.message ?? String(error) });
     }
   }, []);
 

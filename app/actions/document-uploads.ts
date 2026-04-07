@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logger';
 
 // Phase 30: Advisory validation warning (mirrors ValidationWarning in lib/documents/validate.ts)
 interface ValidationWarning {
@@ -106,7 +107,7 @@ export async function getPortalUploads(params: PortalUploadsParams): Promise<Por
   const { data: uploads, error, count } = await query;
 
   if (error) {
-    console.error('Error fetching portal uploads:', error);
+    logger.error('Error fetching portal uploads:', { error: (error as any)?.message ?? String(error) });
     throw new Error('Failed to fetch portal uploads');
   }
 

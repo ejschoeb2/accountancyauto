@@ -29,6 +29,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
+import { logger } from '@/lib/logger';
 
 export default function RolloverPage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function RolloverPage() {
       setCandidates(data);
       setSelectedIds(new Set());
     } catch (error) {
-      console.error('Error loading rollover candidates:', error);
+      logger.error('Error loading rollover candidates:', { error: (error as any)?.message ?? String(error) });
       toast.error('Failed to load rollover candidates');
     } finally {
       setLoading(false);
@@ -97,7 +98,7 @@ export default function RolloverPage() {
       await loadCandidates();
       setShowConfirmDialog(false);
     } catch (error) {
-      console.error('Error during rollover:', error);
+      logger.error('Error during rollover:', { error: (error as any)?.message ?? String(error) });
       toast.error('Failed to roll over filings');
     } finally {
       setRolling(false);

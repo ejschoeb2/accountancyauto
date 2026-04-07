@@ -62,6 +62,7 @@ import { cn } from '@/lib/utils';
 const ITEMS_PER_PAGE = 20;
 
 import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
+import { logger } from '@/lib/logger';
 
 // Client type options
 const CLIENT_TYPE_OPTIONS = [
@@ -211,7 +212,7 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
         setTotalCount(result.totalCount);
       }
     } catch (error) {
-      console.error('Error fetching email logs:', error);
+      logger.error('Error fetching email logs:', { error: (error as any)?.message ?? String(error) });
     } finally {
       setLoading(false);
     }
@@ -595,7 +596,7 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
       setSelectedRows(new Set());
       setShowEditPanel(false);
     } catch (error) {
-      console.error('Error sending emails:', error);
+      logger.error('Error sending emails:', { error: (error as any)?.message ?? String(error) });
       alert('An error occurred while sending emails');
     }
   };
@@ -620,7 +621,7 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
         alert(`Error: ${result.message}`);
       }
     } catch (error) {
-      console.error('Error cancelling scheduling:', error);
+      logger.error('Error cancelling scheduling:', { error: (error as any)?.message ?? String(error) });
       alert('An error occurred while cancelling scheduling');
     }
   };
@@ -659,7 +660,7 @@ export function DeliveryLogTable({ viewMode, initialStatusFilters, initialDateFi
         alert(`Error: ${errorMsg}`);
       }
     } catch (error) {
-      console.error('Error rescheduling:', error);
+      logger.error('Error rescheduling:', { error: (error as any)?.message ?? String(error) });
       alert('An error occurred while rescheduling');
     }
   };

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendRichEmailForOrg } from '@/lib/email/sender';
 import { previewQueuedEmail } from '@/app/actions/audit-log';
+import { logger } from '@/lib/logger';
 
 export interface CancelSchedulingParams {
   reminderIds: string[];
@@ -36,7 +37,7 @@ export async function cancelScheduling(params: CancelSchedulingParams): Promise<
       .neq('status', 'sent'); // Don't cancel already sent emails
 
     if (error) {
-      console.error('Error cancelling scheduling:', error);
+      logger.error('Error cancelling scheduling:', { error: (error as any)?.message ?? String(error) });
       throw error;
     }
 
@@ -46,7 +47,7 @@ export async function cancelScheduling(params: CancelSchedulingParams): Promise<
       cancelledCount: count || 0,
     };
   } catch (error) {
-    console.error('Error in cancelScheduling:', error);
+    logger.error('Error in cancelScheduling:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -86,7 +87,7 @@ export async function pauseScheduling(params: PauseSchedulingParams): Promise<Pa
       .in('status', ['scheduled', 'rescheduled']); // Only pause active reminders
 
     if (error) {
-      console.error('Error pausing scheduling:', error);
+      logger.error('Error pausing scheduling:', { error: (error as any)?.message ?? String(error) });
       throw error;
     }
 
@@ -96,7 +97,7 @@ export async function pauseScheduling(params: PauseSchedulingParams): Promise<Pa
       pausedCount: count || 0,
     };
   } catch (error) {
-    console.error('Error in pauseScheduling:', error);
+    logger.error('Error in pauseScheduling:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -136,7 +137,7 @@ export async function uncancelScheduling(params: UncancelSchedulingParams): Prom
       .eq('status', 'cancelled'); // Only uncancel cancelled emails
 
     if (error) {
-      console.error('Error uncancelling scheduling:', error);
+      logger.error('Error uncancelling scheduling:', { error: (error as any)?.message ?? String(error) });
       throw error;
     }
 
@@ -146,7 +147,7 @@ export async function uncancelScheduling(params: UncancelSchedulingParams): Prom
       uncancelledCount: count || 0,
     };
   } catch (error) {
-    console.error('Error in uncancelScheduling:', error);
+    logger.error('Error in uncancelScheduling:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -206,7 +207,7 @@ export async function rescheduleToSpecificDate(params: RescheduleSpecificParams)
       .neq('status', 'sent'); // Don't reschedule already sent emails
 
     if (fetchError) {
-      console.error('Error fetching reminders:', fetchError);
+      logger.error('Error fetching reminders:', { error: (fetchError as any)?.message ?? String(fetchError) });
       throw fetchError;
     }
 
@@ -246,7 +247,7 @@ export async function rescheduleToSpecificDate(params: RescheduleSpecificParams)
       .in('id', reminderIds);
 
     if (updateError) {
-      console.error('Error updating reminders:', updateError);
+      logger.error('Error updating reminders:', { error: (updateError as any)?.message ?? String(updateError) });
       throw updateError;
     }
 
@@ -256,7 +257,7 @@ export async function rescheduleToSpecificDate(params: RescheduleSpecificParams)
       rescheduledCount: count || 0,
     };
   } catch (error) {
-    console.error('Error in rescheduleToSpecificDate:', error);
+    logger.error('Error in rescheduleToSpecificDate:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -368,7 +369,7 @@ export async function sendNow(params: SendNowParams): Promise<SendNowResult> {
 
     return { success: true, message: `Email sent to ${client.primary_email}` };
   } catch (error) {
-    console.error('Error in sendNow:', error);
+    logger.error('Error in sendNow:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Failed to send email',
@@ -408,7 +409,7 @@ export async function rescheduleWithOffset(params: RescheduleOffsetParams): Prom
       .neq('status', 'sent'); // Don't reschedule already sent emails
 
     if (fetchError) {
-      console.error('Error fetching reminders:', fetchError);
+      logger.error('Error fetching reminders:', { error: (fetchError as any)?.message ?? String(fetchError) });
       throw fetchError;
     }
 
@@ -479,7 +480,7 @@ export async function rescheduleWithOffset(params: RescheduleOffsetParams): Prom
       rescheduledCount: successCount,
     };
   } catch (error) {
-    console.error('Error in rescheduleWithOffset:', error);
+    logger.error('Error in rescheduleWithOffset:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred',

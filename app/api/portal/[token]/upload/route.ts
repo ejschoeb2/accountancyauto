@@ -7,6 +7,7 @@ import { calculateRetainUntil } from '@/lib/documents/metadata';
 import { runValidation, REJECTABLE_WARNING_CODES, type ValidationResult } from '@/lib/documents/validate';
 import crypto from 'crypto';
 import type { FilingTypeId } from '@/lib/types/database';
+import { logger } from '@/lib/logger';
 
 // App Router: no body size limit on formData() — reads stream directly
 export const dynamic = 'force-dynamic';
@@ -233,7 +234,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       validationWarnings: validation.warnings,
     });
   } catch (err) {
-    console.error('[Portal Upload] Storage or DB error:', err);
+    logger.error('[Portal Upload] Storage or DB error:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 });
   }
 }

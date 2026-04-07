@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { processRemindersForUser, ProcessResult } from '@/lib/reminders/scheduler';
+import { logger } from '@/lib/logger';
 
 // Allow 5 minutes for cron execution (Vercel Pro limit)
 export const maxDuration = 300;
@@ -87,9 +88,7 @@ export async function GET(request: NextRequest) {
       // Skip orgs without a Postmark token — no point queuing reminders
       // they cannot send (consistent with send-emails cron behaviour)
       if (!org.postmark_server_token) {
-        console.warn(
-          `[Cron:reminders] Skipping org ${org.name} (${org.slug}) — no Postmark token configured`
-        );
+        logger.warn('Skipping org — no Postmark token configured', { cron: 'reminders', orgName: org.name, orgSlug: org.slug });
         allResults.push({
           org: org.name,
           org_id: org.id,
@@ -102,7 +101,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      console.log(`[Cron:reminders] Processing org: ${org.name} (${org.id})`);
+      logger.info('Processing org', { cron: 'reminders', orgName: org.name, orgId: org.id });
 
       try {
         // Fetch all members of this org
@@ -136,10 +135,7 @@ export async function GET(request: NextRequest) {
             usersProcessed++;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
-            console.error(
-              `[Cron:reminders] Failed processing user ${member.user_id} in org ${org.name}:`,
-              error
-            );
+            logger.error('Failed processing user', { cron: 'reminders', userId: member.user_id, orgName: org.name, error: message });
             orgErrors.push({
               org_id: org.id,
               code: 'UNKNOWN',
@@ -163,7 +159,7 @@ export async function GET(request: NextRequest) {
         allErrors.push(...orgErrors);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Cron:reminders] Failed processing org ${org.name} (${org.id}):`, error);
+        logger.error('Failed processing org', { cron: 'reminders', orgName: org.name, orgId: org.id, error: message });
         const cronErr: CronError = {
           org_id: org.id,
           code: 'DB_ERROR',
@@ -196,7 +192,7 @@ export async function GET(request: NextRequest) {
           TextBody: `All ${totalOrgs} orgs failed processing.\n\nErrors:\n${allErrors.map(e => e.message).join('\n')}`,
         });
       } catch (alertError) {
-        console.error('Failed to send cron failure alert:', alertError);
+        logger.error('Failed to send cron failure alert:', { error: (alertError as any)?.message ?? String(alertError) });
       }
     }
 
@@ -213,14 +209,15 @@ export async function GET(request: NextRequest) {
       results: allResults,
     });
   } catch (error) {
-    console.error('Cron job failed:', error);
+    logger.error('Cron job failed:', { error: (error as any)?.message ?? String(error) });
     const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Cron reminders job failed', { executionId, error: message });
     return NextResponse.json({
       execution_id: executionId,
       started_at: startedAt,
       ended_at: new Date().toISOString(),
       duration_ms: Date.now() - startTime,
-      error: message,
+      error: 'An internal error occurred',
     }, { status: 500 });
   }
 }

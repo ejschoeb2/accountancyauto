@@ -23,6 +23,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
 import { auth, drive } from '@googleapis/drive';
 import { encryptToken } from '@/lib/crypto/tokens';
+import { logger } from '@/lib/logger';
 
 /**
  * Build redirect URL — org subdomain in production, origin-relative in dev.
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    console.warn('[google-drive/callback] no auth session — redirecting to login');
+    logger.warn('[google-drive/callback] no auth session — redirecting to login');
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const code = request.nextUrl.searchParams.get('code');
 
   if (!code) {
-    console.warn('[google-drive/callback] missing code param, fromWizard=%s', fromWizard);
+    logger.warn('[google-drive/callback] missing code param, fromWizard=%s', { error: (fromWizard as any)?.message ?? String(fromWizard) });
     return NextResponse.redirect(errorUrl('missing_code'));
   }
 
@@ -88,7 +89,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const ctx = await getOrgContext();
     orgId = ctx.orgId;
   } catch {
-    console.warn('[google-drive/callback] no org context, fromWizard=%s', fromWizard);
+    logger.warn('[google-drive/callback] no org context, fromWizard=%s', { error: (fromWizard as any)?.message ?? String(fromWizard) });
     return NextResponse.redirect(errorUrl('no_org_context'));
   }
 
@@ -101,17 +102,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // ── CSRF state validation (DB-based) ────────────────────────────────────
   if (!stateParam || !org?.google_oauth_state || stateParam !== org.google_oauth_state) {
-    console.warn('[google-drive/callback] CSRF mismatch — stateParam=%s, dbState=%s, fromWizard=%s',
-      stateParam ? 'present' : 'null',
-      org?.google_oauth_state ? 'present' : 'null',
-      fromWizard);
+    logger.warn('Google Drive OAuth CSRF mismatch', {
+      stateParam: stateParam ? 'present' : 'null',
+      dbState: org?.google_oauth_state ? 'present' : 'null',
+      fromWizard,
+    });
     return NextResponse.redirect(errorUrl('invalid_state', org?.slug));
   }
 
   // After CSRF validation passes, the DB state is authoritative. Use it as a
   // fallback in case the URL state param was somehow decoded differently.
   if (!fromWizard && org.google_oauth_state.includes('wizard_')) {
-    console.warn('[google-drive/callback] fromWizard corrected via DB state');
+    logger.warn('[google-drive/callback] fromWizard corrected via DB state');
     fromWizard = true;
   }
 
@@ -139,7 +141,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     oauth2Client.setCredentials(tokens);
   } catch (err) {
     if (err instanceof Response || (err instanceof NextResponse)) throw err;
-    console.error('[google-drive/callback] token exchange failed:', err);
+    logger.error('[google-drive/callback] token exchange failed:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.redirect(errorUrl('token_exchange_failed', org?.slug));
   }
 
@@ -162,7 +164,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         throw new Error('folder trashed or inaccessible');
       }
     } catch {
-      console.warn('[google-drive/callback] saved folder %s inaccessible, creating new one', org.google_drive_folder_id);
+      logger.warn('[google-drive/callback] saved folder %s inaccessible, creating new one', { error: org.google_drive_folder_id instanceof Error ? org.google_drive_folder_id.message : String(org.google_drive_folder_id) });
       try {
         const folderRes = await driveClient.files.create({
           requestBody: {
@@ -205,7 +207,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }).eq('id', orgId);
 
   if (updateError) {
-    console.error('[google-drive/callback] DB update failed:', updateError.message);
+    logger.error('[google-drive/callback] DB update failed:', { error: updateError.message });
     return NextResponse.redirect(errorUrl('db_error', org?.slug));
   }
 
@@ -216,7 +218,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ? '/setup/wizard?storage_connected=google_drive'
       : '/settings?tab=storage&connected=google_drive';
   const redirectTarget = buildRedirectUrl(successPath, org?.slug, request.url);
-  console.log('[google-drive/callback] success — fromWizard=%s, slug=%s, redirect=%s',
-    fromWizard, org?.slug ?? 'null', redirectTarget);
+  logger.info('Google Drive OAuth callback success', { fromWizard, orgSlug: org?.slug ?? 'null', redirectTarget });
   return NextResponse.redirect(redirectTarget);
 }

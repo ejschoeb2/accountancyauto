@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { QueuedEmailPreviewModal } from '@/app/(dashboard)/email-logs/components/queued-email-preview-modal';
 import { SentEmailDetailModal } from '@/app/(dashboard)/email-logs/components/sent-email-detail-modal';
+import { logger } from '@/lib/logger';
 
 interface FilingEmailTableProps {
   clientId: string;
@@ -131,7 +132,7 @@ export function FilingEmailTable({ clientId, filingTypeId, viewMode }: FilingEma
         setTotalCount(result.totalCount);
       }
     } catch (error) {
-      console.error('Error fetching email data:', error);
+      logger.error('Error fetching email data:', { error: (error as any)?.message ?? String(error) });
     } finally {
       setLoading(false);
     }

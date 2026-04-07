@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { extractPdfText, extractFieldsForType } from './ocr';
+import { logger } from '@/lib/logger';
 
 /**
  * Result of classifying a document by filename and MIME type against the
@@ -243,7 +244,7 @@ export async function classifyDocument(
     .select('id, code, expected_mime_types');
 
   if (error) {
-    console.error('[classifyDocument] Failed to fetch document_types:', error.message);
+    logger.error('[classifyDocument] Failed to fetch document_types:', { error: error.message });
     // Degrade gracefully — cannot classify without catalog
     return {
       documentTypeId: null,
@@ -268,7 +269,7 @@ export async function classifyDocument(
 
       if (!catalogEntry) {
         // Code in KEYWORD_MAP but missing from DB — degrade to low
-        console.warn('[classifyDocument] Code not found in document_types catalog:', entry.code);
+        logger.warn('Code not found in document_types catalog', { code: entry.code });
         continue;
       }
 

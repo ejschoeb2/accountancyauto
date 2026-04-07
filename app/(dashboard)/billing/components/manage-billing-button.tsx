@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ButtonBase } from "@/components/ui/button-base";
 import { ExternalLink, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { logger } from '@/lib/logger';
 
 interface ManageBillingButtonProps {
   orgId: string;
@@ -40,7 +41,7 @@ export function ManageBillingButton({
         window.location.href = data.url;
       }
     } catch (err) {
-      console.error("Portal session error:", err);
+      logger.error("Portal session error:", { error: (err as any)?.message ?? String(err) });
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }

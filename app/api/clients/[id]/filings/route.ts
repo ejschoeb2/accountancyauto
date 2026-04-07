@@ -7,6 +7,7 @@ import { rebuildQueueForClient } from '@/lib/reminders/queue-builder';
 import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { z } from 'zod';
 import type { FilingType, FilingTypeId } from '@/lib/types/database';
+import { logger } from '@/lib/logger';
 
 // Validation schema for PUT body
 const putFilingsSchema = z.object({
@@ -201,7 +202,7 @@ export async function GET(
       .order('received_at', { ascending: false });
 
     if (docSummaryError) {
-      console.warn('[filings route] Failed to fetch document summary:', docSummaryError.message);
+      logger.warn('[filings route] Failed to fetch document summary:', { error: docSummaryError.message });
       // Non-fatal: return filings with defaults (doc_count: 0, last_received_at: null)
     } else {
       // Build aggregation map: filing_type_id -> { doc_count, last_received_at }
@@ -302,7 +303,7 @@ export async function PUT(
       const adminClient = createAdminClient();
       await rebuildQueueForClient(adminClient, clientId);
     } catch (rebuildErr) {
-      console.error('[filings route] Non-fatal: failed to rebuild reminder queue:', rebuildErr);
+      logger.error('[filings route] Non-fatal: failed to rebuild reminder queue:', { error: (rebuildErr as any)?.message ?? String(rebuildErr) });
     }
 
     return NextResponse.json({ assignments: data || [] });

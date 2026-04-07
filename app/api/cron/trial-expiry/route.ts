@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logger } from '@/lib/logger';
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     // Log each expired org
     for (const org of expiredOrgs) {
-      console.log(
+      logger.info(
         `[Cron:trial-expiry] Expired trial for org "${org.name}" (${org.id}), trial_ends_at: ${org.trial_ends_at}`
       );
     }
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
       orgIds: expiredIds,
     });
   } catch (error) {
-    console.error("[Cron:trial-expiry] Error:", error);
+    logger.error("[Cron:trial-expiry] Error:", { error: (error as any)?.message ?? String(error) });
     const message =
       error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({

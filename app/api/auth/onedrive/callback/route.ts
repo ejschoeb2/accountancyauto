@@ -22,6 +22,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { PostgresMsalCachePlugin } from '@/lib/storage/msal-cache-plugin';
+import { logger } from '@/lib/logger';
 
 /**
  * Build redirect URL — org subdomain in production, origin-relative in dev.
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(errorUrl('conditional_access_blocked', org?.slug));
     }
 
-    console.error('[onedrive/callback] token exchange failed:', error);
+    logger.error('[onedrive/callback] token exchange failed:', { error: (error as any)?.message ?? String(error) });
     return NextResponse.redirect(errorUrl('auth_failed', org?.slug));
   }
 
@@ -141,7 +142,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       throw new Error(dbError.message);
     }
   } catch (error) {
-    console.error('[onedrive/callback] DB persist error:', error);
+    logger.error('[onedrive/callback] DB persist error:', { error: (error as any)?.message ?? String(error) });
     return NextResponse.redirect(errorUrl('db_error', org?.slug));
   }
 

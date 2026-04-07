@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
 import { scheduleSchema } from "@/lib/validations/schedule";
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/schedules
@@ -17,7 +18,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (schedulesError) {
-    console.error("Error fetching schedules:", schedulesError);
+    logger.error("Error fetching schedules:", { error: (schedulesError as any)?.message ?? String(schedulesError) });
     return NextResponse.json(
       { error: "Failed to fetch schedules" },
       { status: 500 }
@@ -30,7 +31,7 @@ export async function GET() {
     .select("schedule_id");
 
   if (stepsError) {
-    console.error("Error fetching schedule steps:", stepsError);
+    logger.error("Error fetching schedule steps:", { error: (stepsError as any)?.message ?? String(stepsError) });
     return NextResponse.json(
       { error: "Failed to fetch schedule steps" },
       { status: 500 }
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
     .single();
 
   if (scheduleError) {
-    console.error("Error creating schedule:", scheduleError);
+    logger.error("Error creating schedule:", { error: (scheduleError as any)?.message ?? String(scheduleError) });
 
     // Check for unique constraint violation
     if (scheduleError.code === "23505") {
@@ -137,7 +138,7 @@ export async function POST(request: Request) {
       .insert(stepsToInsert);
 
     if (stepsError) {
-      console.error("Error creating schedule steps:", stepsError);
+      logger.error("Error creating schedule steps:", { error: (stepsError as any)?.message ?? String(stepsError) });
       // Schedule created but steps failed - return error
       return NextResponse.json(
         { error: "Schedule created but failed to add steps" },

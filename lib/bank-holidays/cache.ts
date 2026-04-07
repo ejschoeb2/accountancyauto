@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { logger } from '@/lib/logger';
 
 export interface BankHoliday {
   title: string;
@@ -41,7 +42,7 @@ export async function fetchUKBankHolidays(): Promise<BankHoliday[]> {
     const data: BankHolidayAPIResponse = await response.json();
     return data['england-and-wales'].events;
   } catch (error) {
-    console.error('Failed to fetch bank holidays from GOV.UK:', error);
+    logger.error('Failed to fetch bank holidays from GOV.UK:', { error: (error as any)?.message ?? String(error) });
 
     // TODO: Fall back to Supabase bank_holidays_cache table
     // For now, return empty array and log error
@@ -74,18 +75,18 @@ export async function getUKBankHolidaySet(): Promise<Set<string>> {
 
     return holidaySet;
   } catch (error) {
-    console.error('Failed to get bank holidays:', error);
+    logger.error('Failed to get bank holidays:', { error: (error as any)?.message ?? String(error) });
 
     // Return cached data if available, even if expired
     if (cachedHolidays) {
-      console.warn('Using expired bank holiday cache');
+      logger.warn('Using expired bank holiday cache');
       return cachedHolidays;
     }
 
     // TODO: Try to load from Supabase bank_holidays_cache table
 
     // Last resort: return empty set
-    console.error('No bank holiday data available, using empty set');
+    logger.error('No bank holiday data available, using empty set');
     return new Set();
   }
 }

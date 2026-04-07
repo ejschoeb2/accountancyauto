@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { handlePauseClient, handleUnpauseClient, cancelRemindersForReceivedRecords, restoreRemindersForUnreceivedRecords, rebuildQueueForClient } from "@/lib/reminders/queue-builder";
 import { getOrgId } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +29,8 @@ export async function GET(
     return NextResponse.json({ success: true, data: client });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logger.error('Failed to fetch client', { error: message });
+    return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
   }
 }
 
@@ -56,13 +58,15 @@ export async function DELETE(
       .eq('id', id);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error('Failed to delete client', { clientId: id, error: error.message });
+      return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logger.error('Delete client error', { error: message });
+    return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
   }
 }
 
@@ -138,7 +142,7 @@ export async function PATCH(
         try {
           await rebuildQueueForClient(adminClient, id);
         } catch (rebuildErr) {
-          console.error('[client route] Non-fatal: failed to rebuild queue after unpause:', rebuildErr);
+          logger.error('[client route] Non-fatal: failed to rebuild queue after unpause:', { error: (rebuildErr as any)?.message ?? String(rebuildErr) });
         }
       }
     }
@@ -175,7 +179,7 @@ export async function PATCH(
       try {
         await rebuildQueueForClient(adminClient, id);
       } catch (rebuildErr) {
-        console.error('[client route] Non-fatal: failed to rebuild queue after field change:', rebuildErr);
+        logger.error('[client route] Non-fatal: failed to rebuild queue after field change:', { error: (rebuildErr as any)?.message ?? String(rebuildErr) });
       }
     }
 
@@ -185,8 +189,9 @@ export async function PATCH(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error('Client PATCH error', { error: message });
     return NextResponse.json(
-      { error: message },
+      { error: 'An internal error occurred' },
       { status: 500 }
     );
   }

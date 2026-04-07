@@ -19,6 +19,7 @@ import {
   PRACTICE_METER_EVENT_NAME,
 } from "@/lib/stripe/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logger } from '@/lib/logger';
 
 /**
  * Calculate the number of clients above the overage threshold.
@@ -53,7 +54,7 @@ export async function reportUsageForOrg(orgId: string): Promise<number | null> {
     .single();
 
   if (orgError || !org) {
-    console.error(`reportUsageForOrg: org ${orgId} not found`);
+    logger.error(`reportUsageForOrg: org ${orgId} not found`);
     return null;
   }
 
@@ -64,12 +65,12 @@ export async function reportUsageForOrg(orgId: string): Promise<number | null> {
 
   // Ensure overage price and meter event name are configured
   if (!PRACTICE_OVERAGE_PRICE_ID) {
-    console.warn("reportUsageForOrg: STRIPE_PRICE_PRACTICE_OVERAGE not configured");
+    logger.warn("reportUsageForOrg: STRIPE_PRICE_PRACTICE_OVERAGE not configured");
     return null;
   }
 
   if (!PRACTICE_METER_EVENT_NAME) {
-    console.warn("reportUsageForOrg: STRIPE_METER_EVENT_NAME not configured");
+    logger.warn("reportUsageForOrg: STRIPE_METER_EVENT_NAME not configured");
     return null;
   }
 
@@ -80,10 +81,7 @@ export async function reportUsageForOrg(orgId: string): Promise<number | null> {
     .eq("org_id", orgId);
 
   if (countError) {
-    console.error(
-      `reportUsageForOrg: failed to count clients for org ${orgId}:`,
-      countError
-    );
+    logger.error(`reportUsageForOrg: failed to count clients for org ${orgId}:`, { error: (countError as any)?.message ?? String(countError) });
     return null;
   }
 
@@ -106,13 +104,13 @@ export async function reportUsageForOrg(orgId: string): Promise<number | null> {
       timestamp: Math.floor(Date.now() / 1000),
     });
 
-    console.log(
+    logger.info(
       `reportUsageForOrg: org ${orgId} reported ${overage} overage clients (${totalClients} total)`
     );
 
     return overage;
   } catch (err) {
-    console.error(`reportUsageForOrg: Stripe API error for org ${orgId}:`, err);
+    logger.error(`reportUsageForOrg: Stripe API error for org ${orgId}:`, { error: (err as any)?.message ?? String(err) });
     return null;
   }
 }
@@ -135,10 +133,7 @@ export async function reportUsageForAllPracticeOrgs(): Promise<{
     .not("stripe_customer_id", "is", null);
 
   if (error || !orgs) {
-    console.error(
-      "reportUsageForAllPracticeOrgs: failed to fetch practice orgs:",
-      error
-    );
+    logger.error("reportUsageForAllPracticeOrgs: failed to fetch practice orgs:", { error: (error as any)?.message ?? String(error) });
     return { processed: 0, reported: 0, errors: 0 };
   }
 

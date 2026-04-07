@@ -23,6 +23,7 @@ import { Plus, Search, SlidersHorizontal, X, AlertTriangle, Trash2 } from 'lucid
 import { toast } from 'sonner'
 import { TemplateEditorModal } from './template-editor-modal'
 import type { EmailTemplate } from '@/lib/types/database'
+import { logger } from '@/lib/logger';
 
 // Generic template names — everything else that's not custom is "Dedicated"
 const GENERIC_TEMPLATE_NAMES = new Set([
@@ -93,7 +94,7 @@ export function TemplatesView({
       toast.success(`Deleted "${template.name}"`)
       router.refresh()
     } catch (error) {
-      console.error('Error deleting template:', error)
+      logger.error('Error deleting template', { error: (error as any)?.message ?? String(error) })
       toast.error(error instanceof Error ? error.message : 'Failed to delete template')
     } finally {
       setDeletingId(null)

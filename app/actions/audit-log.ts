@@ -6,6 +6,7 @@ import { getOrgId } from '@/lib/auth/org-context';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { sendRichEmail } from '@/lib/email/sender';
 import { resolveDocumentsRequired } from '@/lib/documents/checklist';
+import { logger } from '@/lib/logger';
 
 export interface AuditEntry {
   id: string;
@@ -149,7 +150,7 @@ export async function getAuditLog(params: AuditLogParams): Promise<AuditLogResul
   const { data, error, count } = await query;
 
   if (error) {
-    console.error('Error fetching audit log:', error);
+    logger.error('Error fetching audit log:', { error: (error as any)?.message ?? String(error) });
     throw error;
   }
 
@@ -347,7 +348,7 @@ export async function getQueuedReminders(params: QueuedRemindersParams): Promise
   const { data, error, count } = await query;
 
   if (error) {
-    console.error('Error fetching queued reminders:', error);
+    logger.error('Error fetching queued reminders:', { error: (error as any)?.message ?? String(error) });
     throw error;
   }
 
@@ -558,7 +559,7 @@ export async function previewQueuedEmail(
       text: rendered.text,
     };
   } catch (error) {
-    console.error('previewQueuedEmail error:', error);
+    logger.error('previewQueuedEmail error:', { error: (error as any)?.message ?? String(error) });
     return {
       error: error instanceof Error ? error.message : 'Unknown error',
     };
@@ -597,7 +598,7 @@ export async function previewSentEmail(
 
     return await previewQueuedEmail(emailLog.reminder_queue_id);
   } catch (error) {
-    console.error('previewSentEmail error:', error);
+    logger.error('previewSentEmail error:', { error: (error as any)?.message ?? String(error) });
     return { error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
@@ -671,12 +672,12 @@ export async function resendEmail(
       .single();
 
     if (insertError) {
-      console.error('Failed to log resent email:', insertError);
+      logger.error('Failed to log resent email:', { error: (insertError as any)?.message ?? String(insertError) });
     }
 
     return { success: true, newEmailLogId: newLog?.id ?? '' };
   } catch (error) {
-    console.error('resendEmail error:', error);
+    logger.error('resendEmail error:', { error: (error as any)?.message ?? String(error) });
     return { error: error instanceof Error ? error.message : 'Failed to resend email' };
   }
 }
@@ -701,7 +702,7 @@ export async function deleteEmailLog(
 
     return { success: true };
   } catch (error) {
-    console.error('deleteEmailLog error:', error);
+    logger.error('deleteEmailLog error:', { error: (error as any)?.message ?? String(error) });
     return { error: error instanceof Error ? error.message : 'Failed to delete email' };
   }
 }

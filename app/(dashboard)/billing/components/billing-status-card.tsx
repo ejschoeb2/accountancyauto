@@ -7,6 +7,7 @@ import { ButtonBase } from "@/components/ui/button-base";
 import { UsageBars } from "./usage-bars";
 import { UpgradePlanSection } from "./upgrade-plan-section";
 import type { PlanTier } from "@/lib/stripe/plans";
+import { logger } from '@/lib/logger';
 
 type SubscriptionStatus =
   | "trialing"
@@ -126,7 +127,7 @@ export function BillingStatusCard({
         window.location.href = data.url;
       }
     } catch (err) {
-      console.error("Portal session error:", err);
+      logger.error("Portal session error:", { error: (err as any)?.message ?? String(err) });
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }

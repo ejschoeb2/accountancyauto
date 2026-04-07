@@ -20,6 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const fromWizard = request.nextUrl.searchParams.get('from') === 'wizard';
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .eq('id', orgId);
 
     if (stateError) {
-      console.error('[dropbox/connect] Failed to store CSRF state:', stateError);
+      logger.error('[dropbox/connect] Failed to store CSRF state:', { error: (stateError as any)?.message ?? String(stateError) });
       return NextResponse.redirect(errorUrl);
     }
 
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // ── Redirect to Dropbox consent screen ───────────────────────────────
     return NextResponse.redirect(authUrl);
   } catch (err) {
-    console.error('[dropbox/connect] Error initiating OAuth flow:', err);
+    logger.error('[dropbox/connect] Error initiating OAuth flow:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.redirect(errorUrl);
   }
 }

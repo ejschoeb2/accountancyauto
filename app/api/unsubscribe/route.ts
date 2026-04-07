@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,7 +134,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error('Unsubscribe error:', error);
+    logger.error('Unsubscribe error:', { error: (error as any)?.message ?? String(error) });
     return new NextResponse(
       `<!DOCTYPE html>
 <html>
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('One-click unsubscribe error:', error);
+    logger.error('One-click unsubscribe error:', { error: (error as any)?.message ?? String(error) });
     return NextResponse.json(
       { error: 'Failed to unsubscribe' },
       { status: 500 }

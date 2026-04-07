@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logger } from '@/lib/logger';
 
 /**
  * Seed a new user's defaults by cloning the org admin's templates, schedules,
@@ -36,7 +37,7 @@ export async function seedNewUserDefaults(
       .single();
 
     if (!adminMembership) {
-      console.warn(
+      logger.warn(
         `[seed-new-user] No admin found for org ${orgId}, skipping seeding`
       );
       return;
@@ -65,10 +66,7 @@ export async function seedNewUserDefaults(
         if (inserted) {
           templateIdMap.set(oldId, inserted.id);
         } else if (error) {
-          console.warn(
-            `[seed-new-user] Failed to clone template ${oldId}:`,
-            error.message
-          );
+          logger.warn(`[seed-new-user] Failed to clone template ${oldId}:`, { error: (error.message as any)?.message ?? String(error.message) });
         }
       }
     }
@@ -94,10 +92,7 @@ export async function seedNewUserDefaults(
         if (inserted) {
           scheduleIdMap.set(oldId, inserted.id);
         } else if (error) {
-          console.warn(
-            `[seed-new-user] Failed to clone schedule ${oldId}:`,
-            error.message
-          );
+          logger.warn(`[seed-new-user] Failed to clone schedule ${oldId}:`, { error: (error.message as any)?.message ?? String(error.message) });
         }
       }
     }
@@ -117,7 +112,7 @@ export async function seedNewUserDefaults(
 
           // Skip if either FK couldn't be remapped (parent clone failed)
           if (!newScheduleId || !newTemplateId) {
-            console.warn(
+            logger.warn(
               `[seed-new-user] Skipping step ${id}: missing FK remap (schedule: ${!!newScheduleId}, template: ${!!newTemplateId})`
             );
             return null;
@@ -139,10 +134,7 @@ export async function seedNewUserDefaults(
           .insert(newSteps as any[]);
 
         if (error) {
-          console.warn(
-            `[seed-new-user] Failed to clone schedule steps:`,
-            error.message
-          );
+          logger.warn(`[seed-new-user] Failed to clone schedule steps:`, { error: (error.message as any)?.message ?? String(error.message) });
         }
       }
     }
@@ -154,10 +146,7 @@ export async function seedNewUserDefaults(
     // user-specific row first, falls back to org default (user_id IS NULL).
     // New user automatically uses org defaults until they change their settings.
   } catch (error) {
-    console.error(
-      `[seed-new-user] Failed to seed defaults for user ${userId} in org ${orgId}:`,
-      error instanceof Error ? error.message : error
-    );
+    logger.error('Failed to seed defaults for new user', { userId, orgId, error: (error as any)?.message ?? String(error) });
     // Non-fatal — user is already in the org. They can configure manually.
   }
 }

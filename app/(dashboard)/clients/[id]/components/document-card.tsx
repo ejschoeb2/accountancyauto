@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -221,7 +222,7 @@ export function DocumentCard({
 
         setEffectiveChecklist(checklist);
       } catch (err) {
-        console.error('[DocumentCard] Failed to load data:', err);
+        logger.error('[DocumentCard] Failed to load data:', { error: (err as any)?.message ?? String(err) });
       } finally {
         setLoading(false);
       }
@@ -256,7 +257,7 @@ export function DocumentCard({
             const docsData = docsRes.ok ? await docsRes.json() : { documents: [] };
             setDocuments(docsData.documents ?? []);
           } catch (err) {
-            console.error('[DocumentCard] Realtime refresh failed:', err);
+            logger.error('[DocumentCard] Realtime refresh failed:', { error: (err as any)?.message ?? String(err) });
           }
         }
       )

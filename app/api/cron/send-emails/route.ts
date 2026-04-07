@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendRichEmailForOrg } from '@/lib/email/sender';
 import { addMinutes } from 'date-fns';
+import { logger } from '@/lib/logger';
 
 // Force dynamic for cron
 export const dynamic = 'force-dynamic';
@@ -91,7 +92,7 @@ export async function GET(request: NextRequest) {
     for (const org of orgs) {
       // Skip orgs without Postmark token — no fallback to prevent cross-org email leakage
       if (!org.postmark_server_token) {
-        console.warn(`[Cron:send-emails] Skipping org ${org.name} (${org.slug}) — no Postmark token configured`);
+        logger.warn('Skipping org — no Postmark token configured', { cron: 'send-emails', orgName: org.name, orgSlug: org.slug });
         allResults.push({
           org: org.name,
           org_id: org.id,
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      console.log(`[Cron:send-emails] Processing org: ${org.name} (${org.id})`);
+      logger.info('Processing org', { cron: 'send-emails', orgName: org.name, orgId: org.id });
 
       try {
         const orgResult = await processOrgEmails(adminClient, org);
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest) {
         allErrors.push(...orgResult.errors);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Cron:send-emails] Failed processing org ${org.name} (${org.id}):`, error);
+        logger.error('Failed processing org', { cron: 'send-emails', orgName: org.name, orgId: org.id, error: message });
         const cronErr: CronError = {
           org_id: org.id,
           code: 'DB_ERROR',
@@ -152,7 +153,7 @@ export async function GET(request: NextRequest) {
           TextBody: `All ${totalOrgs} orgs failed processing.\n\nErrors:\n${allErrors.map(e => e.message).join('\n')}`,
         });
       } catch (alertError) {
-        console.error('Failed to send cron failure alert:', alertError);
+        logger.error('Failed to send cron failure alert:', { error: (alertError as any)?.message ?? String(alertError) });
       }
     }
 
@@ -170,14 +171,14 @@ export async function GET(request: NextRequest) {
       results: allResults,
     });
   } catch (error) {
-    console.error('Cron job failed:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.error('Cron send-emails job failed', { executionId, error: message });
     return NextResponse.json({
       execution_id: executionId,
       started_at: startedAt,
       ended_at: new Date().toISOString(),
       duration_ms: Date.now() - startTime,
-      error: message,
+      error: 'An internal error occurred',
     }, { status: 500 });
   }
 }
@@ -319,7 +320,7 @@ async function processOrgEmails(
           });
 
         if (logError) {
-          console.error(`[${org.name}] Failed to insert email_log:`, logError);
+          logger.error('Failed to insert email_log', { cron: 'send-emails', orgName: org.name, error: logError.message });
           result.errors.push({
             org_id: org.id,
             code: 'DB_ERROR',
@@ -331,7 +332,7 @@ async function processOrgEmails(
         result.sent++;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[${org.name}] Failed to send email for reminder ${reminder.id}:`, error);
+        logger.error('Failed to send email for reminder', { cron: 'send-emails', orgName: org.name, reminderId: reminder.id, error: errorMessage });
         result.errors.push({
           org_id: org.id,
           code: 'SEND_FAILED',
@@ -353,7 +354,7 @@ async function processOrgEmails(
           .eq('id', reminder.id);
 
         if (exhausted) {
-          console.warn(`[${org.name}] Reminder ${reminder.id} exceeded max send attempts — marking failed`);
+          logger.warn('Reminder exceeded max send attempts — marking failed', { cron: 'send-emails', orgName: org.name, reminderId: reminder.id });
         }
 
         // Insert email_log entry for failed send

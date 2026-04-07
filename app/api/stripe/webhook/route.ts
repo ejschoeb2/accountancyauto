@@ -8,6 +8,7 @@ import {
   handleInvoicePaymentFailed,
 } from "@/lib/stripe/webhook-handlers";
 import type Stripe from "stripe";
+import { logger } from '@/lib/logger';
 
 export const dynamic = "force-dynamic";
 
@@ -43,9 +44,9 @@ export async function POST(req: Request) {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`Stripe webhook signature verification failed: ${message}`);
+    logger.error('Stripe webhook signature verification failed', { error: message });
     return NextResponse.json(
-      { error: `Webhook signature verification failed: ${message}` },
+      { error: 'Webhook signature verification failed' },
       { status: 400 }
     );
   }
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
     if (insertError.code === "23505") {
       return NextResponse.json({ received: true, duplicate: true });
     }
-    console.error("Failed to record webhook event:", insertError);
+    logger.error("Failed to record webhook event:", { error: (insertError as any)?.message ?? String(insertError) });
     // Continue processing anyway -- better to handle than to miss
   }
 
@@ -119,13 +120,10 @@ export async function POST(req: Request) {
         break;
 
       default:
-        console.log(`Unhandled Stripe webhook event type: ${event.type}`);
+        logger.info(`Unhandled Stripe webhook event type: ${event.type}`);
     }
   } catch (err) {
-    console.error(
-      `Error handling Stripe webhook event ${event.type} (${event.id}):`,
-      err
-    );
+    logger.error(`Error handling Stripe webhook event ${event.type} (${event.id}):`, { error: (err as any)?.message ?? String(err) });
 
     // Remove idempotency record so Stripe retries this event.
     // Without this, the event is permanently skipped — Stripe sees 200 and

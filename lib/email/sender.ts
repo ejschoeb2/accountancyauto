@@ -12,6 +12,7 @@ import { postmarkClient } from './client';
 import ReminderEmail from './templates/reminder';
 import { getUserEmailSettings, type EmailSettings } from '@/app/actions/settings';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 /**
  * Generate an HMAC-SHA256 token for unsubscribe URL authentication.
@@ -206,7 +207,7 @@ export async function sendReminderEmail(
       to: result.To || params.to,
     };
   } catch (error) {
-    console.error('Failed to send reminder email:', error);
+    logger.error('Failed to send reminder email:', { error: (error as any)?.message ?? String(error) });
     throw new Error(
       `Failed to send reminder email to ${params.to}: ${
         error instanceof Error ? error.message : 'Unknown error'
@@ -275,7 +276,7 @@ export async function sendRichEmail(
       to: result.To || params.to,
     };
   } catch (error) {
-    console.error('Failed to send rich email:', error);
+    logger.error('Failed to send rich email:', { error: (error as any)?.message ?? String(error) });
     throw new Error(
       `Failed to send rich email to ${params.to}: ${
         error instanceof Error ? error.message : 'Unknown error'
@@ -345,7 +346,7 @@ export async function sendRichEmailForOrg(
       to: result.To || params.to,
     };
   } catch (error) {
-    console.error('Failed to send rich email for org:', error);
+    logger.error('Failed to send rich email for org:', { error: (error as any)?.message ?? String(error) });
     throw new Error(
       `Failed to send rich email to ${params.to}: ${
         error instanceof Error ? error.message : 'Unknown error'

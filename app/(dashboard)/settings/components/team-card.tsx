@@ -48,6 +48,7 @@ import {
   type TeamMember,
 } from "@/app/actions/team";
 import { reassignClients } from "@/app/actions/clients";
+import { logger } from '@/lib/logger';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ export function TeamCard({ accountants, totalClients, clientLimit }: TeamCardPro
       const data = await getTeamMembers();
       setMembers(data);
     } catch (err) {
-      console.error("TeamCard: failed to load team members:", err);
+      logger.error("TeamCard: failed to load team members:", { error: (err as any)?.message ?? String(err) });
     } finally {
       setLoading(false);
     }

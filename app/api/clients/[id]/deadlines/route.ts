@@ -5,6 +5,7 @@ import { getOrgId } from '@/lib/auth/org-context';
 import { rebuildQueueForClient } from '@/lib/reminders/queue-builder';
 import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 const putDeadlineSchema = z.object({
   filing_type_id: z.string(),
@@ -89,7 +90,7 @@ export async function PUT(
       const adminClient = createAdminClient();
       await rebuildQueueForClient(adminClient, clientId);
     } catch (rebuildErr) {
-      console.error('[deadlines route] Non-fatal: failed to rebuild reminder queue:', rebuildErr);
+      logger.error('[deadlines route] Non-fatal: failed to rebuild reminder queue:', { error: (rebuildErr as any)?.message ?? String(rebuildErr) });
     }
 
     return NextResponse.json({ override });
@@ -154,7 +155,7 @@ export async function DELETE(
       const adminClient = createAdminClient();
       await rebuildQueueForClient(adminClient, clientId);
     } catch (rebuildErr) {
-      console.error('[deadlines route] Non-fatal: failed to rebuild reminder queue:', rebuildErr);
+      logger.error('[deadlines route] Non-fatal: failed to rebuild reminder queue:', { error: (rebuildErr as any)?.message ?? String(rebuildErr) });
     }
 
     return NextResponse.json({ success: true });

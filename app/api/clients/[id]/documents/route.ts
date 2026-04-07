@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSignedDownloadUrl, resolveProvider } from '@/lib/documents/storage';
 import { getOrgId } from '@/lib/auth/org-context';
+import { logger } from '@/lib/logger';
 
 // Google Drive downloads may be large PDFs — allow up to 60 seconds on Vercel
 export const maxDuration = 60;
@@ -37,7 +38,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { data: docs, error } = await query;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    logger.error('Failed to fetch documents', { clientId, error: error.message });
+    return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
+  }
   return NextResponse.json({ documents: docs ?? [] });
 }
 
@@ -237,7 +241,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('id', documentId)
       .eq('client_id', clientId);  // belt-and-braces ownership check
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      logger.error('Failed to update extraction field', { documentId, error: error.message });
+      return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
+    }
     return NextResponse.json({ success: true });
   }
 
@@ -252,7 +259,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('id', documentId)
       .eq('client_id', clientId);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      logger.error('Failed to reject document', { documentId, error: error.message });
+      return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
+    }
 
     // Audit log
     const serviceSupabase = createServiceClient();
@@ -311,7 +321,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     } catch (storageErr) {
       // Log but don't block — the DB row should still be removed
-      console.error('[Delete] Storage deletion failed (continuing with DB delete):', storageErr);
+      logger.error('[Delete] Storage deletion failed (continuing with DB delete):', { error: (storageErr as any)?.message ?? String(storageErr) });
     }
 
     // Delete the DB row
@@ -322,7 +332,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('client_id', clientId);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      logger.error('Failed to delete document', { documentId, error: error.message });
+      return NextResponse.json({ error: 'An internal error occurred' }, { status: 500 });
     }
 
     // Audit log

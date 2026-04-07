@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
 import { scheduleSchema } from "@/lib/validations/schedule";
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/schedules/[id]
@@ -22,7 +23,7 @@ export async function GET(
     .single();
 
   if (scheduleError) {
-    console.error("Error fetching schedule:", scheduleError);
+    logger.error("Error fetching schedule:", { error: (scheduleError as any)?.message ?? String(scheduleError) });
     if (scheduleError.code === "PGRST116") {
       return NextResponse.json(
         { error: "Schedule not found" },
@@ -43,7 +44,7 @@ export async function GET(
     .order("step_number", { ascending: true });
 
   if (stepsError) {
-    console.error("Error fetching schedule steps:", stepsError);
+    logger.error("Error fetching schedule steps:", { error: (stepsError as any)?.message ?? String(stepsError) });
     return NextResponse.json(
       { error: "Failed to fetch schedule steps" },
       { status: 500 }
@@ -56,7 +57,7 @@ export async function GET(
     .select("id, name");
 
   if (templatesError) {
-    console.error("Error fetching email templates:", templatesError);
+    logger.error("Error fetching email templates:", { error: (templatesError as any)?.message ?? String(templatesError) });
     return NextResponse.json(
       { error: "Failed to fetch email templates" },
       { status: 500 }
@@ -158,7 +159,7 @@ export async function PUT(
     .single();
 
   if (scheduleError) {
-    console.error("Error updating schedule:", scheduleError);
+    logger.error("Error updating schedule:", { error: (scheduleError as any)?.message ?? String(scheduleError) });
     if (scheduleError.code === "PGRST116") {
       return NextResponse.json(
         { error: "Schedule not found" },
@@ -184,7 +185,7 @@ export async function PUT(
     .eq("schedule_id", id);
 
   if (deleteError) {
-    console.error("Error deleting old schedule steps:", deleteError);
+    logger.error("Error deleting old schedule steps:", { error: (deleteError as any)?.message ?? String(deleteError) });
     return NextResponse.json(
       { error: "Failed to update schedule steps" },
       { status: 500 }
@@ -209,7 +210,7 @@ export async function PUT(
       .insert(stepsToInsert);
 
     if (insertError) {
-      console.error("Error inserting new schedule steps:", insertError);
+      logger.error("Error inserting new schedule steps:", { error: (insertError as any)?.message ?? String(insertError) });
       return NextResponse.json(
         { error: "Failed to update schedule steps" },
         { status: 500 }
@@ -251,7 +252,7 @@ export async function PATCH(
     .eq("id", id);
 
   if (error) {
-    console.error("Error patching schedule:", error);
+    logger.error("Error patching schedule:", { error: (error as any)?.message ?? String(error) });
     if (error.code === "PGRST116") {
       return NextResponse.json(
         { error: "Schedule not found" },
@@ -284,7 +285,7 @@ export async function DELETE(
     .eq("id", id);
 
   if (error) {
-    console.error("Error deleting schedule:", error);
+    logger.error("Error deleting schedule:", { error: (error as any)?.message ?? String(error) });
     if (error.code === "PGRST116") {
       return NextResponse.json(
         { error: "Schedule not found" },

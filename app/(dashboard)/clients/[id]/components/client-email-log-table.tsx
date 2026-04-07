@@ -52,6 +52,7 @@ type ViewMode = 'sent' | 'queued';
 const ITEMS_PER_PAGE = 10;
 
 import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
+import { logger } from '@/lib/logger';
 
 export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('queued');
@@ -97,7 +98,7 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
         setTotalCount(result.totalCount);
       }
     } catch (error) {
-      console.error('Error fetching email log:', error);
+      logger.error('Error fetching email log:', { error: (error as any)?.message ?? String(error) });
     } finally {
       setLoading(false);
     }
@@ -335,7 +336,7 @@ export function ClientEmailHistoryTable({ clientId }: ClientEmailLogTableProps) 
       setEditedStatuses({});
       setEditedDates({});
     } catch (error) {
-      console.error('Error saving changes:', error);
+      logger.error('Error saving changes:', { error: (error as any)?.message ?? String(error) });
       toast.error('Failed to update emails');
     } finally {
       setSaving(false);

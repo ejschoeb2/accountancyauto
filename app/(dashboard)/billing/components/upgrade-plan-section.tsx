@@ -9,6 +9,7 @@ import {
   PAID_PLAN_TIERS,
   type PlanTier,
 } from "@/lib/stripe/plans";
+import { logger } from '@/lib/logger';
 
 /** Tier ordering for upgrade/downgrade comparison (higher index = higher tier) */
 const TIER_ORDER: PlanTier[] = ["free", "solo", "starter", "practice", "firm", "enterprise"];
@@ -106,7 +107,7 @@ export function UpgradePlanSection({ orgId, currentTier, hasSubscription, client
         window.location.href = data.url;
       }
     } catch (err) {
-      console.error("Plan change error:", err);
+      logger.error("Plan change error:", { error: (err as any)?.message ?? String(err) });
       setError("Something went wrong. Please try again.");
       setLoadingTier(null);
     }

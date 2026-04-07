@@ -3,6 +3,7 @@ import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptToken } from "@/lib/crypto/tokens";
 import { ServerClient } from "postmark";
+import { logger } from '@/lib/logger';
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
     .in("subscription_status", ["active", "trialing"]);
 
   if (fetchError) {
-    console.error("[Cron:storage-health-check] Failed to fetch orgs:", fetchError.message);
+    logger.error("[Cron:storage-health-check] Failed to fetch orgs:", { error: fetchError.message });
     return NextResponse.json({
       execution_id: executionId,
       started_at: startedAt,
@@ -125,7 +126,7 @@ export async function GET(request: NextRequest) {
           .is("user_id", null)
           .eq("key", "storage_health_error_notified");
 
-        console.log(
+        logger.info(
           `[Cron:storage-health-check] Org ${org.id} ("${org.name}") recovered — status reset to active`
         );
       }
@@ -200,16 +201,13 @@ export async function GET(request: NextRequest) {
                 { onConflict: "org_id,user_id,key" }
               );
 
-              console.log(
+              logger.info(
                 `[Cron:storage-health-check] Sent error notification for org ${org.id} ("${org.name}") — backend: ${org.storage_backend}`
               );
             }
           } catch (emailErr) {
             // Non-fatal: log but continue processing remaining orgs
-            console.error(
-              `[Cron:storage-health-check] Failed to send notification for org ${org.id}:`,
-              emailErr
-            );
+            logger.error(`[Cron:storage-health-check] Failed to send notification for org ${org.id}:`, { error: (emailErr as any)?.message ?? String(emailErr) });
           }
         }
       } else {
@@ -219,7 +217,7 @@ export async function GET(request: NextRequest) {
 
         if (!isNaN(firstNotifiedAt) && elapsedMs >= ESCALATION_THRESHOLD_MS) {
           const daysPersisted = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
-          console.warn(
+          logger.warn(
             `[Cron:storage-health-check] Org ${org.id} ("${org.name}") storage error has persisted for ${daysPersisted} days — sending escalation`
           );
 
@@ -268,19 +266,16 @@ export async function GET(request: NextRequest) {
                   { onConflict: "org_id,user_id,key" }
                 );
 
-                console.log(
+                logger.info(
                   `[Cron:storage-health-check] Sent escalation for org ${org.id} ("${org.name}") after ${daysPersisted} days`
                 );
               }
             } catch (escalationErr) {
-              console.error(
-                `[Cron:storage-health-check] Failed to send escalation for org ${org.id}:`,
-                escalationErr
-              );
+              logger.error(`[Cron:storage-health-check] Failed to send escalation for org ${org.id}:`, { error: (escalationErr as any)?.message ?? String(escalationErr) });
             }
           }
         } else {
-          console.log(
+          logger.info(
             `[Cron:storage-health-check] Org ${org.id} ("${org.name}") still unhealthy — notification already sent, skipping email`
           );
         }

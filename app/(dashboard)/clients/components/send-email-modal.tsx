@@ -36,6 +36,7 @@ import { calculateDeadline } from "@/lib/deadlines/calculators";
 import { renderTipTapEmailSimple } from "@/lib/email/render-tiptap";
 import type { TipTapDocument } from "@/lib/types/database";
 import { filterTemplatesByFilingType } from "@/lib/templates/filter";
+import { logger } from '@/lib/logger';
 
 type SendStep = 'compose' | 'confirm' | 'sending' | 'results';
 
@@ -119,7 +120,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
           setIsLoadingTemplates(false);
         })
         .catch((error) => {
-          console.error('Failed to load templates:', error);
+          logger.error('Failed to load templates:', { error: (error as any)?.message ?? String(error) });
           toast.error('Failed to load templates');
           setIsLoadingTemplates(false);
         });
@@ -239,7 +240,7 @@ export function SendEmailModal({ open, onClose, selectedClients }: SendEmailModa
         setEditedHtml(rendered.html);
       } catch (error) {
         toast.error('Failed to render email content');
-        console.error(error);
+        logger.error("Send email modal error", { error: (error as any)?.message ?? String(error) });
         setStep('compose');
       } finally {
         setIsLoadingPreview(false);

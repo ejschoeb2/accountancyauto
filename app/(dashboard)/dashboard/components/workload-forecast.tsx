@@ -10,6 +10,7 @@ import {
   type ForecastTimeframe,
   type ForecastBucket,
 } from '@/lib/dashboard/forecast';
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Status colours & config
@@ -63,7 +64,7 @@ export function WorkloadForecast({ refreshKey }: WorkloadForecastProps) {
       const result = await getWorkloadForecast(supabase, tf);
       setData(result);
     } catch (e) {
-      console.error('Forecast fetch error:', e);
+      logger.error('Forecast fetch error:', { error: (e as any)?.message ?? String(e) });
     } finally {
       setLoading(false);
       setTimeout(() => setMounted(true), 50);

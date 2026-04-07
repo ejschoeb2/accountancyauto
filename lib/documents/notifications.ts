@@ -10,6 +10,7 @@
 
 import { ServerClient } from 'postmark';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 interface FlaggedDocument {
   id: string;
@@ -55,7 +56,7 @@ export async function sendRetentionFlaggedEmail(
 
   const postmarkToken = process.env.POSTMARK_SERVER_TOKEN;
   if (!postmarkToken) {
-    console.error('sendRetentionFlaggedEmail: POSTMARK_SERVER_TOKEN not configured');
+    logger.error('sendRetentionFlaggedEmail: POSTMARK_SERVER_TOKEN not configured');
     return;
   }
 
@@ -76,10 +77,10 @@ export async function sendRetentionFlaggedEmail(
         TrackLinks: 'None' as never,
       });
     } catch (err) {
-      console.error(`sendRetentionFlaggedEmail: failed to send to ${email}:`, err);
+      logger.error(`sendRetentionFlaggedEmail: failed to send to ${email}:`, { error: (err as any)?.message ?? String(err) });
     }
   }
-  console.log(`sendRetentionFlaggedEmail: ${flaggedDocs.length} docs flagged, emailed ${adminEmails.length} admin(s) for org ${orgId}`);
+  logger.info(`sendRetentionFlaggedEmail: ${flaggedDocs.length} docs flagged, emailed ${adminEmails.length} admin(s) for org ${orgId}`);
 }
 
 function buildRetentionHtml(orgName: string, docs: FlaggedDocument[], appUrl: string): string {

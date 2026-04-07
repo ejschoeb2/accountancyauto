@@ -30,6 +30,7 @@ import { toast } from 'sonner'
 import { updateOrgFilingTypeSelections } from '@/app/actions/deadlines'
 import type { FilingType, FilingTypeId } from '@/lib/types/database'
 import { ActivateDeadlineModal } from './activate-deadline-modal'
+import { logger } from '@/lib/logger';
 
 export interface StepDisplay {
   step_number: number
@@ -227,7 +228,7 @@ export function DeadlinesView({
       toast.success(`Deleted "${scheduleName}"`)
       router.refresh()
     } catch (error) {
-      console.error('Error deleting schedule:', error)
+      logger.error('Error deleting schedule', { error: (error as any)?.message ?? String(error) })
       toast.error(error instanceof Error ? error.message : 'Failed to delete schedule')
     } finally {
       setDeletingId(null)

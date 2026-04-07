@@ -8,6 +8,7 @@ import {
   PAID_PLAN_TIERS,
   type PlanTier,
 } from "@/lib/stripe/plans";
+import { logger } from '@/lib/logger';
 
 const VALID_TIERS: PlanTier[] = ["free", ...PAID_PLAN_TIERS];
 
@@ -171,7 +172,7 @@ export async function POST(request: NextRequest) {
         .eq("id", orgId);
 
       if (updateError) {
-        console.error(`[downgrade-plan] Failed to reset org ${orgId} to free:`, updateError);
+        logger.error(`[downgrade-plan] Failed to reset org ${orgId} to free:`, { error: (updateError as any)?.message ?? String(updateError) });
         return NextResponse.json(
           { error: "Failed to change plan. Please contact support." },
           { status: 500 }
@@ -191,7 +192,7 @@ export async function POST(request: NextRequest) {
           .eq("id", orgId);
 
         if (updateError) {
-          console.error(`[downgrade-plan] Failed to update org ${orgId}:`, updateError);
+          logger.error(`[downgrade-plan] Failed to update org ${orgId}:`, { error: (updateError as any)?.message ?? String(updateError) });
           return NextResponse.json(
             { error: "Failed to change plan. Please contact support." },
             { status: 500 }
@@ -234,7 +235,7 @@ export async function POST(request: NextRequest) {
       .in("id", clientIdsToRemove);
 
     if (deleteError) {
-      console.error(`[downgrade-plan] Failed to delete clients for org ${orgId}:`, deleteError);
+      logger.error(`[downgrade-plan] Failed to delete clients for org ${orgId}:`, { error: (deleteError as any)?.message ?? String(deleteError) });
       // Plan changed but clients not deleted — leave pending record for manual cleanup
       return NextResponse.json(
         { error: "Plan changed but some clients could not be removed. Please contact support." },
@@ -248,13 +249,13 @@ export async function POST(request: NextRequest) {
       .delete()
       .eq("org_id", orgId);
 
-    console.log(
+    logger.info(
       `[downgrade-plan] org ${orgId} downgraded to ${targetTier}, ${clientIdsToRemove.length} clients removed`
     );
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[downgrade-plan] Error:", error);
+    logger.error("[downgrade-plan] Error:", { error: (error as any)?.message ?? String(error) });
     const message =
       error instanceof Error ? error.message : "Failed to downgrade plan";
     return NextResponse.json({ error: message }, { status: 500 });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logger } from '@/lib/logger';
 
 const envSchema = z.object({
   // Supabase (required)
@@ -25,7 +26,7 @@ function warnOnProductionSecretsInDev(data: z.infer<typeof envSchema>) {
   if (process.env.NODE_ENV !== "development") return;
 
   if (data.STRIPE_SECRET_KEY && !data.STRIPE_SECRET_KEY.startsWith("sk_test_")) {
-    console.warn(
+    logger.warn(
       "WARNING: Using production Stripe key in development. Set STRIPE_SECRET_KEY to a sk_test_ key to avoid accidental charges."
     );
   }
@@ -34,7 +35,7 @@ function warnOnProductionSecretsInDev(data: z.infer<typeof envSchema>) {
     data.POSTMARK_SERVER_TOKEN &&
     !data.POSTMARK_SERVER_TOKEN.toLowerCase().includes("test")
   ) {
-    console.warn(
+    logger.warn(
       "WARNING: Using what appears to be a production Postmark token in development. Emails sent will reach real recipients."
     );
   }
@@ -44,9 +45,9 @@ export function validateEnv() {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error("❌ Invalid environment variables:");
+    logger.error("❌ Invalid environment variables:");
     result.error.issues.forEach((issue) => {
-      console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
+      logger.error(`  - ${issue.path.join(".")}: ${issue.message}`);
     });
     process.exit(1);
   }

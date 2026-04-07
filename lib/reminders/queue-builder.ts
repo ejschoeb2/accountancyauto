@@ -5,6 +5,7 @@ import { FilingTypeId, ClientFilingAssignment, ClientDeadlineOverride, Schedule,
 import { calculateDeadline } from '@/lib/deadlines/calculators';
 import { getNextWorkingDay } from '@/lib/deadlines/working-days';
 import { getUKBankHolidaySet } from '@/lib/bank-holidays/cache';
+import { logger } from '@/lib/logger';
 
 interface Client {
   id: string;
@@ -330,7 +331,7 @@ export async function buildReminderQueue(supabase: SupabaseClient, org: Org, own
       .select('id');
 
     if (batchError) {
-      console.error('Failed to batch insert reminder queue entries:', batchError);
+      logger.error('Failed to batch insert reminder queue entries:', { error: (batchError as any)?.message ?? String(batchError) });
       skipped += entriesToInsert.length;
     } else {
       created = inserted?.length ?? 0;
@@ -512,7 +513,7 @@ export async function buildCustomScheduleQueue(supabase: SupabaseClient, org: Or
       .select('id');
 
     if (batchError) {
-      console.error('Failed to batch insert custom schedule queue entries:', batchError);
+      logger.error('Failed to batch insert custom schedule queue entries:', { error: (batchError as any)?.message ?? String(batchError) });
       skipped += entriesToInsert.length;
     } else {
       created = inserted?.length ?? 0;

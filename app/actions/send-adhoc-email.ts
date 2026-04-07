@@ -9,6 +9,7 @@ import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { sendRichEmail } from '@/lib/email/sender';
 import { calculateDeadline } from '@/lib/deadlines/calculators';
+import { logger } from '@/lib/logger';
 
 const SendAdhocEmailParamsSchema = z.object({
   clientId: z.string().uuid(),
@@ -245,7 +246,7 @@ export async function sendAdhocEmail(
       });
 
     if (logError) {
-      console.error('Failed to log ad-hoc email send:', logError);
+      logger.error('Failed to log ad-hoc email send:', { error: (logError as any)?.message ?? String(logError) });
       // Don't fail the operation - email was sent successfully
     }
 
@@ -254,7 +255,7 @@ export async function sendAdhocEmail(
       messageId: sendResult.messageId,
     };
   } catch (error) {
-    console.error('sendAdhocEmail error:', error);
+    logger.error('sendAdhocEmail error:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -310,7 +311,7 @@ export async function previewAdhocEmail(params: {
       subject: rendered.subject,
     };
   } catch (error) {
-    console.error('previewAdhocEmail error:', error);
+    logger.error('previewAdhocEmail error:', { error: (error as any)?.message ?? String(error) });
     return {
       error: error instanceof Error ? error.message : 'Unknown error',
     };

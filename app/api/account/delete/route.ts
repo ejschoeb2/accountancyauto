@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/account/delete
@@ -55,15 +56,12 @@ export async function POST() {
       if (org?.stripe_subscription_id) {
         try {
           await stripe.subscriptions.cancel(org.stripe_subscription_id);
-          console.log(
+          logger.info(
             `[delete-account] Cancelled Stripe subscription for org ${membership.org_id}`
           );
         } catch (stripeErr) {
           // Log but don't block deletion if subscription is already cancelled
-          console.error(
-            `[delete-account] Stripe cancellation error:`,
-            stripeErr
-          );
+          logger.error(`[delete-account] Stripe cancellation error:`, { error: (stripeErr as any)?.message ?? String(stripeErr) });
         }
       }
 
@@ -74,17 +72,14 @@ export async function POST() {
         .eq("id", membership.org_id);
 
       if (deleteOrgError) {
-        console.error(
-          `[delete-account] Failed to delete org ${membership.org_id}:`,
-          deleteOrgError
-        );
+        logger.error(`[delete-account] Failed to delete org ${membership.org_id}:`, { error: (deleteOrgError as any)?.message ?? String(deleteOrgError) });
         return NextResponse.json(
           { error: "Failed to delete organisation data. Please contact support." },
           { status: 500 }
         );
       }
 
-      console.log(
+      logger.info(
         `[delete-account] Deleted org ${membership.org_id}`
       );
     }
@@ -95,10 +90,7 @@ export async function POST() {
     );
 
     if (deleteUserError) {
-      console.error(
-        `[delete-account] Failed to delete auth user ${user.id}:`,
-        deleteUserError
-      );
+      logger.error(`[delete-account] Failed to delete auth user ${user.id}:`, { error: (deleteUserError as any)?.message ?? String(deleteUserError) });
       return NextResponse.json(
         { error: "Failed to delete user account. Please contact support." },
         { status: 500 }
@@ -108,11 +100,11 @@ export async function POST() {
     // Sign out the current session
     await supabase.auth.signOut();
 
-    console.log(`[delete-account] Deleted user ${user.id}`);
+    logger.info(`[delete-account] Deleted user ${user.id}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[delete-account] Error:", error);
+    logger.error("[delete-account] Error:", { error: (error as any)?.message ?? String(error) });
     const message =
       error instanceof Error ? error.message : "Failed to delete account";
     return NextResponse.json({ error: message }, { status: 500 });

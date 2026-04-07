@@ -5,6 +5,7 @@ import { requireWriteAccess } from '@/lib/billing/read-only-mode';
 import { renderTipTapEmail } from '@/lib/email/render-tiptap';
 import { sendRichEmail } from '@/lib/email/sender';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { logger } from '@/lib/logger';
 
 interface SendReplyEmailParams {
   to: string;
@@ -47,7 +48,7 @@ export async function sendReplyEmail(params: SendReplyEmailParams): Promise<Send
 
     return { success: true };
   } catch (error) {
-    console.error('Failed to send reply email:', error);
+    logger.error('Failed to send reply email:', { error: (error as any)?.message ?? String(error) });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

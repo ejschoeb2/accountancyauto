@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { seedNewUserDefaults } from "@/lib/seeding/seed-new-user";
+import { logger } from '@/lib/logger';
 
 /**
  * Validate an invite token and return invite details for the accept page.
@@ -40,7 +41,7 @@ export async function validateInviteToken(token: string): Promise<{
     .maybeSingle();
 
   if (inviteError) {
-    console.error("validateInviteToken: database error:", inviteError);
+    logger.error("validateInviteToken: database error:", { error: (inviteError as any)?.message ?? String(inviteError) });
     return { valid: false, error: "Failed to validate invite. Please try again." };
   }
 
@@ -56,7 +57,7 @@ export async function validateInviteToken(token: string): Promise<{
     .single();
 
   if (orgError || !org) {
-    console.error("validateInviteToken: failed to fetch org:", orgError);
+    logger.error("validateInviteToken: failed to fetch org:", { error: (orgError as any)?.message ?? String(orgError) });
     return { valid: false, error: "Failed to load organisation details." };
   }
 
@@ -100,7 +101,7 @@ export async function acceptInvite(
     .maybeSingle();
 
   if (inviteError) {
-    console.error("acceptInvite: database error:", inviteError);
+    logger.error("acceptInvite: database error:", { error: (inviteError as any)?.message ?? String(inviteError) });
     return { error: "Failed to process invite. Please try again." };
   }
 
@@ -127,7 +128,7 @@ export async function acceptInvite(
     .maybeSingle();
 
   if (membershipError) {
-    console.error("acceptInvite: failed to check existing membership:", membershipError);
+    logger.error("acceptInvite: failed to check existing membership:", { error: (membershipError as any)?.message ?? String(membershipError) });
     return { error: "Failed to process invite. Please try again." };
   }
 
@@ -155,7 +156,7 @@ export async function acceptInvite(
   });
 
   if (insertError) {
-    console.error("acceptInvite: failed to insert user_organisations:", insertError);
+    logger.error("acceptInvite: failed to insert user_organisations:", { error: (insertError as any)?.message ?? String(insertError) });
     return { error: "Failed to join organisation. Please try again." };
   }
 
@@ -170,7 +171,7 @@ export async function acceptInvite(
 
   if (updateError) {
     // Non-fatal — user is already added. Log but don't fail.
-    console.error("acceptInvite: failed to mark invite as accepted:", updateError);
+    logger.error("acceptInvite: failed to mark invite as accepted:", { error: (updateError as any)?.message ?? String(updateError) });
   }
 
   // Get org slug for redirect
@@ -181,7 +182,7 @@ export async function acceptInvite(
     .single();
 
   if (orgError || !org) {
-    console.error("acceptInvite: failed to fetch org slug:", orgError);
+    logger.error("acceptInvite: failed to fetch org slug:", { error: (orgError as any)?.message ?? String(orgError) });
     // User was added successfully — return a generic success
     return { orgSlug: undefined };
   }

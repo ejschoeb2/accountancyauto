@@ -8,6 +8,7 @@ import {
   PAID_PLAN_TIERS,
   type PlanTier,
 } from "@/lib/stripe/plans";
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/stripe/create-checkout-session
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
-    console.error("[create-checkout-session] Error:", error);
+    logger.error("[create-checkout-session] Error:", { error: (error as any)?.message ?? String(error) });
     const message =
       error instanceof Error ? error.message : "Failed to create checkout session";
     return NextResponse.json({ error: message }, { status: 500 });

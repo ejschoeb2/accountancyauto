@@ -8,6 +8,7 @@ import {
   PLAN_TIERS,
   type PlanTier,
 } from "@/lib/stripe/plans";
+import { logger } from '@/lib/logger';
 
 const VALID_TIERS: PlanTier[] = ["free", ...PAID_PLAN_TIERS];
 
@@ -133,17 +134,14 @@ export async function POST(request: NextRequest) {
         .eq("id", orgId);
 
       if (updateError) {
-        console.error(
-          `[change-plan] Failed to reset org ${orgId} to free:`,
-          updateError
-        );
+        logger.error(`[change-plan] Failed to reset org ${orgId} to free:`, { error: (updateError as any)?.message ?? String(updateError) });
         return NextResponse.json(
           { error: "Subscription cancelled but failed to update plan. Please contact support." },
           { status: 500 }
         );
       }
 
-      console.log(
+      logger.info(
         `[change-plan] org ${orgId} downgraded to free, subscription cancelled`
       );
       return NextResponse.json({ success: true });
@@ -195,7 +193,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("[change-plan] Error:", error);
+    logger.error("[change-plan] Error:", { error: (error as any)?.message ?? String(error) });
     const message =
       error instanceof Error ? error.message : "Failed to change plan";
     return NextResponse.json({ error: message }, { status: 500 });

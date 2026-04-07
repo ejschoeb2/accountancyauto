@@ -35,6 +35,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
 import { encryptToken } from '@/lib/crypto/tokens';
+import { logger } from '@/lib/logger';
 
 /**
  * Build redirect URL — org subdomain in production, origin-relative in dev.
@@ -51,7 +52,7 @@ function buildRedirectUrl(path: string, orgSlug: string | null | undefined, requ
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  console.log('[dropbox/callback] Callback hit:', request.nextUrl.pathname, 'params:', Object.fromEntries(request.nextUrl.searchParams.entries()));
+  logger.info('Dropbox OAuth callback hit', { path: request.nextUrl.pathname });
 
   // Detect wizard origin from state param prefix — safe for redirect routing
   // even before CSRF validation (worst case: wrong redirect target, not a
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    console.error('[dropbox/callback] Auth check failed:', authError?.message ?? 'no user');
+    logger.error('Dropbox OAuth auth check failed', { error: authError?.message ?? 'no user' });
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const code = request.nextUrl.searchParams.get('code');
 
   if (!code) {
-    console.error('[dropbox/callback] No code param in callback URL');
+    logger.error('[dropbox/callback] No code param in callback URL');
     return NextResponse.redirect(errorUrl('missing_code'));
   }
 
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const ctx = await getOrgContext();
     orgId = ctx.orgId;
   } catch (ctxErr) {
-    console.error('[dropbox/callback] getOrgContext failed:', ctxErr);
+    logger.error('[dropbox/callback] getOrgContext failed:', { error: (ctxErr as any)?.message ?? String(ctxErr) });
     return NextResponse.redirect(errorUrl('no_org_context'));
   }
 
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // ── CSRF state validation (DB-based) ────────────────────────────────────
   if (!stateParam || !org?.dropbox_oauth_state || stateParam !== org.dropbox_oauth_state) {
-    console.error('[dropbox/callback] CSRF state mismatch', {
+    logger.error('[dropbox/callback] CSRF state mismatch', {
       stateParam: stateParam ? `${stateParam.slice(0, 12)}...` : null,
       dbState: org?.dropbox_oauth_state ? `${org.dropbox_oauth_state.slice(0, 12)}...` : null,
     });
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (!tokenRes.ok) {
       const errText = await tokenRes.text();
-      console.error('[dropbox/callback] Token exchange HTTP error:', tokenRes.status, errText);
+      logger.error('Dropbox token exchange HTTP error', { status: tokenRes.status, error: errText });
       return NextResponse.redirect(errorUrl('dropbox_token_http_' + tokenRes.status, org?.slug));
     }
 
@@ -156,12 +157,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // ── DRPBX-01: Mandatory refresh_token presence check ─────────────────
     if (!result.refresh_token) {
-      console.error('[dropbox/callback] No refresh_token in response');
+      logger.error('[dropbox/callback] No refresh_token in response');
       return NextResponse.redirect(errorUrl('dropbox_no_refresh_token', org?.slug));
     }
 
     if (!result.access_token) {
-      console.error('[dropbox/callback] No access_token in response');
+      logger.error('[dropbox/callback] No access_token in response');
       return NextResponse.redirect(errorUrl('dropbox_no_access_token', org?.slug));
     }
 
@@ -169,7 +170,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     refreshToken = result.refresh_token;
     expiresIn = result.expires_in ?? 14400; // Dropbox default: 4 hours
   } catch (err) {
-    console.error('[dropbox/callback] Token exchange failed:', err);
+    logger.error('[dropbox/callback] Token exchange failed:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.redirect(errorUrl('dropbox_exchange_failed', org?.slug));
   }
 
@@ -187,11 +188,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }).eq('id', orgId);
 
     if (updateError) {
-      console.error('[dropbox/callback] DB update failed:', updateError.message);
+      logger.error('[dropbox/callback] DB update failed:', { error: updateError.message });
       return NextResponse.redirect(errorUrl('dropbox_db_error', org?.slug));
     }
   } catch (err) {
-    console.error('[dropbox/callback] Token encryption/persist failed:', err);
+    logger.error('[dropbox/callback] Token encryption/persist failed:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.redirect(errorUrl('dropbox_encrypt_failed', org?.slug));
   }
 

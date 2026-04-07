@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTrialEndingSoonEmail } from "@/lib/billing/notifications";
+import { logger } from '@/lib/logger';
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (alreadySent) {
-        console.log(
+        logger.info(
           `[Cron:trial-reminder] Skipping org "${org.name}" (${org.id}) — reminder already sent`
         );
         skipped++;
@@ -97,10 +98,7 @@ export async function GET(request: NextRequest) {
           adminClient
         );
       } catch (err) {
-        console.error(
-          `[Cron:trial-reminder] Failed to send email for org ${org.id}:`,
-          err
-        );
+        logger.error(`[Cron:trial-reminder] Failed to send email for org ${org.id}:`, { error: (err as any)?.message ?? String(err) });
         // Don't mark as sent if email failed — cron will retry tomorrow
         continue;
       }
@@ -114,14 +112,11 @@ export async function GET(request: NextRequest) {
         );
 
       if (upsertError) {
-        console.error(
-          `[Cron:trial-reminder] Failed to mark reminder sent for org ${org.id}:`,
-          upsertError
-        );
+        logger.error(`[Cron:trial-reminder] Failed to mark reminder sent for org ${org.id}:`, { error: (upsertError as any)?.message ?? String(upsertError) });
         // Non-fatal: email was sent, but idempotency flag failed.
         // Worst case: org receives a second email on the next cron run.
       } else {
-        console.log(
+        logger.info(
           `[Cron:trial-reminder] Sent reminder for org "${org.name}" (${org.id}), trial ends: ${org.trial_ends_at}`
         );
       }
@@ -139,7 +134,7 @@ export async function GET(request: NextRequest) {
       skipped,
     });
   } catch (error) {
-    console.error("[Cron:trial-reminder] Error:", error);
+    logger.error("[Cron:trial-reminder] Error:", { error: (error as any)?.message ?? String(error) });
     const message =
       error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({

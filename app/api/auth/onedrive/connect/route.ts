@@ -19,6 +19,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrgContext } from '@/lib/auth/org-context';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import crypto from 'crypto';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const fromWizard = request.nextUrl.searchParams.get('from') === 'wizard';
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // ── Redirect to Microsoft consent screen ─────────────────────────────
     return NextResponse.redirect(authUrl);
   } catch (err) {
-    console.error('[onedrive/connect] Error initiating OAuth flow:', err);
+    logger.error('[onedrive/connect] Error initiating OAuth flow:', { error: (err as any)?.message ?? String(err) });
     return NextResponse.redirect(errorUrl);
   }
 }

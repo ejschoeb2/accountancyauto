@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Default email template content
@@ -1164,7 +1165,7 @@ export async function seedOrgDefaults(
       .eq("org_id", orgId);
 
     if (count && count > 0) {
-      console.log(`[seedOrgDefaults] Templates already exist for org ${orgId}, skipping.`);
+      logger.info(`[seedOrgDefaults] Templates already exist for org ${orgId}, skipping.`);
       return;
     }
 
@@ -1184,7 +1185,7 @@ export async function seedOrgDefaults(
       .select("id, name");
 
     if (tErr || !templates) {
-      console.error("[seedOrgDefaults] Failed to insert templates:", tErr);
+      logger.error("[seedOrgDefaults] Failed to insert templates:", { error: (tErr as any)?.message ?? String(tErr) });
       return;
     }
 
@@ -1207,10 +1208,7 @@ export async function seedOrgDefaults(
         .single();
 
       if (sErr || !schedule) {
-        console.error(
-          `[seedOrgDefaults] Failed to insert schedule "${sched.name}":`,
-          sErr
-        );
+        logger.error(`[seedOrgDefaults] Failed to insert schedule "${sched.name}":`, { error: (sErr as any)?.message ?? String(sErr) });
         continue;
       }
 
@@ -1218,7 +1216,7 @@ export async function seedOrgDefaults(
         .map(([templateName, delayDays], i) => {
           const templateId = byName[templateName];
           if (!templateId) {
-            console.warn(
+            logger.warn(
               `[seedOrgDefaults] Template "${templateName}" not found for schedule "${sched.name}"`
             );
             return null;
@@ -1240,10 +1238,7 @@ export async function seedOrgDefaults(
           .insert(steps);
 
         if (stErr) {
-          console.error(
-            `[seedOrgDefaults] Failed to insert steps for "${sched.name}":`,
-            stErr
-          );
+          logger.error(`[seedOrgDefaults] Failed to insert steps for "${sched.name}":`, { error: (stErr as any)?.message ?? String(stErr) });
         }
       }
     }
@@ -1255,7 +1250,7 @@ export async function seedOrgDefaults(
       .eq("is_seeded_default", true);
 
     if (ftErr) {
-      console.error("[seedOrgDefaults] Failed to fetch default filing types:", ftErr);
+      logger.error("[seedOrgDefaults] Failed to fetch default filing types:", { error: (ftErr as any)?.message ?? String(ftErr) });
     } else if (defaultFilingTypes && defaultFilingTypes.length > 0) {
       const selections = defaultFilingTypes.map((ft) => ({
         org_id: orgId,
@@ -1269,11 +1264,11 @@ export async function seedOrgDefaults(
         .upsert(selections, { onConflict: "org_id,filing_type_id" });
 
       if (selErr) {
-        console.error("[seedOrgDefaults] Failed to activate default filing types:", selErr);
+        logger.error("[seedOrgDefaults] Failed to activate default filing types:", { error: (selErr as any)?.message ?? String(selErr) });
       }
     }
   } catch (err) {
     // Non-fatal — org creation succeeded even if seeding fails
-    console.error("[seedOrgDefaults] Unexpected error:", err);
+    logger.error("[seedOrgDefaults] Unexpected error:", { error: (err as any)?.message ?? String(err) });
   }
 }

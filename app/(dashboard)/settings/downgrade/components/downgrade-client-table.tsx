@@ -26,6 +26,7 @@ import { ButtonBase } from "@/components/ui/button-base";
 import { CheckButton } from "@/components/ui/check-button";
 import type { Client } from "@/app/actions/clients";
 import type { PlanTier } from "@/lib/stripe/plans";
+import { logger } from '@/lib/logger';
 
 interface DowngradeClientTableProps {
   clients: Client[];
@@ -203,7 +204,7 @@ export function DowngradeClientTable({
       router.push("/settings?tab=billing");
       router.refresh();
     } catch (err) {
-      console.error("Downgrade error:", err);
+      logger.error("Downgrade error:", { error: (err as any)?.message ?? String(err) });
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }

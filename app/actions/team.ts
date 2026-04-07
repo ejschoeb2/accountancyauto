@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgContext } from "@/lib/auth/org-context";
 import { sendInviteEmail } from "@/lib/billing/notifications";
+import { logger } from '@/lib/logger';
 
 export interface TeamMember {
   id: string;
@@ -36,7 +37,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     .order("created_at", { ascending: true });
 
   if (membersError) {
-    console.error("getTeamMembers: failed to fetch memberships:", membersError);
+    logger.error("getTeamMembers: failed to fetch memberships:", { error: (membersError as any)?.message ?? String(membersError) });
     throw new Error("Failed to load team members.");
   }
 
@@ -49,10 +50,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
       } = await admin.auth.admin.getUserById(m.user_id);
 
       if (userError || !user?.email) {
-        console.warn(
-          `getTeamMembers: could not resolve email for user ${m.user_id}:`,
-          userError
-        );
+        logger.warn(`getTeamMembers: could not resolve email for user ${m.user_id}:`, { error: (userError as any)?.message ?? String(userError) });
         continue;
       }
 
@@ -65,10 +63,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
         joinedAt: m.created_at,
       });
     } catch (err) {
-      console.warn(
-        `getTeamMembers: error fetching user ${m.user_id}:`,
-        err
-      );
+      logger.warn(`getTeamMembers: error fetching user ${m.user_id}:`, { error: (err as any)?.message ?? String(err) });
     }
   }
 
@@ -82,10 +77,7 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     .order("created_at", { ascending: true });
 
   if (invitesError) {
-    console.error(
-      "getTeamMembers: failed to fetch invitations:",
-      invitesError
-    );
+    logger.error("getTeamMembers: failed to fetch invitations:", { error: (invitesError as any)?.message ?? String(invitesError) });
     // Non-fatal — return active members only
     return activeMembers;
   }
@@ -198,7 +190,7 @@ export async function sendInvite(
   });
 
   if (insertError) {
-    console.error("sendInvite: failed to insert invitation:", insertError);
+    logger.error("sendInvite: failed to insert invitation:", { error: (insertError as any)?.message ?? String(insertError) });
     return { error: "Failed to send invite. Please try again." };
   }
 
@@ -218,7 +210,7 @@ export async function sendInvite(
   try {
     await sendInviteEmail(email, org.name, inviterEmail, role, acceptUrl);
   } catch (err) {
-    console.error("sendInvite: failed to send invite email:", err);
+    logger.error("sendInvite: failed to send invite email:", { error: (err as any)?.message ?? String(err) });
     // Invite row already created — the invite exists but email failed.
     // Return error so admin can retry (resendInvite).
     return {
@@ -285,7 +277,7 @@ export async function removeTeamMember(
     .eq("user_id", targetUserId);
 
   if (deleteError) {
-    console.error("removeTeamMember: failed to delete membership:", deleteError);
+    logger.error("removeTeamMember: failed to delete membership:", { error: (deleteError as any)?.message ?? String(deleteError) });
     return { error: "Failed to remove team member." };
   }
 
@@ -338,7 +330,7 @@ export async function changeRole(
     .eq("user_id", targetUserId);
 
   if (updateError) {
-    console.error("changeRole: failed to update role:", updateError);
+    logger.error("changeRole: failed to update role:", { error: (updateError as any)?.message ?? String(updateError) });
     return { error: "Failed to update role." };
   }
 
@@ -366,7 +358,7 @@ export async function cancelInvite(
     .eq("org_id", orgId);
 
   if (deleteError) {
-    console.error("cancelInvite: failed to delete invitation:", deleteError);
+    logger.error("cancelInvite: failed to delete invitation:", { error: (deleteError as any)?.message ?? String(deleteError) });
     return { error: "Failed to cancel invite." };
   }
 
@@ -417,7 +409,7 @@ export async function resendInvite(
     .eq("org_id", orgId);
 
   if (updateError) {
-    console.error("resendInvite: failed to update invitation:", updateError);
+    logger.error("resendInvite: failed to update invitation:", { error: (updateError as any)?.message ?? String(updateError) });
     return { error: "Failed to resend invite." };
   }
 
@@ -447,7 +439,7 @@ export async function resendInvite(
       acceptUrl
     );
   } catch (err) {
-    console.error("resendInvite: failed to send email:", err);
+    logger.error("resendInvite: failed to send email:", { error: (err as any)?.message ?? String(err) });
     return {
       error:
         "Token refreshed but email failed to send. Please try resending again.",

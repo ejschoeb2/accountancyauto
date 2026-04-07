@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
 import { requireWriteAccess } from "@/lib/billing/read-only-mode";
 import { emailTemplateSchema } from "@/lib/validations/email-template";
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/email-templates/[id]
@@ -22,7 +23,7 @@ export async function GET(
     .single();
 
   if (error) {
-    console.error("Error fetching email template:", error);
+    logger.error("Error fetching email template:", { error: (error as any)?.message ?? String(error) });
 
     if (error.code === "PGRST116") {
       return NextResponse.json(
@@ -94,7 +95,7 @@ export async function PUT(
     .single();
 
   if (error) {
-    console.error("Error updating email template:", error);
+    logger.error("Error updating email template:", { error: (error as any)?.message ?? String(error) });
 
     if (error.code === "PGRST116") {
       return NextResponse.json(
@@ -140,7 +141,7 @@ export async function DELETE(
     .eq("id", id);
 
   if (error) {
-    console.error("Error deleting email template:", error);
+    logger.error("Error deleting email template:", { error: (error as any)?.message ?? String(error) });
 
     if (error.code === "PGRST116") {
       return NextResponse.json(

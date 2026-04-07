@@ -8,6 +8,7 @@ import { usePageLoading } from '@/components/page-loading';
 import { getAuditLog, type AuditEntry } from '@/app/actions/audit-log';
 import { format } from 'date-fns';
 import { Mail } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -75,7 +76,7 @@ export function AuditLogTable() {
       setData(result.data);
       setTotalCount(result.totalCount);
     } catch (error) {
-      console.error('Error fetching audit log:', error);
+      logger.error('Error fetching audit log:', { error: (error as any)?.message ?? String(error) });
     } finally {
       setLoading(false);
     }

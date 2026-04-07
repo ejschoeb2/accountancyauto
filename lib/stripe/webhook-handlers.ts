@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { stripe } from "@/lib/stripe/client";
 import { getPlanByTier, getPlanByPriceId, type PlanTier } from "@/lib/stripe/plans";
 import { sendPaymentFailedEmail } from "@/lib/billing/notifications";
+import { logger } from '@/lib/logger';
 
 /**
  * Handle checkout.session.completed
@@ -30,10 +31,7 @@ export async function handleCheckoutSessionCompleted(
   const planTier = session.metadata?.plan_tier as PlanTier | undefined;
 
   if (!orgId || !planTier) {
-    console.error(
-      "checkout.session.completed missing metadata:",
-      JSON.stringify({ orgId, planTier, sessionId: session.id })
-    );
+    logger.error("checkout.session.completed missing metadata", { orgId, planTier, sessionId: session.id });
     return;
   }
 
@@ -41,10 +39,7 @@ export async function handleCheckoutSessionCompleted(
   const subscriptionId = session.subscription as string;
 
   if (!subscriptionId) {
-    console.error(
-      "checkout.session.completed missing subscription ID:",
-      session.id
-    );
+    logger.error("checkout.session.completed missing subscription ID:", { error: (session.id as any)?.message ?? String(session.id) });
     return;
   }
 
@@ -53,10 +48,7 @@ export async function handleCheckoutSessionCompleted(
   try {
     subscription = await stripe.subscriptions.retrieve(subscriptionId);
   } catch (err) {
-    console.error(
-      `Failed to retrieve subscription ${subscriptionId}:`,
-      err
-    );
+    logger.error(`Failed to retrieve subscription ${subscriptionId}:`, { error: (err as any)?.message ?? String(err) });
     return;
   }
 
@@ -83,14 +75,11 @@ export async function handleCheckoutSessionCompleted(
     .eq("id", orgId);
 
   if (error) {
-    console.error(
-      `Failed to update org ${orgId} after checkout:`,
-      error
-    );
+    logger.error(`Failed to update org ${orgId} after checkout:`, { error: (error as any)?.message ?? String(error) });
     return;
   }
 
-  console.log(
+  logger.info(
     `checkout.session.completed: org ${orgId} provisioned with plan ${planTier}, subscription ${subscriptionId}`
   );
 }
@@ -113,15 +102,12 @@ export async function handleSubscriptionUpdated(
     .maybeSingle();
 
   if (lookupError) {
-    console.error(
-      `Failed to look up org for subscription ${subscription.id}:`,
-      lookupError
-    );
+    logger.error(`Failed to look up org for subscription ${subscription.id}:`, { error: (lookupError as any)?.message ?? String(lookupError) });
     return;
   }
 
   if (!org) {
-    console.warn(
+    logger.warn(
       `customer.subscription.updated: no org found for subscription ${subscription.id}`
     );
     return;
@@ -142,13 +128,13 @@ export async function handleSubscriptionUpdated(
       updatePayload.plan_tier = newPlan.tier;
       updatePayload.client_count_limit = newPlan.clientLimit;
       updatePayload.stripe_price_id = newPriceId;
-      console.log(
+      logger.info(
         `customer.subscription.updated: org ${org.id} plan changed to ${newPlan.tier}`
       );
     } else {
       // Price ID not in our plan config -- update the price ID anyway
       updatePayload.stripe_price_id = newPriceId;
-      console.warn(
+      logger.warn(
         `customer.subscription.updated: unknown price ID ${newPriceId} for org ${org.id}`
       );
     }
@@ -160,14 +146,11 @@ export async function handleSubscriptionUpdated(
     .eq("id", org.id);
 
   if (updateError) {
-    console.error(
-      `Failed to update org ${org.id} subscription status:`,
-      updateError
-    );
+    logger.error(`Failed to update org ${org.id} subscription status:`, { error: (updateError as any)?.message ?? String(updateError) });
     return;
   }
 
-  console.log(
+  logger.info(
     `customer.subscription.updated: org ${org.id} status -> ${subscription.status}`
   );
 }
@@ -190,15 +173,12 @@ export async function handleSubscriptionDeleted(
     .maybeSingle();
 
   if (lookupError) {
-    console.error(
-      `Failed to look up org for subscription ${subscription.id}:`,
-      lookupError
-    );
+    logger.error(`Failed to look up org for subscription ${subscription.id}:`, { error: (lookupError as any)?.message ?? String(lookupError) });
     return;
   }
 
   if (!org) {
-    console.warn(
+    logger.warn(
       `customer.subscription.deleted: no org found for subscription ${subscription.id}`
     );
     return;
@@ -208,7 +188,7 @@ export async function handleSubscriptionDeleted(
   // the subscription_id will have been cleared. If we still matched, it
   // means the webhook arrived before the DB update — skip overriding.
   if (org.plan_tier === "free") {
-    console.log(
+    logger.info(
       `customer.subscription.deleted: org ${org.id} already on free plan, skipping`
     );
     return;
@@ -223,14 +203,11 @@ export async function handleSubscriptionDeleted(
     .eq("id", org.id);
 
   if (updateError) {
-    console.error(
-      `Failed to update org ${org.id} to cancelled:`,
-      updateError
-    );
+    logger.error(`Failed to update org ${org.id} to cancelled:`, { error: (updateError as any)?.message ?? String(updateError) });
     return;
   }
 
-  console.log(
+  logger.info(
     `customer.subscription.deleted: org ${org.id} subscription cancelled`
   );
 }
@@ -251,10 +228,7 @@ export async function handleInvoicePaymentFailed(
   const customerId = invoice.customer as string;
 
   if (!customerId) {
-    console.error(
-      "invoice.payment_failed: missing customer ID on invoice",
-      invoice.id
-    );
+    logger.error("invoice.payment_failed: missing customer ID on invoice", { error: (invoice.id as any)?.message ?? String(invoice.id) });
     return;
   }
 
@@ -266,15 +240,12 @@ export async function handleInvoicePaymentFailed(
     .maybeSingle();
 
   if (lookupError) {
-    console.error(
-      `Failed to look up org for customer ${customerId}:`,
-      lookupError
-    );
+    logger.error(`Failed to look up org for customer ${customerId}:`, { error: (lookupError as any)?.message ?? String(lookupError) });
     return;
   }
 
   if (!org) {
-    console.warn(
+    logger.warn(
       `invoice.payment_failed: no org found for customer ${customerId}`
     );
     return;
@@ -290,10 +261,7 @@ export async function handleInvoicePaymentFailed(
     .eq("id", org.id);
 
   if (updateError) {
-    console.error(
-      `Failed to update org ${org.id} to past_due:`,
-      updateError
-    );
+    logger.error(`Failed to update org ${org.id} to past_due:`, { error: (updateError as any)?.message ?? String(updateError) });
     // Continue to send email even if status update fails
   }
 
@@ -301,13 +269,10 @@ export async function handleInvoicePaymentFailed(
   try {
     await sendPaymentFailedEmail(org.id, supabase);
   } catch (err) {
-    console.error(
-      `Failed to send payment-failed email for org ${org.id}:`,
-      err
-    );
+    logger.error(`Failed to send payment-failed email for org ${org.id}:`, { error: (err as any)?.message ?? String(err) });
   }
 
-  console.log(
+  logger.info(
     `invoice.payment_failed: org ${org.id} marked past_due, admin(s) notified`
   );
 }

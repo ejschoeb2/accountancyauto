@@ -7,6 +7,7 @@ import { getOrgContext } from "@/lib/auth/org-context";
 import { DEFAULT_SCHEDULES } from "@/lib/onboarding/seed-defaults";
 import { buildReminderQueue } from "@/lib/reminders/queue-builder";
 import type { FilingType } from "@/lib/types/database";
+import { logger } from '@/lib/logger';
 
 // --- Org Filing Type Selections ---
 
@@ -27,7 +28,7 @@ export async function getOrgFilingTypeSelections(): Promise<OrgFilingTypeSelecti
     .select("filing_type_id, is_active");
 
   if (error) {
-    console.error("getOrgFilingTypeSelections error:", error);
+    logger.error("getOrgFilingTypeSelections error:", { error: (error as any)?.message ?? String(error) });
     return [];
   }
 
@@ -51,7 +52,7 @@ export async function getAllFilingTypes(): Promise<FilingType[]> {
   ]);
 
   if (error) {
-    console.error("getAllFilingTypes error:", error);
+    logger.error("getAllFilingTypes error:", { error: (error as any)?.message ?? String(error) });
     return [];
   }
 
@@ -146,10 +147,7 @@ export async function updateOrgFilingTypeSelections(
       .in("filing_type_id", newlyDeactivated);
 
     if (deactivateError) {
-      console.error(
-        "[updateOrgFilingTypeSelections] Failed to deactivate client assignments:",
-        deactivateError
-      );
+      logger.error("[updateOrgFilingTypeSelections] Failed to deactivate client assignments:", { error: (deactivateError as any)?.message ?? String(deactivateError) });
     }
 
     // Cancel queued reminders for the deactivated filing types
@@ -161,10 +159,7 @@ export async function updateOrgFilingTypeSelections(
       .eq("status", "scheduled");
 
     if (cancelError) {
-      console.error(
-        "[updateOrgFilingTypeSelections] Non-fatal: failed to cancel queued reminders:",
-        cancelError
-      );
+      logger.error("[updateOrgFilingTypeSelections] Non-fatal: failed to cancel queued reminders:", { error: (cancelError as any)?.message ?? String(cancelError) });
     }
   }
 
@@ -180,7 +175,7 @@ export async function updateOrgFilingTypeSelections(
     try {
       await buildReminderQueue(admin, { id: orgId, name: "" });
     } catch (e) {
-      console.error("[updateOrgFilingTypeSelections] Non-fatal: failed to rebuild queue:", e);
+      logger.error("[updateOrgFilingTypeSelections] Non-fatal: failed to rebuild queue:", { error: (e as any)?.message ?? String(e) });
     }
   }
 
@@ -248,10 +243,7 @@ async function seedSchedulesForFilingTypes(
       .single();
 
     if (sErr || !schedule) {
-      console.error(
-        `[seedSchedulesForFilingTypes] Failed to create schedule for ${filingTypeId}:`,
-        sErr
-      );
+      logger.error(`[seedSchedulesForFilingTypes] Failed to create schedule for ${filingTypeId}:`, { error: (sErr as any)?.message ?? String(sErr) });
       continue;
     }
 
@@ -262,7 +254,7 @@ async function seedSchedulesForFilingTypes(
       .map(([templateName, delayDays], i) => {
         const templateId = byName[templateName];
         if (!templateId) {
-          console.warn(
+          logger.warn(
             `[seedSchedulesForFilingTypes] Template "${templateName}" not found for org ${orgId}`
           );
           return null;
@@ -284,10 +276,7 @@ async function seedSchedulesForFilingTypes(
         .insert(steps);
 
       if (stErr) {
-        console.error(
-          `[seedSchedulesForFilingTypes] Failed to insert steps for ${filingTypeId}:`,
-          stErr
-        );
+        logger.error(`[seedSchedulesForFilingTypes] Failed to insert steps for ${filingTypeId}:`, { error: (stErr as any)?.message ?? String(stErr) });
       }
     }
   }
@@ -355,6 +344,6 @@ async function createClientAssignmentsForFilingTypes(
     });
 
   if (error) {
-    console.error("[createClientAssignmentsForFilingTypes] Failed:", error);
+    logger.error("[createClientAssignmentsForFilingTypes] Failed:", { error: (error as any)?.message ?? String(error) });
   }
 }

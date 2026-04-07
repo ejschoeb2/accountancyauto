@@ -51,6 +51,7 @@ import { createClient } from "@/lib/supabase/client";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { EditableCell } from "@/app/(dashboard)/clients/components/editable-cell";
+import { logger } from '@/lib/logger';
 
 interface CsvImportStepProps {
   onComplete: () => void;
@@ -304,7 +305,7 @@ export function CsvImportStep({ onComplete, onBack, initialRows, onRowsChange, o
             skipEmptyLines: true,
             complete: (result) => {
               if (result.errors.length > 0) {
-                console.warn("CSV parse warnings:", result.errors);
+                logger.warn("CSV parse warnings:", { error: result.errors instanceof Error ? result.errors.message : String(result.errors) });
               }
 
               const headers = result.meta.fields || [];

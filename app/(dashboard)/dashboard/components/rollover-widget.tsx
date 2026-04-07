@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 
 import { FILING_TYPE_LABELS } from '@/lib/constants/filing-types';
+import { logger } from '@/lib/logger';
 
 export function RolloverWidget() {
   const [summary, setSummary] = useState<Record<string, number>>({});
@@ -25,7 +26,7 @@ export function RolloverWidget() {
         setTotalCount(total);
       })
       .catch((error) => {
-        console.error('Error loading rollover summary:', error);
+        logger.error('Error loading rollover summary:', { error: (error as any)?.message ?? String(error) });
       })
       .finally(() => {
         setLoading(false);

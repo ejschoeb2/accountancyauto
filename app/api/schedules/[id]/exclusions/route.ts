@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgId } from "@/lib/auth/org-context";
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/schedules/[id]/exclusions
@@ -20,7 +21,7 @@ export async function GET(
     .eq("schedule_id", id);
 
   if (error) {
-    console.error("Error fetching exclusions:", error);
+    logger.error("Error fetching exclusions:", { error: (error as any)?.message ?? String(error) });
     return NextResponse.json(
       { error: "Failed to fetch exclusions" },
       { status: 500 }
@@ -80,7 +81,7 @@ export async function PUT(
     .eq("schedule_id", id);
 
   if (deleteError) {
-    console.error("Error deleting exclusions:", deleteError);
+    logger.error("Error deleting exclusions:", { error: (deleteError as any)?.message ?? String(deleteError) });
     return NextResponse.json(
       { error: `Failed to delete existing exclusions: ${deleteError.message}` },
       { status: 500 }
@@ -104,7 +105,7 @@ export async function PUT(
       .insert(rows);
 
     if (insertError) {
-      console.error("Error inserting exclusions:", insertError);
+      logger.error("Error inserting exclusions:", { error: (insertError as any)?.message ?? String(insertError) });
       return NextResponse.json(
         { error: `Failed to insert exclusions: ${insertError.message}` },
         { status: 500 }

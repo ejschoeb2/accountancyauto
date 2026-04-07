@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reportUsageForAllPracticeOrgs } from "@/lib/stripe/metered-billing";
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/stripe/report-usage
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
       ...result,
     });
   } catch (err) {
-    console.error("[report-usage] Error:", err);
+    logger.error("[report-usage] Error:", { error: (err as any)?.message ?? String(err) });
     return NextResponse.json(
       { error: "Failed to report usage" },
       { status: 500 }

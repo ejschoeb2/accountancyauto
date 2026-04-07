@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 /**
  * Checks whether all mandatory effective-checklist items for a given client + filing type
@@ -36,7 +37,7 @@ export async function checkAndAutoSetRecordsReceived(
     .eq('is_mandatory', true);
 
   if (reqError) {
-    console.error('[auto-records-received] Failed to fetch requirements:', reqError.message);
+    logger.error('[auto-records-received] Failed to fetch requirements:', { error: reqError.message });
     return false;
   }
 
@@ -53,7 +54,7 @@ export async function checkAndAutoSetRecordsReceived(
     .eq('filing_type_id', filingTypeId);
 
   if (custError) {
-    console.error('[auto-records-received] Failed to fetch customisations:', custError.message);
+    logger.error('[auto-records-received] Failed to fetch customisations:', { error: custError.message });
     // Proceed with all requirements (no customisations available)
   }
 
@@ -84,7 +85,7 @@ export async function checkAndAutoSetRecordsReceived(
     .in('classification_confidence', ['high', 'medium']);
 
   if (docsError) {
-    console.error('[auto-records-received] Failed to fetch client documents:', docsError.message);
+    logger.error('[auto-records-received] Failed to fetch client documents:', { error: docsError.message });
     return false;
   }
 
@@ -126,7 +127,7 @@ export async function checkAndAutoSetRecordsReceived(
     .single();
 
   if (clientError || !clientRow) {
-    console.error('[auto-records-received] Failed to fetch client records_received_for:', clientError?.message);
+    logger.error('[auto-records-received] Failed to fetch client records_received_for:', { error: clientError?.message });
     return false;
   }
 
@@ -147,7 +148,7 @@ export async function checkAndAutoSetRecordsReceived(
     .eq('org_id', orgId);
 
   if (updateError) {
-    console.error('[auto-records-received] Failed to update records_received_for:', updateError.message);
+    logger.error('[auto-records-received] Failed to update records_received_for:', { error: updateError.message });
     return false;
   }
 
