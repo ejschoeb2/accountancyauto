@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Add 'records_received' status to reminder_queue
 -- This status is used when a client marks records as received for a filing type,
 -- cancelling all remaining reminders for that filing type

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Storage RLS for prompt-documents bucket
 -- Run AFTER bucket 'prompt-documents' is created in Dashboard
 -- Requires auth_org_id() function from migration 20260219000004

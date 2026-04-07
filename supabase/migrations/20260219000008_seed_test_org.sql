@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 10 Plan 05: Verification & Activation
 -- Migration: Seed a second test organisation with sample data for isolation testing
 --

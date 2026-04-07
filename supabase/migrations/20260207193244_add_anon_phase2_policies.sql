@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- The app has no Supabase Auth login — server client uses the anon role.
 -- Add anon policies to Phase 2 tables so the dashboard can manage
 -- filing types, assignments, and deadline overrides.

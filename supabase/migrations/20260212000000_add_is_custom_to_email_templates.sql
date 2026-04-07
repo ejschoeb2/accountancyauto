@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add is_custom column to email_templates to track user-created templates
 -- All existing templates are marked as NOT custom (system/migrated templates)
 -- New templates created via UI will be marked as custom

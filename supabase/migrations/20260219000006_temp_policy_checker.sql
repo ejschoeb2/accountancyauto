@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- TEMPORARY: Policy inspection function (will be dropped after verification)
 CREATE OR REPLACE FUNCTION public._debug_list_policies()
 RETURNS jsonb

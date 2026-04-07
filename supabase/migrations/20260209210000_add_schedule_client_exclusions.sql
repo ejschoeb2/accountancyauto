@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Schedule Client Exclusions
 -- Allows excluding specific clients from a schedule.
 -- By default, schedules apply to all eligible clients.

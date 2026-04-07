@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Org-level document requirement settings
 -- Allows orgs to configure which document types are enabled for each filing type
 -- If no row exists for a given (org, filing_type, document_type), the default is enabled.

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add DB-based OAuth state columns for Google Drive and OneDrive.
 -- Mirrors the existing dropbox_oauth_state pattern — cookie-based CSRF
 -- fails cross-subdomain (org subdomain sets cookie, callback URL is on

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add rejected_at column to client_documents for soft-rejection of portal uploads.
 -- When an accountant rejects a document, this timestamp is set instead of deleting the row,
 -- so the client portal can display the rejection status.

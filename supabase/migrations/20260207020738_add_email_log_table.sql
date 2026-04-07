@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add missing email_log table for delivery tracking and dashboard
 -- This table should have been created by Phase 3 schema but was missing
 -- Note: Foreign key constraints are conditional based on table existence

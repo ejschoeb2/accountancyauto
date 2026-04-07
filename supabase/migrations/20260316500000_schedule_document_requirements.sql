@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Schedule-level document requirements for custom deadlines.
 -- Filing deadlines use filing_document_requirements (global); custom deadlines
 -- use this table so each custom schedule can specify its own document checklist.

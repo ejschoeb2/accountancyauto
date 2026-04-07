@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Update client count limits to match new pricing tiers:
 -- Free: 10 (was 20/25), Solo: 40 (was 50), Starter: 80 (was 100)
 -- Practice: 200 (unchanged), Firm: 400 (unchanged)

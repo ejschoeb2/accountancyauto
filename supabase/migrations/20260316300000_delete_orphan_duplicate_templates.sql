@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Delete orphaned duplicate email templates
 --
 -- When a new user joins an org, seedNewUserDefaults clones the admin's

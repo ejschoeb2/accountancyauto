@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add onboarding_complete setting to app_settings
 -- This tracks whether the user has completed the initial onboarding wizard
 -- Default is 'false', set to 'true' after completing the 3-step onboarding flow

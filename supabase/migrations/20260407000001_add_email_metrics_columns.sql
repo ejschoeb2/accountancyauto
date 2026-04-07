@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- AUDIT-048: Add delivery metrics columns to email_log
 -- first_attempted_at: timestamp of the first send attempt for this reminder (not the current row)
 -- attempt_count:      how many total attempts have been made (including this one)

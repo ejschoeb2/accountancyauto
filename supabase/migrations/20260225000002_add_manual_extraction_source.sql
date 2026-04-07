@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Phase 22: Add 'manual' to extraction_source CHECK constraint
 -- Allows accountants to manually correct OCR-extracted fields in the dashboard.
 -- The inline CHECK added in Phase 21 must be dropped and replaced — PostgreSQL does not

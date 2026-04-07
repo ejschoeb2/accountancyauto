@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 10 Plan 02: Drop remaining anon policies
 -- Patch migration: These anon policies should have been removed by the auth
 -- switchover (20260212000001) but were re-created when older migrations were

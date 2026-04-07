@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- 2026-04-07: Beta tester wording improvements for document requirements
 --
 -- 1. Rename ADJUSTMENTS label 'Sole Trader Records' → 'Working Papers'

@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Set all clients to VAT quarter Apr-Jun (Stagger 2)
 -- This assumes all clients follow the Apr/Jul/Oct/Jan quarter pattern
 

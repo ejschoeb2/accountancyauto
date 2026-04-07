@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Quick Task 5: Accountant-Scoped Client Isolation
 -- Migration 1/2: Add owner_id to clients, drop user_count_limit from organisations
 --

@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Add 'paused' status to reminder_queue
 -- Used when a client's reminders are paused; restored to 'scheduled' when unpaused
 

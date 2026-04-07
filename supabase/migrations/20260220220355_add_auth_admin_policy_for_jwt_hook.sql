@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Fix: The JWT Custom Access Token Hook runs as supabase_auth_admin,
 -- which has a SELECT grant on user_organisations but no RLS policy.
 -- Without this policy, the hook's query silently returns zero rows

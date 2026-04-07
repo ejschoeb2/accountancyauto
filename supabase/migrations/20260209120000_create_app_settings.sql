@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- App-wide settings stored as key-value pairs (single-row per setting).
 
 CREATE TABLE app_settings (

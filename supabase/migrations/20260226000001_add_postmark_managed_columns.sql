@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add columns for Postmark platform-managed setup (Email Setup wizard step).
 -- These are populated automatically when an admin completes the Email Setup
 -- step in the onboarding wizard via the Postmark Management API.

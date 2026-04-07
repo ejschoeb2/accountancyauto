@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 18: Document Collection Foundation - Table DDL
 -- Creates five tables for document collection in order of FK dependencies:
 -- 1. document_types (global reference, no org_id)

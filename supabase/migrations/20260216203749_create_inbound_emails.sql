@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Inbound Emails Table
 -- Stores incoming emails from Postmark inbound webhook
 -- Used to automatically detect when clients send records for processing

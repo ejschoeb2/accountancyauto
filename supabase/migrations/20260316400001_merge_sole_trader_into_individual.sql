@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Merge "Sole Trader" business type into "Individual"
 -- Sole trader is not a separate legal entity — it's an individual who is self-employed.
 

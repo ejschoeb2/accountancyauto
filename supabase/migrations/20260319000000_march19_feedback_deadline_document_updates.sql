@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- 19 March 2026: Feedback-driven deadline and document requirement updates
 -- Partnership: only Partnership Tax Return + VAT Return
 -- Individual: only Self Assessment, MTD Quarterly Return, SA Payment on Account, Trust Tax Return

@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Phase 15 Plan 01: Per-Accountant Configuration
 -- Migration 1/3: Add owner_id to resource tables
 --

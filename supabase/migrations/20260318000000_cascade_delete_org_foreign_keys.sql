@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Change all org_id foreign keys from NO ACTION to CASCADE
 -- so that deleting an organisation cascades to all child tables
 

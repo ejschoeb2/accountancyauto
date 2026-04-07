@@ -1,3 +1,4 @@
+-- Downtime risk: HIGH — destructive operation; consider maintenance window
 -- Drop v1.0 reminder_templates table
 -- Data has been migrated to v1.1 normalized tables (schedules, schedule_steps, email_templates)
 -- Migration 20260208000002 performed the data migration

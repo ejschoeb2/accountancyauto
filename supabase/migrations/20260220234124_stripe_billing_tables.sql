@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 11 Plan 01: Stripe Billing Foundation
 -- Creates processed_webhook_events table for idempotent webhook processing
 -- Adds stripe_price_id to organisations for plan-tier price tracking

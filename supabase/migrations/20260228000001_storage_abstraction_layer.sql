@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 24: Storage Abstraction Layer — schema foundation
 --
 -- Creates the storage_backend_enum type and adds all storage-related columns to

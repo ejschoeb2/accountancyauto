@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Stores client IDs selected for removal during a plan downgrade.
 -- Records are created before the plan change and cleaned up after
 -- the clients are deleted on successful downgrade.

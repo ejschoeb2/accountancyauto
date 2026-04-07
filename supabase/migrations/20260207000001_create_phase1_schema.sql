@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

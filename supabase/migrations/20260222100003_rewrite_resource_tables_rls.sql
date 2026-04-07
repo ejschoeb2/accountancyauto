@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 15 Plan 01: Per-Accountant Configuration
 -- Migration 3/3: Rewrite RLS policies for resource tables with owner_id scoping
 --

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 31: Setup draft clients staging table for large CSV imports
 CREATE TABLE setup_draft_clients (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

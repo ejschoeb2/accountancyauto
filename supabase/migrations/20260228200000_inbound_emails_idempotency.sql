@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Phase 29 HRDN-02: Add postmark_message_id column and idempotency unique constraint
 -- Prevents duplicate inbound_emails rows on Postmark delivery retries.
 --

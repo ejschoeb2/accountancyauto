@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Phase 10 Plan 01: Multi-Tenant Foundation
 -- Migration 2/3: Add org_id to all data tables and backfill to founding org
 -- This migration adds org_id FK to every tenant-scoped data table,

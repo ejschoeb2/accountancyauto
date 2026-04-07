@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 19: Collection Mechanisms - Schema Prerequisites
 --
 -- Applies three schema additions required across Phase 19 plans:

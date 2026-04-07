@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add missing INSERT policy for app_settings
 -- Required for upsert operations in settings.ts
 

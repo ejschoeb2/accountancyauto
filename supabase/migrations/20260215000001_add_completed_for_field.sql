@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add 'completed_for' field to clients table
 -- This tracks when the accountant has completed processing (separate from records received)
 -- Only when BOTH records_received_for AND completed_for contain a filing type can rollover occur

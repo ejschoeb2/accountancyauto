@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 3: Delivery & Dashboard Schema
 -- Email logging and delivery tracking
 

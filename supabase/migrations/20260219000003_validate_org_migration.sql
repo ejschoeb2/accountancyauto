@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 10 Plan 01: Multi-Tenant Foundation
 -- Migration 3/3: Validation checks for org migration integrity
 -- This migration runs assertions to confirm everything is correct.

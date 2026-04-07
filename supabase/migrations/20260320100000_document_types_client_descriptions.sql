@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- 20 March 2026: Add client_description column and rewrite description for accountant audience
 --
 -- description       → short, accountant-appropriate (shown in wizard / settings)

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Allow anon role to insert/update/delete reminder_templates.
 -- The previous migration only granted SELECT.
 CREATE POLICY "Anon users can modify reminder_templates" ON reminder_templates

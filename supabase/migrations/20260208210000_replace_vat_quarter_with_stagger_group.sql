@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Replace vat_quarter enum column with vat_stagger_group integer column
 -- HMRC assigns VAT-registered businesses to one of three stagger groups:
 --   Stagger 1: Mar/Jun/Sep/Dec quarters

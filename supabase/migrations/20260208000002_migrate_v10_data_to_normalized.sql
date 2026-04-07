@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Phase 4 Plan 02: Migrate v1.0 Data to Normalized Tables
 -- Copies data from reminder_templates (JSONB steps) into the new normalized
 -- email_templates, schedules, schedule_steps tables, and splits

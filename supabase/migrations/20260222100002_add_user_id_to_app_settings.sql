@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Phase 15 Plan 01: Per-Accountant Configuration
 -- Migration 2/3: Add user_id to app_settings for per-accountant settings
 --

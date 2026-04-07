@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 10 Plan 01: Multi-Tenant Foundation
 -- Migration 1/3: Create organisations, user_organisations, and invitations tables
 -- This is the foundational migration for multi-tenancy.

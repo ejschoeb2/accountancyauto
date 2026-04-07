@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Add 'rescheduled' status to reminder_queue
 -- This status is used when a reminder has been rescheduled via the reschedule feature
 

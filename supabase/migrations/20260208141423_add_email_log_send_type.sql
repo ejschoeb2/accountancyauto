@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add send_type column to email_log to distinguish scheduled vs ad-hoc sends
 -- This is a non-breaking additive change - all existing rows get 'scheduled' via DEFAULT
 

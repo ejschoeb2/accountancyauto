@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 27: Add Dropbox token and OAuth state columns to organisations.
 -- These columns were confirmed missing by the Phase 27 research (live schema query).
 --

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Add per-schedule send hour for custom schedules
 -- NULL = use global reminder_send_hour from app_settings
 ALTER TABLE schedules ADD COLUMN IF NOT EXISTS send_hour INT DEFAULT NULL;

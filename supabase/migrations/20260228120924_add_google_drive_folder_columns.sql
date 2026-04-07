@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 25: Google Drive Integration — folder ID and token expiry columns
 --
 -- Adds the two columns needed by lib/storage/token-refresh.ts and GoogleDriveProvider.

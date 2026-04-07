@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 32: Expandable Deadline System & MTD Quarterly Updates
 -- Expand filing_types from 5 to 14 entries + org-level activation tracking
 

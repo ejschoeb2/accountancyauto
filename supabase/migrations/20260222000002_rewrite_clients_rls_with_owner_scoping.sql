@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Quick Task 5: Accountant-Scoped Client Isolation
 -- Migration 2/2: Rewrite clients RLS policies with owner_id scoping
 --

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 4: v1.1 Normalized Tables
 -- Restructures JSONB-embedded templates into normalized email_templates,
 -- schedules, schedule_steps, and per-client override tables.

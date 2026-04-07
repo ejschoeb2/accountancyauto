@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Part 2: Migrate existing rows to new tier names and update client limits.
 -- New enum values from 20260225100000 must be committed first.
 

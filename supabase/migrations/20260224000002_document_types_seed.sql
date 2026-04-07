@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 18: Document Collection Foundation - Seed Data
 -- Part 1: INSERT 23 document_types rows (HMRC document catalog)
 -- Part 2: INSERT 27 filing_document_requirements rows mapping documents to filing types

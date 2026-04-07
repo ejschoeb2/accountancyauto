@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 10 Plan 02: JWT Custom Access Token Hook
 -- Migration 1/2: Create the hook function + auth_org_id() helper
 --

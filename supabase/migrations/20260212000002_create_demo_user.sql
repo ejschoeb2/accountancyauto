@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Create demo user for shared demo mode access
 -- This user can be used by prospects to evaluate the system without QuickBooks OAuth
 

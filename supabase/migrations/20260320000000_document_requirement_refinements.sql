@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- 20 March 2026: Document requirement refinements from user feedback
 --
 -- 1. Add sort_order + description_override columns to filing_document_requirements

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 21: OCR extraction columns + file integrity columns on client_documents
 --
 -- All columns are nullable — historical documents (Phases 19-20) will have NULL.

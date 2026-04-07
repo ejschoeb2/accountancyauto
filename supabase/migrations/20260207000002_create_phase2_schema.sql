@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 2: Reminder Engine Schema
 -- Creates filing types, templates, assignments, overrides, queue, and bank holiday cache
 

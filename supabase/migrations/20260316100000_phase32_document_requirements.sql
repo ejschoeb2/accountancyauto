@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 32: Document requirements for the 9 new filing types
 -- 2 filing types are payment-only (paye_monthly, sa_payment_on_account) — no documents needed.
 -- 1 new document_type added for CIS (no existing type covers subcontractor statements).

@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Table for storing manual status overrides per client per filing type
 CREATE TABLE IF NOT EXISTS client_filing_status_overrides (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

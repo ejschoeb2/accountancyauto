@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Add custom schedules support to the schedules table
 -- Custom schedules allow reminders for non-HMRC filing types (e.g., payroll, year-end packs)
 

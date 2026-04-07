@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Auth RLS Switchover: Drop all anon policies, ensure authenticated + service_role exist on all tables.
 -- After this migration, unauthenticated requests via the anon key can read/write NOTHING.
 -- Cron jobs and webhooks use createAdminClient() (service_role), so they are unaffected.

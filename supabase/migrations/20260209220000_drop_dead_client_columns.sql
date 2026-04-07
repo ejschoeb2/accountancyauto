@@ -1,3 +1,4 @@
+-- Downtime risk: LOW — brief table lock expected (<1s for small tables)
 -- Drop dead columns from clients table
 --
 -- vat_frequency: Never used in any logic or UI. Deadline calculations use vat_stagger_group.

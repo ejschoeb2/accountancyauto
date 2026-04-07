@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 10 Plan 02: Org-Scoped RLS Policies
 -- Migration 2/2: Replace all USING(true) authenticated policies with org_id scoping
 --

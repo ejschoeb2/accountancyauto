@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Phase 30: Per-document-type upload validation
 -- Add advisory validation columns to client_documents.
 --

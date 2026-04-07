@@ -1,3 +1,4 @@
+-- Downtime risk: NONE — safe for zero-downtime deployment
 -- Immutable audit log for tracking data mutations
 -- INSERT only — no UPDATE or DELETE policies
 CREATE TABLE IF NOT EXISTS audit_log (

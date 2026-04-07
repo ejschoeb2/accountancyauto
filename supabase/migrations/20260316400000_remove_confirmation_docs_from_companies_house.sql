@@ -1,3 +1,4 @@
+-- Downtime risk: MODERATE — requires backfill; may lock during constraint application
 -- Remove CONFIRMATION_STATEMENT and PSC_REGISTER from companies_house filing type.
 -- These documents now belong exclusively to the dedicated confirmation_statement filing type
 -- added in Phase 32. The companies_house filing type is for Annual Accounts only.
