@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTrialEndingSoonEmail } from "@/lib/billing/notifications";
 
@@ -17,12 +18,19 @@ export const dynamic = "force-dynamic";
  * Secured via CRON_SECRET bearer token (same pattern as other cron routes).
  */
 export async function GET(request: NextRequest) {
-  try {
-    // Verify CRON_SECRET
-    const authHeader = request.headers.get("authorization");
-    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+  // AUDIT-025: Execution metadata
+  const executionId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
+  const startTime = Date.now();
 
-    if (authHeader !== expectedAuth) {
+  try {
+    // AUDIT-007: Timing-safe auth
+    const authHeader = request.headers.get("authorization") || "";
+    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+    const isAuthorized =
+      authHeader.length === expectedAuth.length &&
+      timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedAuth));
+    if (!isAuthorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -48,6 +56,10 @@ export async function GET(request: NextRequest) {
 
     if (!orgs || orgs.length === 0) {
       return NextResponse.json({
+        execution_id: executionId,
+        started_at: startedAt,
+        ended_at: new Date().toISOString(),
+        duration_ms: Date.now() - startTime,
         success: true,
         message: "No orgs ending trial in 3 days",
         sent: 0,
@@ -118,6 +130,10 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
       success: true,
       sent,
       skipped,
@@ -126,6 +142,12 @@ export async function GET(request: NextRequest) {
     console.error("[Cron:trial-reminder] Error:", error);
     const message =
       error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
+      error: message,
+    }, { status: 500 });
   }
 }

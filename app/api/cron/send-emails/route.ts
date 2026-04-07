@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendRichEmailForOrg } from '@/lib/email/sender';
 import { addMinutes } from 'date-fns';
@@ -9,13 +10,21 @@ export const dynamic = 'force-dynamic';
 // Allow 5 minutes for cron execution (Vercel Pro limit)
 export const maxDuration = 300;
 
+// AUDIT-054: Structured error type for cron error classification
+interface CronError {
+  org_id: string;
+  code: 'LOCK_CONTENTION' | 'DB_ERROR' | 'SEND_FAILED' | 'UNKNOWN';
+  message: string;
+  retryable: boolean;
+}
+
 interface OrgSendResult {
   org: string;
   org_id: string;
   processed: number;
   sent: number;
   failed: number;
-  errors: string[];
+  errors: CronError[];
   error?: string;
 }
 
@@ -29,12 +38,19 @@ interface OrgSendResult {
  * Validates CRON_SECRET header for security
  */
 export async function GET(request: NextRequest) {
-  try {
-    // Verify CRON_SECRET
-    const authHeader = request.headers.get('authorization');
-    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+  // AUDIT-025: Execution metadata
+  const executionId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
+  const startTime = Date.now();
 
-    if (authHeader !== expectedAuth) {
+  try {
+    // AUDIT-007: Timing-safe auth
+    const authHeader = request.headers.get('authorization') || '';
+    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+    const isAuthorized =
+      authHeader.length === expectedAuth.length &&
+      timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedAuth));
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -53,6 +69,10 @@ export async function GET(request: NextRequest) {
 
     if (!orgs || orgs.length === 0) {
       return NextResponse.json({
+        execution_id: executionId,
+        started_at: startedAt,
+        ended_at: new Date().toISOString(),
+        duration_ms: Date.now() - startTime,
         success: true,
         message: 'No active organisations found',
         results: [],
@@ -64,7 +84,9 @@ export async function GET(request: NextRequest) {
     let totalProcessed = 0;
     let totalSent = 0;
     let totalFailed = 0;
-    const allErrors: string[] = [];
+    const allErrors: CronError[] = [];
+    let orgsFullyFailed = 0;
+    const totalOrgs = orgs.length;
 
     for (const org of orgs) {
       // Skip orgs without Postmark token — no fallback to prevent cross-org email leakage
@@ -76,7 +98,12 @@ export async function GET(request: NextRequest) {
           processed: 0,
           sent: 0,
           failed: 0,
-          errors: [`Skipped: no Postmark token configured`],
+          errors: [{
+            org_id: org.id,
+            code: 'UNKNOWN',
+            message: 'Skipped: no Postmark token configured',
+            retryable: false,
+          }],
         });
         continue;
       }
@@ -93,21 +120,47 @@ export async function GET(request: NextRequest) {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[Cron:send-emails] Failed processing org ${org.name} (${org.id}):`, error);
+        const cronErr: CronError = {
+          org_id: org.id,
+          code: 'DB_ERROR',
+          message: `[${org.name}] ${message}`,
+          retryable: true,
+        };
         allResults.push({
           org: org.name,
           org_id: org.id,
           processed: 0,
           sent: 0,
           failed: 0,
-          errors: [message],
+          errors: [cronErr],
           error: message,
         });
-        allErrors.push(`[${org.name}] ${message}`);
+        allErrors.push(cronErr);
+        orgsFullyFailed++;
         // Continue to next org — don't let one failure stop others
       }
     }
 
+    // AUDIT-005: Alert when ALL orgs fail
+    if (orgsFullyFailed > 0 && orgsFullyFailed === totalOrgs) {
+      try {
+        const postmark = new (await import('postmark')).ServerClient(process.env.POSTMARK_SERVER_TOKEN!);
+        await postmark.sendEmail({
+          From: process.env.POSTMARK_SENDER_EMAIL || 'alerts@getprompt.app',
+          To: process.env.ALERT_EMAIL || process.env.POSTMARK_SENDER_EMAIL || '',
+          Subject: `[CRITICAL] Cron send-emails — all orgs failed`,
+          TextBody: `All ${totalOrgs} orgs failed processing.\n\nErrors:\n${allErrors.map(e => e.message).join('\n')}`,
+        });
+      } catch (alertError) {
+        console.error('Failed to send cron failure alert:', alertError);
+      }
+    }
+
     return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
       success: true,
       orgs_processed: orgs.length,
       total_processed: totalProcessed,
@@ -119,7 +172,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Cron job failed:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
+      error: message,
+    }, { status: 500 });
   }
 }
 
@@ -156,11 +215,21 @@ async function processOrgEmails(
       .insert({ id: lockId, org_id: org.id, expires_at: expiresAt.toISOString() });
 
     if (lockError) {
-      result.errors.push(`[${org.name}] Lock already held by another process`);
+      result.errors.push({
+        org_id: org.id,
+        code: 'LOCK_CONTENTION',
+        message: `[${org.name}] Lock already held by another process`,
+        retryable: true,
+      });
       return result;
     }
   } catch {
-    result.errors.push(`[${org.name}] Failed to acquire lock`);
+    result.errors.push({
+      org_id: org.id,
+      code: 'LOCK_CONTENTION',
+      message: `[${org.name}] Failed to acquire lock`,
+      retryable: true,
+    });
     return result;
   }
 
@@ -191,7 +260,12 @@ async function processOrgEmails(
 
       // Check if client has primary_email
       if (!client?.primary_email) {
-        result.errors.push(`[${org.name}] No email address for client ${reminder.client_id}`);
+        result.errors.push({
+          org_id: org.id,
+          code: 'UNKNOWN',
+          message: `[${org.name}] No email address for client ${reminder.client_id}`,
+          retryable: false,
+        });
 
         // Mark as failed in queue
         await adminClient
@@ -246,14 +320,24 @@ async function processOrgEmails(
 
         if (logError) {
           console.error(`[${org.name}] Failed to insert email_log:`, logError);
-          result.errors.push(`[${org.name}] Sent email to ${client.primary_email} but failed to log: ${logError.message}`);
+          result.errors.push({
+            org_id: org.id,
+            code: 'DB_ERROR',
+            message: `[${org.name}] Sent email to ${client.primary_email} but failed to log: ${logError.message}`,
+            retryable: true,
+          });
         }
 
         result.sent++;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[${org.name}] Failed to send email for reminder ${reminder.id}:`, error);
-        result.errors.push(`[${org.name}] Failed to send to ${client.primary_email}: ${errorMessage}`);
+        result.errors.push({
+          org_id: org.id,
+          code: 'SEND_FAILED',
+          message: `[${org.name}] Failed to send to ${client.primary_email}: ${errorMessage}`,
+          retryable: true,
+        });
 
         const MAX_SEND_ATTEMPTS = 5;
         const newAttemptCount = (reminder.attempt_count ?? 0) + 1;

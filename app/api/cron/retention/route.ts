@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { createServiceClient } from '@/lib/supabase/service';
 import { sendRetentionFlaggedEmail } from '@/lib/documents/notifications';
 
 export const maxDuration = 300;
 
 export async function GET(request: NextRequest) {
-  // Verify Vercel CRON_SECRET
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // AUDIT-025: Execution metadata
+  const executionId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
+  const startTime = Date.now();
+
+  // AUDIT-007: Timing-safe auth
+  const authHeader = request.headers.get('authorization') || '';
+  const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+  const isAuthorized =
+    authHeader.length === expectedAuth.length &&
+    timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedAuth));
+  if (!isAuthorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -25,12 +35,25 @@ export async function GET(request: NextRequest) {
 
   if (fetchError) {
     console.error('[Retention Cron] Failed to fetch expired docs:', fetchError);
-    return NextResponse.json({ error: 'DB query failed' }, { status: 500 });
+    return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
+      error: 'DB query failed',
+    }, { status: 500 });
   }
 
   if (!expiredDocs || expiredDocs.length === 0) {
     console.log('[Retention Cron] No documents to flag');
-    return NextResponse.json({ flagged: 0, orgsNotified: 0 });
+    return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
+      flagged: 0,
+      orgsNotified: 0,
+    });
   }
 
   // Set retention_flagged = true (batch update by IDs — never auto-delete)
@@ -41,7 +64,13 @@ export async function GET(request: NextRequest) {
 
   if (updateError) {
     console.error('[Retention Cron] Failed to flag documents:', updateError);
-    return NextResponse.json({ error: 'Update failed' }, { status: 500 });
+    return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
+      error: 'Update failed',
+    }, { status: 500 });
   }
 
   // Group newly flagged docs by org_id and notify each org's admin
@@ -71,5 +100,12 @@ export async function GET(request: NextRequest) {
   }
 
   console.log(`[Retention Cron] Flagged ${expiredDocs.length} documents across ${orgsNotified} orgs`);
-  return NextResponse.json({ flagged: expiredDocs.length, orgsNotified });
+  return NextResponse.json({
+    execution_id: executionId,
+    started_at: startedAt,
+    ended_at: new Date().toISOString(),
+    duration_ms: Date.now() - startTime,
+    flagged: expiredDocs.length,
+    orgsNotified,
+  });
 }

@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { processRemindersForUser, ProcessResult } from '@/lib/reminders/scheduler';
 
 // Allow 5 minutes for cron execution (Vercel Pro limit)
 export const maxDuration = 300;
 
+// AUDIT-054: Structured error type for cron error classification
+interface CronError {
+  org_id: string;
+  code: 'LOCK_CONTENTION' | 'DB_ERROR' | 'SEND_FAILED' | 'UNKNOWN';
+  message: string;
+  retryable: boolean;
+}
+
 interface OrgResult {
   org: string;
   org_id: string;
   queued: number;
   rolled_over: number;
-  errors: string[];
+  errors: CronError[];
   skipped_wrong_hour: boolean;
   error?: string;
   users_processed?: number;
@@ -25,12 +34,19 @@ interface OrgResult {
  * Validates CRON_SECRET header for security.
  */
 export async function GET(request: NextRequest) {
-  try {
-    // Verify CRON_SECRET
-    const authHeader = request.headers.get('authorization');
-    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+  // AUDIT-025: Execution metadata
+  const executionId = crypto.randomUUID();
+  const startedAt = new Date().toISOString();
+  const startTime = Date.now();
 
-    if (authHeader !== expectedAuth) {
+  try {
+    // AUDIT-007: Timing-safe auth
+    const authHeader = request.headers.get('authorization') || '';
+    const expectedAuth = `Bearer ${process.env.CRON_SECRET}`;
+    const isAuthorized =
+      authHeader.length === expectedAuth.length &&
+      timingSafeEqual(Buffer.from(authHeader), Buffer.from(expectedAuth));
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -49,6 +65,10 @@ export async function GET(request: NextRequest) {
 
     if (!orgs || orgs.length === 0) {
       return NextResponse.json({
+        execution_id: executionId,
+        started_at: startedAt,
+        ended_at: new Date().toISOString(),
+        duration_ms: Date.now() - startTime,
         success: true,
         message: 'No active organisations found',
         results: [],
@@ -59,7 +79,9 @@ export async function GET(request: NextRequest) {
     const allResults: OrgResult[] = [];
     let totalQueued = 0;
     let totalRolledOver = 0;
-    const allErrors: string[] = [];
+    const allErrors: CronError[] = [];
+    let orgsFullyFailed = 0;
+    const totalOrgs = orgs.length;
 
     for (const org of orgs) {
       // Skip orgs without a Postmark token — no point queuing reminders
@@ -91,7 +113,7 @@ export async function GET(request: NextRequest) {
 
         let orgQueued = 0;
         let orgRolledOver = 0;
-        const orgErrors: string[] = [];
+        const orgErrors: CronError[] = [];
         // Start true — set to false if any user actually processes (i.e. isn't hour-skipped)
         let orgSkippedWrongHour = true;
         let usersProcessed = 0;
@@ -102,7 +124,14 @@ export async function GET(request: NextRequest) {
             const userResult = await processRemindersForUser(adminClient, org, member.user_id);
             orgQueued += userResult.queued;
             orgRolledOver += userResult.rolled_over;
-            orgErrors.push(...userResult.errors);
+            for (const errMsg of userResult.errors) {
+              orgErrors.push({
+                org_id: org.id,
+                code: 'UNKNOWN',
+                message: `[user:${member.user_id}] ${errMsg}`,
+                retryable: true,
+              });
+            }
             if (!userResult.skipped_wrong_hour) orgSkippedWrongHour = false;
             usersProcessed++;
           } catch (error) {
@@ -111,7 +140,12 @@ export async function GET(request: NextRequest) {
               `[Cron:reminders] Failed processing user ${member.user_id} in org ${org.name}:`,
               error
             );
-            orgErrors.push(`[user:${member.user_id}] ${message}`);
+            orgErrors.push({
+              org_id: org.id,
+              code: 'UNKNOWN',
+              message: `[user:${member.user_id}] ${message}`,
+              retryable: true,
+            });
           }
         }
 
@@ -130,21 +164,47 @@ export async function GET(request: NextRequest) {
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         console.error(`[Cron:reminders] Failed processing org ${org.name} (${org.id}):`, error);
+        const cronErr: CronError = {
+          org_id: org.id,
+          code: 'DB_ERROR',
+          message: `[${org.name}] ${message}`,
+          retryable: true,
+        };
         allResults.push({
           org: org.name,
           org_id: org.id,
           queued: 0,
           rolled_over: 0,
-          errors: [message],
+          errors: [cronErr],
           skipped_wrong_hour: false,
           error: message,
         });
-        allErrors.push(`[${org.name}] ${message}`);
+        allErrors.push(cronErr);
+        orgsFullyFailed++;
         // Continue to next org — don't let one failure stop others
       }
     }
 
+    // AUDIT-005: Alert when ALL orgs fail
+    if (orgsFullyFailed > 0 && orgsFullyFailed === totalOrgs) {
+      try {
+        const postmark = new (await import('postmark')).ServerClient(process.env.POSTMARK_SERVER_TOKEN!);
+        await postmark.sendEmail({
+          From: process.env.POSTMARK_SENDER_EMAIL || 'alerts@getprompt.app',
+          To: process.env.ALERT_EMAIL || process.env.POSTMARK_SENDER_EMAIL || '',
+          Subject: `[CRITICAL] Cron reminders — all orgs failed`,
+          TextBody: `All ${totalOrgs} orgs failed processing.\n\nErrors:\n${allErrors.map(e => e.message).join('\n')}`,
+        });
+      } catch (alertError) {
+        console.error('Failed to send cron failure alert:', alertError);
+      }
+    }
+
     return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
       success: true,
       orgs_processed: orgs.length,
       total_queued: totalQueued,
@@ -155,6 +215,12 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Cron job failed:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({
+      execution_id: executionId,
+      started_at: startedAt,
+      ended_at: new Date().toISOString(),
+      duration_ms: Date.now() - startTime,
+      error: message,
+    }, { status: 500 });
   }
 }
