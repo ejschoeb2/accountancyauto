@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { getSignedDownloadUrl, resolveProvider } from '@/lib/documents/storage';
+import { getOrgId } from '@/lib/auth/org-context';
 
 // Google Drive downloads may be large PDFs — allow up to 60 seconds on Vercel
 export const maxDuration = 60;
@@ -68,6 +69,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     if (!doc) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    // Verify the document belongs to the authenticated user's organisation
+    const userOrgId = await getOrgId();
+    if (doc.org_id !== userOrgId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (!doc.storage_path) {

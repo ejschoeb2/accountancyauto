@@ -7,10 +7,20 @@
 
 import { render } from '@react-email/render';
 import { ServerClient } from 'postmark';
+import { createHmac } from 'crypto';
 import { postmarkClient } from './client';
 import ReminderEmail from './templates/reminder';
 import { getUserEmailSettings, type EmailSettings } from '@/app/actions/settings';
 import { SupabaseClient } from '@supabase/supabase-js';
+
+/**
+ * Generate an HMAC-SHA256 token for unsubscribe URL authentication.
+ * Prevents IDOR: anyone with only client_id cannot forge a valid unsubscribe link.
+ */
+function buildUnsubscribeUrl(baseUrl: string, clientId: string): string {
+  const token = createHmac('sha256', process.env.CRON_SECRET!).update(clientId).digest('hex');
+  return `${baseUrl}/api/unsubscribe?client_id=${clientId}&token=${token}`;
+}
 
 // Module-level cache for email settings (used by single-tenant server actions)
 // Multi-tenant cron jobs use getEmailFromForOrg() instead
@@ -234,7 +244,7 @@ export async function sendRichEmail(
     const headers: Record<string, string> = {};
     if (params.clientId) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const unsubscribeUrl = `${baseUrl}/api/unsubscribe?client_id=${params.clientId}`;
+      const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, params.clientId);
 
       // List-Unsubscribe header (supports both mailto and https)
       headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`;
@@ -307,7 +317,7 @@ export async function sendRichEmailForOrg(
     const headers: Record<string, string> = {};
     if (params.clientId) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const unsubscribeUrl = `${baseUrl}/api/unsubscribe?client_id=${params.clientId}`;
+      const unsubscribeUrl = buildUnsubscribeUrl(baseUrl, params.clientId);
 
       headers['List-Unsubscribe'] = `<${unsubscribeUrl}>`;
       headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';

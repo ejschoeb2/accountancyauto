@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
+function generateUnsubscribeToken(clientId: string): string {
+  return createHmac('sha256', process.env.CRON_SECRET!).update(clientId).digest('hex');
+}
+
+function verifyUnsubscribeToken(clientId: string, token: string): boolean {
+  const expected = generateUnsubscribeToken(clientId);
+  // Use timingSafeEqual to prevent timing attacks
+  const expectedBuf = Buffer.from(expected, 'hex');
+  const actualBuf = Buffer.from(token, 'hex');
+  if (expectedBuf.length !== actualBuf.length) return false;
+  return timingSafeEqual(expectedBuf, actualBuf);
+}
+
 /**
- * GET /api/unsubscribe?client_id=xxx
+ * GET /api/unsubscribe?client_id=xxx&token=yyy
  * Unsubscribe a client from reminder emails (sets reminders_paused = true)
+ * token is HMAC-SHA256(CRON_SECRET, client_id) — prevents IDOR
  */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const clientId = searchParams.get('client_id');
+    const token = searchParams.get('token');
 
-    if (!clientId) {
+    if (!clientId || !token) {
       return new NextResponse(
         `<!DOCTYPE html>
 <html>
@@ -24,6 +40,23 @@ export async function GET(request: NextRequest) {
 </html>`,
         {
           status: 400,
+          headers: { 'Content-Type': 'text/html' }
+        }
+      );
+    }
+
+    if (!verifyUnsubscribeToken(clientId, token)) {
+      return new NextResponse(
+        `<!DOCTYPE html>
+<html>
+<head><title>Invalid Link</title></head>
+<body style="font-family: sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
+  <h1>Invalid Unsubscribe Link</h1>
+  <p>This unsubscribe link is invalid or has expired. Please use the link from your original email.</p>
+</body>
+</html>`,
+        {
+          status: 403,
           headers: { 'Content-Type': 'text/html' }
         }
       );
@@ -121,16 +154,21 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/unsubscribe
  * One-click unsubscribe endpoint (List-Unsubscribe-Post)
- * Accepts client_id in the body
+ * Accepts client_id and token in the body
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
     const params = new URLSearchParams(body);
     const clientId = params.get('client_id');
+    const token = params.get('token');
 
-    if (!clientId) {
-      return NextResponse.json({ error: 'Missing client_id' }, { status: 400 });
+    if (!clientId || !token) {
+      return NextResponse.json({ error: 'Missing client_id or token' }, { status: 400 });
+    }
+
+    if (!verifyUnsubscribeToken(clientId, token)) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 403 });
     }
 
     const supabase = createServiceClient();

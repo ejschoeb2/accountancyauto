@@ -13,9 +13,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     .eq('token_hash', tokenHash)
     .single();
 
-  if (error || !portalToken) return NextResponse.json({ error: 'Token not found' }, { status: 404 });
-  if (portalToken.revoked_at) return NextResponse.json({ error: 'Token revoked', status: 'revoked' }, { status: 403 });
-  if (new Date(portalToken.expires_at) < new Date()) return NextResponse.json({ error: 'Token expired', status: 'expired' }, { status: 403 });
+  const genericInvalid = NextResponse.json({ error: 'Invalid or expired token' }, { status: 403 });
+  if (error || !portalToken) return genericInvalid;
+  if (portalToken.revoked_at) return genericInvalid;
+  if (new Date(portalToken.expires_at) < new Date()) return genericInvalid;
 
   // Fetch checklist: merge filing_document_requirements with customisations
   const { data: requirements } = await supabase
