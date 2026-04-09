@@ -18,10 +18,32 @@ import {
   type EmailSettings,
   type SetupMode,
   type UploadCheckMode,
-} from './settings-queries';
+} from './settings-types';
 
-// Re-export everything from settings-queries so existing imports continue to work
-export * from './settings-queries';
+// Re-export types/constants from settings-types (not a "use server" file, so safe)
+export { EMAIL_DEFAULTS, EMAIL_KEYS, getDefaultsForDomain } from './settings-types';
+export type { EmailSettings, SetupMode, UploadCheckMode, OrgDomainDnsData, StorageInfo } from './settings-types';
+
+// Re-export async server actions from settings-queries
+export {
+  getOrgCustomDomain,
+  getSendHour,
+  getUserSendHour,
+  getSetupMode,
+  getEmailSettings,
+  getUserEmailSettings,
+  getOnboardingComplete,
+  getMemberSetupComplete,
+  getOrgDomainDnsData,
+  getPostmarkSettings,
+  getStorageInfo,
+  getOrgStorageBackend,
+  getUploadCheckMode,
+  getAutoReceiveVerified,
+  getRejectMismatchedUploads,
+  getClientPortalEnabled,
+  getDocumentCountByBackend,
+} from './settings-queries';
 
 // --- Org-level Send Hour (admin) ---
 

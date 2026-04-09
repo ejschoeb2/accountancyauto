@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Email Templates Page', () => {
   test('templates page loads with heading', async ({ page }) => {

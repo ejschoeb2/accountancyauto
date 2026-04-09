@@ -10,20 +10,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOrgId, getOrgContext } from "@/lib/auth/org-context";
-
-// --- Email Settings type (shared) ---
-
-export interface EmailSettings {
-  senderName: string;
-  senderAddress: string;
-  replyTo: string;
-}
-
-export const EMAIL_DEFAULTS: EmailSettings = {
-  senderName: "Prompt",
-  senderAddress: "hello@prompt.accountants",
-  replyTo: "hello@prompt.accountants",
-};
+import { EMAIL_DEFAULTS, EMAIL_KEYS, getDefaultsForDomain } from './settings-types';
+import type { EmailSettings, SetupMode, OrgDomainDnsData, StorageInfo, UploadCheckMode } from './settings-types';
 
 /**
  * Get the org's verified custom domain from the organisations table.
@@ -41,23 +29,6 @@ export async function getOrgCustomDomain(orgId: string): Promise<string | null> 
   }
   return null;
 }
-
-export function getDefaultsForDomain(domain: string | null): EmailSettings {
-  if (domain) {
-    return {
-      senderName: "Prompt",
-      senderAddress: `hello@${domain}`,
-      replyTo: `hello@${domain}`,
-    };
-  }
-  return EMAIL_DEFAULTS;
-}
-
-export const EMAIL_KEYS = {
-  senderName: "email_sender_name",
-  senderAddress: "email_sender_address",
-  replyTo: "email_reply_to",
-} as const;
 
 // --- Org-level Send Hour (admin) ---
 
@@ -108,8 +79,6 @@ export async function getUserSendHour(): Promise<number> {
 }
 
 // --- Setup Mode ---
-
-export type SetupMode = "demo" | "real";
 
 export async function getSetupMode(): Promise<SetupMode | null> {
   const supabase = await createClient();
@@ -240,16 +209,6 @@ export async function getMemberSetupComplete(): Promise<boolean> {
 
 // --- Domain DNS Data ---
 
-export interface OrgDomainDnsData {
-  domain: string;
-  dkimPendingHost: string;
-  dkimPendingValue: string;
-  returnPathHost: string;
-  returnPathCnameValue: string;
-  dkimVerified: boolean;
-  returnPathVerified: boolean;
-}
-
 export async function getOrgDomainDnsData(): Promise<OrgDomainDnsData | null> {
   const orgId = await getOrgId();
   const admin = createAdminClient();
@@ -306,13 +265,6 @@ export async function getPostmarkSettings(): Promise<{ token: string; senderDoma
 
 // --- Storage: Full info for wizard step ---
 
-export interface StorageInfo {
-  storageBackend: string | null;
-  googleDriveFolderId: string | null;
-  storageBackendStatus: string | null;
-  dropboxConnected: boolean;
-}
-
 export async function getStorageInfo(): Promise<StorageInfo> {
   const { orgId } = await getOrgContext();
   const admin = createAdminClient();
@@ -343,8 +295,6 @@ export async function getOrgStorageBackend(): Promise<string | null> {
 }
 
 // --- Upload Check Mode ---
-
-export type UploadCheckMode = 'none' | 'verify' | 'extract' | 'both';
 
 export async function getUploadCheckMode(): Promise<UploadCheckMode> {
   const admin = createAdminClient();

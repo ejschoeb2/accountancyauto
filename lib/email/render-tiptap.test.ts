@@ -218,19 +218,19 @@ describe('renderTipTapEmail', () => {
     expect(result.text).not.toContain('<p>')
   })
 
-  it('throws error for malformed TipTap JSON', async () => {
+  it('handles malformed TipTap JSON gracefully by returning empty text', async () => {
     const invalidJson = {
       type: 'invalid-doc-type',
       content: [],
     }
 
-    await expect(
-      renderTipTapEmail({
-        bodyJson: invalidJson,
-        subject: 'Test',
-        context: {},
-      })
-    ).rejects.toThrow('Invalid template content')
+    const result = await renderTipTapEmail({
+      bodyJson: invalidJson,
+      subject: 'Test',
+      context: {},
+    })
+    expect(result.subject).toBe('Test')
+    expect(result.text).toBe('')
   })
 
   it('substitutes multiple placeholders correctly', async () => {

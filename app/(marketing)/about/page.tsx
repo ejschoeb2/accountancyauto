@@ -71,6 +71,30 @@ export default function AboutPage() {
                 </p>
               </motion.div>
 
+              {/* Background */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...spring, delay: 0.15 }}
+                className="space-y-4 text-base text-muted-foreground leading-relaxed"
+              >
+                <p>
+                  This wasn&apos;t my first time building tools for small
+                  businesses. Before Prompt, I designed websites and workflow
+                  automations for{" "}
+                  <a
+                    href="https://www.ctheworld.co.uk/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-violet-600 hover:text-violet-700 font-medium transition-colors"
+                  >
+                    C The World
+                  </a>
+                  , giving me a practical grounding in what it actually takes to
+                  build software that real businesses rely on day-to-day.
+                </p>
+              </motion.div>
+
               {/* The solution */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}

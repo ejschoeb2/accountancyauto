@@ -32,7 +32,6 @@
     "test:e2e:headed": "playwright test --headed"
   },
   "dependencies": {
-    "@sentry/nextjs": "^8.0.0",
     "@azure/msal-node": "^5.0.5",
     "@googleapis/drive": "^20.1.0",
     "@hookform/resolvers": "^5.2.2",
@@ -42,6 +41,7 @@
     "@remotion/google-fonts": "^4.0.438",
     "@remotion/tailwind": "^4.0.438",
     "@remotion/transitions": "^4.0.438",
+    "@sentry/nextjs": "^10.47.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.95.3",
     "@tanstack/react-table": "^8.21.3",
@@ -80,6 +80,7 @@
   },
   "devDependencies": {
     "@date-fns/utc": "^2.1.1",
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",

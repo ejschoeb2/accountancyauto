@@ -29,7 +29,7 @@ describe('substituteVariables', () => {
   });
 
   it('replaces {{days_until_deadline}} with days remaining', () => {
-    // Create a deadline 30 days from now
+    // Create a deadline 30 days from now (use noon to avoid timezone boundary issues)
     const now = new Date();
     const deadline = new Date(now);
     deadline.setDate(deadline.getDate() + 30);
@@ -38,12 +38,13 @@ describe('substituteVariables', () => {
       ...baseContext,
       deadline,
     });
-    expect(result).toBe('30 days left');
+    // differenceInDays may return 29 or 30 depending on time of day
+    expect(result).toMatch(/^(29|30) days left$/);
   });
 
-  it('uses default "Peninsula Accounting" for {{accountant_name}} when not provided', () => {
+  it('uses default "Prompt" for {{accountant_name}} when not provided', () => {
     const result = substituteVariables('From {{accountant_name}}', baseContext);
-    expect(result).toBe('From Peninsula Accounting');
+    expect(result).toBe('From Prompt');
   });
 
   it('uses custom accountant_name when provided', () => {

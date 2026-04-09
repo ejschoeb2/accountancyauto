@@ -52,6 +52,15 @@ export const HeroSection = () => {
             <HeroCta browserHovering={browserHovering} onHoverChange={setCtaHovering} />
           </motion.div>
 
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: "spring", stiffness: 100, damping: 12, delay: 0.64 }}
+            className="text-sm text-muted-foreground/70"
+          >
+            Built with accountants, for accountants.
+          </motion.p>
+
         </div>
       </div>
 

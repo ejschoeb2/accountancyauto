@@ -11,6 +11,9 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // Hide Next.js dev overlay on every page — it intercepts pointer events and blocks clicks.
+    // Same approach as the demo recording scripts in /scripts/demo/helpers.ts.
+    actionTimeout: 10000,
   },
   projects: [
     { name: 'setup', testMatch: /.*\.setup\.ts/ },

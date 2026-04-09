@@ -1,0 +1,16 @@
+Stop chasing clients for documents
+
+Hi BNW Accountants,
+
+I'm reaching out because I've been speaking with small accounting practices around the UK and keep hearing about the pains of chasing clients and tracking deadlines.
+
+I built a tool called Prompt, alongside a chartered accountant who runs her own practice, that handles this automatically. It tracks each clients deadlines and sends scheduled reminder emails to them on your behalf. You can find it here:
+
+https://prompt.accountants/
+
+I'm currently looking for a few practices to try it out for free and give honest feedback. If that's something that would interest you, I'd love to have a quick chat to show you how it works. You can book a call for a time that suits you here:
+
+https://calendly.com/ejschoeb/30min
+
+Thanks for your time,
+Ethan
